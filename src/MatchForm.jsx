@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const players = ["Daniel", "Rojan", "Parth", "Rustam", "Robert", "Gäst"]
+const players = ["Deniz", "Svag Rojan", "Parth", "Rustam", "Robert", "Gäst"]
 
 export default function MatchForm({ addMatch }) {
   const [teamA, setTeamA] = useState(["", ""])
