@@ -10,12 +10,11 @@ export default function MatchForm({ addMatch }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Validering
     if (
       teamA.includes("") ||
       teamB.includes("") ||
       teamA.some(p => teamB.includes(p)) ||
-      (setsA < 0 || setsB < 0)
+      setsA < 0 || setsB < 0
     ) {
       alert("Kontrollera spelare och set-resultat!")
       return
@@ -28,10 +27,10 @@ export default function MatchForm({ addMatch }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 20 }}>
+    <form onSubmit={handleSubmit}>
       <h2>Lägg till match</h2>
-      <div style={{ display:'flex', gap:10, marginBottom:10 }}>
-        <div>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+        <div style={{ flex:1 }}>
           <label>Team A</label>
           {teamA.map((val,i)=>(
             <select key={i} value={val} onChange={e=>{
@@ -42,7 +41,7 @@ export default function MatchForm({ addMatch }) {
             </select>
           ))}
         </div>
-        <div>
+        <div style={{ flex:1 }}>
           <label>Team B</label>
           {teamB.map((val,i)=>(
             <select key={i} value={val} onChange={e=>{
@@ -54,11 +53,15 @@ export default function MatchForm({ addMatch }) {
           ))}
         </div>
       </div>
-      <div style={{ display:'flex', gap:10, marginBottom:10 }}>
-        <label>Set Team A</label>
-        <input type="number" value={setsA} onChange={e=>setSetsA(Number(e.target.value))} min={0} />
-        <label>Set Team B</label>
-        <input type="number" value={setsB} onChange={e=>setSetsB(Number(e.target.value))} min={0} />
+      <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginTop:10 }}>
+        <div style={{ flex:1 }}>
+          <label>Set Team A</label>
+          <input type="number" value={setsA} onChange={e=>setSetsA(Number(e.target.value))} min={0} />
+        </div>
+        <div style={{ flex:1 }}>
+          <label>Set Team B</label>
+          <input type="number" value={setsB} onChange={e=>setSetsB(Number(e.target.value))} min={0} />
+        </div>
       </div>
       <button type="submit">Lägg till match</button>
     </form>

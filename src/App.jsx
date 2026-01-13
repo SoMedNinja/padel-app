@@ -3,11 +3,12 @@ import { supabase } from './supabaseClient'
 import MatchForm from './MatchForm'
 import Leaderboard from './Leaderboard'
 import History from './History'
+import WinChart from './WinChart' // ny graf-komponent
+import './index.css'
 
 export default function App() {
   const [matches, setMatches] = useState([])
 
-  // Hämta matcher från Supabase
   const fetchMatches = async () => {
     const { data } = await supabase
       .from('matches')
@@ -31,10 +32,12 @@ export default function App() {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: 'auto', padding: 20, fontFamily: 'sans-serif' }}>
-      <h1>Padel Serien</h1>
+    <div className="container">
+      <h1>🎾 Padel Serien</h1>
+      <img className="pad-img" src="https://images.unsplash.com/photo-1599058917210-37e8e7a3e89e?auto=format&fit=crop&w=600&q=80" alt="Padel match" />
       <MatchForm addMatch={addMatch} />
       <Leaderboard matches={matches} />
+      <WinChart matches={matches} />
       <History matches={matches} deleteMatch={deleteMatch} />
     </div>
   )
