@@ -33,8 +33,8 @@ export default function App() {
 
   return (
     <div className="container">
-      <h1>🎾 Padel Serien</h1>
-      <img className="pad-img" src="https://images.unsplash.com/photo-1599058917210-37e8e7a3e89e?auto=format&fit=crop&w=600&q=80" alt="Padel match" />
+      <h1>🎾 Grabbarnas Serie 🎾</h1>
+      <img className="pad-img" src="https://www.lofthousepadelcourtspecialists.co.uk/wp-content/uploads/lofthouse-padel-71.webp" alt="Padel match" />
       <MatchForm addMatch={addMatch} />
       <Leaderboard matches={matches} />
       <WinChart matches={matches} />
