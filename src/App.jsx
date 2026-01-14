@@ -1,46 +1,47 @@
-import { useState, useEffect } from 'react'
-import { supabase } from './supabaseClient'
-import MatchForm from './MatchForm'
-import Leaderboard from './Leaderboard'
-import History from './History'
-import Heatmap from "./Heatmap"
-import Streaks from "./Streaks"
-import './index.css'
+import { useEffect, useState } from "react";
+import { supabase } from "./supabaseClient";
+
+import MatchForm from "./Components/MatchForm";
+import FilterBar from "./Components/FilterBar";
+import EloLeaderboard from "./Components/EloLeaderboard";
+import Heatmap from "./Components/Heatmap";
+import Streaks from "./Components/Streaks";
+import MVP from "./Components/MVP";
+
+import { filterMatches } from "./Utils/filters";
+import { calculateElo } from "./Utils/elo";
+
+import "./App.css";
 
 export default function App() {
-  const [matches, setMatches] = useState([])
-
-  const fetchMatches = async () => {
-    const { data } = await supabase
-      .from('matches')
-      .select('*')
-      .order('created_at', { ascending: true })
-    setMatches(data || [])
-  }
+  const [matches, setMatches] = useState([]);
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    fetchMatches()
-  }, [])
+    supabase
+      .from("matches")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setMatches(data || []);
+      });
+  }, []);
 
-  const addMatch = async (match) => {
-    await supabase.from('matches').insert([match])
-    fetchMatches()
-  }
-
-  const deleteMatch = async (id) => {
-    await supabase.from('matches').delete().eq('id', id)
-    fetchMatches()
-  }
+  const filteredMatches = filterMatches(matches, filter);
+  const eloData = calculateElo(filteredMatches);
 
   return (
     <div className="container">
-      <h1>🎾 Grabbarnas Serie 🎾</h1>
-      <img className="pad-img" src="https://www.lofthousepadelcourtspecialists.co.uk/wp-content/uploads/lofthouse-padel-71.webp" alt="Padel match" />
-      <MatchForm addMatch={addMatch} />
-      <Leaderboard matches={matches} />
-      <Heatmap matches={matches} />
-      <Streaks matches={matches} />
-      <History matches={matches} deleteMatch={deleteMatch} />
+      <h1>🎾 Padel Tracker</h1>
+
+      <MatchForm onAdd={m => setMatches(prev => [m, ...prev])} />
+      <MVP matches={matches} />
+
+      <FilterBar filter={filter} setFilter={setFilter} />
+
+      <EloLeaderboard data={eloData} />
+      <Heatmap matches={filteredMatches} />
+      <Streaks matches={filteredMatches} />
     </div>
-  )
+  );
 }
