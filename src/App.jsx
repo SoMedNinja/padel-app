@@ -40,7 +40,6 @@ export default function App() {
       <Leaderboard matches={matches} />
       <Heatmap matches={matches} />
       <Streaks matches={matches} />
-      <WinChart matches={matches} />
       <History matches={matches} deleteMatch={deleteMatch} />
     </div>
   )
