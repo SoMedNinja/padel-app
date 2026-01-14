@@ -1,33 +1,35 @@
-import { useState } from "react";
-export default function EloLeaderboard({ data }) {
-  const [sortKey,setSortKey]=useState("elo"); const [asc,setAsc]=useState(false);
-  const sorted=[...data].sort((a,b)=>asc?a[sortKey]-b[sortKey]:b[sortKey]-a[sortKey]);
-  const sortBy=(key)=>{if(key===sortKey)setAsc(!asc);else{setSortKey(key);setAsc(false);}};
+export default function EloLeaderboard({ players }) {
   return (
-    <>
+    <div>
       <h2>ELO Leaderboard</h2>
+
       <table>
         <thead>
           <tr>
-            <th onClick={()=>sortBy("name")}>Namn</th>
-            <th onClick={()=>sortBy("elo")}>ELO</th>
-            <th onClick={()=>sortBy("wins")}>Vinster</th>
-            <th onClick={()=>sortBy("losses")}>Förluster</th>
-            <th onClick={()=>sortBy("played")}>Matcher</th>
+            <th>Spelare</th>
+            <th>ELO</th>
+            <th>Matcher</th>
+            <th>Vinster</th>
+            <th>Vinst %</th>
           </tr>
         </thead>
         <tbody>
-          {sorted.map(p=>(
-            <tr key={p.name}>
-              <td>{p.name}</td>
-              <td>{Math.round(p.elo)}</td>
-              <td>{p.wins}</td>
-              <td>{p.losses}</td>
-              <td>{p.played}</td>
-            </tr>
-          ))}
+          {players.map((p) => {
+            const games = p.wins + p.losses;
+            const winPct = games === 0 ? 0 : Math.round((p.wins / games) * 100);
+
+            return (
+              <tr key={p.name}>
+                <td>{p.name}</td>
+                <td>{Math.round(p.elo)}</td>
+                <td>{games}</td>
+                <td>{p.wins}</td>
+                <td>{winPct}%</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-    </>
+    </div>
   );
 }

@@ -1,23 +1,57 @@
 export default function Heatmap({ matches }) {
-  if (!matches?.length) return null;
-  const pairs = {};
-  matches.forEach(m=>{
-    if(!m||!Array.isArray(m.team1)||!Array.isArray(m.team2)||m.team1_sets==null||m.team2_sets==null) return;
-    const winner = m.team1_sets>m.team2_sets?m.team1:m.team2;
-    const key = winner.sort().join(" & ");
-    if(!key) return;
-    if(!pairs[key]) pairs[key]={wins:0,games:0};
-    pairs[key].wins++; pairs[key].games++;
+  const combos = {};
+
+  matches.forEach((m) => {
+    const teams = [
+      { players: m.team1, won: m.team1_sets > m.team2_sets },
+      { players: m.team2, won: m.team2_sets > m.team1_sets },
+    ];
+
+    teams.forEach(({ players, won }) => {
+      const key = [...players].sort().join(" + ");
+
+      if (!combos[key]) {
+        combos[key] = {
+          players: [...players].sort(),
+          games: 0,
+          wins: 0,
+        };
+      }
+
+      combos[key].games += 1;
+      if (won) combos[key].wins += 1;
+    });
   });
+
+  const rows = Object.values(combos).map((c) => ({
+    ...c,
+    winPct: Math.round((c.wins / c.games) * 100),
+  }));
+
   return (
-    <>
+    <div>
       <h2>Lag-kombinationer</h2>
+
       <table>
-        <thead><tr><th>Lag</th><th>Vinster</th><th>Matcher</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Lag</th>
+            <th>Matcher</th>
+            <th>Vinster</th>
+            <th>Vinst %</th>
+          </tr>
+        </thead>
         <tbody>
-          {Object.entries(pairs).map(([k,v])=><tr key={k}><td>{k}</td><td>{v.wins}</td><td>{v.games}</td></tr>)}
+          {rows.map((r) => (
+            <tr key={r.players.join("-")}>
+              <td>{r.players.join(" & ")}</td>
+              <td>{r.games}</td>
+              <td>{r.wins}</td>
+              <td>{r.winPct}%</td>
+            </tr>
+          ))}
         </tbody>
       </table>
-    </>
+    </div>
   );
 }

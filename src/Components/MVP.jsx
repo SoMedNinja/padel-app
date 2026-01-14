@@ -1,8 +1,8 @@
-export default function MVP({ matches }) {
-  if(!matches?.length) return null;
+export default function MVP({ filteredMatches }) {
+  if(!filteredMatches?.length) return null;
   const cutoff = Date.now()-30*24*60*60*1000;
   const wins={};
-  matches.filter(m=>m.created_at&&new Date(m.created_at).getTime()>cutoff).forEach(m=>{
+  filteredMatches.filter(m=>m.created_at&&new Date(m.created_at).getTime()>cutoff).forEach(m=>{
     if(!m||!Array.isArray(m.team1)||!Array.isArray(m.team2)||m.team1_sets==null||m.team2_sets==null) return;
     const winners=m.team1_sets>m.team2_sets?m.team1:m.team2;
     winners.forEach(p=>{if(!p)return; wins[p]=(wins[p]||0)+1;});

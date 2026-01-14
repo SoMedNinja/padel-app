@@ -41,8 +41,19 @@ export default function App(){
   return (
     <div className="container">
       <h1>🎾 Padel Tracker</h1>
+      <img
+        src="https://image.spreadshirtmedia.net/image-server/v1/products/T1459A839PA4459PT28X13Y0D330406934W7397H10000/views/1,width=800,height=800,appearanceId=839,backgroundColor=F2F2F2/why-i-lose-at-padel-funny-paddle-tennis-gift-sticker.jpg"
+        alt="Padel"
+        style={{
+          width: "100%",
+          maxHeight: 300,
+          objectFit: "cover",
+          borderRadius: 8,
+          marginBottom: 20,
+        }}
+      />
       <MatchForm addMatch={addMatch} />
-      <MVP matches={matches} />
+      <MVP filteredMatches={filteredMatches} />
       <FilterBar filter={filter} setFilter={setFilter} />
       <EloLeaderboard data={eloData} />
       <Heatmap matches={filteredMatches} />
