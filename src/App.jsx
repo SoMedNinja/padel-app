@@ -1,5 +1,6 @@
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+
 import MatchForm from "./Components/MatchForm";
 import FilterBar from "./Components/FilterBar";
 import EloLeaderboard from "./Components/EloLeaderboard";
@@ -7,36 +8,50 @@ import Heatmap from "./Components/Heatmap";
 import Streaks from "./Components/Streaks";
 import MVP from "./Components/MVP";
 import History from "./Components/History";
+
 import { filterMatches } from "./utils/filters";
 import { calculateElo } from "./utils/elo";
+
 import "./App.css";
 
-export default function App(){
-  const [matches,setMatches]=useState([]);
-  const [filter,setFilter]=useState("all");
+export default function App() {
+  const [matches, setMatches] = useState([]);
+  const [filter, setFilter] = useState("all");
 
-  useEffect(()=>{fetchMatches()},[]);
+  // Hämta matcher
+  useEffect(() => {
+    fetchMatches();
+  }, []);
 
-  const fetchMatches=async()=>{
-    const {data,error}=await supabase.from("matches").select("*").order("created_at",{ascending:false});
-    if(error) console.error(error);
-    else setMatches(data||[]);
-  }
+  const fetchMatches = async () => {
+    const { data, error } = await supabase
+      .from("matches")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  const addMatch=async(newMatch)=>{
-    const {data,error}=await supabase.from("matches").insert([newMatch]).select();
-    if(error) console.error(error);
-    else if(data?.length) setMatches([data[0],...matches]);
-  }
+    if (error) console.error("Supabase error:", error);
+    else setMatches(data || []);
+  };
 
-  const deleteMatch=async(id)=>{
-    const {error}=await supabase.from("matches").delete().eq("id",id);
-    if(error) console.error(error);
-    else setMatches(prev=>prev.filter(m=>m.id!==id));
-  }
+  const addMatch = async (newMatch) => {
+    const { data, error } = await supabase
+      .from("matches")
+      .insert([newMatch])
+      .select();
 
-  const filteredMatches=filterMatches(matches||[],filter);
-  const eloData = calculateElo(filteredMatches);
+    if (error) console.error("Supabase error:", error);
+    else if (data?.length) setMatches([data[0], ...matches]);
+  };
+
+  const deleteMatch = async (id) => {
+    const { error } = await supabase.from("matches").delete().eq("id", id);
+    if (error) console.error("Supabase error:", error);
+    else setMatches((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  // Filterade matcher
+  const filteredMatches = filterMatches(matches || [], filter);
+  const eloData = calculateElo(filteredMatches || []);
 
   return (
     <div className="container">
@@ -52,13 +67,14 @@ export default function App(){
           marginBottom: 20,
         }}
       />
+
       <MatchForm addMatch={addMatch} />
       <MVP matches={filteredMatches || []} />
       <FilterBar filter={filter} setFilter={setFilter} />
       <EloLeaderboard players={eloData || []} />
       <Heatmap matches={filteredMatches || []} />
       <Streaks matches={filteredMatches || []} />
-      <History matches={matches || []} deleteMatch={deleteMatch} />
+      <History matches={filteredMatches || []} deleteMatch={deleteMatch} />
     </div>
   );
 }
