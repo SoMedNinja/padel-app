@@ -37,7 +37,7 @@ export default function MatchForm({ addMatch }) {
     <form onSubmit={handleSubmit}>
       <h2>Lägg till match</h2>
 
-      <div style={{ display: "flex", gap: 10 }}>
+      <div style={{ display: "flex", gap: 20 }}>
         <div>
           <h4>Team A</h4>
           {teamA.map((val, i) => (
@@ -83,6 +83,28 @@ export default function MatchForm({ addMatch }) {
         </div>
       </div>
 
-      <div style={{ marginTop: 10 }}>
-        <input
-          type="nu
+      <div style={{ marginTop: 12 }}>
+        <label>Resultat</label>
+        <div>
+          <input
+            type="number"
+            min="0"
+            value={setsA}
+            onChange={(e) => setSetsA(Number(e.target.value))}
+          />
+          {" : "}
+          <input
+            type="number"
+            min="0"
+            value={setsB}
+            onChange={(e) => setSetsB(Number(e.target.value))}
+          />
+        </div>
+      </div>
+
+      <button type="submit" style={{ marginTop: 12 }}>
+        Spara match
+      </button>
+    </form>
+  );
+}
