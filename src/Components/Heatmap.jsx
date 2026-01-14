@@ -1,3 +1,4 @@
+if (!Array.isArray(matches)) return null;
 export default function Heatmap({ matches }) {
   const combos = {};
 

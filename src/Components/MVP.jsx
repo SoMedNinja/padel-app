@@ -1,3 +1,4 @@
+if (!Array.isArray(matches)) return null;
 export default function MVP({ filteredMatches }) {
   if(!filteredMatches?.length) return null;
   const cutoff = Date.now()-30*24*60*60*1000;

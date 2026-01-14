@@ -36,7 +36,7 @@ export default function App(){
   }
 
   const filteredMatches=filterMatches(matches||[],filter);
-  const eloData=calculateElo(filteredMatches||[]);
+  const eloData = calculateElo(filteredMatches);
 
   return (
     <div className="container">
@@ -53,12 +53,12 @@ export default function App(){
         }}
       />
       <MatchForm addMatch={addMatch} />
-      <MVP filteredMatches={filteredMatches} />
+      <MVP matches={filteredMatches || []} />
       <FilterBar filter={filter} setFilter={setFilter} />
-      <EloLeaderboard data={eloData} />
-      <Heatmap matches={filteredMatches} />
-      <Streaks matches={filteredMatches} />
-      <History matches={matches} deleteMatch={deleteMatch} />
+      <EloLeaderboard players={eloData || []} />
+      <Heatmap matches={filteredMatches || []} />
+      <Streaks matches={filteredMatches || []} />
+      <History matches={matches || []} deleteMatch={deleteMatch} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+if (!Array.isArray(matches)) return null;
 export default function History({ matches, deleteMatch }) {
   if (!matches?.length) {
     return <div>Inga matcher sparade.</div>;
