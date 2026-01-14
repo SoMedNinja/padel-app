@@ -1,8 +1,12 @@
+import { useState } from "react";
+
 export default function Streaks({ matches = [] }) {
+  const [sortKey, setSortKey] = useState("best");
+  const [asc, setAsc] = useState(false);
+
   if (!matches.length) return null;
 
   const stats = {};
-
   matches.forEach((m) => {
     const winners = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
     const losers = m.team1_sets > m.team2_sets ? m.team2 : m.team1;
@@ -19,23 +23,38 @@ export default function Streaks({ matches = [] }) {
     });
   });
 
+  let rows = Object.entries(stats).map(([name, s]) => ({ name, ...s }));
+
+  rows.sort((a, b) => {
+    let valA = a[sortKey], valB = b[sortKey];
+    return asc ? valA - valB : valB - valA;
+  });
+
+  const handleSort = (key) => {
+    if (key === sortKey) setAsc(!asc);
+    else {
+      setSortKey(key);
+      setAsc(false);
+    }
+  };
+
   return (
     <div>
       <h2>Streaks</h2>
       <table>
         <thead>
           <tr>
-            <th>Spelare</th>
-            <th>Nuvarande streak</th>
-            <th>Längsta streak</th>
+            <th onClick={() => handleSort("name")}>Spelare</th>
+            <th onClick={() => handleSort("current")}>Nuvarande streak</th>
+            <th onClick={() => handleSort("best")}>Längsta streak</th>
           </tr>
         </thead>
         <tbody>
-          {Object.entries(stats).map(([name, s]) => (
-            <tr key={name}>
-              <td>{name}</td>
-              <td>{s.current}</td>
-              <td>{s.best}</td>
+          {rows.map((r) => (
+            <tr key={r.name}>
+              <td>{r.name}</td>
+              <td>{r.current}</td>
+              <td>{r.best}</td>
             </tr>
           ))}
         </tbody>

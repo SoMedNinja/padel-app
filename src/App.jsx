@@ -27,8 +27,7 @@ export default function App() {
       .from("matches")
       .select("*")
       .order("created_at", { ascending: false });
-
-    if (error) console.error("Supabase error:", error);
+    if (error) console.error(error);
     else setMatches(data || []);
   };
 
@@ -37,14 +36,13 @@ export default function App() {
       .from("matches")
       .insert([newMatch])
       .select();
-
-    if (error) console.error("Supabase error:", error);
+    if (error) console.error(error);
     else if (data?.length) setMatches([data[0], ...matches]);
   };
 
   const deleteMatch = async (id) => {
     const { error } = await supabase.from("matches").delete().eq("id", id);
-    if (error) console.error("Supabase error:", error);
+    if (error) console.error(error);
     else setMatches((prev) => prev.filter((m) => m.id !== id));
   };
 
@@ -67,12 +65,12 @@ export default function App() {
       />
 
       <MatchForm addMatch={addMatch} />
-      <MVP matches={filteredMatches} />
+      <MVP matches={filteredMatches || []} />
       <FilterBar filter={filter} setFilter={setFilter} />
-      <EloLeaderboard players={eloData} />
-      <Heatmap matches={filteredMatches} />
-      <Streaks matches={filteredMatches} />
-      <History matches={filteredMatches} deleteMatch={deleteMatch} />
+      <EloLeaderboard players={eloData || []} />
+      <Heatmap matches={filteredMatches || []} />
+      <Streaks matches={filteredMatches || []} />
+      <History matches={matches || []} deleteMatch={deleteMatch} />
     </div>
   );
 }

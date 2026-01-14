@@ -1,8 +1,12 @@
+import { useState } from "react";
+
 export default function Heatmap({ matches = [] }) {
+  const [sortKey, setSortKey] = useState("games");
+  const [asc, setAsc] = useState(false);
+
   if (!matches.length) return null;
 
   const combos = {};
-
   matches.forEach((m) => {
     const teams = [
       { players: m.team1, won: m.team1_sets > m.team2_sets },
@@ -11,18 +15,29 @@ export default function Heatmap({ matches = [] }) {
 
     teams.forEach(({ players, won }) => {
       const key = [...players].sort().join(" + ");
-      if (!combos[key]) {
-        combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
-      }
-      combos[key].games += 1;
-      if (won) combos[key].wins += 1;
+      if (!combos[key]) combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
+      combos[key].games++;
+      if (won) combos[key].wins++;
     });
   });
 
-  const rows = Object.values(combos).map((c) => ({
-    ...c,
-    winPct: Math.round((c.wins / c.games) * 100),
-  }));
+  let rows = Object.values(combos).map((c) => ({ ...c, winPct: Math.round((c.wins / c.games) * 100) }));
+
+  rows.sort((a, b) => {
+    let valA = a[sortKey], valB = b[sortKey];
+    if (sortKey === "winPct") {
+      valA = a.winPct; valB = b.winPct;
+    }
+    return asc ? valA - valB : valB - valA;
+  });
+
+  const handleSort = (key) => {
+    if (key === sortKey) setAsc(!asc);
+    else {
+      setSortKey(key);
+      setAsc(false);
+    }
+  };
 
   return (
     <div>
@@ -30,10 +45,10 @@ export default function Heatmap({ matches = [] }) {
       <table>
         <thead>
           <tr>
-            <th>Lag</th>
-            <th>Matcher</th>
-            <th>Vinster</th>
-            <th>Vinst %</th>
+            <th onClick={() => handleSort("players")}>Lag</th>
+            <th onClick={() => handleSort("games")}>Matcher</th>
+            <th onClick={() => handleSort("wins")}>Vinster</th>
+            <th onClick={() => handleSort("winPct")}>Vinst %</th>
           </tr>
         </thead>
         <tbody>
