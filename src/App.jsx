@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 
-import MatchForm from "./Components/MatchForm";
-import FilterBar from "./Components/FilterBar";
-import EloLeaderboard from "./Components/EloLeaderboard";
-import Heatmap from "./Components/Heatmap";
-import Streaks from "./Components/Streaks";
-import MVP from "./Components/MVP";
+import MatchForm from "./components/MatchForm";
+import FilterBar from "./components/FilterBar";
+import EloLeaderboard from "./components/EloLeaderboard";
+import Heatmap from "./components/Heatmap";
+import Streaks from "./components/Streaks";
+import MVP from "./components/MVP";
 
-import { filterMatches } from "./Utils/filters";
-import { calculateElo } from "./Utils/elo";
+import { filterMatches } from "./utils/filters";
+import { calculateElo } from "./utils/elo";
 
 import "./App.css";
 
