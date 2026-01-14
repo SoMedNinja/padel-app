@@ -65,7 +65,7 @@ export default function App() {
       />
 
       <MatchForm addMatch={addMatch} />
-      <MVP matches={filteredMatches || []} />
+      <MVP matches={filteredMatches || []} players={eloData || []} />
       <FilterBar filter={filter} setFilter={setFilter} />
       <EloLeaderboard players={eloData || []} />
       <Heatmap matches={filteredMatches || []} />
