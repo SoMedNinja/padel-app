@@ -1,6 +1,5 @@
 export default function History({ matches = [], deleteMatch }) {
-  if (!Array.isArray(matches) || matches.length === 0) {
-    return <div>Inga matcher sparade.</div>;
+  if (!matches.length) return <div>Inga matcher sparade.</div>;
   }
 
   return (

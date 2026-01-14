@@ -1,8 +1,11 @@
-export default function Heatmap({ matches }) {
-  if (!Array.isArray(matches)) return null;
+export default function Heatmap({ matches = [] }) {
+  if (!matches.length) return null;
+
   const combos = {};
 
   matches.forEach((m) => {
+    if (!m.team1 || !m.team2) return;
+
     const teams = [
       { players: m.team1, won: m.team1_sets > m.team2_sets },
       { players: m.team2, won: m.team2_sets > m.team1_sets },
@@ -10,14 +13,7 @@ export default function Heatmap({ matches }) {
 
     teams.forEach(({ players, won }) => {
       const key = [...players].sort().join(" + ");
-
-      if (!combos[key]) {
-        combos[key] = {
-          players: [...players].sort(),
-          games: 0,
-          wins: 0,
-        };
-      }
+      if (!combos[key]) combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
 
       combos[key].games += 1;
       if (won) combos[key].wins += 1;
@@ -32,7 +28,6 @@ export default function Heatmap({ matches }) {
   return (
     <div>
       <h2>Lag-kombinationer</h2>
-
       <table>
         <thead>
           <tr>

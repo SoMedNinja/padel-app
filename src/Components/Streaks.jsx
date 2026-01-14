@@ -1,31 +1,29 @@
-export default function Streaks({ matches }) {
-  if (!Array.isArray(matches)) return null;
+export default function Streaks({ matches = [] }) {
+  if (!matches.length) return null;
+
   const stats = {};
 
   matches.forEach((m) => {
-    const winners =
-      m.team1_sets > m.team2_sets ? m.team1 : m.team2;
-    const losers =
-      m.team1_sets > m.team2_sets ? m.team2 : m.team1;
+    if (!m.team1 || !m.team2) return;
+
+    const winners = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
+    const losers = m.team1_sets > m.team2_sets ? m.team2 : m.team1;
 
     winners.forEach((p) => {
       if (!stats[p]) stats[p] = { current: 0, best: 0 };
       stats[p].current += 1;
-      if (stats[p].current > stats[p].best) {
-        stats[p].best = stats[p].current;
-      }
+      if (stats[p].current > stats[p].best) stats[p].best = stats[p].current;
     });
 
     losers.forEach((p) => {
       if (!stats[p]) stats[p] = { current: 0, best: 0 };
-      stats[p].current = 0;
+      stats[p].current = 0; // reset nuvarande streak vid förlust
     });
   });
 
   return (
     <div>
       <h2>Streaks</h2>
-
       <table>
         <thead>
           <tr>

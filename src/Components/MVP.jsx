@@ -1,5 +1,5 @@
-export default function MVP({ filteredMatches }) {
-  if (!Array.isArray(matches)) return null;
+export default function MVP({ matches = [] }) {
+  if (!matches.length) return null;
   if(!filteredMatches?.length) return null;
   const cutoff = Date.now()-30*24*60*60*1000;
   const wins={};
