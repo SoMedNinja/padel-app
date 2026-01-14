@@ -14,11 +14,9 @@ export default function MatchForm({ addMatch }) {
     if (
       teamA.includes("") ||
       teamB.includes("") ||
-      teamA.some((p) => teamB.includes(p)) ||
-      setsA < 0 ||
-      setsB < 0
+      teamA.some((p) => teamB.includes(p))
     ) {
-      alert("Kontrollera spelare och set-resultat!");
+      alert("Kontrollera spelare!");
       return;
     }
 
@@ -40,11 +38,51 @@ export default function MatchForm({ addMatch }) {
       <h2>Lägg till match</h2>
 
       <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}>
-          <label>Team A</label>
+        <div>
+          <h4>Team A</h4>
           {teamA.map((val, i) => (
             <select
               key={i}
               value={val}
               onChange={(e) => {
-                const t = [...]()
+                const t = [...teamA];
+                t[i] = e.target.value;
+                setTeamA(t);
+              }}
+            >
+              <option value="">Välj spelare</option>
+              {players.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          ))}
+        </div>
+
+        <div>
+          <h4>Team B</h4>
+          {teamB.map((val, i) => (
+            <select
+              key={i}
+              value={val}
+              onChange={(e) => {
+                const t = [...teamB];
+                t[i] = e.target.value;
+                setTeamB(t);
+              }}
+            >
+              <option value="">Välj spelare</option>
+              {players.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 10 }}>
+        <input
+          type="nu
