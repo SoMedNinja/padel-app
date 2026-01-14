@@ -51,9 +51,9 @@ export default function App() {
 
   return (
     <div className="container">
-      <h1>🎾 Padel Tracker</h1>
+      <h1>🎾 Grabbarna Padel serie 🎾</h1>
       <img
-        src="https://image.spreadshirtmedia.net/image-server/v1/products/T1459A839PA4459PT28X13Y0D330406934W7397H10000/views/1,width=800,height=800,appearanceId=839,backgroundColor=F2F2F2/why-i-lose-at-padel-funny-paddle-tennis-gift-sticker.jpg"
+        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDZWbUaweXM_U65wOYjii388InjcWi8d2Emg&s"
         alt="Padel"
         style={{
           width: "100%",
