@@ -1,6 +1,5 @@
-if (!Array.isArray(matches)) return null;
-export default function History({ matches, deleteMatch }) {
-  if (!matches?.length) {
+export default function History({ matches = [], deleteMatch }) {
+  if (!Array.isArray(matches) || matches.length === 0) {
     return <div>Inga matcher sparade.</div>;
   }
 
@@ -11,8 +10,8 @@ export default function History({ matches, deleteMatch }) {
       <table>
         <thead>
           <tr>
-            <th>Team A</th>
-            <th>Team B</th>
+            <th>Lag A</th>
+            <th>Lag B</th>
             <th>Resultat</th>
             <th>Radera</th>
           </tr>
@@ -20,10 +19,10 @@ export default function History({ matches, deleteMatch }) {
         <tbody>
           {matches.map((m) => (
             <tr key={m.id}>
-              <td>{m.team1.join(", ")}</td>
-              <td>{m.team2.join(", ")}</td>
+              <td>{m.team1.join(" & ")}</td>
+              <td>{m.team2.join(" & ")}</td>
               <td>
-                {m.team1_sets} : {m.team2_sets}
+                {m.team1_sets} – {m.team2_sets}
               </td>
               <td>
                 <button onClick={() => deleteMatch(m.id)}>Radera</button>

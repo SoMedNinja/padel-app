@@ -1,5 +1,5 @@
-if (!Array.isArray(matches)) return null;
 export default function Streaks({ matches }) {
+  if (!Array.isArray(matches)) return null;
   const stats = {};
 
   matches.forEach((m) => {

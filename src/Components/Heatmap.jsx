@@ -1,5 +1,5 @@
-if (!Array.isArray(matches)) return null;
 export default function Heatmap({ matches }) {
+  if (!Array.isArray(matches)) return null;
   const combos = {};
 
   matches.forEach((m) => {
