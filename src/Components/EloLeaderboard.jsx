@@ -1,6 +1,4 @@
 export default function EloLeaderboard({ players = [] }) {
-  if (!players.length) return null;
-
   return (
     <div>
       <h2>ELO Leaderboard</h2>
@@ -16,7 +14,7 @@ export default function EloLeaderboard({ players = [] }) {
         </thead>
         <tbody>
           {players.map((p) => {
-            const games = (p.wins || 0) + (p.losses || 0);
+            const games = p.wins + p.losses;
             const winPct = games === 0 ? 0 : Math.round((p.wins / games) * 100);
             return (
               <tr key={p.name}>

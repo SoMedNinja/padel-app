@@ -4,8 +4,6 @@ export default function Heatmap({ matches = [] }) {
   const combos = {};
 
   matches.forEach((m) => {
-    if (!m.team1 || !m.team2) return;
-
     const teams = [
       { players: m.team1, won: m.team1_sets > m.team2_sets },
       { players: m.team2, won: m.team2_sets > m.team1_sets },
@@ -13,8 +11,9 @@ export default function Heatmap({ matches = [] }) {
 
     teams.forEach(({ players, won }) => {
       const key = [...players].sort().join(" + ");
-      if (!combos[key]) combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
-
+      if (!combos[key]) {
+        combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
+      }
       combos[key].games += 1;
       if (won) combos[key].wins += 1;
     });

@@ -18,7 +18,6 @@ export default function App() {
   const [matches, setMatches] = useState([]);
   const [filter, setFilter] = useState("all");
 
-  // Hämta matcher
   useEffect(() => {
     fetchMatches();
   }, []);
@@ -49,7 +48,6 @@ export default function App() {
     else setMatches((prev) => prev.filter((m) => m.id !== id));
   };
 
-  // Filterade matcher
   const filteredMatches = filterMatches(matches || [], filter);
   const eloData = calculateElo(filteredMatches || []);
 
@@ -69,12 +67,12 @@ export default function App() {
       />
 
       <MatchForm addMatch={addMatch} />
-      <MVP matches={filteredMatches || []} />
+      <MVP matches={filteredMatches} />
       <FilterBar filter={filter} setFilter={setFilter} />
-      <EloLeaderboard players={eloData || []} />
-      <Heatmap matches={filteredMatches || []} />
-      <Streaks matches={filteredMatches || []} />
-      <History matches={filteredMatches || []} deleteMatch={deleteMatch} />
+      <EloLeaderboard players={eloData} />
+      <Heatmap matches={filteredMatches} />
+      <Streaks matches={filteredMatches} />
+      <History matches={filteredMatches} deleteMatch={deleteMatch} />
     </div>
   );
 }

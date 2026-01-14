@@ -4,8 +4,6 @@ export default function Streaks({ matches = [] }) {
   const stats = {};
 
   matches.forEach((m) => {
-    if (!m.team1 || !m.team2) return;
-
     const winners = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
     const losers = m.team1_sets > m.team2_sets ? m.team2 : m.team1;
 
@@ -17,7 +15,7 @@ export default function Streaks({ matches = [] }) {
 
     losers.forEach((p) => {
       if (!stats[p]) stats[p] = { current: 0, best: 0 };
-      stats[p].current = 0; // reset nuvarande streak vid förlust
+      stats[p].current = 0;
     });
   });
 
