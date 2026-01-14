@@ -3,8 +3,17 @@ export default function Heatmap({ matches }) {
 
   const pairs = {};
 
-  matches.forEach((m) => {
-    if (!m?.team1 || !m?.team2 || m.team1_sets == null || m.team2_sets == null) return;
+  matches.forEach((m, i) => {
+    if (
+      !m ||
+      !Array.isArray(m.team1) ||
+      !Array.isArray(m.team2) ||
+      m.team1_sets == null ||
+      m.team2_sets == null
+    ) {
+      console.warn("Skipping invalid match", i, m);
+      return;
+    }
 
     const winner = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
     if (!Array.isArray(winner)) return;

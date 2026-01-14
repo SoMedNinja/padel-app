@@ -7,6 +7,7 @@ import EloLeaderboard from "./Components/EloLeaderboard";
 import Heatmap from "./Components/Heatmap";
 import Streaks from "./Components/Streaks";
 import MVP from "./Components/MVP";
+import History from "./Components/History";
 
 import { filterMatches } from "./utils/filters";
 import { calculateElo } from "./utils/elo";
@@ -17,7 +18,7 @@ export default function App() {
   const [matches, setMatches] = useState([]);
   const [filter, setFilter] = useState("all");
 
-  // Hämta matcher från Supabase
+  // Hämta matcher
   useEffect(() => {
     supabase
       .from("matches")
@@ -34,33 +35,33 @@ export default function App() {
       });
   }, []);
 
-  // Filtrera matcher baserat på filterval
   const filteredMatches = filterMatches(matches || [], filter) || [];
-
-  // Beräkna ELO för filtrerade matcher
   const eloData = calculateElo(filteredMatches || []);
+
+  const deleteMatch = (id) => {
+    setMatches(prev => prev.filter(m => m.id !== id));
+    supabase.from("matches").delete().eq("id", id).then(({error})=>{
+      if(error) console.error("Error deleting match:", error)
+    });
+  };
 
   return (
     <div className="container">
       <h1>🎾 Padel Tracker</h1>
 
-      {/* Lägg till match */}
-      <MatchForm onAdd={(newMatch) => setMatches((prev) => [newMatch, ...prev])} />
+      <MatchForm addMatch={(newMatch) => setMatches([newMatch, ...matches])} />
 
-      {/* MVP från senaste 30 dagarna */}
       <MVP matches={matches || []} />
 
-      {/* Filter */}
       <FilterBar filter={filter} setFilter={setFilter} />
 
-      {/* Leaderboard */}
       <EloLeaderboard data={eloData} />
 
-      {/* Lag-kombinationer */}
       <Heatmap matches={filteredMatches || []} />
 
-      {/* Streaks */}
       <Streaks matches={filteredMatches || []} />
+
+      <History matches={matches || []} deleteMatch={deleteMatch} />
     </div>
   );
 }

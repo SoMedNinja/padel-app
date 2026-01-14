@@ -1,14 +1,28 @@
 export default function MVP({ matches }) {
+  if (!matches?.length) return null;
+
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const wins = {};
 
   matches
-    .filter(m => new Date(m.created_at).getTime() > cutoff)
-    .forEach(m => {
-      const winners =
-        m.team1_sets > m.team2_sets ? m.team1 : m.team2;
+    .filter((m) => m.created_at && new Date(m.created_at).getTime() > cutoff)
+    .forEach((m, i) => {
+      if (
+        !m ||
+        !Array.isArray(m.team1) ||
+        !Array.isArray(m.team2) ||
+        m.team1_sets == null ||
+        m.team2_sets == null
+      ) {
+        console.warn("Skipping invalid match in MVP", i, m);
+        return;
+      }
 
-      winners.forEach(p => {
+      const winners = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
+      if (!Array.isArray(winners)) return;
+
+      winners.forEach((p) => {
+        if (!p) return;
         wins[p] = (wins[p] || 0) + 1;
       });
     });

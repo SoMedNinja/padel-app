@@ -6,23 +6,26 @@ export function calculateElo(matches) {
   function init(name) {
     if (!name) return;
     if (!players[name]) {
-      players[name] = {
-        name,
-        elo: 1000,
-        wins: 0,
-        losses: 0,
-        played: 0,
-      };
+      players[name] = { name, elo: 1000, wins: 0, losses: 0, played: 0 };
     }
   }
 
   if (!Array.isArray(matches)) return [];
 
-  matches.forEach((m) => {
-    if (!m || !m.team1 || !m.team2) return;
+  matches.forEach((m, i) => {
+    if (
+      !m ||
+      !Array.isArray(m.team1) ||
+      !Array.isArray(m.team2) ||
+      m.team1_sets == null ||
+      m.team2_sets == null
+    ) {
+      console.warn("Skipping invalid match", i, m);
+      return;
+    }
 
-    const t1 = Array.isArray(m.team1) ? m.team1 : [];
-    const t2 = Array.isArray(m.team2) ? m.team2 : [];
+    const t1 = m.team1 || [];
+    const t2 = m.team2 || [];
 
     t1.forEach(init);
     t2.forEach(init);
