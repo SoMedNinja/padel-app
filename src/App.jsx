@@ -3,7 +3,8 @@ import { supabase } from './supabaseClient'
 import MatchForm from './MatchForm'
 import Leaderboard from './Leaderboard'
 import History from './History'
-import WinChart from './WinChart' // ny graf-komponent
+import Heatmap from "./Heatmap"
+import Streaks from "./Streaks"
 import './index.css'
 
 export default function App() {
@@ -37,6 +38,8 @@ export default function App() {
       <img className="pad-img" src="https://www.lofthousepadelcourtspecialists.co.uk/wp-content/uploads/lofthouse-padel-71.webp" alt="Padel match" />
       <MatchForm addMatch={addMatch} />
       <Leaderboard matches={matches} />
+      <Heatmap matches={matches} />
+      <Streaks matches={matches} />
       <WinChart matches={matches} />
       <History matches={matches} deleteMatch={deleteMatch} />
     </div>
