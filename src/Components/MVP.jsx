@@ -9,6 +9,7 @@ export default function MVP({ matches = [] }) {
     .forEach((m) => {
       const winners = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
       winners.forEach((p) => {
+        if (p === "Gäst") return;
         if (!p) return;
         wins[p] = (wins[p] || 0) + 1;
       });

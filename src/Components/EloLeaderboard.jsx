@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 export default function EloLeaderboard({ players = [] }) {
+  const filteredPlayers = players.filter(p => p.name !== "Gäst");
   const [sortKey, setSortKey] = useState("elo");
   const [asc, setAsc] = useState(false);
 
@@ -49,7 +50,7 @@ export default function EloLeaderboard({ players = [] }) {
           </tr>
         </thead>
         <tbody>
-          {sortedPlayers.map((p) => {
+          {filteredPlayers.map((p) => {
             const games = p.wins + p.losses;
             const winPct = games === 0 ? 0 : Math.round((p.wins / games) * 100);
             return (

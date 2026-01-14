@@ -12,12 +12,14 @@ export default function Streaks({ matches = [] }) {
     const losers = m.team1_sets > m.team2_sets ? m.team2 : m.team1;
 
     winners.forEach((p) => {
+      if (p === "Gäst") return;
       if (!stats[p]) stats[p] = { current: 0, best: 0 };
       stats[p].current += 1;
       if (stats[p].current > stats[p].best) stats[p].best = stats[p].current;
     });
 
     losers.forEach((p) => {
+      if (p === "Gäst") return;
       if (!stats[p]) stats[p] = { current: 0, best: 0 };
       stats[p].current = 0;
     });

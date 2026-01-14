@@ -14,6 +14,7 @@ export default function Heatmap({ matches = [] }) {
     ];
 
     teams.forEach(({ players, won }) => {
+      if (players.includes("Gäst")) return;
       const key = [...players].sort().join(" + ");
       if (!combos[key]) combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
       combos[key].games++;
