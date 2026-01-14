@@ -3,11 +3,15 @@ export default function Streaks({ matches }) {
 
   const streaks = {};
 
-  matches.forEach(m => {
-    const winners =
-      m.team1_sets > m.team2_sets ? m.team1 : m.team2;
+  matches.forEach((m) => {
+    if (!m?.team1 || !m?.team2 || m.team1_sets == null || m.team2_sets == null) return;
 
-    winners.forEach(p => {
+    const winners = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
+
+    if (!Array.isArray(winners)) return;
+
+    winners.forEach((p) => {
+      if (!p) return;
       streaks[p] = (streaks[p] || 0) + 1;
     });
   });

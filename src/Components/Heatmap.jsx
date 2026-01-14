@@ -3,9 +3,14 @@ export default function Heatmap({ matches }) {
 
   const pairs = {};
 
-  matches.forEach(m => {
+  matches.forEach((m) => {
+    if (!m?.team1 || !m?.team2 || m.team1_sets == null || m.team2_sets == null) return;
+
     const winner = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
-    const key = winner.sort().join(" & ");
+    if (!Array.isArray(winner)) return;
+
+    const key = [...winner].sort().join(" & ");
+    if (!key) return;
 
     if (!pairs[key]) pairs[key] = { wins: 0, games: 0 };
     pairs[key].wins++;

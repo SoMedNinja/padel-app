@@ -8,8 +8,8 @@ import Heatmap from "./Components/Heatmap";
 import Streaks from "./Components/Streaks";
 import MVP from "./Components/MVP";
 
-import { filterMatches } from "./utils/filters"; // små bokstäver
-import { calculateElo } from "./utils/elo";      // små bokstäver
+import { filterMatches } from "./utils/filters";
+import { calculateElo } from "./utils/elo";
 
 import "./App.css";
 
@@ -23,16 +23,22 @@ export default function App() {
       .from("matches")
       .select("*")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setMatches(data || []);
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Supabase error:", error);
+          setMatches([]);
+        } else {
+          console.log("Matches from Supabase:", data);
+          setMatches(data || []);
+        }
       });
   }, []);
 
   // Filtrera matcher baserat på filterval
-  const filteredMatches = filterMatches(matches, filter);
+  const filteredMatches = filterMatches(matches || [], filter) || [];
 
   // Beräkna ELO för filtrerade matcher
-  const eloData = calculateElo(filteredMatches);
+  const eloData = calculateElo(filteredMatches || []);
 
   return (
     <div className="container">
@@ -42,7 +48,7 @@ export default function App() {
       <MatchForm onAdd={(newMatch) => setMatches((prev) => [newMatch, ...prev])} />
 
       {/* MVP från senaste 30 dagarna */}
-      <MVP matches={matches} />
+      <MVP matches={matches || []} />
 
       {/* Filter */}
       <FilterBar filter={filter} setFilter={setFilter} />
@@ -51,10 +57,10 @@ export default function App() {
       <EloLeaderboard data={eloData} />
 
       {/* Lag-kombinationer */}
-      <Heatmap matches={filteredMatches} />
+      <Heatmap matches={filteredMatches || []} />
 
       {/* Streaks */}
-      <Streaks matches={filteredMatches} />
+      <Streaks matches={filteredMatches || []} />
     </div>
   );
 }

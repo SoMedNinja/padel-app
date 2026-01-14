@@ -4,6 +4,7 @@ export function calculateElo(matches) {
   const players = {};
 
   function init(name) {
+    if (!name) return;
     if (!players[name]) {
       players[name] = {
         name,
@@ -15,35 +16,31 @@ export function calculateElo(matches) {
     }
   }
 
-  matches.forEach(m => {
-    const team1 = m.team1;
-    const team2 = m.team2;
+  if (!Array.isArray(matches)) return [];
 
-    team1.forEach(init);
-    team2.forEach(init);
+  matches.forEach((m) => {
+    if (!m || !m.team1 || !m.team2) return;
 
-    const team1Elo =
-      team1.reduce((s, p) => s + players[p].elo, 0) / team1.length;
-    const team2Elo =
-      team2.reduce((s, p) => s + players[p].elo, 0) / team2.length;
+    const t1 = Array.isArray(m.team1) ? m.team1 : [];
+    const t2 = Array.isArray(m.team2) ? m.team2 : [];
 
-    const expected1 = 1 / (1 + 10 ** ((team2Elo - team1Elo) / 400));
-    const expected2 = 1 - expected1;
+    t1.forEach(init);
+    t2.forEach(init);
 
     const team1Won = m.team1_sets > m.team2_sets;
 
-    team1.forEach(p => {
+    t1.forEach((p) => {
+      if (!p) return;
       players[p].played++;
-      if (team1Won) players[p].wins++;
-      else players[p].losses++;
-      players[p].elo += K * ((team1Won ? 1 : 0) - expected1);
+      team1Won ? players[p].wins++ : players[p].losses++;
+      players[p].elo += team1Won ? K : -K;
     });
 
-    team2.forEach(p => {
+    t2.forEach((p) => {
+      if (!p) return;
       players[p].played++;
-      if (!team1Won) players[p].wins++;
-      else players[p].losses++;
-      players[p].elo += K * ((!team1Won ? 1 : 0) - expected2);
+      !team1Won ? players[p].wins++ : players[p].losses++;
+      players[p].elo += !team1Won ? K : -K;
     });
   });
 
