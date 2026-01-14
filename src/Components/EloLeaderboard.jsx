@@ -22,11 +22,11 @@ export default function EloLeaderboard({ data }) {
       <table>
         <thead>
           <tr>
-            {["name", "elo", "wins", "losses", "played"].map(k => (
-              <th key={k} onClick={() => sortBy(k)}>
-                {k.toUpperCase()}
-              </th>
-            ))}
+            <th onClick={() => sortBy("name")}>Namn</th>
+            <th onClick={() => sortBy("elo")}>ELO</th>
+            <th onClick={() => sortBy("wins")}>Vinster</th>
+            <th onClick={() => sortBy("losses")}>Förluster</th>
+            <th onClick={() => sortBy("played")}>Matcher</th>
           </tr>
         </thead>
         <tbody>
@@ -44,3 +44,4 @@ export default function EloLeaderboard({ data }) {
     </>
   );
 }
+
