@@ -77,8 +77,8 @@ export default function App() {
       {/* MVP senaste 30 dagar */}
       <MVP matches={filteredMatches || []} players={eloData || []} />
 
-      {/* Kvällens MVP (baserat på filtrerade matcher) */}
-      <EveningMVP matches={filteredMatches || []} />
+      {/* Kvällens MVP */}
+      <EveningMVP matches={filteredMatches || []} players={eloData || []} />
 
       <FilterBar filter={filter} setFilter={setFilter} />
 

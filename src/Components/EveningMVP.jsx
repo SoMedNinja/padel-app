@@ -43,8 +43,11 @@ export default function EveningMVP({ matches = [], players = [] }) {
   // Beräkna poäng
   const scored = Object.entries(stats).map(([name, s]) => {
     const winPct = s.wins / (s.games || 1);
-    const trendScore = s.trend.slice(-3).filter(r => r === "W").length;
-    const eloDelta = Math.round((players.find(p => p.name === name)?.elo || 1000) - (players.find(p => p.name === name)?.startElo || 1000));
+    const trendScore = s.trend.slice(-3).filter((r) => r === "W").length;
+    const eloDelta = Math.round(
+      (players.find((p) => p.name === name)?.elo || 1000) -
+        (players.find((p) => p.name === name)?.startElo || 1000)
+    );
 
     const score = s.wins * 3 + winPct * 5 + s.games + trendScore * 2;
 
@@ -54,7 +57,7 @@ export default function EveningMVP({ matches = [], players = [] }) {
       wins: s.wins,
       games: s.games,
       winPct: Math.round(winPct * 100),
-      eloDelta
+      eloDelta,
     };
   });
 

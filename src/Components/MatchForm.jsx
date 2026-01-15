@@ -5,8 +5,8 @@ const players = ["Deniz", "Svag Rojan", "Parth", "Rustam", "Robert", "Gäst"];
 export default function MatchForm({ addMatch }) {
   const [teamA, setTeamA] = useState(["", ""]);
   const [teamB, setTeamB] = useState(["", ""]);
-  const [setsA, setSetsA] = useState(0);
-  const [setsB, setSetsB] = useState(0);
+  const [setsA, setSetsA] = useState("");
+  const [setsB, setSetsB] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -23,14 +23,19 @@ export default function MatchForm({ addMatch }) {
     addMatch({
       team1: teamA,
       team2: teamB,
-      team1_sets: setsA,
-      team2_sets: setsB,
+      team1_sets: Number(setsA),
+      team2_sets: Number(setsB),
     });
 
     setTeamA(["", ""]);
     setTeamB(["", ""]);
-    setSetsA(0);
-    setSetsB(0);
+    setSetsA("");
+    setSetsB("");
+  };
+
+  const handleSetChange = (setter) => (e) => {
+    const val = e.target.value.replace(/\D/g, ""); // bara siffror
+    if (val.length <= 2) setter(val);
   };
 
   return (
@@ -87,17 +92,15 @@ export default function MatchForm({ addMatch }) {
         <label>Resultat</label>
         <div>
           <input
-            type="number"
-            min="0"
+            type="text"
             value={setsA}
-            onChange={(e) => setSetsA(Number(e.target.value))}
+            onChange={handleSetChange(setSetsA)}
           />
           {" : "}
           <input
-            type="number"
-            min="0"
+            type="text"
             value={setsB}
-            onChange={(e) => setSetsB(Number(e.target.value))}
+            onChange={handleSetChange(setSetsB)}
           />
         </div>
       </div>

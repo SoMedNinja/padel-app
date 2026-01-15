@@ -4,24 +4,11 @@ export default function EloLeaderboard({ players = [] }) {
   const [sortKey, setSortKey] = useState("elo");
   const [asc, setAsc] = useState(false);
 
-  // Filtrera bort "Gäst"
-  const filteredPlayers = players.filter(p => p.name !== "Gäst");
-
-  // Trend-pil (kräver INTE att recentResults finns)
-  const getTrend = (p) => {
-    const results = p.recentResults || [];
-    if (results.length < 3) return "➖";
-
-    const wins = results.filter(r => r === "W").length;
-    if (wins >= 4) return "⬆️";
-    if (wins <= 1) return "⬇️";
-    return "➖";
-  };
+  const filteredPlayers = players.filter((p) => p.name !== "Gäst");
 
   // Sortering
   const sortedPlayers = [...filteredPlayers].sort((a, b) => {
     let valA, valB;
-
     switch (sortKey) {
       case "name":
         valA = a.name.toLowerCase();
@@ -47,7 +34,6 @@ export default function EloLeaderboard({ players = [] }) {
         valA = a[sortKey];
         valB = b[sortKey];
     }
-
     return asc ? valA - valB : valB - valA;
   });
 
@@ -57,6 +43,17 @@ export default function EloLeaderboard({ players = [] }) {
       setSortKey(key);
       setAsc(false);
     }
+  };
+
+  // Trend-pil (baserat på senaste 5 matcher)
+  const getTrend = (p) => {
+    const results = p.recentResults || [];
+    if (!results.length) return "➖";
+
+    const last5 = results.slice(-5);
+    if (last5.every((r) => r === "W")) return "⬆️";
+    if (last5.every((r) => r === "L")) return "⬇️";
+    return "➖";
   };
 
   return (
@@ -77,7 +74,6 @@ export default function EloLeaderboard({ players = [] }) {
           {sortedPlayers.map((p) => {
             const games = p.wins + p.losses;
             const winPct = games === 0 ? 0 : Math.round((p.wins / games) * 100);
-
             return (
               <tr key={p.name}>
                 <td>{p.name}</td>
