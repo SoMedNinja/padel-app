@@ -1,13 +1,21 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts";
 
-// Färger för spelare
+// Färger per spelare
 const playerColors = {
-  "Deniz": "#1f77b4",
+  Deniz: "#1f77b4",
   "Svag Rojan": "#ff7f0e",
-  "Parth": "#2ca02c",
-  "Rustam": "#d62728",
-  "Robert": "#9467bd",
-  "Gäst": "#7f7f7f"
+  Parth: "#2ca02c",
+  Rustam: "#d62728",
+  Robert: "#9467bd",
+  Gäst: "#7f7f7f"
 };
 
 export default function EloTrend({ players = [] }) {
@@ -16,83 +24,96 @@ export default function EloTrend({ players = [] }) {
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-  // 1️⃣ Samla alla datum inom senaste året
-  const allDatesSet = new Set();
+  // 1️⃣ Samla alla datum senaste året
+  const dateSet = new Set();
   players.forEach(p => {
     if (!p.history) return;
-    p.history.forEach(({ date }) => {
-      const d = new Date(date);
-      if (d >= oneYearAgo) allDatesSet.add(date);
+    p.history.forEach(h => {
+      const d = new Date(h.date);
+      if (d >= oneYearAgo) dateSet.add(h.date);
     });
   });
 
-  // Sortera datum kronologiskt
-  const allDates = Array.from(allDatesSet).sort((a, b) => new Date(a) - new Date(b));
-  if (!allDates.length) return null;
+  const dates = Array.from(dateSet).sort(
+    (a, b) => new Date(a) - new Date(b)
+  );
+  if (!dates.length) return null;
 
-  // 2️⃣ Bygg chart-data
-  const data = allDates.map(date => {
-    const entry = { date };
+  // 2️⃣ Bygg grafdata
+  const data = dates.map(date => {
+    const row = { date };
+
     players.forEach(p => {
       if (p.name === "Gäst") return;
 
-      // Hitta senaste ELO upp till detta datum
-      let lastElo = 1000;
-      if (p.history && p.history.length) {
-        const h = p.history
-          .filter(hd => new Date(hd.date) <= new Date(date))
+      let elo = 1000;
+      if (p.history?.length) {
+        const historyUpToDate = p.history
+          .filter(h => new Date(h.date) <= new Date(date))
           .sort((a, b) => new Date(a.date) - new Date(b.date));
-        if (h.length) lastElo = h[h.length - 1].elo;
+
+        if (historyUpToDate.length) {
+          elo = historyUpToDate.at(-1).elo;
+        }
       }
 
-      entry[p.name] = lastElo;
+      row[p.name] = elo;
     });
-    return entry;
+
+    return row;
   });
 
-  const playerNames = Object.keys(
-    players.reduce((acc, p) => {
-      if (p.name !== "Gäst") acc[p.name] = true;
-      return acc;
-    }, {})
-  );
+  const playerNames = players
+    .map(p => p.name)
+    .filter(name => name !== "Gäst");
 
   return (
-    <div style={{ width: "100%", marginTop: 20 }}>
+    <div style={{ width: "100%", marginTop: 24 }}>
       <h2>ELO Trend (senaste året)</h2>
+
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <LineChart
+          data={data}
+          margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
-          <YAxis domain={[900, "dataMax + 20"]} /> {/* Start vid 900, dynamisk max */}
+          <YAxis domain={[900, "dataMax + 20"]} />
           <Tooltip />
-          <Legend />
+
           {playerNames.map(name => (
             <Line
               key={name}
               type="monotone"
               dataKey={name}
               stroke={playerColors[name] || "#000"}
-              dot={false}
               strokeWidth={2}
+              dot={false}
             />
           ))}
         </LineChart>
       </ResponsiveContainer>
 
-      {/* Färgförklaring */}
-      <div style={{ marginTop: 10 }}>
+      {/* ✅ EN enda legend (manuell) */}
+      <div style={{ marginTop: 12 }}>
         {playerNames.map(name => (
-          <span key={name} style={{ marginRight: 15, display: "inline-flex", alignItems: "center" }}>
+          <span
+            key={name}
+            style={{
+              marginRight: 16,
+              display: "inline-flex",
+              alignItems: "center"
+            }}
+          >
             <span
               style={{
                 width: 12,
                 height: 12,
                 backgroundColor: playerColors[name] || "#000",
                 display: "inline-block",
-                marginRight: 4,
+                marginRight: 6
               }}
-            ></span>
+            />
             {name}
           </span>
         ))}
