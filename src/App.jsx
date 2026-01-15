@@ -4,6 +4,7 @@ import { supabase } from "./supabaseClient";
 import MatchForm from "./Components/MatchForm";
 import FilterBar from "./Components/FilterBar";
 import EloLeaderboard from "./Components/EloLeaderboard";
+import EveningMVP from "./Components/EveningMVP";
 import Heatmap from "./Components/Heatmap";
 import Streaks from "./Components/Streaks";
 import MVP from "./Components/MVP";
@@ -27,6 +28,7 @@ export default function App() {
       .from("matches")
       .select("*")
       .order("created_at", { ascending: false });
+
     if (error) console.error(error);
     else setMatches(data || []);
   };
@@ -36,12 +38,17 @@ export default function App() {
       .from("matches")
       .insert([newMatch])
       .select();
+
     if (error) console.error(error);
-    else if (data?.length) setMatches([data[0], ...matches]);
+    else if (data?.length) setMatches((prev) => [data[0], ...prev]);
   };
 
   const deleteMatch = async (id) => {
-    const { error } = await supabase.from("matches").delete().eq("id", id);
+    const { error } = await supabase
+      .from("matches")
+      .delete()
+      .eq("id", id);
+
     if (error) console.error(error);
     else setMatches((prev) => prev.filter((m) => m.id !== id));
   };
@@ -52,6 +59,7 @@ export default function App() {
   return (
     <div className="container">
       <h1>🎾 Grabbarna Padel serie 🎾</h1>
+
       <img
         src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDZWbUaweXM_U65wOYjii388InjcWi8d2Emg&s"
         alt="Padel"
@@ -65,11 +73,19 @@ export default function App() {
       />
 
       <MatchForm addMatch={addMatch} />
+
+      {/* MVP senaste 30 dagar */}
       <MVP matches={filteredMatches || []} players={eloData || []} />
+
+      {/* Kvällens MVP (baserat på filtrerade matcher) */}
+      <EveningMVP matches={filteredMatches || []} />
+
       <FilterBar filter={filter} setFilter={setFilter} />
+
       <EloLeaderboard players={eloData || []} />
       <Heatmap matches={filteredMatches || []} />
       <Streaks matches={filteredMatches || []} />
+
       <History matches={matches || []} deleteMatch={deleteMatch} />
     </div>
   );

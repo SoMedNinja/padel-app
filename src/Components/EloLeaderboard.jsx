@@ -4,12 +4,24 @@ export default function EloLeaderboard({ players = [] }) {
   const [sortKey, setSortKey] = useState("elo");
   const [asc, setAsc] = useState(false);
 
-  // Filtrera bort "Gäst" innan sortering
+  // Filtrera bort "Gäst"
   const filteredPlayers = players.filter(p => p.name !== "Gäst");
 
-  // Sortera efter aktuell sortKey och riktning
+  // Trend-pil (kräver INTE att recentResults finns)
+  const getTrend = (p) => {
+    const results = p.recentResults || [];
+    if (results.length < 3) return "➖";
+
+    const wins = results.filter(r => r === "W").length;
+    if (wins >= 4) return "⬆️";
+    if (wins <= 1) return "⬇️";
+    return "➖";
+  };
+
+  // Sortering
   const sortedPlayers = [...filteredPlayers].sort((a, b) => {
     let valA, valB;
+
     switch (sortKey) {
       case "name":
         valA = a.name.toLowerCase();
@@ -35,6 +47,7 @@ export default function EloLeaderboard({ players = [] }) {
         valA = a[sortKey];
         valB = b[sortKey];
     }
+
     return asc ? valA - valB : valB - valA;
   });
 
@@ -56,6 +69,7 @@ export default function EloLeaderboard({ players = [] }) {
             <th onClick={() => handleSort("elo")}>ELO</th>
             <th onClick={() => handleSort("games")}>Matcher</th>
             <th onClick={() => handleSort("wins")}>Vinster</th>
+            <th>Trend</th>
             <th onClick={() => handleSort("winPct")}>Vinst %</th>
           </tr>
         </thead>
@@ -63,12 +77,14 @@ export default function EloLeaderboard({ players = [] }) {
           {sortedPlayers.map((p) => {
             const games = p.wins + p.losses;
             const winPct = games === 0 ? 0 : Math.round((p.wins / games) * 100);
+
             return (
               <tr key={p.name}>
                 <td>{p.name}</td>
                 <td>{Math.round(p.elo)}</td>
                 <td>{games}</td>
                 <td>{p.wins}</td>
+                <td>{getTrend(p)}</td>
                 <td>{winPct}%</td>
               </tr>
             );

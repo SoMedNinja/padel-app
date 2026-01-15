@@ -7,6 +7,7 @@ export default function History({ matches = [], deleteMatch }) {
       <table>
         <thead>
           <tr>
+            <th>Datum</th>
             <th>Lag A</th>
             <th>Lag B</th>
             <th>Resultat</th>
@@ -16,6 +17,7 @@ export default function History({ matches = [], deleteMatch }) {
         <tbody>
           {matches.map((m) => (
             <tr key={m.id}>
+              <td>{m.created_at?.slice(0, 10)}</td>
               <td>{m.team1.join(" & ")}</td>
               <td>{m.team2.join(" & ")}</td>
               <td>
