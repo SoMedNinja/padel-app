@@ -56,6 +56,26 @@ export default function App() {
   const filteredMatches = filterMatches(matches || [], filter);
   const eloData = calculateElo(filteredMatches || []);
 
+  // ✅ Lägg till recentResults för trendpilar
+  const eloDataWithTrend = eloData.map((player) => {
+    const recentResults = filteredMatches
+      .filter(
+        (m) =>
+          (m.team1.includes(player.name) || m.team2.includes(player.name)) &&
+          player.name !== "Gäst"
+      )
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      .slice(-5) // senaste 5 matcher
+      .map((m) => {
+        const won =
+          (m.team1.includes(player.name) && m.team1_sets > m.team2_sets) ||
+          (m.team2.includes(player.name) && m.team2_sets > m.team1_sets);
+        return won ? "W" : "L";
+      });
+
+    return { ...player, recentResults };
+  });
+
   return (
     <div className="container">
       <h1>🎾 Grabbarna Padel serie 🎾</h1>
@@ -75,14 +95,14 @@ export default function App() {
       <MatchForm addMatch={addMatch} />
 
       {/* MVP senaste 30 dagar */}
-      <MVP matches={filteredMatches || []} players={eloData || []} />
+      <MVP matches={filteredMatches || []} players={eloDataWithTrend || []} />
 
       {/* Kvällens MVP */}
-      <EveningMVP matches={filteredMatches || []} players={eloData || []} />
+      <EveningMVP matches={filteredMatches || []} players={eloDataWithTrend || []} />
 
       <FilterBar filter={filter} setFilter={setFilter} />
 
-      <EloLeaderboard players={eloData || []} />
+      <EloLeaderboard players={eloDataWithTrend || []} />
       <Heatmap matches={filteredMatches || []} />
       <Streaks matches={filteredMatches || []} />
 

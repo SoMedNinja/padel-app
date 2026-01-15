@@ -4,6 +4,7 @@ export default function EloLeaderboard({ players = [] }) {
   const [sortKey, setSortKey] = useState("elo");
   const [asc, setAsc] = useState(false);
 
+  // Filtrera bort "Gäst"
   const filteredPlayers = players.filter((p) => p.name !== "Gäst");
 
   // Sortering
@@ -45,14 +46,17 @@ export default function EloLeaderboard({ players = [] }) {
     }
   };
 
-  // Trend-pil (baserat på senaste 5 matcher)
+  // ✅ Trend-pil baserat på senaste 5 matcher
   const getTrend = (p) => {
     const results = p.recentResults || [];
     if (!results.length) return "➖";
 
     const last5 = results.slice(-5);
-    if (last5.every((r) => r === "W")) return "⬆️";
-    if (last5.every((r) => r === "L")) return "⬇️";
+    const wins = last5.filter((r) => r === "W").length;
+    const losses = last5.filter((r) => r === "L").length;
+
+    if (wins >= 4) return "⬆️";
+    if (losses >= 4) return "⬇️";
     return "➖";
   };
 
