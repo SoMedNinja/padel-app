@@ -24,7 +24,16 @@ export default function History({ matches = [], deleteMatch }) {
                 {m.team1_sets} – {m.team2_sets}
               </td>
               <td>
-                <button onClick={() => deleteMatch(m.id)}>Radera</button>
+                <button
+                  onClick={() => {
+                    // Fråga användaren om hen verkligen vill radera
+                    if (window.confirm("Är du säker på att du vill radera matchen?")) {
+                      deleteMatch(m.id);
+                    }
+                  }}
+                >
+                  Radera
+                </button>
               </td>
             </tr>
           ))}
