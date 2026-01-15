@@ -4,6 +4,7 @@ import { supabase } from "./supabaseClient";
 import MatchForm from "./Components/MatchForm";
 import FilterBar from "./Components/FilterBar";
 import EloLeaderboard from "./Components/EloLeaderboard";
+import EloTrend from "./Components/EloTrend";
 import EveningMVP from "./Components/EveningMVP";
 import Heatmap from "./Components/Heatmap";
 import Streaks from "./Components/Streaks";
@@ -93,19 +94,13 @@ export default function App() {
       />
 
       <MatchForm addMatch={addMatch} />
-
-      {/* MVP senaste 30 dagar */}
       <MVP matches={filteredMatches || []} players={eloDataWithTrend || []} />
-
-      {/* Kvällens MVP */}
       <EveningMVP matches={filteredMatches || []} players={eloDataWithTrend || []} />
-
       <FilterBar filter={filter} setFilter={setFilter} />
-
       <EloLeaderboard players={eloDataWithTrend || []} />
       <Heatmap matches={filteredMatches || []} />
       <Streaks matches={filteredMatches || []} />
-
+      <EloTrend players={eloData || []} />
       <History matches={matches || []} deleteMatch={deleteMatch} />
     </div>
   );

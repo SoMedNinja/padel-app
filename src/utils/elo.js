@@ -1,4 +1,4 @@
-// Dynamisk ELO-beräkning
+// Dynamisk ELO-beräkning med historik
 const K = 20; // Max poäng per match
 
 export function calculateElo(matches = []) {
@@ -7,7 +7,15 @@ export function calculateElo(matches = []) {
   function init(name) {
     if (!name) return;
     if (!players[name]) {
-      players[name] = { name, elo: 1000, wins: 0, losses: 0, played: 0 };
+      players[name] = { 
+        name, 
+        elo: 1000, 
+        startElo: 1000, // för delta-beräkningar
+        wins: 0, 
+        losses: 0, 
+        played: 0,
+        history: [] // här sparar vi historik för EloTrend
+      };
     }
   }
 
@@ -38,12 +46,17 @@ export function calculateElo(matches = []) {
     const team1Won = m.team1_sets > m.team2_sets ? 1 : 0;
     const team2Won = 1 - team1Won;
 
+    const matchDate = m.created_at?.slice(0, 10) || new Date().toISOString().slice(0,10);
+
     t1.forEach((p) => {
       players[p].played++;
       if (team1Won) players[p].wins++;
       else players[p].losses++;
 
       players[p].elo += Math.round(K * (team1Won - expected1));
+
+      // Lägg till historikpunkt
+      players[p].history.push({ date: matchDate, elo: players[p].elo });
     });
 
     t2.forEach((p) => {
@@ -52,6 +65,9 @@ export function calculateElo(matches = []) {
       else players[p].losses++;
 
       players[p].elo += Math.round(K * (team2Won - expected2));
+
+      // Lägg till historikpunkt
+      players[p].history.push({ date: matchDate, elo: players[p].elo });
     });
   });
 
