@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function Auth({ onAuth }) {
+export default function Auth({ onAuth, onGuest }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -9,6 +9,7 @@ export default function Auth({ onAuth }) {
 
   const submit = async () => {
     if (isSignup) {
+      if (!name.trim()) return alert("Spelarnamn krävs för registrering.");
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -42,6 +43,7 @@ export default function Auth({ onAuth }) {
           placeholder="Spelarnamn"
           value={name}
           onChange={e => setName(e.target.value)}
+          required
         />
       )}
 
@@ -62,6 +64,10 @@ export default function Auth({ onAuth }) {
       >
         {isSignup ? "Har konto? Logga in" : "Ny spelare? Skapa konto"}
       </p>
+
+      <button type="button" className="ghost-button" onClick={onGuest}>
+        Fortsätt som gäst
+      </button>
     </div>
   );
 }

@@ -1,0 +1,21 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="padelGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d32f2f" />
+      <stop offset="100%" stop-color="#f06292" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="100" fill="url(#padelGradient)" />
+  <circle cx="78" cy="74" r="38" fill="#fff" fill-opacity="0.2" />
+  <circle cx="122" cy="126" r="30" fill="#fff" fill-opacity="0.25" />
+  <path
+    d="M72 92c0-18 14-32 32-32s32 14 32 32-14 32-32 32-32-14-32-32z"
+    stroke="#fff"
+    stroke-width="6"
+  />
+  <path d="M118 118l26 26" stroke="#fff" stroke-width="6" stroke-linecap="round" />
+  <circle cx="128" cy="128" r="10" fill="#fff" />
+  <text x="100" y="170" text-anchor="middle" font-family="Arial" font-size="20" fill="#fff">
+    Padel
+  </text>
+</svg>

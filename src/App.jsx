@@ -5,12 +5,16 @@ import Auth from "./Components/Auth";
 import MatchForm from "./Components/MatchForm";
 import EloLeaderboard from "./Components/EloLeaderboard";
 import History from "./Components/History";
+import PlayerSection from "./Components/PlayerSection";
+import ProfileSetup from "./Components/ProfileSetup";
 
 import { calculateElo } from "./utils/elo";
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [profile, setProfile] = useState(null); // innehåller is_admin
+  const [profileUserId, setProfileUserId] = useState(null);
   const [profiles, setProfiles] = useState([]);
   const [matches, setMatches] = useState([]);
 
@@ -69,40 +73,89 @@ export default function App() {
 
   // 3) Load my profile (is_admin)
   useEffect(() => {
-    if (!user?.id) {
-      setProfile(null);
-      return;
-    }
+    if (!user?.id) return;
 
     supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .single()
-      .then(({ data }) => setProfile(data || null));
+      .then(({ data }) => {
+        setProfile(data || null);
+        setProfileUserId(user.id);
+      });
   }, [user]);
+
+  const activeProfile = useMemo(() => {
+    if (!user?.id || profileUserId !== user.id) return null;
+    return profile;
+  }, [profile, profileUserId, user]);
 
   const userWithAdmin = useMemo(() => {
     if (!user) return null;
-    return { ...user, is_admin: profile?.is_admin === true };
-  }, [user, profile]);
+    return { ...user, is_admin: activeProfile?.is_admin === true };
+  }, [user, activeProfile]);
 
-  if (!user) return <Auth onAuth={() => supabase.auth.getUser().then(({ data }) => setUser(data.user))} />;
+  if (!user && !isGuest) {
+    return (
+      <Auth
+        onAuth={() => {
+          setIsGuest(false);
+          return supabase.auth.getUser().then(({ data }) => setUser(data.user));
+        }}
+        onGuest={() => setIsGuest(true)}
+      />
+    );
+  }
+
+  if (!isGuest && user?.id && profileUserId === user.id && !activeProfile?.name) {
+    return (
+      <div className="container">
+        <ProfileSetup
+          user={user}
+          initialName={activeProfile?.name}
+          onComplete={({ name }) => {
+            setProfile(prev => ({ ...(prev || {}), name }));
+            setProfileUserId(user.id);
+          }}
+        />
+      </div>
+    );
+  }
 
   const eloPlayers = calculateElo(matches, profiles);
 
   return (
     <div className="container">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="app-header">
         <h1>🎾 Padel Tracker</h1>
-        <button onClick={() => supabase.auth.signOut()}>Logga ut</button>
+        {isGuest ? (
+          <button onClick={() => setIsGuest(false)}>Logga in / skapa konto</button>
+        ) : (
+          <button onClick={() => supabase.auth.signOut()}>Logga ut</button>
+        )}
       </div>
 
-      <MatchForm user={user} />
+      {isGuest && (
+        <div className="guest-banner">
+          Du är i gästläge. Logga in för att lägga till matcher och redigera data.
+        </div>
+      )}
+
+      {!isGuest && <MatchForm user={user} />}
 
       <EloLeaderboard players={eloPlayers} />
 
-      <History matches={matches} profiles={profiles} user={userWithAdmin} />
+      {!isGuest && (
+        <PlayerSection
+          key={userWithAdmin?.id}
+          user={userWithAdmin}
+          profiles={profiles}
+          matches={matches}
+        />
+      )}
+
+      <History matches={matches} profiles={profiles} user={isGuest ? null : userWithAdmin} />
     </div>
   );
 }
