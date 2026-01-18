@@ -8,7 +8,8 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import padelPlaceholder from "../assets/padel-placeholder.svg";
+import Avatar from "./Avatar";
+import { getStoredAvatar } from "../utils/avatar";
 
 const ELO_BASELINE = 1000;
 
@@ -168,6 +169,9 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     [matches, user, resolvedOpponentId, mode]
   );
 
+  const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
+  const opponentAvatarUrl = opponentProfile ? getStoredAvatar(opponentProfile.id) : null;
+
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     if (!file || !avatarStorageKey) return;
@@ -196,9 +200,10 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
 
       <div className="player-header">
         <div className="player-avatar-wrap">
-          <img
+          <Avatar
             className="player-avatar"
-            src={avatarUrl || padelPlaceholder}
+            src={avatarUrl}
+            name={playerName}
             alt="Profilbild"
           />
           <button type="button" className="ghost-button" onClick={resetAvatar}>
@@ -286,10 +291,11 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
             </div>
 
             <div className="head-to-head-summary">
-              <div className="head-to-head-card">
-                <img
+            <div className="head-to-head-card">
+                <Avatar
                   className="head-to-head-avatar"
-                  src={avatarUrl || padelPlaceholder}
+                  src={avatarUrl}
+                  name={playerName}
                   alt="Din profilbild"
                 />
                 <div>
@@ -298,14 +304,15 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
                 </div>
               </div>
               <div className="head-to-head-card">
-                <img
+                <Avatar
                   className="head-to-head-avatar"
-                  src={padelPlaceholder}
+                  src={opponentAvatarUrl}
+                  name={opponentProfile?.name || "Spelare"}
                   alt="Motståndare"
                 />
                 <div>
                   <strong>
-                    {selectablePlayers.find(player => player.id === resolvedOpponentId)?.name || "Spelare"}
+                    {opponentProfile?.name || "Spelare"}
                   </strong>
                   <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
                 </div>
