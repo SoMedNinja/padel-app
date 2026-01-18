@@ -8,6 +8,8 @@ import History from "./Components/History";
 import PlayerSection from "./Components/PlayerSection";
 import ProfileSetup from "./Components/ProfileSetup";
 import AdminPanel from "./Components/AdminPanel";
+import MVP from "./Components/MVP";
+import Heatmap from "./Components/Heatmap";
 
 import { calculateElo } from "./utils/elo";
 
@@ -18,6 +20,7 @@ export default function App() {
   const [profile, setProfile] = useState(null); // innehåller is_admin
   const [profileUserId, setProfileUserId] = useState(null);
   const [profiles, setProfiles] = useState([]);
+  const [allProfiles, setAllProfiles] = useState([]);
   const [matches, setMatches] = useState([]);
 
   // 1) Auth state
@@ -36,7 +39,9 @@ export default function App() {
     // Profiles (alla)
     supabase.from("profiles").select("*").then(({ data, error }) => {
       if (error) console.error(error);
-      setProfiles(data || []);
+      const loadedProfiles = data || [];
+      setAllProfiles(loadedProfiles);
+      setProfiles(loadedProfiles.filter(profile => profile.is_approved || profile.is_admin));
     });
 
     // Matches
@@ -160,11 +165,28 @@ export default function App() {
   }
 
   const handleProfileUpdate = (updatedProfile) => {
-    setProfiles(prev =>
-      prev.map(profile =>
-        profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
-      )
-    );
+    setAllProfiles(prev => {
+      const exists = prev.some(profile => profile.id === updatedProfile.id);
+      if (exists) {
+        return prev.map(profile =>
+          profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
+        );
+      }
+      return [...prev, updatedProfile];
+    });
+    const shouldInclude = updatedProfile.is_approved || updatedProfile.is_admin;
+    setProfiles(prev => {
+      const exists = prev.some(profile => profile.id === updatedProfile.id);
+      if (shouldInclude) {
+        if (exists) {
+          return prev.map(profile =>
+            profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
+          );
+        }
+        return [...prev, updatedProfile];
+      }
+      return prev.filter(profile => profile.id !== updatedProfile.id);
+    });
     if (updatedProfile.id === profileUserId) {
       setProfile(prev => ({ ...(prev || {}), ...updatedProfile }));
     }
@@ -172,6 +194,7 @@ export default function App() {
 
   const handleProfileDelete = (deletedId) => {
     setProfiles(prev => prev.filter(profile => profile.id !== deletedId));
+    setAllProfiles(prev => prev.filter(profile => profile.id !== deletedId));
     if (deletedId === profileUserId) {
       setProfile(null);
     }
@@ -218,8 +241,11 @@ export default function App() {
       )}
 
       <section id="dashboard" className="page-section">
-        {!isGuest && <MatchForm user={user} />}
+        {!isGuest && <MatchForm user={user} profiles={profiles} />}
+        <MVP matches={matches} players={eloPlayers} mode="evening" title="Kvällens MVP" />
+        <MVP matches={matches} players={eloPlayers} mode="30days" title="MVP (30 dagar)" />
         <EloLeaderboard players={eloPlayers} />
+        <Heatmap matches={matches} profiles={profiles} />
       </section>
 
       {!isGuest && (
@@ -241,7 +267,7 @@ export default function App() {
         <section id="admin" className="page-section">
           <AdminPanel
             user={userWithAdmin}
-            profiles={profiles}
+            profiles={allProfiles}
             onProfileUpdate={handleProfileUpdate}
             onProfileDelete={handleProfileDelete}
           />

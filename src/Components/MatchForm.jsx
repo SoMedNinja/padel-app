@@ -1,20 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
 
-export default function MatchForm({ user }) {
-  const [players, setPlayers] = useState([]);
+export default function MatchForm({ user, profiles = [] }) {
   const [team1, setTeam1] = useState(["", ""]);
   const [team2, setTeam2] = useState(["", ""]);
   const [a, setA] = useState("");
   const [b, setB] = useState("");
-
-  useEffect(() => {
-    supabase.from("profiles").select("*").then(({ data }) => {
-      setPlayers(data || []);
-    });
-  }, []);
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = players.some(player => player.id === GUEST_ID);
@@ -49,41 +42,75 @@ export default function MatchForm({ user }) {
     setB("");
   };
 
-  const selectTeam = (team, setTeam) =>
-    team.map((val, i) => (
-      <select
-        key={i}
-        value={val}
-        onChange={e => {
-          const t = [...team];
-          t[i] = e.target.value;
-          setTeam(t);
-        }}
-      >
-        <option value="">Välj</option>
-        {selectablePlayers.map(p => (
-          <option key={p.id} value={p.id}>
-            {getProfileDisplayName(p)}
-          </option>
-        ))}
-      </select>
-    ));
+  const renderPlayerSelect = (team, setTeam, index) => (
+    <select
+      value={team[index]}
+      onChange={e => {
+        const t = [...team];
+        t[index] = e.target.value;
+        setTeam(t);
+      }}
+    >
+      <option value="">Välj</option>
+      {selectablePlayers.map(p => (
+        <option key={p.id} value={p.id}>
+          {getProfileDisplayName(p)}
+        </option>
+      ))}
+    </select>
+  );
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} className="match-form">
       <h2>Ny match</h2>
 
-      <h4>Lag A (Börjar med serv)</h4>
-      {selectTeam(team1, setTeam1)}
+      <div className="match-form-grid">
+        <div className="match-form-header">
+          <span>Lag A (Börjar med serv)</span>
+          <span>Lag B</span>
+        </div>
 
-      <h4>Lag B</h4>
-      {selectTeam(team2, setTeam2)}
+        <div className="match-form-row">
+          <div className="match-form-cell">
+            {renderPlayerSelect(team1, setTeam1, 0)}
+          </div>
+          <div className="match-form-cell">
+            {renderPlayerSelect(team2, setTeam2, 0)}
+          </div>
+        </div>
 
-      <input value={a} onChange={e => setA(e.target.value)} />
-      {" : "}
-      <input value={b} onChange={e => setB(e.target.value)} />
+        <div className="match-form-row">
+          <div className="match-form-cell">
+            {renderPlayerSelect(team1, setTeam1, 1)}
+          </div>
+          <div className="match-form-cell">
+            {renderPlayerSelect(team2, setTeam2, 1)}
+          </div>
+        </div>
 
-      <button>Spara</button>
+        <div className="match-form-header match-form-result-title">
+          <span>Resultat</span>
+          <span />
+        </div>
+
+        <div className="match-form-row match-form-result-row">
+          <input
+            type="number"
+            min="0"
+            value={a}
+            onChange={e => setA(e.target.value)}
+          />
+          <span className="match-form-score-separator">–</span>
+          <input
+            type="number"
+            min="0"
+            value={b}
+            onChange={e => setB(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <button type="submit">Spara</button>
     </form>
   );
 }

@@ -7,16 +7,20 @@ create or replace function seed_matches()
 returns void
 language sql
 as $$
-  with picks as (
+  with eligible_profiles as (
+    select id
+    from profiles
+    where is_approved = true
+       or is_admin = true
+  ),
+  picks as (
     select
       gs,
-      array_agg(p.id order by p.rn) as ids
+      array_agg(p.id order by random()) as ids
     from generate_series(1, 30) as gs
     cross join lateral (
-      select
-        id,
-        row_number() over (order by random()) as rn
-      from profiles
+      select id
+      from eligible_profiles
       order by random()
       limit 4
     ) as p
@@ -28,6 +32,7 @@ as $$
       ids,
       rules.format,
       rules.winner,
+      rules.swap_teams,
       case
         when rules.format = 'best_of_3' then floor(random() * 2)::int
         else floor(random() * 6)::int
@@ -36,7 +41,8 @@ as $$
     cross join lateral (
       select
         case when random() < 0.5 then 'best_of_3' else 'first_to_6' end as format,
-        case when random() < 0.5 then 1 else 2 end as winner
+        case when random() < 0.5 then 1 else 2 end as winner,
+        random() < 0.5 as swap_teams
     ) as rules
   )
   insert into matches (
