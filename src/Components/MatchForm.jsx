@@ -4,7 +4,6 @@ import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
 
 export default function MatchForm({ user, profiles = [] }) {
-  const players = profiles;
   const [team1, setTeam1] = useState(["", ""]);
   const [team2, setTeam2] = useState(["", ""]);
   const [a, setA] = useState("");

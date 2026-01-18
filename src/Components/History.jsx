@@ -29,6 +29,25 @@ export default function History({ matches = [], profiles = [], user }) {
     return user?.id && (m.created_by === user.id || user?.is_admin === true);
   };
 
+  const saveEdit = async (matchId) => {
+    if (!edit) return;
+
+    const { error } = await supabase
+      .from("matches")
+      .update({
+        team1: idsToNames(edit.team1_ids, profileMap),
+        team2: idsToNames(edit.team2_ids, profileMap),
+        team1_ids: edit.team1_ids,
+        team2_ids: edit.team2_ids,
+        team1_sets: Number(edit.team1_sets),
+        team2_sets: Number(edit.team2_sets),
+      })
+      .eq("id", matchId);
+
+    if (error) alert(error.message);
+    else cancelEdit();
+  };
+
   const deleteMatch = async (matchId) => {
     if (!window.confirm("Radera matchen?")) return;
 
