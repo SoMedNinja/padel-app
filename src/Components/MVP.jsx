@@ -20,7 +20,11 @@ export default function MVP({
   }
 
   if (mode === "30days") {
-    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const latestTimestamp = matches.reduce((max, match) => {
+      const timestamp = new Date(match.created_at).getTime();
+      return Number.isNaN(timestamp) ? max : Math.max(max, timestamp);
+    }, 0);
+    const cutoff = latestTimestamp - 30 * 24 * 60 * 60 * 1000;
     relevantMatches = matches.filter(
       m => new Date(m.created_at).getTime() > cutoff
     );
