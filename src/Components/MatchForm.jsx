@@ -1,113 +1,79 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../supabaseClient";
 
-const players = ["Deniz", "Svag Rojan", "Parth", "Rustam", "Robert", "Gäst"];
+export default function MatchForm({ user }) {
+  const [players, setPlayers] = useState([]);
+  const [team1, setTeam1] = useState(["", ""]);
+  const [team2, setTeam2] = useState(["", ""]);
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
 
-export default function MatchForm({ addMatch }) {
-  const [teamA, setTeamA] = useState(["", ""]);
-  const [teamB, setTeamB] = useState(["", ""]);
-  const [setsA, setSetsA] = useState("");
-  const [setsB, setSetsB] = useState("");
+  useEffect(() => {
+    supabase.from("profiles").select("*").then(({ data }) => {
+      setPlayers(data || []);
+    });
+  }, []);
 
-  const handleSubmit = (e) => {
+  const submit = async e => {
     e.preventDefault();
 
     if (
-      teamA.includes("") ||
-      teamB.includes("") ||
-      teamA.some((p) => teamB.includes(p))
+      team1.includes("") ||
+      team2.includes("") ||
+      team1.some(p => team2.includes(p))
     ) {
-      alert("Kontrollera spelare!");
-      return;
+      return alert("Ogiltiga lag");
     }
 
-    addMatch({
-      team1: teamA,
-      team2: teamB,
-      team1_sets: Number(setsA),
-      team2_sets: Number(setsB),
+    await supabase.from("matches").insert({
+      team1_ids: team1,
+      team2_ids: team2,
+      team1_sets: Number(a),
+      team2_sets: Number(b),
+      created_by: user.id,
     });
 
-    setTeamA(["", ""]);
-    setTeamB(["", ""]);
-    setSetsA("");
-    setSetsB("");
+    setTeam1(["", ""]);
+    setTeam2(["", ""]);
+    setA("");
+    setB("");
   };
 
-  const handleSetChange = (setter) => (e) => {
-    const val = e.target.value.replace(/\D/g, ""); // bara siffror
-    if (val.length <= 2) setter(val);
-  };
+  const selectTeam = (team, setTeam) =>
+    team.map((val, i) => (
+      <select
+        key={i}
+        value={val}
+        onChange={e => {
+          const t = [...team];
+          t[i] = e.target.value;
+          setTeam(t);
+        }}
+      >
+        <option value="">Välj</option>
+        {players.map(p => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+    ));
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Lägg till match</h2>
+    <form onSubmit={submit}>
+      <h2>Ny match</h2>
 
-      <div style={{ display: "flex", gap: 20 }}>
-        <div>
-          <h4>Team A</h4>
-          {teamA.map((val, i) => (
-            <select
-              key={i}
-              value={val}
-              onChange={(e) => {
-                const t = [...teamA];
-                t[i] = e.target.value;
-                setTeamA(t);
-              }}
-            >
-              <option value="">Välj spelare</option>
-              {players.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          ))}
-        </div>
+      <h4>Team A</h4>
+      {selectTeam(team1, setTeam1)}
 
-        <div>
-          <h4>Team B</h4>
-          {teamB.map((val, i) => (
-            <select
-              key={i}
-              value={val}
-              onChange={(e) => {
-                const t = [...teamB];
-                t[i] = e.target.value;
-                setTeamB(t);
-              }}
-            >
-              <option value="">Välj spelare</option>
-              {players.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          ))}
-        </div>
-      </div>
+      <h4>Team B</h4>
+      {selectTeam(team2, setTeam2)}
 
-      <div style={{ marginTop: 12 }}>
-        <label>Resultat</label>
-        <div>
-          <input
-            type="text"
-            value={setsA}
-            onChange={handleSetChange(setSetsA)}
-          />
-          {" : "}
-          <input
-            type="text"
-            value={setsB}
-            onChange={handleSetChange(setSetsB)}
-          />
-        </div>
-      </div>
+      <input value={a} onChange={e => setA(e.target.value)} />
+      {" : "}
+      <input value={b} onChange={e => setB(e.target.value)} />
 
-      <button type="submit" style={{ marginTop: 12 }}>
-        Spara match
-      </button>
+      <button>Spara</button>
     </form>
   );
 }

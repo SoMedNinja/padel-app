@@ -1,44 +1,41 @@
 import { useState } from "react";
 
+// Enkel hjälpfunktion för vinstprocent
+const winPct = (wins, losses) =>
+  wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
+
 export default function EloLeaderboard({ players = [] }) {
   const [sortKey, setSortKey] = useState("elo");
   const [asc, setAsc] = useState(false);
 
-  // Filtrera bort "Gäst"
-  const filteredPlayers = players.filter((p) => p.name !== "Gäst");
+  // Ta bort Gäst tidigt
+  const visiblePlayers = players.filter(p => p.name !== "Gäst");
 
-  // Sortering
-  const sortedPlayers = [...filteredPlayers].sort((a, b) => {
-    let valA, valB;
+  const sortedPlayers = [...visiblePlayers].sort((a, b) => {
+    let aVal, bVal;
+
     switch (sortKey) {
       case "name":
-        valA = a.name.toLowerCase();
-        valB = b.name.toLowerCase();
-        return asc ? (valA > valB ? 1 : -1) : valA > valB ? -1 : 1;
-      case "elo":
-        valA = a.elo;
-        valB = b.elo;
-        break;
-      case "wins":
-        valA = a.wins;
-        valB = b.wins;
-        break;
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+        return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       case "games":
-        valA = a.wins + a.losses;
-        valB = b.wins + b.losses;
+        aVal = a.wins + a.losses;
+        bVal = b.wins + b.losses;
         break;
       case "winPct":
-        valA = a.wins / (a.wins + a.losses || 1);
-        valB = b.wins / (b.wins + b.losses || 1);
+        aVal = a.wins / (a.wins + a.losses || 1);
+        bVal = b.wins / (b.wins + b.losses || 1);
         break;
       default:
-        valA = a[sortKey];
-        valB = b[sortKey];
+        aVal = a[sortKey];
+        bVal = b[sortKey];
     }
-    return asc ? valA - valB : valB - valA;
+
+    return asc ? aVal - bVal : bVal - aVal;
   });
 
-  const handleSort = (key) => {
+  const toggleSort = (key) => {
     if (key === sortKey) setAsc(!asc);
     else {
       setSortKey(key);
@@ -46,14 +43,11 @@ export default function EloLeaderboard({ players = [] }) {
     }
   };
 
-  // ✅ Trend-pil baserat på senaste 5 matcher
-  const getTrend = (p) => {
-    const results = p.recentResults || [];
-    if (!results.length) return "➖";
-
-    const last5 = results.slice(-5);
-    const wins = last5.filter((r) => r === "W").length;
-    const losses = last5.filter((r) => r === "L").length;
+  // Trend baserat på senaste 5 matcher
+  const getTrend = (player) => {
+    const last5 = player.recentResults?.slice(-5) || [];
+    const wins = last5.filter(r => r === "W").length;
+    const losses = last5.filter(r => r === "L").length;
 
     if (wins >= 4) return "⬆️";
     if (losses >= 4) return "⬇️";
@@ -66,29 +60,25 @@ export default function EloLeaderboard({ players = [] }) {
       <table>
         <thead>
           <tr>
-            <th onClick={() => handleSort("name")}>Spelare</th>
-            <th onClick={() => handleSort("elo")}>ELO</th>
-            <th onClick={() => handleSort("games")}>Matcher</th>
-            <th onClick={() => handleSort("wins")}>Vinster</th>
+            <th onClick={() => toggleSort("name")}>Spelare</th>
+            <th onClick={() => toggleSort("elo")}>ELO</th>
+            <th onClick={() => toggleSort("games")}>Matcher</th>
+            <th onClick={() => toggleSort("wins")}>Vinster</th>
             <th>Trend</th>
-            <th onClick={() => handleSort("winPct")}>Vinst %</th>
+            <th onClick={() => toggleSort("winPct")}>Vinst %</th>
           </tr>
         </thead>
         <tbody>
-          {sortedPlayers.map((p) => {
-            const games = p.wins + p.losses;
-            const winPct = games === 0 ? 0 : Math.round((p.wins / games) * 100);
-            return (
-              <tr key={p.name}>
-                <td>{p.name}</td>
-                <td>{Math.round(p.elo)}</td>
-                <td>{games}</td>
-                <td>{p.wins}</td>
-                <td>{getTrend(p)}</td>
-                <td>{winPct}%</td>
-              </tr>
-            );
-          })}
+          {sortedPlayers.map(p => (
+            <tr key={p.name}>
+              <td>{p.name}</td>
+              <td>{Math.round(p.elo)}</td>
+              <td>{p.wins + p.losses}</td>
+              <td>{p.wins}</td>
+              <td>{getTrend(p)}</td>
+              <td>{winPct(p.wins, p.losses)}%</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

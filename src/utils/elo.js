@@ -1,73 +1,40 @@
-// Dynamisk ELO-beräkning med historik
-const K = 20; // Max poäng per match
+const K = 20;
 
-export function calculateElo(matches = []) {
+export function calculateElo(matches, profiles) {
   const players = {};
 
-  function init(name) {
-    if (!name) return;
-    if (!players[name]) {
-      players[name] = { 
-        name, 
-        elo: 1000, 
-        startElo: 1000, // för delta-beräkningar
-        wins: 0, 
-        losses: 0, 
-        played: 0,
-        history: [] // här sparar vi historik för EloTrend
-      };
-    }
-  }
+  profiles.forEach(p => {
+    players[p.id] = {
+      id: p.id,
+      name: p.name,
+      elo: 1000,
+      wins: 0,
+      losses: 0,
+      history: [],
+    };
+  });
 
-  matches.forEach((m, i) => {
-    if (
-      !m ||
-      !Array.isArray(m.team1) ||
-      !Array.isArray(m.team2) ||
-      m.team1_sets == null ||
-      m.team2_sets == null
-    ) {
-      console.warn("Skipping invalid match", i, m);
-      return;
-    }
+  matches.forEach(m => {
+    const t1 = m.team1_ids;
+    const t2 = m.team2_ids;
 
-    const t1 = m.team1 || [];
-    const t2 = m.team2 || [];
+    const avg = team =>
+      team.reduce((s, id) => s + players[id].elo, 0) / team.length;
 
-    t1.forEach(init);
-    t2.forEach(init);
+    const e1 = avg(t1);
+    const e2 = avg(t2);
 
-    const team1Elo = t1.reduce((sum, p) => sum + players[p].elo, 0) / t1.length;
-    const team2Elo = t2.reduce((sum, p) => sum + players[p].elo, 0) / t2.length;
+    const exp1 = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
+    const team1Won = m.team1_sets > m.team2_sets;
 
-    const expected1 = 1 / (1 + Math.pow(10, (team2Elo - team1Elo) / 400));
-    const expected2 = 1 - expected1;
-
-    const team1Won = m.team1_sets > m.team2_sets ? 1 : 0;
-    const team2Won = 1 - team1Won;
-
-    const matchDate = m.created_at?.slice(0, 10) || new Date().toISOString().slice(0,10);
-
-    t1.forEach((p) => {
-      players[p].played++;
-      if (team1Won) players[p].wins++;
-      else players[p].losses++;
-
-      players[p].elo += Math.round(K * (team1Won - expected1));
-
-      // Lägg till historikpunkt
-      players[p].history.push({ date: matchDate, elo: players[p].elo });
+    t1.forEach(id => {
+      players[id].elo += Math.round(K * ((team1Won ? 1 : 0) - exp1));
+      team1Won ? players[id].wins++ : players[id].losses++;
     });
 
-    t2.forEach((p) => {
-      players[p].played++;
-      if (team2Won) players[p].wins++;
-      else players[p].losses++;
-
-      players[p].elo += Math.round(K * (team2Won - expected2));
-
-      // Lägg till historikpunkt
-      players[p].history.push({ date: matchDate, elo: players[p].elo });
+    t2.forEach(id => {
+      players[id].elo += Math.round(K * ((team1Won ? 0 : 1) - (1 - exp1)));
+      team1Won ? players[id].losses++ : players[id].wins++;
     });
   });
 

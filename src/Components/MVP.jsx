@@ -1,50 +1,58 @@
-export default function MVP({ matches = [], players = [] }) {
+import { getMvpStats, getLatestMatchDate } from "../utils/stats";
+
+export default function MVP({
+  matches = [],
+  players = [],
+  mode,
+  title,
+}) {
   if (!matches.length) return null;
 
-  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000; // senaste 30 dagar
-  const recentMatches = matches.filter(
-    (m) => m.created_at && new Date(m.created_at).getTime() > cutoff
-  );
+  let relevantMatches = matches;
 
-  const stats = {}; // { [player]: { wins, games } }
+  if (mode === "evening") {
+    const latestDate = getLatestMatchDate(matches);
+    if (!latestDate) return null;
 
-  // Samla statistik per spelare
-  recentMatches.forEach((m) => {
-    const winners = m.team1_sets > m.team2_sets ? m.team1 : m.team2;
-    const losers = m.team1_sets > m.team2_sets ? m.team2 : m.team1;
+    relevantMatches = matches.filter(
+      m => m.created_at?.slice(0, 10) === latestDate
+    );
+  }
 
-    winners.forEach((p) => {
-      if (!p || p === "Gäst") return;
-      if (!stats[p]) stats[p] = { wins: 0, games: 0 };
-      stats[p].wins++;
-      stats[p].games++;
-    });
+  if (mode === "30days") {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    relevantMatches = matches.filter(
+      m => new Date(m.created_at).getTime() > cutoff
+    );
+  }
 
-    losers.forEach((p) => {
-      if (!p || p === "Gäst") return;
-      if (!stats[p]) stats[p] = { wins: 0, games: 0 };
-      stats[p].games++;
-    });
+  const stats = getMvpStats(relevantMatches);
+
+  const scored = Object.entries(stats).map(([name, s]) => {
+    const winPct = s.games ? s.wins / s.games : 0;
+    const player = players.find(p => p.name === name);
+
+    return {
+      name,
+      wins: s.wins,
+      games: s.games,
+      winPct: Math.round(winPct * 100),
+      eloDelta: Math.round(
+        (player?.elo || 1000) - (player?.startElo || 1000)
+      ),
+      score: s.wins * 3 + winPct * 5 + s.games,
+    };
   });
 
-  // Beräkna MVP
-  const mvpScores = Object.entries(stats).map(([p, s]) => {
-    const winPct = s.games === 0 ? 0 : s.wins / s.games;
-    const currentElo = players.find((pl) => pl.name === p)?.elo || 1000;
-    const startElo = players.find((pl) => pl.name === p)?.startElo || 1000;
-    const eloDelta = currentElo - startElo;
+  if (!scored.length) return null;
 
-    return { player: p, wins: s.wins, games: s.games, winPct: Math.round(winPct*100), eloDelta };
-  });
-
-  if (!mvpScores.length) return null;
-
-  const mvp = mvpScores.sort((a, b) => b.wins - a.wins)[0];
+  const mvp = scored.sort((a, b) => b.score - a.score)[0];
 
   return (
     <div className="mvp">
-      🏆 <strong>MVP (30 dagar):</strong> {mvp.player}<br />
-      ({mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {Math.round(mvp.eloDelta)})
+      🏆 <strong>{title}</strong><br />
+      <strong>{mvp.name}</strong><br />
+      ({mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {mvp.eloDelta})
     </div>
   );
 }
