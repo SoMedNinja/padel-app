@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 
 export default function MatchForm({ user }) {
   const [players, setPlayers] = useState([]);
@@ -13,6 +14,11 @@ export default function MatchForm({ user }) {
       setPlayers(data || []);
     });
   }, []);
+
+  const selectablePlayers = useMemo(() => {
+    const hasGuest = players.some(player => player.id === GUEST_ID);
+    return hasGuest ? players : [...players, { id: GUEST_ID, name: GUEST_NAME }];
+  }, [players]);
 
   const submit = async e => {
     e.preventDefault();
@@ -51,7 +57,7 @@ export default function MatchForm({ user }) {
         }}
       >
         <option value="">Välj</option>
-        {players.map(p => (
+        {selectablePlayers.map(p => (
           <option key={p.id} value={p.id}>
             {p.name}
           </option>
@@ -63,10 +69,10 @@ export default function MatchForm({ user }) {
     <form onSubmit={submit}>
       <h2>Ny match</h2>
 
-      <h4>Team A</h4>
+      <h4>Lag A (Börjar med serv)</h4>
       {selectTeam(team1, setTeam1)}
 
-      <h4>Team B</h4>
+      <h4>Lag B</h4>
       {selectTeam(team2, setTeam2)}
 
       <input value={a} onChange={e => setA(e.target.value)} />
