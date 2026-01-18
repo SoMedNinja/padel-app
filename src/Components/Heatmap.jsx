@@ -1,20 +1,31 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
 
-export default function Heatmap({ matches = [] }) {
+export default function Heatmap({ matches = [], profiles = [] }) {
   const [sortKey, setSortKey] = useState("games");
   const [asc, setAsc] = useState(false);
 
   if (!matches.length) return null;
 
+  const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
+  const allowedNames = useMemo(
+    () => new Set(profiles.map(profile => getProfileDisplayName(profile)).filter(Boolean)),
+    [profiles]
+  );
+
   const combos = {};
   matches.forEach((m) => {
+    const team1 = Array.isArray(m.team1) ? m.team1 : idsToNames(m.team1_ids || [], profileMap);
+    const team2 = Array.isArray(m.team2) ? m.team2 : idsToNames(m.team2_ids || [], profileMap);
     const teams = [
-      { players: m.team1, won: m.team1_sets > m.team2_sets },
-      { players: m.team2, won: m.team2_sets > m.team1_sets },
+      { players: team1, won: m.team1_sets > m.team2_sets },
+      { players: team2, won: m.team2_sets > m.team1_sets },
     ];
 
     teams.forEach(({ players, won }) => {
+      if (!Array.isArray(players) || !players.length) return;
       if (players.includes("Gäst")) return;
+      if (allowedNames.size && players.some(player => !allowedNames.has(player))) return;
       const key = [...players].sort().join(" + ");
       if (!combos[key]) combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
       combos[key].games++;
