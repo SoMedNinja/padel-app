@@ -10,13 +10,11 @@ as $$
   with picks as (
     select
       gs,
-      array_agg(p.id order by p.rn) as ids,
-      array_agg(p.display_name order by p.rn) as names
+      array_agg(p.id order by p.rn) as ids
     from generate_series(1, 30) as gs
     cross join lateral (
       select
         id,
-        coalesce(nullif(name, ''), email, 'Okänd') as display_name,
         row_number() over (order by random()) as rn
       from profiles
       order by random()
@@ -42,8 +40,6 @@ as $$
     ) as rules
   )
   insert into matches (
-    team1,
-    team2,
     team1_ids,
     team2_ids,
     team1_sets,
@@ -52,8 +48,6 @@ as $$
     created_at
   )
   select
-    array[names[1], names[2]] as team1,
-    array[names[3], names[4]] as team2,
     array[ids[1], ids[2]] as team1_ids,
     array[ids[3], ids[4]] as team2_ids,
     case
