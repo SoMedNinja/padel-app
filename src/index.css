@@ -294,10 +294,6 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   gap:8px;
 }
 
-.admin-role-cell input {
-  min-width:140px;
-}
-
 .admin-actions {
   display:flex;
   flex-wrap:wrap;
