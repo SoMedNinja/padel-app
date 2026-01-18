@@ -10,9 +10,9 @@ export default function MatchForm({ user, profiles = [] }) {
   const [b, setB] = useState("");
 
   const selectablePlayers = useMemo(() => {
-    const hasGuest = players.some(player => player.id === GUEST_ID);
-    return hasGuest ? players : [...players, { id: GUEST_ID, name: GUEST_NAME }];
-  }, [players]);
+    const hasGuest = profiles.some(player => player.id === GUEST_ID);
+    return hasGuest ? profiles : [...profiles, { id: GUEST_ID, name: GUEST_NAME }];
+  }, [profiles]);
   const profileMap = useMemo(() => makeProfileMap(selectablePlayers), [selectablePlayers]);
 
   const submit = async e => {
