@@ -48,6 +48,7 @@ export default function EloLeaderboard({ players = [] }) {
   // Trend baserat på senaste 5 matcher
   const getTrend = (player) => {
     const last5 = player.recentResults?.slice(-5) || [];
+    if (last5.length < 3) return "N/A";
     const wins = last5.filter(r => r === "W").length;
     const total = last5.length || 1;
     const winRate = wins / total;
