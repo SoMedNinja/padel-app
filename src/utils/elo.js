@@ -1,25 +1,41 @@
+import { GUEST_ID, GUEST_NAME } from "./guest";
+
 const K = 20;
+const ELO_BASELINE = 1000;
 
 export function calculateElo(matches, profiles) {
   const players = {};
 
+  const ensurePlayer = (id, name = "Okänd") => {
+    if (!players[id]) {
+      players[id] = {
+        id,
+        name,
+        elo: ELO_BASELINE,
+        wins: 0,
+        losses: 0,
+        history: [],
+      };
+    }
+  };
+
+  ensurePlayer(GUEST_ID, GUEST_NAME);
+
   profiles.forEach(p => {
-    players[p.id] = {
-      id: p.id,
-      name: p.name,
-      elo: 1000,
-      wins: 0,
-      losses: 0,
-      history: [],
-    };
+    ensurePlayer(p.id, p.name);
   });
 
   matches.forEach(m => {
-    const t1 = m.team1_ids;
-    const t2 = m.team2_ids;
+    const t1 = m.team1_ids || [];
+    const t2 = m.team2_ids || [];
+
+    if (!t1.length || !t2.length) return;
+
+    t1.forEach(id => ensurePlayer(id, id === GUEST_ID ? GUEST_NAME : "Okänd"));
+    t2.forEach(id => ensurePlayer(id, id === GUEST_ID ? GUEST_NAME : "Okänd"));
 
     const avg = team =>
-      team.reduce((s, id) => s + players[id].elo, 0) / team.length;
+      team.reduce((s, id) => s + (players[id]?.elo ?? ELO_BASELINE), 0) / team.length;
 
     const e1 = avg(t1);
     const e2 = avg(t2);
@@ -38,5 +54,5 @@ export function calculateElo(matches, profiles) {
     });
   });
 
-  return Object.values(players);
+  return Object.values(players).filter(player => player.id !== GUEST_ID);
 }

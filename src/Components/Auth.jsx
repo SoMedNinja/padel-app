@@ -4,23 +4,16 @@ import { supabase } from "../supabaseClient";
 export default function Auth({ onAuth, onGuest }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [isSignup, setIsSignup] = useState(false);
 
   const submit = async () => {
     if (isSignup) {
-      if (!name.trim()) return alert("Spelarnamn krävs för registrering.");
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (error) return alert(error.message);
-
-      await supabase.from("profiles").insert({
-        id: data.user.id,
-        name,
-      });
 
       onAuth(data.user);
     } else {
@@ -37,15 +30,6 @@ export default function Auth({ onAuth, onGuest }) {
   return (
     <div className="card">
       <h2>{isSignup ? "Skapa konto" : "Logga in"}</h2>
-
-      {isSignup && (
-        <input
-          placeholder="Spelarnamn"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          required
-        />
-      )}
 
       <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
       <input
