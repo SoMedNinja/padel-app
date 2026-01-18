@@ -25,6 +25,8 @@ export function calculateElo(matches, profiles) {
     ensurePlayer(p.id, p.name);
   });
 
+  const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
+
   matches.forEach(m => {
     const t1 = m.team1_ids || [];
     const t2 = m.team2_ids || [];

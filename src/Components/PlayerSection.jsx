@@ -18,6 +18,8 @@ const percent = (wins, losses) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
+const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
+
 const ensurePlayer = (map, id) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE };
 };
@@ -39,8 +41,8 @@ const buildPlayerSummary = (matches, profiles, playerId) => {
   );
 
   sortedMatches.forEach(match => {
-    const team1 = match.team1_ids || [];
-    const team2 = match.team2_ids || [];
+    const team1 = normalizeTeam(match.team1_ids);
+    const team2 = normalizeTeam(match.team2_ids);
 
     if (!team1.length || !team2.length) return;
     if (match.team1_sets == null || match.team2_sets == null) return;
@@ -53,11 +55,15 @@ const buildPlayerSummary = (matches, profiles, playerId) => {
       team2.forEach(id => ensurePlayer(eloMap, id));
     }
 
-    const avg = team =>
-      team.reduce((sum, id) => {
-        ensurePlayer(eloMap, id);
-        return sum + eloMap[id].elo;
-      }, 0) / team.length;
+    const avg = team => {
+      if (!team.length) return ELO_BASELINE;
+      return (
+        team.reduce((sum, id) => {
+          ensurePlayer(eloMap, id);
+          return sum + eloMap[id].elo;
+        }, 0) / team.length
+      );
+    };
 
     const e1 = avg(team1);
     const e2 = avg(team2);
@@ -103,8 +109,8 @@ const buildHeadToHead = (matches, playerId, opponentId, mode) => {
   let total = 0;
 
   matches.forEach(match => {
-    const team1 = match.team1_ids || [];
-    const team2 = match.team2_ids || [];
+    const team1 = normalizeTeam(match.team1_ids);
+    const team2 = normalizeTeam(match.team2_ids);
 
     const isTeam1 = team1.includes(playerId);
     const isTeam2 = team2.includes(playerId);
