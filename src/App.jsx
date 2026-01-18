@@ -7,6 +7,7 @@ import EloLeaderboard from "./Components/EloLeaderboard";
 import History from "./Components/History";
 import PlayerSection from "./Components/PlayerSection";
 import ProfileSetup from "./Components/ProfileSetup";
+import AdminPanel from "./Components/AdminPanel";
 
 import { calculateElo } from "./utils/elo";
 
@@ -134,6 +135,48 @@ export default function App() {
     );
   }
 
+  if (
+    !isGuest &&
+    user?.id &&
+    profileUserId === user.id &&
+    activeProfile &&
+    activeProfile?.is_admin !== true &&
+    activeProfile?.is_approved !== true
+  ) {
+    return (
+      <div className="container">
+        <section className="player-section approval-gate">
+          <h2>Väntar på godkännande</h2>
+          <p className="muted">
+            En administratör behöver godkänna din åtkomst innan du kan använda
+            appen fullt ut.
+          </p>
+          <button type="button" onClick={handleAuthAction}>
+            Logga ut
+          </button>
+        </section>
+      </div>
+    );
+  }
+
+  const handleProfileUpdate = (updatedProfile) => {
+    setProfiles(prev =>
+      prev.map(profile =>
+        profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
+      )
+    );
+    if (updatedProfile.id === profileUserId) {
+      setProfile(prev => ({ ...(prev || {}), ...updatedProfile }));
+    }
+  };
+
+  const handleProfileDelete = (deletedId) => {
+    setProfiles(prev => prev.filter(profile => profile.id !== deletedId));
+    if (deletedId === profileUserId) {
+      setProfile(null);
+    }
+  };
+
   const eloPlayers = calculateElo(matches, profiles);
 
   return (
@@ -160,6 +203,9 @@ export default function App() {
           <a href="#profile" onClick={closeMenu}>Spelprofil</a>
         )}
         <a href="#history" onClick={closeMenu}>Match-historik</a>
+        {userWithAdmin?.is_admin && (
+          <a href="#admin" onClick={closeMenu}>Admin</a>
+        )}
         <button type="button" className="ghost-button" onClick={handleAuthAction}>
           {isGuest ? "Logga in / skapa konto" : "Logga ut"}
         </button>
@@ -190,6 +236,17 @@ export default function App() {
       <section id="history" className="page-section">
         <History matches={matches} profiles={profiles} user={isGuest ? null : userWithAdmin} />
       </section>
+
+      {userWithAdmin?.is_admin && (
+        <section id="admin" className="page-section">
+          <AdminPanel
+            user={userWithAdmin}
+            profiles={profiles}
+            onProfileUpdate={handleProfileUpdate}
+            onProfileDelete={handleProfileDelete}
+          />
+        </section>
+      )}
     </div>
   );
 }
