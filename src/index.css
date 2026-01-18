@@ -294,46 +294,11 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   gap:8px;
 }
 
-.admin-role-cell input {
-  min-width:140px;
-}
-
 .admin-actions {
   display:flex;
   flex-wrap:wrap;
   gap:8px;
   justify-content:center;
-}
-
-.admin-seed {
-  margin-top:24px;
-  padding:16px;
-  border:1px solid #eee;
-  border-radius:12px;
-  background:#fafafa;
-}
-
-.admin-seed h3 {
-  margin-top:0;
-}
-
-.admin-seed p code {
-  background:#f1f1f1;
-  padding:2px 6px;
-  border-radius:6px;
-}
-
-.admin-seed-actions {
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-top:12px;
-}
-
-.admin-seed-status {
-  margin-top:10px;
-  font-size:13px;
-  color:#2e7d32;
 }
 
 .chip {
