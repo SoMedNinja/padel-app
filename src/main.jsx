@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
 
+if (typeof globalThis !== "undefined" && !globalThis.players) {
+  globalThis.players = [];
+}
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />

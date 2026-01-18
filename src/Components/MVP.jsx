@@ -30,7 +30,8 @@ export default function MVP({
     );
   }
 
-  const stats = getMvpStats(relevantMatches);
+  const allowedNames = new Set(players.map(player => player.name));
+  const stats = getMvpStats(relevantMatches, allowedNames);
 
   const scored = Object.entries(stats).map(([name, s]) => {
     const winPct = s.games ? s.wins / s.games : 0;

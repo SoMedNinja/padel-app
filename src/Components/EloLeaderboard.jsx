@@ -49,10 +49,11 @@ export default function EloLeaderboard({ players = [] }) {
   const getTrend = (player) => {
     const last5 = player.recentResults?.slice(-5) || [];
     const wins = last5.filter(r => r === "W").length;
-    const losses = last5.filter(r => r === "L").length;
+    const total = last5.length || 1;
+    const winRate = wins / total;
 
-    if (wins >= 4) return "⬆️";
-    if (losses >= 4) return "⬇️";
+    if (winRate >= 0.8) return "⬆️";
+    if (winRate <= 0.2) return "⬇️";
     return "➖";
   };
 
