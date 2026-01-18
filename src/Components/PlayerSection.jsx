@@ -8,7 +8,8 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import padelPlaceholder from "../assets/padel-placeholder.svg";
+import Avatar from "./Avatar";
+import { getStoredAvatar } from "../utils/avatar";
 
 const ELO_BASELINE = 1000;
 
@@ -16,6 +17,8 @@ const percent = (wins, losses) => {
   const total = wins + losses;
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
+
+const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
 
 const ensurePlayer = (map, id) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE };
@@ -38,8 +41,8 @@ const buildPlayerSummary = (matches, profiles, playerId) => {
   );
 
   sortedMatches.forEach(match => {
-    const team1 = match.team1_ids || [];
-    const team2 = match.team2_ids || [];
+    const team1 = normalizeTeam(match.team1_ids);
+    const team2 = normalizeTeam(match.team2_ids);
 
     if (!team1.length || !team2.length) return;
     if (match.team1_sets == null || match.team2_sets == null) return;
@@ -52,11 +55,15 @@ const buildPlayerSummary = (matches, profiles, playerId) => {
       team2.forEach(id => ensurePlayer(eloMap, id));
     }
 
-    const avg = team =>
-      team.reduce((sum, id) => {
-        ensurePlayer(eloMap, id);
-        return sum + eloMap[id].elo;
-      }, 0) / team.length;
+    const avg = team => {
+      if (!team.length) return ELO_BASELINE;
+      return (
+        team.reduce((sum, id) => {
+          ensurePlayer(eloMap, id);
+          return sum + eloMap[id].elo;
+        }, 0) / team.length
+      );
+    };
 
     const e1 = avg(team1);
     const e2 = avg(team2);
@@ -102,8 +109,8 @@ const buildHeadToHead = (matches, playerId, opponentId, mode) => {
   let total = 0;
 
   matches.forEach(match => {
-    const team1 = match.team1_ids || [];
-    const team2 = match.team2_ids || [];
+    const team1 = normalizeTeam(match.team1_ids);
+    const team2 = normalizeTeam(match.team2_ids);
 
     const isTeam1 = team1.includes(playerId);
     const isTeam2 = team2.includes(playerId);
@@ -168,6 +175,9 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     [matches, user, resolvedOpponentId, mode]
   );
 
+  const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
+  const opponentAvatarUrl = opponentProfile ? getStoredAvatar(opponentProfile.id) : null;
+
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     if (!file || !avatarStorageKey) return;
@@ -196,9 +206,10 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
 
       <div className="player-header">
         <div className="player-avatar-wrap">
-          <img
+          <Avatar
             className="player-avatar"
-            src={avatarUrl || padelPlaceholder}
+            src={avatarUrl}
+            name={playerName}
             alt="Profilbild"
           />
           <button type="button" className="ghost-button" onClick={resetAvatar}>
@@ -286,10 +297,11 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
             </div>
 
             <div className="head-to-head-summary">
-              <div className="head-to-head-card">
-                <img
+            <div className="head-to-head-card">
+                <Avatar
                   className="head-to-head-avatar"
-                  src={avatarUrl || padelPlaceholder}
+                  src={avatarUrl}
+                  name={playerName}
                   alt="Din profilbild"
                 />
                 <div>
@@ -298,14 +310,15 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
                 </div>
               </div>
               <div className="head-to-head-card">
-                <img
+                <Avatar
                   className="head-to-head-avatar"
-                  src={padelPlaceholder}
+                  src={opponentAvatarUrl}
+                  name={opponentProfile?.name || "Spelare"}
                   alt="Motståndare"
                 />
                 <div>
                   <strong>
-                    {selectablePlayers.find(player => player.id === resolvedOpponentId)?.name || "Spelare"}
+                    {opponentProfile?.name || "Spelare"}
                   </strong>
                   <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
                 </div>
