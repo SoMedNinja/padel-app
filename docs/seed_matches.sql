@@ -1,10 +1,6 @@
 -- Seed 20–40 random matches with varied dates.
--- If there are no profiles, create a few dummy profiles first.
+-- Assumes you already have at least 4 profiles in the profiles table.
 -- Run in the Supabase SQL editor.
-
-insert into profiles (id, name)
-select gen_random_uuid(), unnest(array['Alex', 'Robin', 'Jamie', 'Kim', 'Sam', 'Tess'])
-where not exists (select 1 from profiles);
 
 with picks as (
   select
