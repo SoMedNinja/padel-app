@@ -28,21 +28,16 @@ export function calculateElo(matches, profiles) {
   const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
 
   matches.forEach(m => {
-    const t1 = normalizeTeam(m.team1_ids);
-    const t2 = normalizeTeam(m.team2_ids);
+    const t1 = m.team1_ids || [];
+    const t2 = m.team2_ids || [];
 
     if (!t1.length || !t2.length) return;
 
     t1.forEach(id => ensurePlayer(id, id === GUEST_ID ? GUEST_NAME : "Okänd"));
     t2.forEach(id => ensurePlayer(id, id === GUEST_ID ? GUEST_NAME : "Okänd"));
 
-    const avg = team => {
-      const roster = normalizeTeam(team);
-      if (!roster.length) return ELO_BASELINE;
-      return (
-        roster.reduce((s, id) => s + (players[id]?.elo ?? ELO_BASELINE), 0) / roster.length
-      );
-    };
+    const avg = team =>
+      team.reduce((s, id) => s + (players[id]?.elo ?? ELO_BASELINE), 0) / team.length;
 
     const e1 = avg(t1);
     const e2 = avg(t2);
