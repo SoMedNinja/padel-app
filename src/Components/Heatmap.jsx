@@ -5,13 +5,13 @@ export default function Heatmap({ matches = [], profiles = [] }) {
   const [sortKey, setSortKey] = useState("games");
   const [asc, setAsc] = useState(false);
 
-  if (!matches.length) return null;
-
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const allowedNames = useMemo(
     () => new Set(profiles.map(profile => getProfileDisplayName(profile)).filter(Boolean)),
     [profiles]
   );
+
+  if (!matches.length) return null;
 
   const combos = {};
   matches.forEach((m) => {
