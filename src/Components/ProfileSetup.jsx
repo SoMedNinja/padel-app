@@ -1,6 +1,6 @@
 import { useState } from "react";
-import padelPlaceholder from "../assets/padel-placeholder.svg";
 import { supabase } from "../supabaseClient";
+import Avatar from "./Avatar";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [name, setName] = useState(initialName);
@@ -51,9 +51,10 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
       <form className="profile-setup-form" onSubmit={handleSubmit}>
         <div className="player-header">
           <div className="player-avatar-wrap">
-            <img
+            <Avatar
               className="player-avatar"
-              src={avatarUrl || padelPlaceholder}
+              src={avatarUrl}
+              name={name || "Profil"}
               alt="Profilbild"
             />
           </div>
