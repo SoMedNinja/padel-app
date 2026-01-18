@@ -29,13 +29,13 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
       .from("profiles")
       .update({ name: nextName })
       .eq("id", profile.id)
-      .select()
-      .single();
+      .select();
 
     setSavingId(null);
     if (error) return alert(error.message);
+    if (!data?.length) return alert("Kunde inte uppdatera profilen.");
 
-    onProfileUpdate?.(data);
+    onProfileUpdate?.(data[0]);
   };
 
   const toggleApproval = async (profile) => {
@@ -45,13 +45,13 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
       .from("profiles")
       .update({ is_approved: nextApproved })
       .eq("id", profile.id)
-      .select()
-      .single();
+      .select();
 
     setToggleId(null);
     if (error) return alert(error.message);
+    if (!data?.length) return alert("Kunde inte uppdatera profilen.");
 
-    onProfileUpdate?.(data);
+    onProfileUpdate?.(data[0]);
   };
 
   const deleteProfile = async (profile) => {
