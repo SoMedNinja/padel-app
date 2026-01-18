@@ -1,18 +1,35 @@
-import { useMemo, useState } from "react";
-import { idsToNames } from "../utils/profileMap";
+import { useEffect, useMemo, useState } from "react";
+import { idsToNames, makeProfileMap } from "../utils/profileMap";
 import { supabase } from "../supabaseClient";
+import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 
 export default function History({ matches = [], profiles = [], user }) {
-  const profileMap = useMemo(() => {
-    const m = {};
-    profiles.forEach(p => (m[p.id] = p.name));
-    return m;
-  }, [profiles]);
+  const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
 
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState(null);
+  const [page, setPage] = useState(1);
 
   if (!matches.length) return <div>Inga matcher ännu.</div>;
+
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedMatches = matches.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const selectablePlayers = useMemo(() => {
+    const hasGuest = profiles.some(player => player.id === GUEST_ID);
+    return hasGuest ? profiles : [...profiles, { id: GUEST_ID, name: GUEST_NAME }];
+  }, [profiles]);
 
   const startEdit = (m) => {
     setEditingId(m.id);
@@ -71,7 +88,7 @@ export default function History({ matches = [], profiles = [], user }) {
       }}
     >
       <option value="">Välj</option>
-      {profiles.map(p => (
+      {selectablePlayers.map(p => (
         <option key={p.id} value={p.id}>
           {p.name}
         </option>
@@ -80,7 +97,7 @@ export default function History({ matches = [], profiles = [], user }) {
   );
 
   return (
-    <div>
+    <div className="history-section">
       <h2>Tidigare matcher</h2>
       <table>
         <thead>
@@ -94,7 +111,7 @@ export default function History({ matches = [], profiles = [], user }) {
         </thead>
 
         <tbody>
-          {matches.map(m => {
+          {paginatedMatches.map(m => {
             const isEditing = editingId === m.id;
 
             const teamA = idsToNames(m.team1_ids || [], profileMap).join(" & ");
@@ -169,6 +186,28 @@ export default function History({ matches = [], profiles = [], user }) {
           })}
         </tbody>
       </table>
+
+      <div className="pagination">
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+        >
+          Föregående
+        </button>
+        <span className="pagination-status">
+          Sida {currentPage} av {totalPages}
+        </span>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+        >
+          Nästa
+        </button>
+      </div>
 
       <p style={{ fontSize: 12, opacity: 0.7 }}>
         * Rättigheter styrs av databasen (RLS). Om du inte är admin/skapare kan knappar saknas.
