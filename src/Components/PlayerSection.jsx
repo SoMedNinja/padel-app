@@ -56,13 +56,12 @@ const buildPlayerSummary = (matches, profiles, playerId) => {
     }
 
     const avg = team => {
-      const roster = normalizeTeam(team);
-      if (!roster.length) return ELO_BASELINE;
+      if (!team.length) return ELO_BASELINE;
       return (
-        roster.reduce((sum, id) => {
+        team.reduce((sum, id) => {
           ensurePlayer(eloMap, id);
           return sum + eloMap[id].elo;
-        }, 0) / roster.length
+        }, 0) / team.length
       );
     };
 
