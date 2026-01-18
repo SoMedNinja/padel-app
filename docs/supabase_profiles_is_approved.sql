@@ -4,7 +4,8 @@ alter table public.profiles
 
 -- Allow admins to update approval state
 -- Assumes profiles.is_admin tracks admin users
-create policy if not exists "Admins can update profile approval"
+drop policy if exists "Admins can update profile approval" on public.profiles;
+create policy "Admins can update profile approval"
   on public.profiles
   for update
   using (
