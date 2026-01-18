@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Avatar from "./Avatar";
+import { getStoredAvatar } from "../utils/avatar";
 
 // Enkel hjälpfunktion för vinstprocent
 const winPct = (wins, losses) =>
@@ -71,7 +73,17 @@ export default function EloLeaderboard({ players = [] }) {
         <tbody>
           {sortedPlayers.map(p => (
             <tr key={p.name}>
-              <td>{p.name}</td>
+              <td>
+                <div className="leaderboard-name">
+                  <Avatar
+                    className="leaderboard-avatar"
+                    src={getStoredAvatar(p.id)}
+                    name={p.name}
+                    alt={`Profilbild för ${p.name}`}
+                  />
+                  <span>{p.name}</span>
+                </div>
+              </td>
               <td>{Math.round(p.elo)}</td>
               <td>{p.wins + p.losses}</td>
               <td>{p.wins}</td>

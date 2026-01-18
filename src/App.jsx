@@ -13,6 +13,7 @@ import { calculateElo } from "./utils/elo";
 export default function App() {
   const [user, setUser] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [profile, setProfile] = useState(null); // innehåller is_admin
   const [profileUserId, setProfileUserId] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -96,6 +97,16 @@ export default function App() {
     return { ...user, is_admin: activeProfile?.is_admin === true };
   }, [user, activeProfile]);
 
+  const closeMenu = () => setIsMenuOpen(false);
+  const handleAuthAction = () => {
+    closeMenu();
+    if (isGuest) {
+      setIsGuest(false);
+    } else {
+      supabase.auth.signOut();
+    }
+  };
+
   if (!user && !isGuest) {
     return (
       <Auth
@@ -129,12 +140,30 @@ export default function App() {
     <div className="container">
       <div className="app-header">
         <h1>🎾 Padel Tracker</h1>
-        {isGuest ? (
-          <button onClick={() => setIsGuest(false)}>Logga in / skapa konto</button>
-        ) : (
-          <button onClick={() => supabase.auth.signOut()}>Logga ut</button>
-        )}
+        <button
+          className="menu-toggle"
+          type="button"
+          aria-label="Öppna meny"
+          aria-expanded={isMenuOpen}
+          aria-controls="app-menu"
+          onClick={() => setIsMenuOpen(open => !open)}
+        >
+          ☰
+        </button>
       </div>
+
+      {isMenuOpen && <div className="app-menu-backdrop" onClick={closeMenu} />}
+
+      <nav id="app-menu" className={`app-menu ${isMenuOpen ? "open" : ""}`}>
+        <a href="#dashboard" onClick={closeMenu}>Hemskärm</a>
+        {!isGuest && (
+          <a href="#profile" onClick={closeMenu}>Spelprofil</a>
+        )}
+        <a href="#history" onClick={closeMenu}>Match-historik</a>
+        <button type="button" className="ghost-button" onClick={handleAuthAction}>
+          {isGuest ? "Logga in / skapa konto" : "Logga ut"}
+        </button>
+      </nav>
 
       {isGuest && (
         <div className="guest-banner">
@@ -142,20 +171,25 @@ export default function App() {
         </div>
       )}
 
-      {!isGuest && <MatchForm user={user} />}
-
-      <EloLeaderboard players={eloPlayers} />
+      <section id="dashboard" className="page-section">
+        {!isGuest && <MatchForm user={user} />}
+        <EloLeaderboard players={eloPlayers} />
+      </section>
 
       {!isGuest && (
-        <PlayerSection
-          key={userWithAdmin?.id}
-          user={userWithAdmin}
-          profiles={profiles}
-          matches={matches}
-        />
+        <section id="profile" className="page-section">
+          <PlayerSection
+            key={userWithAdmin?.id}
+            user={userWithAdmin}
+            profiles={profiles}
+            matches={matches}
+          />
+        </section>
       )}
 
-      <History matches={matches} profiles={profiles} user={isGuest ? null : userWithAdmin} />
+      <section id="history" className="page-section">
+        <History matches={matches} profiles={profiles} user={isGuest ? null : userWithAdmin} />
+      </section>
     </div>
   );
 }
