@@ -42,6 +42,8 @@ as $$
   insert into matches (
     team1_ids,
     team2_ids,
+    team1,
+    team2,
     team1_sets,
     team2_sets,
     created_by,
@@ -50,6 +52,14 @@ as $$
   select
     array[ids[1], ids[2]] as team1_ids,
     array[ids[3], ids[4]] as team2_ids,
+    array[
+      (select coalesce(name, email, 'Okänd') from profiles where id = ids[1]),
+      (select coalesce(name, email, 'Okänd') from profiles where id = ids[2])
+    ] as team1,
+    array[
+      (select coalesce(name, email, 'Okänd') from profiles where id = ids[3]),
+      (select coalesce(name, email, 'Okänd') from profiles where id = ids[4])
+    ] as team2,
     case
       when format = 'best_of_3' and winner = 1 then 2
       when format = 'best_of_3' and winner = 2 then loser_score
