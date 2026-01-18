@@ -58,6 +58,8 @@ export default function History({ matches = [], profiles = [], user }) {
     const { error } = await supabase
       .from("matches")
       .update({
+        team1: idsToNames(edit.team1_ids, profileMap),
+        team2: idsToNames(edit.team2_ids, profileMap),
         team1_ids: edit.team1_ids,
         team2_ids: edit.team2_ids,
         team1_sets: Number(edit.team1_sets),

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { getProfileDisplayName } from "../utils/profileMap";
+import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
 
 export default function MatchForm({ user }) {
   const [players, setPlayers] = useState([]);
@@ -20,6 +20,7 @@ export default function MatchForm({ user }) {
     const hasGuest = players.some(player => player.id === GUEST_ID);
     return hasGuest ? players : [...players, { id: GUEST_ID, name: GUEST_NAME }];
   }, [players]);
+  const profileMap = useMemo(() => makeProfileMap(selectablePlayers), [selectablePlayers]);
 
   const submit = async e => {
     e.preventDefault();
@@ -33,6 +34,8 @@ export default function MatchForm({ user }) {
     }
 
     await supabase.from("matches").insert({
+      team1: idsToNames(team1, profileMap),
+      team2: idsToNames(team2, profileMap),
       team1_ids: team1,
       team2_ids: team2,
       team1_sets: Number(a),
