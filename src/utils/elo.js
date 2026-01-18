@@ -1,4 +1,5 @@
 import { GUEST_ID, GUEST_NAME } from "./guest";
+import { getProfileDisplayName } from "./profileMap";
 
 const K = 20;
 const ELO_BASELINE = 1000;
@@ -22,7 +23,7 @@ export function calculateElo(matches, profiles) {
   ensurePlayer(GUEST_ID, GUEST_NAME);
 
   profiles.forEach(p => {
-    ensurePlayer(p.id, p.name);
+    ensurePlayer(p.id, getProfileDisplayName(p));
   });
 
   const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
+import { getProfileDisplayName } from "../utils/profileMap";
 
 export default function MatchForm({ user }) {
   const [players, setPlayers] = useState([]);
@@ -59,7 +60,7 @@ export default function MatchForm({ user }) {
         <option value="">Välj</option>
         {selectablePlayers.map(p => (
           <option key={p.id} value={p.id}>
-            {p.name}
+            {getProfileDisplayName(p)}
           </option>
         ))}
       </select>

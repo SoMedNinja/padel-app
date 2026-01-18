@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { idsToNames, makeProfileMap } from "../utils/profileMap";
+import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 
@@ -90,7 +90,7 @@ export default function History({ matches = [], profiles = [], user }) {
       <option value="">Välj</option>
       {selectablePlayers.map(p => (
         <option key={p.id} value={p.id}>
-          {p.name}
+          {getProfileDisplayName(p)}
         </option>
       ))}
     </select>
