@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { idsToNames, makeProfileMap } from "../utils/profileMap";
+import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 
@@ -9,8 +9,6 @@ export default function History({ matches = [], profiles = [], user }) {
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState(null);
   const [page, setPage] = useState(1);
-
-  if (!matches.length) return <div>Inga matcher ännu.</div>;
 
   const pageSize = 20;
   const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
@@ -30,6 +28,8 @@ export default function History({ matches = [], profiles = [], user }) {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
     return hasGuest ? profiles : [...profiles, { id: GUEST_ID, name: GUEST_NAME }];
   }, [profiles]);
+
+  if (!matches.length) return <div>Inga matcher ännu.</div>;
 
   const startEdit = (m) => {
     setEditingId(m.id);
@@ -90,7 +90,7 @@ export default function History({ matches = [], profiles = [], user }) {
       <option value="">Välj</option>
       {selectablePlayers.map(p => (
         <option key={p.id} value={p.id}>
-          {p.name}
+          {getProfileDisplayName(p)}
         </option>
       ))}
     </select>

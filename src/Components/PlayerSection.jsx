@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import Avatar from "./Avatar";
 import { getStoredAvatar } from "../utils/avatar";
+import { getProfileDisplayName } from "../utils/profileMap";
 
 const ELO_BASELINE = 1000;
 
@@ -146,7 +147,9 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     [profiles, user]
   );
 
-  const playerName = playerProfile?.name || user?.email || "Din profil";
+  const playerName = playerProfile
+    ? getProfileDisplayName(playerProfile)
+    : user?.email || "Din profil";
 
   const avatarStorageKey = user?.id ? `padel-avatar:${user.id}` : null;
   const [avatarUrl, setAvatarUrl] = useState(() =>
@@ -289,7 +292,7 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
                 <select value={resolvedOpponentId} onChange={(e) => setOpponentId(e.target.value)}>
                   {selectablePlayers.map(player => (
                     <option key={player.id} value={player.id}>
-                      {player.name}
+                      {getProfileDisplayName(player)}
                     </option>
                   ))}
                 </select>
@@ -313,12 +316,12 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
                 <Avatar
                   className="head-to-head-avatar"
                   src={opponentAvatarUrl}
-                  name={opponentProfile?.name || "Spelare"}
+                  name={getProfileDisplayName(opponentProfile)}
                   alt="Motståndare"
                 />
                 <div>
                   <strong>
-                    {opponentProfile?.name || "Spelare"}
+                    {getProfileDisplayName(opponentProfile)}
                   </strong>
                   <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
                 </div>
