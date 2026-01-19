@@ -245,6 +245,10 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
   const history = [];
   let wins = 0;
   let losses = 0;
+  let lastMatchDelta = 0;
+  let currentSessionDate = null;
+  let previousSessionFinalElo = null;
+  let currentSessionFinalElo = null;
 
   const sortedMatches = [...matches].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
@@ -279,6 +283,9 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
     const e2 = avg(team2);
     const expected1 = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
     const team1Won = match.team1_sets > match.team2_sets;
+    const preMatchElo = (isTeam1 || isTeam2)
+      ? Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE)
+      : null;
 
     team1.forEach(id => {
       ensurePlayer(eloMap, id);
@@ -293,10 +300,25 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
     if (isTeam1 || isTeam2) {
       const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
       playerWon ? wins++ : losses++;
+      const postMatchElo = Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE);
+      lastMatchDelta = postMatchElo - (preMatchElo ?? postMatchElo);
+      if (match.created_at) {
+        const matchDate = new Date(match.created_at);
+        if (!Number.isNaN(matchDate.getTime())) {
+          const dateKey = matchDate.toISOString().split("T")[0];
+          if (currentSessionDate && dateKey !== currentSessionDate) {
+            previousSessionFinalElo = currentSessionFinalElo;
+          }
+          if (!currentSessionDate || dateKey !== currentSessionDate) {
+            currentSessionDate = dateKey;
+          }
+          currentSessionFinalElo = postMatchElo;
+        }
+      }
 
       history.push({
         date: match.created_at || "",
-        elo: Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE)
+        elo: postMatchElo
       });
     }
   });
@@ -305,7 +327,12 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
     wins,
     losses,
     history,
-    currentElo: Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE)
+    currentElo: Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE),
+    lastMatchDelta,
+    lastSessionDelta:
+      currentSessionFinalElo != null && previousSessionFinalElo != null
+        ? currentSessionFinalElo - previousSessionFinalElo
+        : 0
   };
 };
 
@@ -661,6 +688,18 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
         <div className="stat-card">
           <span className="stat-label">ELO</span>
           <span className="stat-value">{summary ? summary.currentElo : ELO_BASELINE}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">ELO ändring (senaste match)</span>
+          <span className="stat-value">
+            {summary ? formatEloDelta(summary.lastMatchDelta) : "0"}
+          </span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">ELO ändring (senaste spelkväll)</span>
+          <span className="stat-value">
+            {summary ? formatEloDelta(summary.lastSessionDelta) : "0"}
+          </span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Vinster</span>
