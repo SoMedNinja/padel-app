@@ -277,8 +277,18 @@ export default function App() {
           />
         )}
         <div className="mvp-grid">
-          <MVP matches={matches} players={eloPlayers} mode="evening" title="Kvällens MVP" />
-          <MVP matches={matches} players={eloPlayers} mode="30days" title="Månadens MVP" />
+          <MVP
+            matches={filteredMatches}
+            players={playersWithTrend}
+            mode="evening"
+            title="Kvällens MVP"
+          />
+          <MVP
+            matches={filteredMatches}
+            players={playersWithTrend}
+            mode="30days"
+            title="Månadens MVP"
+          />
         </div>
         <EloLeaderboard players={playersWithTrend} />
         <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
