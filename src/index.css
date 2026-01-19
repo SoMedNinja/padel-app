@@ -241,6 +241,23 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   margin-top:10px;
 }
 
+.player-chart-header {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-bottom:8px;
+}
+
+.chart-compare {
+  display:flex;
+  flex-direction:column;
+  font-size:14px;
+  color:#555;
+  min-width:180px;
+}
+
 .match-form-grid {
   display:flex;
   flex-direction:column;
@@ -328,6 +345,10 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   display:block;
 }
 
+.head-to-head-card .muted + .muted {
+  margin-top:4px;
+}
+
 .head-to-head-avatar {
   width:56px;
   height:56px;
@@ -350,6 +371,68 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   border:2px solid #f3c5c5;
   font-size:14px;
   object-fit:cover;
+}
+
+.head-to-head-results {
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-top:6px;
+}
+
+.result-pill {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  font-size:14px;
+  font-weight:700;
+  color:#fff;
+}
+
+.result-win {
+  background:#2e7d32;
+}
+
+.result-loss {
+  background:#c62828;
+}
+
+.mvp-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+  gap:16px;
+  margin-bottom:20px;
+}
+
+.mvp {
+  background:#fff;
+  border-radius:14px;
+  border:1px solid #f0d1d1;
+  box-shadow:0 8px 18px rgba(0,0,0,0.08);
+  padding:16px;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:center;
+}
+
+.mvp-title {
+  font-weight:700;
+  color:#b71c1c;
+}
+
+.mvp-name {
+  font-size:20px;
+  font-weight:700;
+}
+
+.mvp-meta {
+  font-size:13px;
+  color:#666;
 }
 
 .history-section {

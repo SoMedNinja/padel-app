@@ -55,9 +55,11 @@ export default function MVP({
 
   return (
     <div className="mvp">
-      🏆 <strong>{title}</strong><br />
-      <strong>{mvp.name}</strong><br />
-      ({mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {mvp.eloDelta})
+      <div className="mvp-title">🏆 {title}</div>
+      <div className="mvp-name">{mvp.name}</div>
+      <div className="mvp-meta">
+        {mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {mvp.eloDelta}
+      </div>
     </div>
   );
 }
