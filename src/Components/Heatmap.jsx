@@ -1,23 +1,9 @@
 import { useMemo, useState } from "react";
 import { getProfileDisplayName, makeProfileMap, resolveTeamNames } from "../utils/profileMap";
+import { GUEST_NAME } from "../utils/guest";
 
 const ELO_BASELINE = 1000;
-const resolveTeamNames = (teamIds = [], teamNames = [], profileMap = {}) => {
-  const ids = Array.isArray(teamIds) ? teamIds : [];
-  const names = Array.isArray(teamNames) ? teamNames : [];
-
-  if (ids.some(Boolean)) {
-    return ids
-      .map((id, index) => {
-        if (id) return getIdDisplayName(id, profileMap);
-        if (names[index]) return names[index];
-        return id === GUEST_ID ? GUEST_NAME : "Okänd";
-      })
-      .filter(Boolean);
-  }
-
-  return names.filter(Boolean);
-};
+const normalizeProfileName = (name) => name?.trim().toLowerCase();
 
 export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }) {
   const [sortKey, setSortKey] = useState("games");
