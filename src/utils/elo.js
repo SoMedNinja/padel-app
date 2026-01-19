@@ -1,11 +1,12 @@
 import { GUEST_ID } from "./guest";
-import { getProfileDisplayName } from "./profileMap";
+import { getProfileDisplayName, makeProfileMap } from "./profileMap";
 
 const K = 20;
 const ELO_BASELINE = 1000;
 
 export function calculateElo(matches, profiles = []) {
   const players = {};
+  const profileMap = makeProfileMap(profiles);
 
   const ensurePlayer = (id, name = "Okänd") => {
     if (!players[id]) {
@@ -17,6 +18,7 @@ export function calculateElo(matches, profiles = []) {
         wins: 0,
         losses: 0,
         history: [],
+        partners: {},
       };
     }
   };
@@ -30,6 +32,17 @@ export function calculateElo(matches, profiles = []) {
   const activeTeam = (team) => team.filter(id => id !== GUEST_ID && hasPlayer(id));
   const avg = (team) =>
     team.reduce((s, id) => s + (players[id]?.elo ?? ELO_BASELINE), 0) / team.length;
+  const recordPartners = (team, didWin) => {
+    team.forEach((playerId) => {
+      team.forEach((partnerId) => {
+        if (playerId === partnerId) return;
+        const partnerStats = players[playerId].partners[partnerId] || { games: 0, wins: 0 };
+        partnerStats.games += 1;
+        if (didWin) partnerStats.wins += 1;
+        players[playerId].partners[partnerId] = partnerStats;
+      });
+    });
+  };
 
   matches.forEach(m => {
     const t1 = normalizeTeam(m.team1_ids || []);
@@ -58,12 +71,36 @@ export function calculateElo(matches, profiles = []) {
       team1Won ? players[id].losses++ : players[id].wins++;
       players[id].history.push({ result: team1Won ? "L" : "W", timestamp: historyStamp });
     });
+
+    recordPartners(t1Active, team1Won);
+    recordPartners(t2Active, !team1Won);
   });
 
   return Object.values(players).map(player => {
     const recentResults = [...player.history]
       .sort((a, b) => a.timestamp - b.timestamp)
       .map(entry => entry.result);
-    return { ...player, recentResults };
+    const bestPartnerEntry = Object.entries(player.partners)
+      .map(([partnerId, stats]) => ({
+        partnerId,
+        games: stats.games,
+        wins: stats.wins,
+        winRate: stats.games ? stats.wins / stats.games : 0,
+      }))
+      .filter(entry => entry.games >= 2)
+      .sort((a, b) => {
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        if (b.games !== a.games) return b.games - a.games;
+        return b.wins - a.wins;
+      })[0];
+
+    const bestPartner = bestPartnerEntry
+      ? {
+        ...bestPartnerEntry,
+        name: profileMap[bestPartnerEntry.partnerId] || "Okänd",
+      }
+      : null;
+
+    return { ...player, recentResults, bestPartner };
   });
 }
