@@ -101,6 +101,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                   <td className="admin-name-cell">
                     <input
                       value={currentName}
+                      size={Math.max(12, currentName.length || 0)}
                       onChange={(event) => handleNameChange(profile.id, event.target.value)}
                       aria-label={`Namn för ${getProfileDisplayName(profile)}`}
                     />

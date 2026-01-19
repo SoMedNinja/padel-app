@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -11,6 +11,7 @@ import {
 import Avatar from "./Avatar";
 import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
 import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
+import { supabase } from "../supabaseClient";
 
 const ELO_BASELINE = 1000;
 
@@ -324,7 +325,7 @@ const buildHeadToHeadRecentResults = (
   return results;
 };
 
-export default function PlayerSection({ user, profiles = [], matches = [] }) {
+export default function PlayerSection({ user, profiles = [], matches = [], onProfileUpdate }) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
@@ -409,9 +410,36 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
   }, [comparisonIds, profiles]);
 
   const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
-  const opponentAvatarUrl = opponentProfile ? getStoredAvatar(opponentProfile.id) : null;
+  const opponentAvatarUrl = opponentProfile?.avatar_url || getStoredAvatar(opponentProfile?.id);
   const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
   const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
+
+  useEffect(() => {
+    if (!avatarStorageKey || !user?.id) return;
+    const stored = localStorage.getItem(avatarStorageKey);
+    const serverAvatar = playerProfile?.avatar_url || null;
+
+    if (serverAvatar) {
+      if (stored !== serverAvatar) {
+        localStorage.setItem(avatarStorageKey, serverAvatar);
+      }
+      setAvatarUrl(serverAvatar);
+      return;
+    }
+
+    if (stored) {
+      setAvatarUrl(stored);
+      supabase
+        .from("profiles")
+        .update({ avatar_url: stored })
+        .eq("id", user.id)
+        .select()
+        .single()
+        .then(({ data }) => {
+          if (data) onProfileUpdate?.(data);
+        });
+    }
+  }, [avatarStorageKey, playerProfile?.avatar_url, user?.id]);
 
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
@@ -435,6 +463,18 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
       localStorage.setItem(avatarStorageKey, cropped);
       setAvatarUrl(cropped);
       setPendingAvatar(null);
+      if (user?.id) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .update({ avatar_url: cropped })
+          .eq("id", user.id)
+          .select();
+        if (error) {
+          alert(error.message || "Kunde inte spara profilbilden.");
+        } else if (data?.length) {
+          onProfileUpdate?.(data[0]);
+        }
+      }
     } catch (error) {
       alert(error.message || "Kunde inte beskära bilden.");
     } finally {
@@ -447,11 +487,23 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     setAvatarZoom(1);
   };
 
-  const resetAvatar = () => {
+  const resetAvatar = async () => {
     if (!avatarStorageKey) return;
     localStorage.removeItem(avatarStorageKey);
     setAvatarUrl(null);
     setPendingAvatar(null);
+    if (user?.id) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", user.id)
+        .select();
+      if (error) {
+        alert(error.message || "Kunde inte återställa profilbilden.");
+      } else if (data?.length) {
+        onProfileUpdate?.(data[0]);
+      }
+    }
   };
 
   const chartPalette = ["#d32f2f", "#1976d2", "#388e3c", "#f57c00", "#7b1fa2", "#00796b"];
