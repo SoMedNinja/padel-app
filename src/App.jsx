@@ -97,7 +97,6 @@ export default function App() {
   }, [user]);
 
   const { filteredMatches, playersWithTrend } = usePadelData(matches, matchFilter, profiles);
-  const eloPlayers = playersWithTrend;
   const allEloPlayers = useMemo(() => calculateElo(matches, profiles), [matches, profiles]);
 
   const activeProfile = useMemo(() => {
@@ -278,21 +277,11 @@ export default function App() {
           />
         )}
         <div className="mvp-grid">
-          <MVP
-            matches={filteredMatches}
-            players={eloPlayers}
-            mode="evening"
-            title="Kvällens MVP"
-          />
-          <MVP
-            matches={filteredMatches}
-            players={eloPlayers}
-            mode="30days"
-            title="Månadens MVP"
-          />
+          <MVP matches={matches} players={eloPlayers} mode="evening" title="Kvällens MVP" />
+          <MVP matches={matches} players={eloPlayers} mode="30days" title="Månadens MVP" />
         </div>
-        <EloLeaderboard players={eloPlayers} />
-        <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={eloPlayers} />
+        <EloLeaderboard players={playersWithTrend} />
+        <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
       </section>
 
       {!isGuest && (
