@@ -304,7 +304,7 @@ export default function History({ matches = [], profiles = [], user }) {
       </div>
 
       <p style={{ fontSize: 12, opacity: 0.7 }}>
-        * Rättigheter styrs av databasen (RLS). Om du inte är admin/skapare kan knappar saknas.
+        * Rättigheter styrs av databasen (RLS). Endast admin kan redigera matcher.
       </p>
     </div>
   );
