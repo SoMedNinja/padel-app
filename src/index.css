@@ -318,6 +318,10 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   text-align:center;
 }
 
+.stat-card-compare {
+  text-align:left;
+}
+
 .stat-label {
   font-size:12px;
   text-transform:uppercase;
@@ -330,6 +334,32 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   font-size:22px;
   font-weight:700;
   margin-top:6px;
+}
+
+.stat-compare {
+  display:flex;
+  gap:12px;
+  justify-content:space-between;
+  margin-top:8px;
+}
+
+.stat-compare-item {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  flex:1;
+}
+
+.stat-compare-name {
+  font-size:11px;
+  color:#777;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+}
+
+.stat-compare-value {
+  font-size:18px;
+  font-weight:700;
 }
 
 .player-chart {
