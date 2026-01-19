@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import Avatar from "./Avatar";
 import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
+import { GUEST_ID } from "../utils/guest";
 import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
 import { getMvpStats } from "../utils/stats";
 import { supabase } from "../supabaseClient";
@@ -19,6 +20,13 @@ const ELO_BASELINE = 1000;
 const percent = (wins, losses) => {
   const total = wins + losses;
   return total === 0 ? 0 : Math.round((wins / total) * 100);
+};
+
+const formatEloDelta = (delta) => {
+  const numericDelta = Number(delta);
+  if (!Number.isFinite(numericDelta) || numericDelta === 0) return "0";
+  const roundedDelta = Math.round(numericDelta);
+  return roundedDelta > 0 ? `+${roundedDelta}` : `${roundedDelta}`;
 };
 
 const formatMvpDays = (days) => {
