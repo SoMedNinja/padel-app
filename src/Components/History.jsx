@@ -56,9 +56,9 @@ export default function History({ matches = [], profiles = [], user }) {
   };
 
   return (
-    <div className="history-section">
+    <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
-      <table>
+      <table className="styled-table">
         <thead>
           <tr>
             <th>Datum</th>
