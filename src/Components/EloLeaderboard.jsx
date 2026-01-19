@@ -59,17 +59,17 @@ export default function EloLeaderboard({ players = [] }) {
   };
 
   return (
-    <div>
+    <div className="table-card">
       <h2>ELO Leaderboard</h2>
-      <table>
+      <table className="styled-table">
         <thead>
           <tr>
-            <th onClick={() => toggleSort("name")}>Spelare</th>
-            <th onClick={() => toggleSort("elo")}>ELO</th>
-            <th onClick={() => toggleSort("games")}>Matcher</th>
-            <th onClick={() => toggleSort("wins")}>Vinster</th>
+            <th className="sortable" onClick={() => toggleSort("name")}>Spelare</th>
+            <th className="sortable" onClick={() => toggleSort("elo")}>ELO</th>
+            <th className="sortable" onClick={() => toggleSort("games")}>Matcher</th>
+            <th className="sortable" onClick={() => toggleSort("wins")}>Vinster</th>
             <th>Trend</th>
-            <th onClick={() => toggleSort("winPct")}>Vinst %</th>
+            <th className="sortable" onClick={() => toggleSort("winPct")}>Vinst %</th>
           </tr>
         </thead>
         <tbody>
