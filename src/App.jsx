@@ -207,7 +207,7 @@ export default function App() {
   return (
     <div className="container">
       <div className="app-header">
-        <h1>🎾 Padel Tracker</h1>
+        <h1 className="app-title">🎾 Padel Tracker</h1>
         <button
           className="menu-toggle"
           type="button"
