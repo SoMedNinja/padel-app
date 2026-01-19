@@ -67,16 +67,16 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
   };
 
   return (
-    <div>
+    <div className="table-card">
       <h2>Lag-kombinationer</h2>
-      <table>
+      <table className="styled-table">
         <thead>
           <tr>
-            <th onClick={() => handleSort("players")}>Lag</th>
-            <th onClick={() => handleSort("games")}>Matcher</th>
-            <th onClick={() => handleSort("wins")}>Vinster</th>
-            <th onClick={() => handleSort("winPct")}>Vinst %</th>
-            <th onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
+            <th className="sortable" onClick={() => handleSort("players")}>Lag</th>
+            <th className="sortable" onClick={() => handleSort("games")}>Matcher</th>
+            <th className="sortable" onClick={() => handleSort("wins")}>Vinster</th>
+            <th className="sortable" onClick={() => handleSort("winPct")}>Vinst %</th>
+            <th className="sortable" onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
           </tr>
         </thead>
         <tbody>
