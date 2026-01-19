@@ -738,7 +738,8 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
                 <Line
                   key={name}
                   type="monotone"
-                  dataKey={name}
+                  dataKey={(row) => row[name]}
+                  name={name}
                   stroke={chartPalette[index % chartPalette.length]}
                   strokeWidth={3}
                   dot={false}
