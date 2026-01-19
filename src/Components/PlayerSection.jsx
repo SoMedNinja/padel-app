@@ -19,6 +19,16 @@ const percent = (wins, losses) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
+const formatChartTimestamp = (value, includeTime = false) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const options = includeTime
+    ? { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
+    : { year: "numeric", month: "short", day: "numeric" };
+  return new Intl.DateTimeFormat("sv-SE", options).format(date);
+};
+
 const normalizeTeam = (team) =>
   Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
 
@@ -66,7 +76,7 @@ const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
     const e2 = avg(team2);
     const expected1 = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
     const team1Won = match.team1_sets > match.team2_sets;
-    const historyDate = match.created_at?.slice(0, 10) || "";
+    const historyDate = match.created_at || "";
 
     team1.forEach(id => {
       ensureHistoryPlayer(id);
@@ -213,7 +223,7 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
       playerWon ? wins++ : losses++;
 
       history.push({
-        date: match.created_at?.slice(0, 10) || "",
+        date: match.created_at || "",
         elo: Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE)
       });
     }
@@ -549,9 +559,9 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
+              <XAxis dataKey="date" tickFormatter={(value) => formatChartTimestamp(value)} />
               <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
-              <Tooltip />
+              <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
               {comparisonNames.map((name, index) => (
                 <Line
                   key={name}
