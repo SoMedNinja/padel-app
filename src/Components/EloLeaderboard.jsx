@@ -45,10 +45,28 @@ export default function EloLeaderboard({ players = [] }) {
     }
   };
 
-  // Trend baserat på senaste 5 matcher
-  const getTrend = (player) => {
+  const getStreak = (player) => {
+    const results = player.recentResults || [];
+    if (!results.length) return "—";
+    const reversed = [...results].reverse();
+    const first = reversed[0];
+    let count = 0;
+    for (const result of reversed) {
+      if (result !== first) break;
+      count += 1;
+    }
+    return `${first}${count}`;
+  };
+
+  const getForm = (player) => {
     const last5 = player.recentResults?.slice(-5) || [];
-    if (last5.length < 3) return "N/A";
+    if (!last5.length) return "—";
+    return last5.join("");
+  };
+
+  const getTrendIndicator = (player) => {
+    const last5 = player.recentResults?.slice(-5) || [];
+    if (last5.length < 3) return "—";
     const wins = last5.filter(r => r === "W").length;
     const total = last5.length || 1;
     const winRate = wins / total;
@@ -68,7 +86,8 @@ export default function EloLeaderboard({ players = [] }) {
             <th className="sortable" onClick={() => toggleSort("elo")}>ELO</th>
             <th className="sortable" onClick={() => toggleSort("games")}>Matcher</th>
             <th className="sortable" onClick={() => toggleSort("wins")}>Vinster</th>
-            <th>Trend</th>
+            <th>Streak</th>
+            <th>Form / Trend (5)</th>
             <th className="sortable" onClick={() => toggleSort("winPct")}>Vinst %</th>
           </tr>
         </thead>
@@ -109,7 +128,28 @@ export default function EloLeaderboard({ players = [] }) {
               <td>{Math.round(p.elo)}</td>
               <td>{p.wins + p.losses}</td>
               <td>{p.wins}</td>
-              <td>{getTrend(p)}</td>
+              <td>{getStreak(p)}</td>
+              <td>
+                {getForm(p) === "—" ? (
+                  "—"
+                ) : (
+                  <span className="form-dots" aria-label={`Form ${getForm(p)}`}>
+                    {getForm(p)
+                      .split("")
+                      .map((entry, index) => (
+                        <span
+                          key={`${p.name}-form-${index}`}
+                          className={`form-dot ${entry === "W" ? "form-dot-win" : "form-dot-loss"}`}
+                        >
+                          {entry}
+                        </span>
+                      ))}
+                    <span className="form-trend" aria-hidden="true">
+                      {getTrendIndicator(p)}
+                    </span>
+                  </span>
+                )}
+              </td>
               <td>{winPct(p.wins, p.losses)}%</td>
             </tr>
           ))}
