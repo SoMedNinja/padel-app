@@ -110,14 +110,17 @@ export default function History({ matches = [], profiles = [], user }) {
       return;
     }
 
+    const team1IdsForDb = edit.team1_ids.map(id => (id === GUEST_ID ? null : id));
+    const team2IdsForDb = edit.team2_ids.map(id => (id === GUEST_ID ? null : id));
+
     const { error } = await supabase
       .from("matches")
       .update({
         created_at: new Date(edit.created_at).toISOString(),
         team1: idsToNames(edit.team1_ids, profileMap),
         team2: idsToNames(edit.team2_ids, profileMap),
-        team1_ids: edit.team1_ids,
-        team2_ids: edit.team2_ids,
+        team1_ids: team1IdsForDb,
+        team2_ids: team2IdsForDb,
         team1_sets: Number(edit.team1_sets),
         team2_sets: Number(edit.team2_sets),
       })
