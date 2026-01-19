@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import Avatar from "./Avatar";
 import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
+import { GUEST_ID } from "../utils/guest";
 import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
 import { getMvpStats } from "../utils/stats";
 import { supabase } from "../supabaseClient";
