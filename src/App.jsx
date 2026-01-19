@@ -242,10 +242,12 @@ export default function App() {
 
       <section id="dashboard" className="page-section">
         {!isGuest && <MatchForm user={user} profiles={profiles} />}
-        <MVP matches={matches} players={eloPlayers} mode="evening" title="Kvällens MVP" />
-        <MVP matches={matches} players={eloPlayers} mode="30days" title="MVP (30 dagar)" />
+        <div className="mvp-grid">
+          <MVP matches={matches} players={eloPlayers} mode="evening" title="Kvällens MVP" />
+          <MVP matches={matches} players={eloPlayers} mode="30days" title="MVP (30 dagar)" />
+        </div>
         <EloLeaderboard players={eloPlayers} />
-        <Heatmap matches={matches} profiles={profiles} />
+        <Heatmap matches={matches} profiles={profiles} eloPlayers={eloPlayers} />
       </section>
 
       {!isGuest && (

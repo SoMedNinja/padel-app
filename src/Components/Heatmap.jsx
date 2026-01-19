@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
 
-export default function Heatmap({ matches = [], profiles = [] }) {
+const ELO_BASELINE = 1000;
+
+export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }) {
   const [sortKey, setSortKey] = useState("games");
   const [asc, setAsc] = useState(false);
 
@@ -10,6 +12,9 @@ export default function Heatmap({ matches = [], profiles = [] }) {
     () => new Set(profiles.map(profile => getProfileDisplayName(profile)).filter(Boolean)),
     [profiles]
   );
+  const eloMap = useMemo(() => {
+    return new Map(eloPlayers.map(player => [player.name, player.elo]));
+  }, [eloPlayers]);
 
   if (!matches.length) return null;
 
@@ -33,12 +38,22 @@ export default function Heatmap({ matches = [], profiles = [] }) {
     });
   });
 
-  let rows = Object.values(combos).map((c) => ({ ...c, winPct: Math.round((c.wins / c.games) * 100) }));
+  let rows = Object.values(combos).map((c) => {
+    const avgElo = c.players.length
+      ? Math.round(
+        c.players.reduce((sum, name) => sum + (eloMap.get(name) ?? ELO_BASELINE), 0) / c.players.length
+      )
+      : ELO_BASELINE;
+    return { ...c, winPct: Math.round((c.wins / c.games) * 100), avgElo };
+  });
 
   rows.sort((a, b) => {
     let valA = a[sortKey], valB = b[sortKey];
     if (sortKey === "winPct") {
       valA = a.winPct; valB = b.winPct;
+    }
+    if (sortKey === "avgElo") {
+      valA = a.avgElo; valB = b.avgElo;
     }
     return asc ? valA - valB : valB - valA;
   });
@@ -61,6 +76,7 @@ export default function Heatmap({ matches = [], profiles = [] }) {
             <th onClick={() => handleSort("games")}>Matcher</th>
             <th onClick={() => handleSort("wins")}>Vinster</th>
             <th onClick={() => handleSort("winPct")}>Vinst %</th>
+            <th onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
           </tr>
         </thead>
         <tbody>
@@ -70,6 +86,7 @@ export default function Heatmap({ matches = [], profiles = [] }) {
               <td>{r.games}</td>
               <td>{r.wins}</td>
               <td>{r.winPct}%</td>
+              <td>{r.avgElo}</td>
             </tr>
           ))}
         </tbody>
