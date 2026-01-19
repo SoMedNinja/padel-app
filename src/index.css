@@ -11,6 +11,67 @@ button:disabled { opacity:0.7; cursor:not-allowed; }
 table { width:100%; border-collapse:collapse; margin-bottom:20px; display:block; overflow-x:auto; }
 th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowrap; }
 
+.table-card {
+  background:#fff;
+  padding:16px;
+  border-radius:12px;
+  box-shadow:0 0 10px rgba(0,0,0,0.08);
+  margin-bottom:20px;
+  text-align:left;
+}
+
+.table-card h2 {
+  margin-top:0;
+}
+
+.styled-table {
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  margin-bottom:0;
+  display:block;
+  overflow-x:auto;
+  border:1px solid #f0f0f0;
+  border-radius:12px;
+}
+
+.styled-table th,
+.styled-table td {
+  padding:10px 12px;
+  border:none;
+  border-bottom:1px solid #eee;
+  text-align:left;
+  white-space:nowrap;
+}
+
+.styled-table th:not(:first-child),
+.styled-table td:not(:first-child) {
+  text-align:center;
+}
+
+.styled-table thead th {
+  background:#fff5f5;
+  color:#b71c1c;
+  font-weight:600;
+  border-bottom:1px solid #f0dada;
+}
+
+.styled-table tbody tr:nth-child(even) {
+  background:#fafafa;
+}
+
+.styled-table tbody tr:hover {
+  background:#fff0f0;
+}
+
+.styled-table th.sortable {
+  cursor:pointer;
+}
+
+.styled-table th.sortable:hover {
+  color:#b71c1c;
+}
+
 .player-section {
   background:#fff;
   padding:20px;
@@ -292,8 +353,18 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
 }
 
 .match-form-result-row {
-  grid-template-columns:1fr auto 1fr;
+  grid-template-columns:auto auto auto;
   align-items:center;
+  justify-content:center;
+}
+
+.match-form-score-input {
+  width:72px;
+  max-width:72px;
+  text-align:center;
+  border:1px solid #f0b7b7;
+  outline:1px solid #f7d6d6;
+  background:#fff;
 }
 
 .match-form-score-separator {
@@ -506,6 +577,23 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
 .muted {
   color:#777;
   font-size:13px;
+}
+
+.toast {
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  padding:10px 16px;
+  border-radius:999px;
+  font-weight:600;
+  box-shadow:0 10px 20px rgba(0,0,0,0.12);
+  z-index:50;
+}
+
+.toast-success {
+  background:#e8f5e9;
+  color:#2e7d32;
+  border:1px solid #c8e6c9;
 }
 
 @media (max-width: 700px) {
