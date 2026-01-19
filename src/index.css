@@ -389,6 +389,14 @@ select:focus-visible {
   margin-top:6px;
 }
 
+.stat-delta-positive {
+  color:#2e7d32;
+}
+
+.stat-delta-negative {
+  color:#c62828;
+}
+
 .stat-compare {
   display:flex;
   gap:12px;
@@ -446,6 +454,7 @@ select:focus-visible {
   display:flex;
   flex-direction:column;
   gap:16px;
+  margin-bottom:24px;
 }
 
 .match-form-title {

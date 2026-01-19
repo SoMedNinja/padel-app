@@ -28,6 +28,7 @@ export default function MatchForm({
   const [matchRecap, setMatchRecap] = useState(null);
   const [eveningRecap, setEveningRecap] = useState(null);
   const [recapMode, setRecapMode] = useState("evening");
+  const [showRecap, setShowRecap] = useState(true);
   const toastTimeoutRef = useRef(null);
 
   const selectablePlayers = useMemo(() => {
@@ -215,6 +216,7 @@ export default function MatchForm({
     };
 
     setMatchRecap(recap);
+    setShowRecap(true);
   };
 
   const submit = async e => {
@@ -231,12 +233,15 @@ export default function MatchForm({
     const scoreA = Number(a);
     const scoreB = Number(b);
 
+    const team1IdsForDb = team1.map(id => (id === GUEST_ID ? null : id));
+    const team2IdsForDb = team2.map(id => (id === GUEST_ID ? null : id));
+
     try {
       const { error } = await supabase.from("matches").insert({
         team1: idsToNames(team1, profileMap),
         team2: idsToNames(team2, profileMap),
-        team1_ids: team1,
-        team2_ids: team2,
+        team1_ids: team1IdsForDb,
+        team2_ids: team2IdsForDb,
         team1_sets: scoreA,
         team2_sets: scoreB,
         created_by: user.id,
@@ -267,6 +272,7 @@ export default function MatchForm({
     setB("");
     setMatchSuggestion(null);
     setRecapMode("evening");
+    setShowRecap(true);
     showToast("Resultat tillagt");
   };
 
@@ -428,7 +434,7 @@ export default function MatchForm({
         </div>
       )}
 
-      {(matchRecap || eveningRecap) && (
+      {showRecap && (matchRecap || eveningRecap) && (
         <div className="recap-card">
           <div className="recap-header">
             <strong>{recapMode === "evening" ? "Kvällsrecap" : "Match‑recap"}</strong>
@@ -450,6 +456,11 @@ export default function MatchForm({
                 Match
               </button>
             </div>
+            {recapMode === "evening" && (
+              <button type="button" className="ghost-button" onClick={() => setShowRecap(false)}>
+                Stäng
+              </button>
+            )}
             {recapMode === "match" && matchRecap && (
               <span className="chip chip-neutral">{matchRecap.scoreline}</span>
             )}

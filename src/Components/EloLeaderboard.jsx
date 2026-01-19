@@ -58,12 +58,6 @@ export default function EloLeaderboard({ players = [] }) {
     return `${first}${count}`;
   };
 
-  const getForm = (player) => {
-    const last5 = player.recentResults?.slice(-5) || [];
-    if (!last5.length) return "—";
-    return last5.join("");
-  };
-
   const getTrendIndicator = (player) => {
     const last5 = player.recentResults?.slice(-5) || [];
     if (last5.length < 3) return "—";
@@ -87,7 +81,7 @@ export default function EloLeaderboard({ players = [] }) {
             <th className="sortable" onClick={() => toggleSort("games")}>Matcher</th>
             <th className="sortable" onClick={() => toggleSort("wins")}>Vinster</th>
             <th>Streak</th>
-            <th>Form / Trend (5)</th>
+            <th>Trend</th>
             <th className="sortable" onClick={() => toggleSort("winPct")}>Vinst %</th>
           </tr>
         </thead>
@@ -130,25 +124,9 @@ export default function EloLeaderboard({ players = [] }) {
               <td>{p.wins}</td>
               <td>{getStreak(p)}</td>
               <td>
-                {getForm(p) === "—" ? (
-                  "—"
-                ) : (
-                  <span className="form-dots" aria-label={`Form ${getForm(p)}`}>
-                    {getForm(p)
-                      .split("")
-                      .map((entry, index) => (
-                        <span
-                          key={`${p.name}-form-${index}`}
-                          className={`form-dot ${entry === "W" ? "form-dot-win" : "form-dot-loss"}`}
-                        >
-                          {entry}
-                        </span>
-                      ))}
-                    <span className="form-trend" aria-hidden="true">
-                      {getTrendIndicator(p)}
-                    </span>
-                  </span>
-                )}
+                <span className="form-trend" aria-hidden="true">
+                  {getTrendIndicator(p)}
+                </span>
               </td>
               <td>{winPct(p.wins, p.losses)}%</td>
             </tr>
