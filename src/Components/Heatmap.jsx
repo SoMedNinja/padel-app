@@ -29,7 +29,11 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
   if (!matches.length) return null;
 
   const combos = {};
-  matches.forEach((m) => {
+  const sortedMatches = [...matches].sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+  );
+
+  sortedMatches.forEach((m) => {
     const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
     const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
     const teams = [
@@ -57,10 +61,18 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
 
       const key = [...resolvedPlayers].sort().join(" + ");
       if (!combos[key]) {
-        combos[key] = { players: [...resolvedPlayers].sort(), games: 0, wins: 0 };
+        combos[key] = {
+          players: [...resolvedPlayers].sort(),
+          games: 0,
+          wins: 0,
+          recentResults: [],
+        };
       }
       combos[key].games++;
       if (won) combos[key].wins++;
+      if (combos[key].recentResults.length < 5) {
+        combos[key].recentResults.push(won ? "V" : "F");
+      }
     });
   });
 
@@ -102,6 +114,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
             <th className="sortable" onClick={() => handleSort("games")}>Matcher</th>
             <th className="sortable" onClick={() => handleSort("wins")}>Vinster</th>
             <th className="sortable" onClick={() => handleSort("winPct")}>Vinst %</th>
+            <th>Senaste 5</th>
             <th className="sortable" onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
           </tr>
         </thead>
@@ -112,6 +125,22 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
               <td>{r.games}</td>
               <td>{r.wins}</td>
               <td>{r.winPct}%</td>
+              <td>
+                {r.recentResults?.length ? (
+                  <span className="table-results">
+                    {r.recentResults.map((result, index) => (
+                      <span
+                        key={`${result}-${index}`}
+                        className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
+                      >
+                        {result}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  "-"
+                )}
+              </td>
               <td>{r.avgElo}</td>
             </tr>
           ))}

@@ -65,12 +65,17 @@ const buildMvpSummary = (matches, profiles) => {
       .filter(name => name && name !== "Gäst")
   );
   const dateMap = new Map();
+  const matchEntries = matches
+    .map(match => ({
+      match,
+      time: new Date(match.created_at).getTime(),
+      dateKey: match.created_at?.slice(0, 10),
+    }))
+    .filter(entry => Number.isFinite(entry.time) && entry.dateKey);
 
-  matches.forEach(match => {
-    const date = match.created_at?.slice(0, 10);
-    if (!date) return;
-    if (!dateMap.has(date)) dateMap.set(date, []);
-    dateMap.get(date).push(match);
+  matchEntries.forEach(({ match, dateKey }) => {
+    if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
+    dateMap.get(dateKey).push(match);
   });
 
   const getMvpWinner = (matchGroup) => {
@@ -99,11 +104,41 @@ const buildMvpSummary = (matches, profiles) => {
   };
 
   const monthlyMvpDays = {};
-  dateMap.forEach((dayMatches) => {
-    const winner = getMvpWinner(dayMatches);
-    if (!winner) return;
-    monthlyMvpDays[winner] = (monthlyMvpDays[winner] || 0) + 1;
-  });
+  if (matchEntries.length) {
+    const sortedEntries = [...matchEntries].sort((a, b) => a.time - b.time);
+    const startDate = new Date(sortedEntries[0].dateKey);
+    const latestMatchDate = new Date(sortedEntries[sortedEntries.length - 1].dateKey);
+    const today = new Date();
+    const endDate = latestMatchDate > today ? latestMatchDate : today;
+
+    let windowStartIndex = 0;
+    let windowEndIndex = 0;
+
+    for (
+      const cursor = new Date(startDate);
+      cursor <= endDate;
+      cursor.setDate(cursor.getDate() + 1)
+    ) {
+      const dateKey = cursor.toISOString().slice(0, 10);
+      const dayEndTime = new Date(`${dateKey}T23:59:59.999Z`).getTime();
+      const cutoff = dayEndTime - 30 * 24 * 60 * 60 * 1000;
+
+      while (windowEndIndex < sortedEntries.length && sortedEntries[windowEndIndex].time <= dayEndTime) {
+        windowEndIndex += 1;
+      }
+
+      while (windowStartIndex < windowEndIndex && sortedEntries[windowStartIndex].time <= cutoff) {
+        windowStartIndex += 1;
+      }
+
+      const rollingMatches = sortedEntries
+        .slice(windowStartIndex, windowEndIndex)
+        .map(entry => entry.match);
+      const winner = getMvpWinner(rollingMatches);
+      if (!winner) continue;
+      monthlyMvpDays[winner] = (monthlyMvpDays[winner] || 0) + 1;
+    }
+  }
 
   const eveningMvpCounts = {};
   dateMap.forEach((dayMatches) => {
@@ -206,18 +241,19 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
       if (!entry.date) return;
       const entryDate = new Date(entry.date);
       if (Number.isNaN(entryDate.getTime()) || entryDate < oneYearAgo) return;
-      const dateKey = entry.date.split("T")[0];
-      if (dateKey) {
-        dateSet.add(dateKey);
-      }
+      dateSet.add(entry.date);
     });
   });
 
-  const dates = Array.from(dateSet).sort((a, b) => a.localeCompare(b));
+  const dates = Array.from(dateSet).sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  );
   if (!dates.length) return [];
 
   const historyPointers = playerIds.map(id => {
-    const history = (historyMap[id]?.history || []).filter(entry => entry.date);
+    const history = (historyMap[id]?.history || [])
+      .filter(entry => entry.date)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     return {
       id,
       name: profileNameMap[id] || "Okänd",
@@ -232,7 +268,7 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
     historyPointers.forEach(pointer => {
       while (
         pointer.index < pointer.history.length &&
-        pointer.history[pointer.index].date.split("T")[0] <= date
+        new Date(pointer.history[pointer.index].date).getTime() <= new Date(date).getTime()
       ) {
         pointer.lastElo = pointer.history[pointer.index].elo;
         pointer.index += 1;
@@ -516,6 +552,23 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     return comparisonIds.map(id => profileNameMap[id] || "Okänd");
   }, [comparisonIds, profiles]);
 
+  const comparisonDateLabels = useMemo(() => {
+    const map = new Map();
+    let lastDate = "";
+    comparisonData.forEach(row => {
+      if (!row.date) return;
+      const dateKey = row.date.split("T")[0];
+      if (!dateKey) return;
+      if (dateKey !== lastDate) {
+        map.set(row.date, formatChartTimestamp(dateKey));
+        lastDate = dateKey;
+      } else {
+        map.set(row.date, "");
+      }
+    });
+    return map;
+  }, [comparisonData]);
+
   const mvpSummary = useMemo(
     () => buildMvpSummary(matches, profiles),
     [matches, profiles]
@@ -740,7 +793,10 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tickFormatter={(value) => formatChartTimestamp(value)} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
+              />
               <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
               <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
               {comparisonNames.map((name, index) => (
