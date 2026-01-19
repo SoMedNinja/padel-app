@@ -49,6 +49,23 @@ export function resolveTeamIds(teamIds = [], teamNames = [], nameToIdMap = {}) {
   return namesToIds(names, nameToIdMap);
 }
 
+export function resolveTeamNames(teamIds = [], teamNames = [], profileMap = {}) {
+  const ids = Array.isArray(teamIds) ? teamIds : [];
+  const names = Array.isArray(teamNames) ? teamNames : [];
+
+  if (ids.some(Boolean)) {
+    return ids
+      .map((id, index) => {
+        if (id) return getIdDisplayName(id, profileMap);
+        if (names[index]) return names[index];
+        return id === GUEST_ID ? GUEST_NAME : "Okänd";
+      })
+      .filter(Boolean);
+  }
+
+  return names.filter(Boolean);
+}
+
 export function getIdDisplayName(id, profileMap = {}) {
   if (profileMap[id]) return profileMap[id];
   if (id === GUEST_ID) return GUEST_NAME;
