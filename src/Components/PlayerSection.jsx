@@ -29,6 +29,12 @@ const formatEloDelta = (delta) => {
   return roundedDelta > 0 ? `+${roundedDelta}` : `${roundedDelta}`;
 };
 
+const getEloDeltaClass = (delta) => {
+  const numericDelta = Number(delta);
+  if (!Number.isFinite(numericDelta) || numericDelta === 0) return "";
+  return numericDelta > 0 ? "stat-delta-positive" : "stat-delta-negative";
+};
+
 const formatMvpDays = (days) => {
   if (!days) return "0 dagar";
   if (days >= 365) return `${(days / 365).toFixed(1)} år`;
@@ -58,15 +64,11 @@ const buildMvpSummary = (matches, profiles) => {
       .map(profile => getProfileDisplayName(profile))
       .filter(name => name && name !== "Gäst")
   );
-  const monthMap = new Map();
   const dateMap = new Map();
 
   matches.forEach(match => {
     const date = match.created_at?.slice(0, 10);
     if (!date) return;
-    const monthKey = date.slice(0, 7);
-    if (!monthMap.has(monthKey)) monthMap.set(monthKey, []);
-    monthMap.get(monthKey).push(match);
     if (!dateMap.has(date)) dateMap.set(date, []);
     dateMap.get(date).push(match);
   });
@@ -97,13 +99,10 @@ const buildMvpSummary = (matches, profiles) => {
   };
 
   const monthlyMvpDays = {};
-  monthMap.forEach((monthMatches, monthKey) => {
-    const winner = getMvpWinner(monthMatches);
+  dateMap.forEach((dayMatches) => {
+    const winner = getMvpWinner(dayMatches);
     if (!winner) return;
-    const [year, month] = monthKey.split("-").map(Number);
-    if (!year || !month) return;
-    const daysInMonth = new Date(year, month, 0).getDate();
-    monthlyMvpDays[winner] = (monthlyMvpDays[winner] || 0) + daysInMonth;
+    monthlyMvpDays[winner] = (monthlyMvpDays[winner] || 0) + 1;
   });
 
   const eveningMvpCounts = {};
@@ -204,14 +203,17 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
   playerIds.forEach(id => {
     const history = historyMap[id]?.history || [];
     history.forEach(entry => {
+      if (!entry.date) return;
       const entryDate = new Date(entry.date);
-      if (entry.date && entryDate >= oneYearAgo) {
-        dateSet.add(entry.date);
+      if (Number.isNaN(entryDate.getTime()) || entryDate < oneYearAgo) return;
+      const dateKey = entry.date.split("T")[0];
+      if (dateKey) {
+        dateSet.add(dateKey);
       }
     });
   });
 
-  const dates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+  const dates = Array.from(dateSet).sort((a, b) => a.localeCompare(b));
   if (!dates.length) return [];
 
   const historyPointers = playerIds.map(id => {
@@ -227,11 +229,10 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
 
   return dates.map(date => {
     const row = { date };
-    const currentDate = new Date(date);
     historyPointers.forEach(pointer => {
       while (
         pointer.index < pointer.history.length &&
-        new Date(pointer.history[pointer.index].date) <= currentDate
+        pointer.history[pointer.index].date.split("T")[0] <= date
       ) {
         pointer.lastElo = pointer.history[pointer.index].elo;
         pointer.index += 1;
@@ -699,13 +700,13 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
         </div>
         <div className="stat-card">
           <span className="stat-label">ELO ändring (senaste match)</span>
-          <span className="stat-value">
+          <span className={`stat-value ${getEloDeltaClass(summary?.lastMatchDelta)}`}>
             {summary ? formatEloDelta(summary.lastMatchDelta) : "0"}
           </span>
         </div>
         <div className="stat-card">
           <span className="stat-label">ELO ändring (senaste spelkväll)</span>
-          <span className="stat-value">
+          <span className={`stat-value ${getEloDeltaClass(summary?.lastSessionDelta)}`}>
             {summary ? formatEloDelta(summary.lastSessionDelta) : "0"}
           </span>
         </div>
