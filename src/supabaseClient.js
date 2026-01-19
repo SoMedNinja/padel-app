@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
+// Prefer env values, but fall back to defaults so local dev works out of the box.
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL || "https://hiasgpbuqhiwutpgugjk.supabase.co";
 const supabaseAnonKey =
