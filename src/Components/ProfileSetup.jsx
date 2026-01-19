@@ -36,6 +36,14 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
       localStorage.setItem(avatarStorageKey, cropped);
       setAvatarUrl(cropped);
       setPendingAvatar(null);
+      if (user?.id) {
+        const { error } = await supabase
+          .from("profiles")
+          .upsert({ id: user.id, avatar_url: cropped }, { onConflict: "id" });
+        if (error) {
+          alert(error.message || "Kunde inte spara profilbilden.");
+        }
+      }
     } catch (error) {
       alert(error.message || "Kunde inte beskära bilden.");
     } finally {
@@ -55,14 +63,16 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     if (!user?.id) return;
 
     setSaving(true);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
-      .upsert({ id: user.id, name: trimmed }, { onConflict: "id" });
+      .upsert({ id: user.id, name: trimmed, avatar_url: avatarUrl }, { onConflict: "id" })
+      .select()
+      .single();
 
     setSaving(false);
     if (error) return alert(error.message);
 
-    onComplete?.({ name: trimmed });
+    onComplete?.(data || { name: trimmed, avatar_url: avatarUrl });
   };
 
   return (

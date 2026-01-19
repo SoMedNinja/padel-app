@@ -61,7 +61,7 @@ export default function EloLeaderboard({ players = [] }) {
   return (
     <div className="table-card">
       <h2>ELO Leaderboard</h2>
-      <table className="styled-table">
+      <table className="styled-table leaderboard-table">
         <thead>
           <tr>
             <th className="sortable" onClick={() => toggleSort("name")}>Spelare</th>
@@ -79,7 +79,7 @@ export default function EloLeaderboard({ players = [] }) {
                 <div className="leaderboard-name" tabIndex={0}>
                   <Avatar
                     className="leaderboard-avatar"
-                    src={getStoredAvatar(p.id)}
+                    src={p.avatarUrl || getStoredAvatar(p.id)}
                     name={p.name}
                     alt={`Profilbild för ${p.name}`}
                   />

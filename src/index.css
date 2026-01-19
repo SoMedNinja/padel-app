@@ -526,6 +526,10 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   margin-top:4px;
 }
 
+.leaderboard-table {
+  overflow-y:hidden;
+}
+
 .head-to-head-results {
   display:flex;
   justify-content:center;
@@ -602,10 +606,22 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   overflow-x:auto;
 }
 
+.admin-panel table {
+  width:max-content;
+  min-width:100%;
+  table-layout:auto;
+}
+
 .admin-name-cell {
   display:flex;
   align-items:center;
   gap:8px;
+  min-width:max-content;
+}
+
+.admin-name-cell input {
+  width:max-content;
+  min-width:220px;
 }
 
 .admin-actions {

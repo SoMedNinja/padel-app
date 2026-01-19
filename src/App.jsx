@@ -131,8 +131,10 @@ export default function App() {
         <ProfileSetup
           user={user}
           initialName={activeProfile?.name}
-          onComplete={({ name }) => {
-            setProfile(prev => ({ ...(prev || {}), name }));
+          onComplete={(updatedProfile) => {
+            if (updatedProfile) {
+              handleProfileUpdate(updatedProfile);
+            }
             setProfileUserId(user.id);
           }}
         />
@@ -277,6 +279,7 @@ export default function App() {
             user={userWithAdmin}
             profiles={profiles}
             matches={matches}
+            onProfileUpdate={handleProfileUpdate}
           />
         </section>
       )}

@@ -14,8 +14,12 @@ export function calculateElo(matches, profiles = []) {
   const players = {};
   const profileMap = makeProfileMap(profiles);
   const nameToIdMap = makeNameToIdMap(profiles);
+  const avatarMap = profiles.reduce((acc, profile) => {
+    acc[profile.id] = profile.avatar_url || null;
+    return acc;
+  }, {});
 
-  const ensurePlayer = (id, name = "Okänd") => {
+  const ensurePlayer = (id, name = "Okänd", avatarUrl = null) => {
     if (id === GUEST_ID) return;
     if (!players[id]) {
       players[id] = {
@@ -27,14 +31,20 @@ export function calculateElo(matches, profiles = []) {
         losses: 0,
         history: [],
         partners: {},
+        avatarUrl,
       };
-    } else if (name && players[id].name === "Okänd") {
-      players[id].name = name;
+    } else {
+      if (name && players[id].name === "Okänd") {
+        players[id].name = name;
+      }
+      if (avatarUrl && !players[id].avatarUrl) {
+        players[id].avatarUrl = avatarUrl;
+      }
     }
   };
 
   profiles.forEach(p => {
-    ensurePlayer(p.id, getProfileDisplayName(p));
+    ensurePlayer(p.id, getProfileDisplayName(p), avatarMap[p.id]);
   });
 
   const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
