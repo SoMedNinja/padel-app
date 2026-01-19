@@ -1,11 +1,6 @@
 import { GUEST_ID, GUEST_NAME } from "./guest";
 
-const normalizeName = (name) =>
-  name
-    ?.trim()
-    .replace(/[“”]/g, "\"")
-    .replace(/[’]/g, "'")
-    .toLowerCase();
+const normalizeName = (name) => name?.trim().toLowerCase();
 
 export function getProfileDisplayName(profile) {
   return profile?.name || profile?.email || "Okänd";
@@ -54,30 +49,9 @@ export function resolveTeamIds(teamIds = [], teamNames = [], nameToIdMap = {}) {
   return namesToIds(names, nameToIdMap);
 }
 
-export function resolveTeamNames(teamIds = [], teamNames = [], profileMap = {}) {
-  const ids = Array.isArray(teamIds) ? teamIds : [];
-  const names = Array.isArray(teamNames) ? teamNames : [];
-
-  if (ids.some(Boolean)) {
-    return ids
-      .map((id, index) => {
-        if (id) return getIdDisplayName(id, profileMap);
-        if (names[index]) return names[index];
-        return "Okänd";
-      })
-      .filter(Boolean);
-  }
-
-  return names.filter(Boolean);
-}
-
 export function getIdDisplayName(id, profileMap = {}) {
   if (profileMap[id]) return profileMap[id];
   if (id === GUEST_ID) return GUEST_NAME;
   if (typeof id === "string" && id.startsWith("name:")) return id.slice(5);
   return "Okänd";
-}
-
-export function normalizeProfileName(name) {
-  return normalizeName(name);
 }
