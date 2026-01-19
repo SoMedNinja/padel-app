@@ -11,6 +11,7 @@ import {
 import Avatar from "./Avatar";
 import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
 import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
+import { getMvpStats } from "../utils/stats";
 import { supabase } from "../supabaseClient";
 
 const ELO_BASELINE = 1000;
@@ -20,9 +21,10 @@ const percent = (wins, losses) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
-const formatEloDelta = (value) => {
-  if (!value) return "0";
-  return value > 0 ? `+${value}` : `${value}`;
+const formatMvpDays = (days) => {
+  if (!days) return "0 dagar";
+  if (days >= 365) return `${(days / 365).toFixed(1)} år`;
+  return `${days} dagar`;
 };
 
 const formatChartTimestamp = (value, includeTime = false) => {
@@ -40,6 +42,70 @@ const normalizeTeam = (team) =>
 
 const ensurePlayer = (map, id) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE };
+};
+
+const buildMvpSummary = (matches, profiles) => {
+  const allowedNames = new Set(
+    profiles
+      .map(profile => getProfileDisplayName(profile))
+      .filter(name => name && name !== "Gäst")
+  );
+  const monthMap = new Map();
+  const dateMap = new Map();
+
+  matches.forEach(match => {
+    const date = match.created_at?.slice(0, 10);
+    if (!date) return;
+    const monthKey = date.slice(0, 7);
+    if (!monthMap.has(monthKey)) monthMap.set(monthKey, []);
+    monthMap.get(monthKey).push(match);
+    if (!dateMap.has(date)) dateMap.set(date, []);
+    dateMap.get(date).push(match);
+  });
+
+  const getMvpWinner = (matchGroup) => {
+    const stats = getMvpStats(matchGroup, allowedNames);
+    const scored = Object.entries(stats).map(([name, s]) => {
+      const winPct = s.games ? s.wins / s.games : 0;
+      return {
+        name,
+        wins: s.wins,
+        games: s.games,
+        winPct,
+        score: s.wins * 3 + winPct * 5 + s.games
+      };
+    });
+
+    if (!scored.length) return null;
+
+    const [winner] = scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.games !== a.games) return b.games - a.games;
+      return a.name.localeCompare(b.name);
+    });
+
+    return winner?.name || null;
+  };
+
+  const monthlyMvpDays = {};
+  monthMap.forEach((monthMatches, monthKey) => {
+    const winner = getMvpWinner(monthMatches);
+    if (!winner) return;
+    const [year, month] = monthKey.split("-").map(Number);
+    if (!year || !month) return;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    monthlyMvpDays[winner] = (monthlyMvpDays[winner] || 0) + daysInMonth;
+  });
+
+  const eveningMvpCounts = {};
+  dateMap.forEach((dayMatches) => {
+    const winner = getMvpWinner(dayMatches);
+    if (!winner) return;
+    eveningMvpCounts[winner] = (eveningMvpCounts[winner] || 0) + 1;
+  });
+
+  return { monthlyMvpDays, eveningMvpCounts };
 };
 
 const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
@@ -441,10 +507,20 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     return comparisonIds.map(id => profileNameMap[id] || "Okänd");
   }, [comparisonIds, profiles]);
 
+  const mvpSummary = useMemo(
+    () => buildMvpSummary(matches, profiles),
+    [matches, profiles]
+  );
+
   const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
   const opponentAvatarUrl = opponentProfile?.avatar_url || getStoredAvatar(opponentProfile?.id);
+  const opponentName = opponentProfile ? getProfileDisplayName(opponentProfile) : "Motståndare";
   const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
   const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
+  const playerMvpDays = mvpSummary.monthlyMvpDays[playerName] || 0;
+  const opponentMvpDays = mvpSummary.monthlyMvpDays[opponentName] || 0;
+  const playerEveningMvps = mvpSummary.eveningMvpCounts[playerName] || 0;
+  const opponentEveningMvps = mvpSummary.eveningMvpCounts[opponentName] || 0;
 
   useEffect(() => {
     if (!avatarStorageKey || !user?.id) return;
@@ -765,6 +841,34 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
                 ) : (
                   <span className="stat-value">-</span>
                 )}
+              </div>
+              <div className="stat-card stat-card-compare">
+                <span className="stat-label">MVP-månader</span>
+                <div className="stat-compare">
+                  <div className="stat-compare-item">
+                    <span className="stat-compare-name">Du</span>
+                    <span className="stat-compare-value">{formatMvpDays(playerMvpDays)}</span>
+                  </div>
+                  <div className="stat-compare-item">
+                    <span className="stat-compare-name">{opponentName}</span>
+                    <span className="stat-compare-value">
+                      {formatMvpDays(opponentMvpDays)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="stat-card stat-card-compare">
+                <span className="stat-label">Kvällens MVP</span>
+                <div className="stat-compare">
+                  <div className="stat-compare-item">
+                    <span className="stat-compare-name">Du</span>
+                    <span className="stat-compare-value">{playerEveningMvps}</span>
+                  </div>
+                  <div className="stat-compare-item">
+                    <span className="stat-compare-name">{opponentName}</span>
+                    <span className="stat-compare-value">{opponentEveningMvps}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </>
