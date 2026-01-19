@@ -76,7 +76,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
             <th onClick={() => handleSort("games")}>Matcher</th>
             <th onClick={() => handleSort("wins")}>Vinster</th>
             <th onClick={() => handleSort("winPct")}>Vinst %</th>
-            <th onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
+            <th onClick={() => handleSort("avgElo")}>team ELO</th>
           </tr>
         </thead>
         <tbody>

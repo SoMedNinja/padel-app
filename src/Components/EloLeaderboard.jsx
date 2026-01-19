@@ -65,7 +65,7 @@ export default function EloLeaderboard({ players = [] }) {
         <thead>
           <tr>
             <th onClick={() => toggleSort("name")}>Spelare</th>
-            <th onClick={() => toggleSort("elo")}>ELO</th>
+            <th onClick={() => toggleSort("elo")}>team ELO</th>
             <th onClick={() => toggleSort("games")}>Matcher</th>
             <th onClick={() => toggleSort("wins")}>Vinster</th>
             <th>Trend</th>
