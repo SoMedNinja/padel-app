@@ -263,7 +263,14 @@ export default function App() {
       )}
 
       <section id="dashboard" className="page-section">
-        {!isGuest && <MatchForm user={user} profiles={profiles} />}
+        {!isGuest && (
+          <MatchForm
+            user={user}
+            profiles={profiles}
+            matches={matches}
+            eloPlayers={eloPlayers}
+          />
+        )}
         <div className="mvp-grid">
           <MVP matches={matches} players={eloPlayers} mode="evening" title="Kvällens MVP" />
           <MVP matches={matches} players={eloPlayers} mode="30days" title="MVP (30 dagar)" />
