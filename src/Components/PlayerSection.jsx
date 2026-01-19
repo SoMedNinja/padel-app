@@ -21,6 +21,13 @@ const percent = (wins, losses) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
+const formatEloDelta = (delta) => {
+  const numericDelta = Number(delta);
+  if (!Number.isFinite(numericDelta) || numericDelta === 0) return "0";
+  const roundedDelta = Math.round(numericDelta);
+  return roundedDelta > 0 ? `+${roundedDelta}` : `${roundedDelta}`;
+};
+
 const formatMvpDays = (days) => {
   if (!days) return "0 dagar";
   if (days >= 365) return `${(days / 365).toFixed(1)} år`;
