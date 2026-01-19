@@ -1,5 +1,11 @@
 import { GUEST_ID } from "./guest";
-import { getProfileDisplayName, makeProfileMap } from "./profileMap";
+import {
+  getIdDisplayName,
+  getProfileDisplayName,
+  makeNameToIdMap,
+  makeProfileMap,
+  resolveTeamIds,
+} from "./profileMap";
 
 const K = 20;
 const ELO_BASELINE = 1000;
@@ -7,6 +13,7 @@ const ELO_BASELINE = 1000;
 export function calculateElo(matches, profiles = []) {
   const players = {};
   const profileMap = makeProfileMap(profiles);
+  const nameToIdMap = makeNameToIdMap(profiles);
 
   const ensurePlayer = (id, name = "Okänd") => {
     if (!players[id]) {
@@ -20,6 +27,8 @@ export function calculateElo(matches, profiles = []) {
         history: [],
         partners: {},
       };
+    } else if (name && players[id].name === "Okänd") {
+      players[id].name = name;
     }
   };
 
@@ -44,9 +53,12 @@ export function calculateElo(matches, profiles = []) {
     });
   };
 
+  const resolveName = (id) => getIdDisplayName(id, profileMap);
+
   matches.forEach(m => {
-    const t1 = normalizeTeam(m.team1_ids || []);
-    const t2 = normalizeTeam(m.team2_ids || []);
+    const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
+    const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
+    [...t1, ...t2].forEach(id => ensurePlayer(id, resolveName(id)));
     const t1Active = activeTeam(t1);
     const t2Active = activeTeam(t2);
 
@@ -97,7 +109,7 @@ export function calculateElo(matches, profiles = []) {
     const bestPartner = bestPartnerEntry
       ? {
         ...bestPartnerEntry,
-        name: profileMap[bestPartnerEntry.partnerId] || "Okänd",
+        name: resolveName(bestPartnerEntry.partnerId),
       }
       : null;
 
