@@ -808,6 +808,13 @@ select:focus-visible {
   margin-top:6px;
 }
 
+.table-results {
+  display:flex;
+  justify-content:flex-start;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
 .result-pill {
   display:inline-flex;
   align-items:center;

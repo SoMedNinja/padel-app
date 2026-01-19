@@ -267,7 +267,6 @@ export default function App() {
       )}
 
       <section id="dashboard" className="page-section">
-        <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
         {!isGuest && (
           <MatchForm
             user={user}
@@ -276,6 +275,7 @@ export default function App() {
             eloPlayers={allEloPlayers}
           />
         )}
+        <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
         <div className="mvp-grid">
           <MVP
             matches={filteredMatches}

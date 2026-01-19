@@ -9,8 +9,13 @@ import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { supabase } from "../supabaseClient";
 
 const normalizeName = (name) => name?.trim().toLowerCase();
-const toDateTimeInput = (value) =>
-  value ? new Date(value).toISOString().slice(0, 16) : "";
+const toDateTimeInput = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
 
 export default function History({ matches = [], profiles = [], user }) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
