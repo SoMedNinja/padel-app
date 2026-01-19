@@ -1,11 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  getProfileDisplayName,
-  makeProfileMap,
-  normalizeProfileName,
-  resolveTeamNames,
-} from "../utils/profileMap";
-import { GUEST_NAME } from "../utils/guest";
+import { getProfileDisplayName, makeProfileMap, resolveTeamNames } from "../utils/profileMap";
 
 const ELO_BASELINE = 1000;
 

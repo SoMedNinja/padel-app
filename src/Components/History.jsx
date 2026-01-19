@@ -151,8 +151,10 @@ export default function History({ matches = [], profiles = [], user }) {
 
         <tbody>
           {paginatedMatches.map(m => {
-            const teamAList = resolveTeamNames(m.team1_ids, m.team1, profileMap);
-            const teamBList = resolveTeamNames(m.team2_ids, m.team2, profileMap);
+            const teamAList =
+              m.team1_ids?.length ? idsToNames(m.team1_ids, profileMap) : m.team1 || [];
+            const teamBList =
+              m.team2_ids?.length ? idsToNames(m.team2_ids, profileMap) : m.team2 || [];
             const teamA = teamAList.join(" & ");
             const teamB = teamBList.join(" & ");
             const date = m.created_at?.slice(0, 10);
