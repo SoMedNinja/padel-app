@@ -8,10 +8,18 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
   const [asc, setAsc] = useState(false);
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
-  const allowedNames = useMemo(
-    () => new Set(profiles.map(profile => getProfileDisplayName(profile)).filter(Boolean)),
-    [profiles]
-  );
+  const allowedNameMap = useMemo(() => {
+    const map = new Map();
+    profiles.forEach(profile => {
+      const name = getProfileDisplayName(profile);
+      const key = normalizeProfileName(name);
+      if (key && !map.has(key)) {
+        map.set(key, name);
+      }
+    });
+    map.set(normalizeProfileName(GUEST_NAME), GUEST_NAME);
+    return map;
+  }, [profiles]);
   const eloMap = useMemo(() => {
     return new Map(eloPlayers.map(player => [player.name, player.elo]));
   }, [eloPlayers]);
@@ -29,10 +37,26 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
 
     teams.forEach(({ players, won }) => {
       if (!Array.isArray(players) || !players.length) return;
-      if (players.includes("Gäst")) return;
-      if (allowedNames.size && players.some(player => !allowedNames.has(player))) return;
-      const key = [...players].sort().join(" + ");
-      if (!combos[key]) combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
+      const resolvedPlayers = players
+        .map(player => {
+          const key = normalizeProfileName(player);
+          if (!key) return null;
+          return allowedNameMap.get(key) || null;
+        })
+        .filter(Boolean);
+
+      if (!resolvedPlayers.length) return;
+      if (resolvedPlayers.some(player => normalizeProfileName(player) === normalizeProfileName(GUEST_NAME))) {
+        return;
+      }
+      if (allowedNameMap.size && resolvedPlayers.some(player => !allowedNameMap.has(normalizeProfileName(player)))) {
+        return;
+      }
+
+      const key = [...resolvedPlayers].sort().join(" + ");
+      if (!combos[key]) {
+        combos[key] = { players: [...resolvedPlayers].sort(), games: 0, wins: 0 };
+      }
       combos[key].games++;
       if (won) combos[key].wins++;
     });
