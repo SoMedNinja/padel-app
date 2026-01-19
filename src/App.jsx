@@ -10,8 +10,10 @@ import ProfileSetup from "./Components/ProfileSetup";
 import AdminPanel from "./Components/AdminPanel";
 import MVP from "./Components/MVP";
 import Heatmap from "./Components/Heatmap";
+import FilterBar from "./Components/FilterBar";
 
 import { calculateElo } from "./utils/elo";
+import { usePadelData } from "./hooks/usePadelData";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -22,6 +24,7 @@ export default function App() {
   const [profiles, setProfiles] = useState([]);
   const [allProfiles, setAllProfiles] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [matchFilter, setMatchFilter] = useState("all");
 
   // 1) Auth state
   useEffect(() => {
@@ -92,6 +95,9 @@ export default function App() {
         setProfileUserId(user.id);
       });
   }, [user]);
+
+  const { filteredMatches, playersWithTrend } = usePadelData(matches, matchFilter, profiles);
+  const allEloPlayers = useMemo(() => calculateElo(matches, profiles), [matches, profiles]);
 
   const activeProfile = useMemo(() => {
     if (!user?.id || profileUserId !== user.id) return null;
@@ -202,8 +208,6 @@ export default function App() {
     }
   };
 
-  const eloPlayers = calculateElo(matches, profiles);
-
   return (
     <div className="container">
       <div className="app-header">
@@ -263,20 +267,21 @@ export default function App() {
       )}
 
       <section id="dashboard" className="page-section">
+        <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
         {!isGuest && (
           <MatchForm
             user={user}
             profiles={profiles}
             matches={matches}
-            eloPlayers={eloPlayers}
+            eloPlayers={allEloPlayers}
           />
         )}
         <div className="mvp-grid">
           <MVP matches={matches} players={eloPlayers} mode="evening" title="Kvällens MVP" />
           <MVP matches={matches} players={eloPlayers} mode="30days" title="Månadens MVP" />
         </div>
-        <EloLeaderboard players={eloPlayers} />
-        <Heatmap matches={matches} profiles={profiles} eloPlayers={eloPlayers} />
+        <EloLeaderboard players={playersWithTrend} />
+        <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
       </section>
 
       {!isGuest && (
@@ -285,14 +290,14 @@ export default function App() {
             key={userWithAdmin?.id}
             user={userWithAdmin}
             profiles={profiles}
-            matches={matches}
+            matches={filteredMatches}
             onProfileUpdate={handleProfileUpdate}
           />
         </section>
       )}
 
       <section id="history" className="page-section">
-        <History matches={matches} profiles={profiles} user={isGuest ? null : userWithAdmin} />
+        <History matches={filteredMatches} profiles={profiles} user={isGuest ? null : userWithAdmin} />
       </section>
 
       {userWithAdmin?.is_admin && (

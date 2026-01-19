@@ -356,6 +356,28 @@ select:focus-visible {
   background:#fbe9e9;
 }
 
+.filter-bar {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.filter-bar button {
+  border:1px solid var(--color-border);
+  background:#fff;
+  padding:8px 14px;
+  border-radius:999px;
+  font-weight:600;
+  color:#444;
+}
+
+.filter-bar button.active {
+  background:#d32f2f;
+  color:#fff;
+  border-color:#d32f2f;
+}
+
 .player-stats {
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
