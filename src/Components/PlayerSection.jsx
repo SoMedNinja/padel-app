@@ -25,6 +25,132 @@ const ensurePlayer = (map, id) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE };
 };
 
+const buildEloHistoryMap = (matches, profiles) => {
+  const eloMap = {};
+  profiles.forEach(profile => {
+    eloMap[profile.id] = { elo: ELO_BASELINE, history: [] };
+  });
+
+  const ensureHistoryPlayer = (id) => {
+    if (!eloMap[id]) {
+      eloMap[id] = { elo: ELO_BASELINE, history: [] };
+    }
+  };
+
+  const sortedMatches = [...matches].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  );
+
+  sortedMatches.forEach(match => {
+    const team1 = normalizeTeam(match.team1_ids);
+    const team2 = normalizeTeam(match.team2_ids);
+
+    if (!team1.length || !team2.length) return;
+    if (match.team1_sets == null || match.team2_sets == null) return;
+
+    team1.forEach(ensureHistoryPlayer);
+    team2.forEach(ensureHistoryPlayer);
+
+    const avg = team => {
+      if (!team.length) return ELO_BASELINE;
+      return (
+        team.reduce((sum, id) => {
+          ensureHistoryPlayer(id);
+          return sum + eloMap[id].elo;
+        }, 0) / team.length
+      );
+    };
+
+    const e1 = avg(team1);
+    const e2 = avg(team2);
+    const expected1 = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
+    const team1Won = match.team1_sets > match.team2_sets;
+    const historyDate = match.created_at?.slice(0, 10) || "";
+
+    team1.forEach(id => {
+      ensureHistoryPlayer(id);
+      eloMap[id].elo += Math.round(20 * ((team1Won ? 1 : 0) - expected1));
+      if (historyDate) {
+        eloMap[id].history.push({
+          date: historyDate,
+          elo: Math.round(eloMap[id].elo)
+        });
+      }
+    });
+
+    team2.forEach(id => {
+      ensureHistoryPlayer(id);
+      eloMap[id].elo += Math.round(20 * ((team1Won ? 0 : 1) - (1 - expected1)));
+      if (historyDate) {
+        eloMap[id].history.push({
+          date: historyDate,
+          elo: Math.round(eloMap[id].elo)
+        });
+      }
+    });
+  });
+
+  return Object.entries(eloMap).reduce((acc, [id, data]) => {
+    acc[id] = {
+      currentElo: Math.round(data.elo ?? ELO_BASELINE),
+      history: data.history || []
+    };
+    return acc;
+  }, {});
+};
+
+const buildComparisonChartData = (historyMap, profiles, playerIds) => {
+  if (!playerIds.length) return [];
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+  const profileNameMap = profiles.reduce((acc, profile) => {
+    acc[profile.id] = getProfileDisplayName(profile);
+    return acc;
+  }, {});
+
+  const dateSet = new Set();
+  playerIds.forEach(id => {
+    const history = historyMap[id]?.history || [];
+    history.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entry.date && entryDate >= oneYearAgo) {
+        dateSet.add(entry.date);
+      }
+    });
+  });
+
+  const dates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+  if (!dates.length) return [];
+
+  const historyPointers = playerIds.map(id => {
+    const history = (historyMap[id]?.history || []).filter(entry => entry.date);
+    return {
+      id,
+      name: profileNameMap[id] || "Okänd",
+      history,
+      index: 0,
+      lastElo: ELO_BASELINE
+    };
+  });
+
+  return dates.map(date => {
+    const row = { date };
+    const currentDate = new Date(date);
+    historyPointers.forEach(pointer => {
+      while (
+        pointer.index < pointer.history.length &&
+        new Date(pointer.history[pointer.index].date) <= currentDate
+      ) {
+        pointer.lastElo = pointer.history[pointer.index].elo;
+        pointer.index += 1;
+      }
+      row[pointer.name] = pointer.lastElo;
+    });
+    return row;
+  });
+};
+
 const buildPlayerSummary = (matches, profiles, playerId) => {
   if (!playerId) return null;
 
@@ -141,6 +267,45 @@ const buildHeadToHead = (matches, playerId, opponentId, mode) => {
   return { wins, losses, matches: total };
 };
 
+const buildHeadToHeadRecentResults = (matches, playerId, opponentId, mode, limit = 5) => {
+  if (!playerId || !opponentId) return [];
+  const sortedMatches = [...matches].sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+  );
+
+  const results = [];
+
+  for (const match of sortedMatches) {
+    const team1 = normalizeTeam(match.team1_ids);
+    const team2 = normalizeTeam(match.team2_ids);
+
+    const isTeam1 = team1.includes(playerId);
+    const isTeam2 = team2.includes(playerId);
+    if (!isTeam1 && !isTeam2) continue;
+
+    const opponentTeam1 = team1.includes(opponentId);
+    const opponentTeam2 = team2.includes(opponentId);
+    if (!opponentTeam1 && !opponentTeam2) continue;
+
+    const together = (isTeam1 && opponentTeam1) || (isTeam2 && opponentTeam2);
+    const against = (isTeam1 && opponentTeam2) || (isTeam2 && opponentTeam1);
+
+    if ((mode === "together" && !together) || (mode === "against" && !against)) {
+      continue;
+    }
+
+    if (match.team1_sets == null || match.team2_sets == null) continue;
+
+    const team1Won = match.team1_sets > match.team2_sets;
+    const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
+    results.push(playerWon ? "V" : "F");
+
+    if (results.length >= limit) break;
+  }
+
+  return results;
+};
+
 export default function PlayerSection({ user, profiles = [], matches = [] }) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
@@ -164,6 +329,11 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     [matches, profiles, user]
   );
 
+  const eloHistoryMap = useMemo(
+    () => buildEloHistoryMap(matches, profiles),
+    [matches, profiles]
+  );
+
   const [mode, setMode] = useState("against");
   const selectablePlayers = useMemo(
     () => profiles.filter(profile => profile.id !== user?.id),
@@ -181,8 +351,40 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     [matches, user, resolvedOpponentId, mode]
   );
 
+  const recentResults = useMemo(
+    () => buildHeadToHeadRecentResults(matches, user?.id, resolvedOpponentId, mode),
+    [matches, user, resolvedOpponentId, mode]
+  );
+
+  const [compareTarget, setCompareTarget] = useState("none");
+  const comparisonIds = useMemo(() => {
+    if (!user?.id) return [];
+    if (compareTarget === "all") {
+      return [user.id, ...selectablePlayers.map(player => player.id)];
+    }
+    if (compareTarget && compareTarget !== "none") {
+      return [user.id, compareTarget].filter(Boolean);
+    }
+    return [user.id];
+  }, [compareTarget, selectablePlayers, user]);
+
+  const comparisonData = useMemo(
+    () => buildComparisonChartData(eloHistoryMap, profiles, comparisonIds),
+    [eloHistoryMap, profiles, comparisonIds]
+  );
+
+  const comparisonNames = useMemo(() => {
+    const profileNameMap = profiles.reduce((acc, profile) => {
+      acc[profile.id] = getProfileDisplayName(profile);
+      return acc;
+    }, {});
+    return comparisonIds.map(id => profileNameMap[id] || "Okänd");
+  }, [comparisonIds, profiles]);
+
   const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
   const opponentAvatarUrl = opponentProfile ? getStoredAvatar(opponentProfile.id) : null;
+  const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
+  const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
 
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
@@ -225,7 +427,7 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     setPendingAvatar(null);
   };
 
-  const historyData = summary?.history || [];
+  const chartPalette = ["#d32f2f", "#1976d2", "#388e3c", "#f57c00", "#7b1fa2", "#00796b"];
 
   return (
     <section className="player-section">
@@ -311,19 +513,42 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
       </div>
 
       <div className="player-chart">
-        <h3>ELO-utveckling</h3>
-        {historyData.length ? (
+        <div className="player-chart-header">
+          <h3>ELO-utveckling (senaste året)</h3>
+          <label className="chart-compare">
+            Jämför med
+            <select value={compareTarget} onChange={(event) => setCompareTarget(event.target.value)}>
+              <option value="none">Ingen</option>
+              <option value="all">Alla</option>
+              {selectablePlayers.map(player => (
+                <option key={player.id} value={player.id}>
+                  {getProfileDisplayName(player)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {comparisonData.length ? (
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={historyData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+            <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
               <Tooltip />
-              <Line type="monotone" dataKey="elo" stroke="#d32f2f" strokeWidth={3} dot={false} />
+              {comparisonNames.map((name, index) => (
+                <Line
+                  key={name}
+                  type="monotone"
+                  dataKey={name}
+                  stroke={chartPalette[index % chartPalette.length]}
+                  strokeWidth={3}
+                  dot={false}
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p className="muted">Spela matcher för att se ELO-utvecklingen.</p>
+          <p className="muted">Spela matcher senaste året för att se ELO-utvecklingen.</p>
         )}
       </div>
 
@@ -364,6 +589,7 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
                 <div>
                   <strong>{playerName}</strong>
                   <span className="muted">Du</span>
+                  <span className="muted">ELO {currentPlayerElo}</span>
                 </div>
               </div>
               <div className="head-to-head-card">
@@ -378,6 +604,7 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
                     {getProfileDisplayName(opponentProfile)}
                   </strong>
                   <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
+                  <span className="muted">ELO {opponentElo}</span>
                 </div>
               </div>
             </div>
@@ -398,6 +625,23 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
               <div className="stat-card">
                 <span className="stat-label">Vinst %</span>
                 <span className="stat-value">{percent(headToHead.wins, headToHead.losses)}%</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Senaste 5</span>
+                {recentResults.length ? (
+                  <span className="stat-value head-to-head-results">
+                    {recentResults.map((result, index) => (
+                      <span
+                        key={`${result}-${index}`}
+                        className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
+                      >
+                        {result}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="stat-value">-</span>
+                )}
               </div>
             </div>
           </>
