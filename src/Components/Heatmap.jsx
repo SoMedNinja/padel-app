@@ -1,17 +1,47 @@
 import { useMemo, useState } from "react";
-import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
+import {
+  getIdDisplayName,
+  getProfileDisplayName,
+  makeProfileMap,
+  normalizeProfileName,
+} from "../utils/profileMap";
+import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 
 const ELO_BASELINE = 1000;
+const resolveTeamNames = (teamIds = [], teamNames = [], profileMap = {}) => {
+  const ids = Array.isArray(teamIds) ? teamIds : [];
+  const names = Array.isArray(teamNames) ? teamNames : [];
+
+  if (ids.some(Boolean)) {
+    return ids
+      .map((id, index) => {
+        if (id) return getIdDisplayName(id, profileMap);
+        if (names[index]) return names[index];
+        return id === GUEST_ID ? GUEST_NAME : "Okänd";
+      })
+      .filter(Boolean);
+  }
+
+  return names.filter(Boolean);
+};
 
 export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }) {
   const [sortKey, setSortKey] = useState("games");
   const [asc, setAsc] = useState(false);
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
-  const allowedNames = useMemo(
-    () => new Set(profiles.map(profile => getProfileDisplayName(profile)).filter(Boolean)),
-    [profiles]
-  );
+  const allowedNameMap = useMemo(() => {
+    const map = new Map();
+    profiles.forEach(profile => {
+      const name = getProfileDisplayName(profile);
+      const key = normalizeProfileName(name);
+      if (key && !map.has(key)) {
+        map.set(key, name);
+      }
+    });
+    map.set(normalizeProfileName(GUEST_NAME), GUEST_NAME);
+    return map;
+  }, [profiles]);
   const eloMap = useMemo(() => {
     return new Map(eloPlayers.map(player => [player.name, player.elo]));
   }, [eloPlayers]);
@@ -20,8 +50,8 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
 
   const combos = {};
   matches.forEach((m) => {
-    const team1 = Array.isArray(m.team1) ? m.team1 : idsToNames(m.team1_ids || [], profileMap);
-    const team2 = Array.isArray(m.team2) ? m.team2 : idsToNames(m.team2_ids || [], profileMap);
+    const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
+    const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
     const teams = [
       { players: team1, won: m.team1_sets > m.team2_sets },
       { players: team2, won: m.team2_sets > m.team1_sets },
@@ -29,10 +59,26 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
 
     teams.forEach(({ players, won }) => {
       if (!Array.isArray(players) || !players.length) return;
-      if (players.includes("Gäst")) return;
-      if (allowedNames.size && players.some(player => !allowedNames.has(player))) return;
-      const key = [...players].sort().join(" + ");
-      if (!combos[key]) combos[key] = { players: [...players].sort(), games: 0, wins: 0 };
+      const resolvedPlayers = players
+        .map(player => {
+          const key = normalizeProfileName(player);
+          if (!key) return null;
+          return allowedNameMap.get(key) || null;
+        })
+        .filter(Boolean);
+
+      if (!resolvedPlayers.length) return;
+      if (resolvedPlayers.some(player => normalizeProfileName(player) === normalizeProfileName(GUEST_NAME))) {
+        return;
+      }
+      if (allowedNameMap.size && resolvedPlayers.some(player => !allowedNameMap.has(normalizeProfileName(player)))) {
+        return;
+      }
+
+      const key = [...resolvedPlayers].sort().join(" + ");
+      if (!combos[key]) {
+        combos[key] = { players: [...resolvedPlayers].sort(), games: 0, wins: 0 };
+      }
       combos[key].games++;
       if (won) combos[key].wins++;
     });

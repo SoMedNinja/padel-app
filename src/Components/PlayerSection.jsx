@@ -10,7 +10,8 @@ import {
 } from "recharts";
 import Avatar from "./Avatar";
 import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
-import { getProfileDisplayName } from "../utils/profileMap";
+import { GUEST_ID } from "../utils/guest";
+import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
 
 const ELO_BASELINE = 1000;
 
@@ -19,13 +20,14 @@ const percent = (wins, losses) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
-const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
+const normalizeTeam = (team) =>
+  Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
 
 const ensurePlayer = (map, id) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE };
 };
 
-const buildEloHistoryMap = (matches, profiles) => {
+const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
   const eloMap = {};
   profiles.forEach(profile => {
     eloMap[profile.id] = { elo: ELO_BASELINE, history: [] };
@@ -42,8 +44,8 @@ const buildEloHistoryMap = (matches, profiles) => {
   );
 
   sortedMatches.forEach(match => {
-    const team1 = normalizeTeam(match.team1_ids);
-    const team2 = normalizeTeam(match.team2_ids);
+    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
+    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
 
     if (!team1.length || !team2.length) return;
     if (match.team1_sets == null || match.team2_sets == null) return;
@@ -151,7 +153,7 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
   });
 };
 
-const buildPlayerSummary = (matches, profiles, playerId) => {
+const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
   if (!playerId) return null;
 
   const eloMap = {};
@@ -168,8 +170,8 @@ const buildPlayerSummary = (matches, profiles, playerId) => {
   );
 
   sortedMatches.forEach(match => {
-    const team1 = normalizeTeam(match.team1_ids);
-    const team2 = normalizeTeam(match.team2_ids);
+    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
+    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
 
     if (!team1.length || !team2.length) return;
     if (match.team1_sets == null || match.team2_sets == null) return;
@@ -226,7 +228,7 @@ const buildPlayerSummary = (matches, profiles, playerId) => {
   };
 };
 
-const buildHeadToHead = (matches, playerId, opponentId, mode) => {
+const buildHeadToHead = (matches, playerId, opponentId, mode, nameToIdMap) => {
   if (!playerId || !opponentId) {
     return { wins: 0, losses: 0, matches: 0 };
   }
@@ -236,8 +238,8 @@ const buildHeadToHead = (matches, playerId, opponentId, mode) => {
   let total = 0;
 
   matches.forEach(match => {
-    const team1 = normalizeTeam(match.team1_ids);
-    const team2 = normalizeTeam(match.team2_ids);
+    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
+    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
 
     const isTeam1 = team1.includes(playerId);
     const isTeam2 = team2.includes(playerId);
@@ -267,7 +269,14 @@ const buildHeadToHead = (matches, playerId, opponentId, mode) => {
   return { wins, losses, matches: total };
 };
 
-const buildHeadToHeadRecentResults = (matches, playerId, opponentId, mode, limit = 5) => {
+const buildHeadToHeadRecentResults = (
+  matches,
+  playerId,
+  opponentId,
+  mode,
+  limit = 5,
+  nameToIdMap
+) => {
   if (!playerId || !opponentId) return [];
   const sortedMatches = [...matches].sort(
     (a, b) => new Date(b.created_at) - new Date(a.created_at)
@@ -276,8 +285,8 @@ const buildHeadToHeadRecentResults = (matches, playerId, opponentId, mode, limit
   const results = [];
 
   for (const match of sortedMatches) {
-    const team1 = normalizeTeam(match.team1_ids);
-    const team2 = normalizeTeam(match.team2_ids);
+    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
+    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
 
     const isTeam1 = team1.includes(playerId);
     const isTeam2 = team2.includes(playerId);
@@ -311,6 +320,7 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
   );
+  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
 
   const playerName = playerProfile
     ? getProfileDisplayName(playerProfile)
@@ -325,13 +335,13 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
   const [savingAvatar, setSavingAvatar] = useState(false);
 
   const summary = useMemo(
-    () => buildPlayerSummary(matches, profiles, user?.id),
-    [matches, profiles, user]
+    () => buildPlayerSummary(matches, profiles, user?.id, nameToIdMap),
+    [matches, profiles, user, nameToIdMap]
   );
 
   const eloHistoryMap = useMemo(
-    () => buildEloHistoryMap(matches, profiles),
-    [matches, profiles]
+    () => buildEloHistoryMap(matches, profiles, nameToIdMap),
+    [matches, profiles, nameToIdMap]
   );
 
   const [mode, setMode] = useState("against");
@@ -347,13 +357,21 @@ export default function PlayerSection({ user, profiles = [], matches = [] }) {
     "";
 
   const headToHead = useMemo(
-    () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode),
-    [matches, user, resolvedOpponentId, mode]
+    () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap),
+    [matches, user, resolvedOpponentId, mode, nameToIdMap]
   );
 
   const recentResults = useMemo(
-    () => buildHeadToHeadRecentResults(matches, user?.id, resolvedOpponentId, mode),
-    [matches, user, resolvedOpponentId, mode]
+    () =>
+      buildHeadToHeadRecentResults(
+        matches,
+        user?.id,
+        resolvedOpponentId,
+        mode,
+        5,
+        nameToIdMap
+      ),
+    [matches, user, resolvedOpponentId, mode, nameToIdMap]
   );
 
   const [compareTarget, setCompareTarget] = useState("none");
