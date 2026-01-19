@@ -4,7 +4,6 @@ import {
   idsToNames,
   makeNameToIdMap,
   makeProfileMap,
-  resolveTeamNames,
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { supabase } from "../supabaseClient";
