@@ -6,6 +6,10 @@ const supabaseUrl =
 const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_HmVbNlWyuBw6PFEJCtmTUg_EQG25c3F";
 
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+const missingSupabaseMessage =
+  "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
+
 const createMockQuery = () => {
   const response = { data: null, error: new Error(missingSupabaseMessage) };
   return {
