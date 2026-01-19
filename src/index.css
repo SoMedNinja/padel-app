@@ -735,3 +735,31 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
     font-size:34px;
   }
 }
+
+.history-actions,
+.history-edit-actions {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+.history-edit-team {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.history-edit-team select {
+  min-width:140px;
+}
+
+.history-edit-score {
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.history-edit-score input {
+  width:64px;
+}
