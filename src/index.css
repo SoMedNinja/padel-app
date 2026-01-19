@@ -356,6 +356,28 @@ select:focus-visible {
   background:#fbe9e9;
 }
 
+.filter-bar {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.filter-bar button {
+  border:1px solid var(--color-border);
+  background:#fff;
+  padding:8px 14px;
+  border-radius:999px;
+  font-weight:600;
+  color:#444;
+}
+
+.filter-bar button.active {
+  background:#d32f2f;
+  color:#fff;
+  border-color:#d32f2f;
+}
+
 .player-stats {
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
@@ -387,6 +409,14 @@ select:focus-visible {
   font-size:22px;
   font-weight:700;
   margin-top:6px;
+}
+
+.stat-delta-positive {
+  color:#2e7d32;
+}
+
+.stat-delta-negative {
+  color:#c62828;
 }
 
 .stat-compare {
@@ -446,6 +476,7 @@ select:focus-visible {
   display:flex;
   flex-direction:column;
   gap:16px;
+  margin-bottom:24px;
 }
 
 .match-form-title {
