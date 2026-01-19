@@ -236,7 +236,27 @@ export default function App() {
 
       {isGuest && (
         <div className="guest-banner">
-          Du är i gästläge. Logga in för att lägga till matcher och redigera data.
+          <div className="guest-banner-header">
+            <strong>Gästläge</strong>
+            <span className="muted">Utforska statistik, men inga ändringar sparas.</span>
+          </div>
+          <div className="guest-banner-content">
+            <div>
+              <span className="guest-banner-label">Du kan se</span>
+              <ul>
+                <li>Leaderboard, MVP och heatmap</li>
+                <li>Match-historik</li>
+              </ul>
+            </div>
+            <div>
+              <span className="guest-banner-label">Kräver inloggning</span>
+              <ul>
+                <li>Lägga till eller redigera matcher</li>
+                <li>Uppdatera spelprofil och avatar</li>
+                <li>Admin- och godkännandevy</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 

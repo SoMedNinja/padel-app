@@ -76,7 +76,7 @@ export default function EloLeaderboard({ players = [] }) {
           {sortedPlayers.map(p => (
             <tr key={p.name}>
               <td>
-                <div className="leaderboard-name">
+                <div className="leaderboard-name" tabIndex={0}>
                   <Avatar
                     className="leaderboard-avatar"
                     src={getStoredAvatar(p.id)}
@@ -84,6 +84,26 @@ export default function EloLeaderboard({ players = [] }) {
                     alt={`Profilbild för ${p.name}`}
                   />
                   <span>{p.name}</span>
+                  <div className="leaderboard-card" aria-hidden="true">
+                    <div className="leaderboard-card-title">Snabbstatistik</div>
+                    <div className="leaderboard-card-row">
+                      <span>Vinst %</span>
+                      <strong>{winPct(p.wins, p.losses)}%</strong>
+                    </div>
+                    <div className="leaderboard-card-row">
+                      <span>Matcher</span>
+                      <strong>{p.wins + p.losses}</strong>
+                    </div>
+                    <div className="leaderboard-card-row">
+                      <span>Bästa partner</span>
+                      <strong>{p.bestPartner?.name || "—"}</strong>
+                    </div>
+                    <div className="leaderboard-card-meta">
+                      {p.bestPartner
+                        ? `${Math.round(p.bestPartner.winRate * 100)}% vinst · ${p.bestPartner.games} matcher`
+                        : "Ingen partnerstatistik än."}
+                    </div>
+                  </div>
                 </div>
               </td>
               <td>{Math.round(p.elo)}</td>
