@@ -16,6 +16,7 @@ export function calculateElo(matches, profiles = []) {
   const nameToIdMap = makeNameToIdMap(profiles);
 
   const ensurePlayer = (id, name = "Okänd") => {
+    if (id === GUEST_ID) return;
     if (!players[id]) {
       players[id] = {
         id,

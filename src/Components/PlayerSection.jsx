@@ -19,7 +19,8 @@ const percent = (wins, losses) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
-const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
+const normalizeTeam = (team) =>
+  Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
 
 const ensurePlayer = (map, id) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE };

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { getProfileDisplayName, idsToNames, makeProfileMap } from "../utils/profileMap";
+import { getProfileDisplayName, makeProfileMap, resolveTeamNames } from "../utils/profileMap";
 
 const ELO_BASELINE = 1000;
 
@@ -20,8 +20,8 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
 
   const combos = {};
   matches.forEach((m) => {
-    const team1 = Array.isArray(m.team1) ? m.team1 : idsToNames(m.team1_ids || [], profileMap);
-    const team2 = Array.isArray(m.team2) ? m.team2 : idsToNames(m.team2_ids || [], profileMap);
+    const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
+    const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
     const teams = [
       { players: team1, won: m.team1_sets > m.team2_sets },
       { players: team2, won: m.team2_sets > m.team1_sets },
