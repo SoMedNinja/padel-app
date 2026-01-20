@@ -799,8 +799,8 @@ select:focus-visible {
 }
 
 .leaderboard-table {
-  overflow-x:auto;
-  overflow-y:visible;
+  display:table;
+  overflow:visible;
 }
 
 .head-to-head-results {
