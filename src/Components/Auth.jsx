@@ -6,11 +6,29 @@ export default function Auth({ onAuth, onGuest }) {
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false);
   const [notice, setNotice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const resolveSiteUrl = () => {
+    const envUrl = import.meta.env.VITE_SITE_URL;
+    const shouldUseEnvUrl =
+      Boolean(envUrl) &&
+      !envUrl.includes("localhost") &&
+      !envUrl.includes("127.0.0.1") &&
+      !envUrl.includes("0.0.0.0");
+    const baseUrl = shouldUseEnvUrl ? envUrl : window.location.origin;
+    return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  };
 
   const submit = async () => {
+    if (isSubmitting) return;
     setNotice("");
+    if (!email || !password) {
+      setNotice("Fyll i både e-post och lösenord.");
+      return;
+    }
+    setIsSubmitting(true);
     if (isSignup) {
-      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const siteUrl = resolveSiteUrl();
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -19,9 +37,14 @@ export default function Auth({ onAuth, onGuest }) {
         },
       });
 
-      if (error) return alert(error.message);
+      if (error) {
+        alert(error.message);
+        setIsSubmitting(false);
+        return;
+      }
       if (data?.session?.user) {
         onAuth(data.session.user);
+        setIsSubmitting(false);
         return;
       }
       setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
@@ -31,9 +54,14 @@ export default function Auth({ onAuth, onGuest }) {
         password,
       });
 
-      if (error) return alert(error.message);
+      if (error) {
+        alert(error.message);
+        setIsSubmitting(false);
+        return;
+      }
       onAuth(data.user);
     }
+    setIsSubmitting(false);
   };
 
   return (
@@ -47,8 +75,8 @@ export default function Auth({ onAuth, onGuest }) {
         onChange={e => setPassword(e.target.value)}
       />
 
-      <button onClick={submit}>
-        {isSignup ? "Registrera" : "Logga in"}
+      <button onClick={submit} disabled={isSubmitting}>
+        {isSubmitting ? "Skickar..." : isSignup ? "Registrera" : "Logga in"}
       </button>
       {notice ? <p className="auth-notice">{notice}</p> : null}
 
