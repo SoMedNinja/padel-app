@@ -11,12 +11,17 @@ import {
 } from "recharts";
 import Avatar from "./Avatar";
 import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
+import {
+  ELO_BASELINE,
+  getExpectedScore,
+  getKFactor,
+  getMarginMultiplier,
+  getPlayerWeight
+} from "../utils/elo";
 import { GUEST_ID } from "../utils/guest";
 import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
 import { getMvpStats } from "../utils/stats";
 import { supabase } from "../supabaseClient";
-
-const ELO_BASELINE = 1000;
 
 const percent = (wins, losses) => {
   const total = wins + losses;
@@ -56,7 +61,7 @@ const normalizeTeam = (team) =>
   Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
 
 const ensurePlayer = (map, id) => {
-  if (!map[id]) map[id] = { elo: ELO_BASELINE };
+  if (!map[id]) map[id] = { elo: ELO_BASELINE, games: 0 };
 };
 
 const buildMvpSummary = (matches, profiles) => {
@@ -154,12 +159,12 @@ const buildMvpSummary = (matches, profiles) => {
 const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
   const eloMap = {};
   profiles.forEach(profile => {
-    eloMap[profile.id] = { elo: ELO_BASELINE, history: [] };
+    eloMap[profile.id] = { elo: ELO_BASELINE, history: [], games: 0 };
   });
 
   const ensureHistoryPlayer = (id) => {
     if (!eloMap[id]) {
-      eloMap[id] = { elo: ELO_BASELINE, history: [] };
+      eloMap[id] = { elo: ELO_BASELINE, history: [], games: 0 };
     }
   };
 
@@ -189,28 +194,43 @@ const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
 
     const e1 = avg(team1);
     const e2 = avg(team2);
-    const expected1 = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
+    const expected1 = getExpectedScore(e1, e2);
     const team1Won = match.team1_sets > match.team2_sets;
+    const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
     const historyDate = match.created_at || "";
 
     team1.forEach(id => {
       ensureHistoryPlayer(id);
-      eloMap[id].elo += Math.round(20 * ((team1Won ? 1 : 0) - expected1));
+      const player = eloMap[id];
+      const playerK = getKFactor(player.games);
+      const weight = getPlayerWeight(player.elo, e1);
+      const delta = Math.round(
+        playerK * marginMultiplier * weight * ((team1Won ? 1 : 0) - expected1)
+      );
+      player.elo += delta;
+      player.games += 1;
       if (historyDate) {
         eloMap[id].history.push({
           date: historyDate,
-          elo: Math.round(eloMap[id].elo)
+          elo: Math.round(player.elo)
         });
       }
     });
 
     team2.forEach(id => {
       ensureHistoryPlayer(id);
-      eloMap[id].elo += Math.round(20 * ((team1Won ? 0 : 1) - (1 - expected1)));
+      const player = eloMap[id];
+      const playerK = getKFactor(player.games);
+      const weight = getPlayerWeight(player.elo, e2);
+      const delta = Math.round(
+        playerK * marginMultiplier * weight * ((team1Won ? 0 : 1) - (1 - expected1))
+      );
+      player.elo += delta;
+      player.games += 1;
       if (historyDate) {
         eloMap[id].history.push({
           date: historyDate,
-          elo: Math.round(eloMap[id].elo)
+          elo: Math.round(player.elo)
         });
       }
     });
@@ -285,7 +305,7 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
 
   const eloMap = {};
   profiles.forEach(profile => {
-    eloMap[profile.id] = { elo: ELO_BASELINE };
+    eloMap[profile.id] = { elo: ELO_BASELINE, games: 0 };
   });
 
   const history = [];
@@ -328,20 +348,35 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
 
     const e1 = avg(team1);
     const e2 = avg(team2);
-    const expected1 = 1 / (1 + Math.pow(10, (e2 - e1) / 400));
+    const expected1 = getExpectedScore(e1, e2);
     const team1Won = match.team1_sets > match.team2_sets;
+    const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
     const preMatchElo = (isTeam1 || isTeam2)
       ? Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE)
       : null;
 
     team1.forEach(id => {
       ensurePlayer(eloMap, id);
-      eloMap[id].elo += Math.round(20 * ((team1Won ? 1 : 0) - expected1));
+      const player = eloMap[id];
+      const playerK = getKFactor(player.games);
+      const weight = getPlayerWeight(player.elo, e1);
+      const delta = Math.round(
+        playerK * marginMultiplier * weight * ((team1Won ? 1 : 0) - expected1)
+      );
+      player.elo += delta;
+      player.games += 1;
     });
 
     team2.forEach(id => {
       ensurePlayer(eloMap, id);
-      eloMap[id].elo += Math.round(20 * ((team1Won ? 0 : 1) - (1 - expected1)));
+      const player = eloMap[id];
+      const playerK = getKFactor(player.games);
+      const weight = getPlayerWeight(player.elo, e2);
+      const delta = Math.round(
+        playerK * marginMultiplier * weight * ((team1Won ? 0 : 1) - (1 - expected1))
+      );
+      player.elo += delta;
+      player.games += 1;
     });
 
     if (isTeam1 || isTeam2) {
