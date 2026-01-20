@@ -9,14 +9,14 @@ export default function Auth({ onAuth, onGuest }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resolveSiteUrl = () => {
-    const envUrl = import.meta.env.VITE_SITE_URL;
-    const shouldUseEnvUrl =
-      Boolean(envUrl) &&
-      !envUrl.includes("localhost") &&
-      !envUrl.includes("127.0.0.1") &&
-      !envUrl.includes("0.0.0.0");
-    const baseUrl = shouldUseEnvUrl ? envUrl : window.location.origin;
-    return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+    const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL;
+    if (authRedirectUrl) {
+      return authRedirectUrl.endsWith("/")
+        ? authRedirectUrl.slice(0, -1)
+        : authRedirectUrl;
+    }
+    const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+    return siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl;
   };
 
   const submit = async () => {
