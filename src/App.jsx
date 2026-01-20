@@ -195,7 +195,8 @@ export default function App() {
       }
       return prev.filter(profile => profile.id !== updatedProfile.id);
     });
-    if (updatedProfile.id === profileUserId) {
+    const currentUserId = profileUserId ?? user?.id;
+    if (updatedProfile.id === currentUserId) {
       setProfile(prev => ({ ...(prev || {}), ...updatedProfile }));
     }
   };
