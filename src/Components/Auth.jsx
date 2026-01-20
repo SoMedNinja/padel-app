@@ -5,20 +5,26 @@ export default function Auth({ onAuth, onGuest }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const submit = async () => {
+    setNotice("");
     if (isSignup) {
+      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: siteUrl,
         },
       });
 
       if (error) return alert(error.message);
-
-      onAuth(data.user);
+      if (data?.session?.user) {
+        onAuth(data.session.user);
+        return;
+      }
+      setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -44,6 +50,7 @@ export default function Auth({ onAuth, onGuest }) {
       <button onClick={submit}>
         {isSignup ? "Registrera" : "Logga in"}
       </button>
+      {notice ? <p className="auth-notice">{notice}</p> : null}
 
       <p
         style={{ cursor: "pointer", marginTop: 10 }}
