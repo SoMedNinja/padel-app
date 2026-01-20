@@ -44,7 +44,11 @@ export default function App() {
       if (error) console.error(error);
       const loadedProfiles = data || [];
       setAllProfiles(loadedProfiles);
-      setProfiles(loadedProfiles.filter(profile => profile.is_approved || profile.is_admin));
+      setProfiles(
+        loadedProfiles.filter(
+          profile => !profile.is_deleted && (profile.is_approved || profile.is_admin)
+        )
+      );
     });
 
     // Matches
@@ -96,8 +100,33 @@ export default function App() {
       });
   }, [user]);
 
-  const { filteredMatches, playersWithTrend } = usePadelData(matches, matchFilter, profiles);
-  const allEloPlayers = useMemo(() => calculateElo(matches, profiles), [matches, profiles]);
+  const { filteredMatches, playersWithTrend: rawPlayersWithTrend } = usePadelData(
+    matches,
+    matchFilter,
+    profiles
+  );
+  const deletedProfileIds = useMemo(() => {
+    return new Set(allProfiles.filter(profile => profile.is_deleted).map(profile => profile.id));
+  }, [allProfiles]);
+  const playersWithTrend = useMemo(() => {
+    if (!deletedProfileIds.size) return rawPlayersWithTrend;
+    return rawPlayersWithTrend.filter(player => !deletedProfileIds.has(player.id));
+  }, [rawPlayersWithTrend, deletedProfileIds]);
+  const allEloPlayers = useMemo(() => {
+    const players = calculateElo(matches, profiles);
+    if (!deletedProfileIds.size) return players;
+    return players.filter(player => !deletedProfileIds.has(player.id));
+  }, [matches, profiles, deletedProfileIds]);
+  const historyProfiles = useMemo(() => {
+    const deletedProfiles = allProfiles.filter(profile => profile.is_deleted);
+    if (!deletedProfiles.length) return profiles;
+    const seen = new Set();
+    return [...profiles, ...deletedProfiles].filter(profile => {
+      if (seen.has(profile.id)) return false;
+      seen.add(profile.id);
+      return true;
+    });
+  }, [allProfiles, profiles]);
 
   const activeProfile = useMemo(() => {
     if (!user?.id || profileUserId !== user.id) return null;
@@ -182,7 +211,8 @@ export default function App() {
       }
       return [...prev, updatedProfile];
     });
-    const shouldInclude = updatedProfile.is_approved || updatedProfile.is_admin;
+    const shouldInclude =
+      !updatedProfile.is_deleted && (updatedProfile.is_approved || updatedProfile.is_admin);
     setProfiles(prev => {
       const exists = prev.some(profile => profile.id === updatedProfile.id);
       if (shouldInclude) {
@@ -201,10 +231,19 @@ export default function App() {
     }
   };
 
-  const handleProfileDelete = (deletedId) => {
-    setProfiles(prev => prev.filter(profile => profile.id !== deletedId));
-    setAllProfiles(prev => prev.filter(profile => profile.id !== deletedId));
-    if (deletedId === profileUserId) {
+  const handleProfileDelete = (deletedProfile) => {
+    if (!deletedProfile) return;
+    setAllProfiles(prev => {
+      const exists = prev.some(profile => profile.id === deletedProfile.id);
+      if (exists) {
+        return prev.map(profile =>
+          profile.id === deletedProfile.id ? { ...profile, ...deletedProfile } : profile
+        );
+      }
+      return [...prev, deletedProfile];
+    });
+    setProfiles(prev => prev.filter(profile => profile.id !== deletedProfile.id));
+    if (deletedProfile.id === profileUserId) {
       setProfile(null);
     }
   };
@@ -308,7 +347,11 @@ export default function App() {
       )}
 
       <section id="history" className="page-section">
-        <History matches={filteredMatches} profiles={profiles} user={isGuest ? null : userWithAdmin} />
+        <History
+          matches={filteredMatches}
+          profiles={historyProfiles}
+          user={isGuest ? null : userWithAdmin}
+        />
       </section>
 
       {userWithAdmin?.is_admin && (
