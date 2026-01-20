@@ -9,11 +9,13 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
   const [deleteId, setDeleteId] = useState(null);
 
   const sortedProfiles = useMemo(() => {
-    return [...profiles].sort((a, b) => {
-      const nameA = getProfileDisplayName(a).toLowerCase();
-      const nameB = getProfileDisplayName(b).toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+    return [...profiles]
+      .filter(profile => !profile.is_deleted)
+      .sort((a, b) => {
+        const nameA = getProfileDisplayName(a).toLowerCase();
+        const nameB = getProfileDisplayName(b).toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
   }, [profiles]);
 
   const handleNameChange = (id, value) => {
@@ -65,11 +67,22 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     if (!confirmed) return;
 
     setDeleteId(profile.id);
-    const { error } = await supabase.from("profiles").delete().eq("id", profile.id);
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        is_deleted: true,
+        name: "deleted user",
+        is_approved: false,
+        is_admin: false,
+        avatar_url: null,
+      })
+      .eq("id", profile.id)
+      .select();
     setDeleteId(null);
     if (error) return alert(error.message);
+    if (!data?.length) return alert("Kunde inte uppdatera profilen.");
 
-    onProfileDelete?.(profile.id);
+    onProfileDelete?.(data[0]);
   };
 
   return (
