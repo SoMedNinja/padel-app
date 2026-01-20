@@ -6,7 +6,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  Legend
 } from "recharts";
 import Avatar from "./Avatar";
 import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
@@ -292,8 +293,9 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
   let losses = 0;
   let lastMatchDelta = 0;
   let currentSessionDate = null;
-  let previousSessionFinalElo = null;
-  let currentSessionFinalElo = null;
+  let sessionStartElo = null;
+  let sessionEndElo = null;
+  let lastSessionDelta = 0;
 
   const sortedMatches = [...matches].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
@@ -352,12 +354,18 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
         if (!Number.isNaN(matchDate.getTime())) {
           const dateKey = matchDate.toISOString().split("T")[0];
           if (currentSessionDate && dateKey !== currentSessionDate) {
-            previousSessionFinalElo = currentSessionFinalElo;
-          }
-          if (!currentSessionDate || dateKey !== currentSessionDate) {
+            if (sessionStartElo != null && sessionEndElo != null) {
+              lastSessionDelta = sessionEndElo - sessionStartElo;
+            }
             currentSessionDate = dateKey;
+            sessionStartElo = preMatchElo ?? sessionEndElo ?? ELO_BASELINE;
+          } else if (!currentSessionDate) {
+            currentSessionDate = dateKey;
+            sessionStartElo = preMatchElo ?? ELO_BASELINE;
+          } else if (sessionStartElo == null) {
+            sessionStartElo = preMatchElo ?? ELO_BASELINE;
           }
-          currentSessionFinalElo = postMatchElo;
+          sessionEndElo = postMatchElo;
         }
       }
 
@@ -375,9 +383,9 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
     currentElo: Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE),
     lastMatchDelta,
     lastSessionDelta:
-      currentSessionFinalElo != null && previousSessionFinalElo != null
-        ? currentSessionFinalElo - previousSessionFinalElo
-        : 0
+      sessionStartElo != null && sessionEndElo != null
+        ? sessionEndElo - sessionStartElo
+        : lastSessionDelta
   };
 };
 
@@ -799,6 +807,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
               />
               <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
               <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
+              <Legend />
               {comparisonNames.map((name, index) => (
                 <Line
                   key={name}

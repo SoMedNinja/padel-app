@@ -7,9 +7,13 @@ export function usePadelData(matches, filter, profiles = []) {
   return useMemo(() => {
     const filteredMatches = filterMatches(matches, filter);
     const eloPlayers = calculateElo(filteredMatches, profiles);
+    const avatarMap = new Map(
+      profiles.map(profile => [profile.id, profile.avatar_url || null])
+    );
 
     const playersWithTrend = eloPlayers.map(p => ({
       ...p,
+      avatarUrl: p.avatarUrl || avatarMap.get(p.id) || null,
       recentResults: getRecentResults(filteredMatches, p.name),
     }));
 
