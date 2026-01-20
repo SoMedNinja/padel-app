@@ -11,6 +11,9 @@ export default function Auth({ onAuth, onGuest }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
       });
 
       if (error) return alert(error.message);
