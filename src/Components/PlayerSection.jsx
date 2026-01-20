@@ -744,6 +744,14 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
           <span className="stat-value">{summary ? summary.wins + summary.losses : 0}</span>
         </div>
         <div className="stat-card">
+          <span className="stat-label">Vinster</span>
+          <span className="stat-value">{summary ? summary.wins : 0}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Förluster</span>
+          <span className="stat-value">{summary ? summary.losses : 0}</span>
+        </div>
+        <div className="stat-card">
           <span className="stat-label">Vinst %</span>
           <span className="stat-value">{summary ? percent(summary.wins, summary.losses) : 0}%</span>
         </div>
@@ -762,14 +770,6 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
           <span className={`stat-value ${getEloDeltaClass(summary?.lastSessionDelta)}`}>
             {summary ? formatEloDelta(summary.lastSessionDelta) : "0"}
           </span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Vinster</span>
-          <span className="stat-value">{summary ? summary.wins : 0}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Förluster</span>
-          <span className="stat-value">{summary ? summary.losses : 0}</span>
         </div>
       </div>
 

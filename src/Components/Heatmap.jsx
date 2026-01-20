@@ -114,7 +114,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
             <th className="sortable" onClick={() => handleSort("games")}>Matcher</th>
             <th className="sortable" onClick={() => handleSort("wins")}>Vinster</th>
             <th className="sortable" onClick={() => handleSort("winPct")}>Vinst %</th>
-            <th>Senaste 5</th>
+            <th className="recent-results-column">Senaste 5</th>
             <th className="sortable" onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
           </tr>
         </thead>
@@ -125,7 +125,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
               <td>{r.games}</td>
               <td>{r.wins}</td>
               <td>{r.winPct}%</td>
-              <td>
+              <td className="recent-results-cell">
                 {r.recentResults?.length ? (
                   <span className="table-results">
                     {r.recentResults.map((result, index) => (

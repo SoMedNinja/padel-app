@@ -53,9 +53,11 @@ export default function MVP({
 
   const mvp = scored.sort((a, b) => b.score - a.score)[0];
 
+  const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
+
   return (
     <div className="mvp">
-      <div className="mvp-title">🏆 {title}</div>
+      <div className="mvp-title">{titleEmoji} {title}</div>
       <div className="mvp-name">{mvp.name}</div>
       <div className="mvp-meta">
         {mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {mvp.eloDelta}
