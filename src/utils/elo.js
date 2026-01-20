@@ -11,10 +11,10 @@ const BASE_K = 20;
 const HIGH_K = 40;
 const MID_K = 30;
 const MAX_MARGIN_MULTIPLIER = 1.2;
-const MAX_PLAYER_WEIGHT = 1.4;
-const MIN_PLAYER_WEIGHT = 0.6;
+const MAX_PLAYER_WEIGHT = 1.25;
+const MIN_PLAYER_WEIGHT = 0.75;
 const EXPECTED_SCORE_DIVISOR = 300;
-const PLAYER_WEIGHT_DIVISOR = 600;
+const PLAYER_WEIGHT_DIVISOR = 800;
 const ELO_BASELINE = 1000;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
+import { getPlayerWeight } from "../utils/elo";
 import {
   getIdDisplayName,
   getProfileDisplayName,
@@ -185,14 +186,19 @@ export default function MatchForm({
     const teamADelta = Math.round(K * ((teamAWon ? 1 : 0) - winProbability));
     const teamBDelta = Math.round(K * ((teamAWon ? 0 : 1) - (1 - winProbability)));
 
-    const mapPlayers = (ids, delta) =>
+    const mapPlayers = (ids, delta, teamAverageElo) =>
       ids
         .filter(Boolean)
         .map(id => ({
           id,
           name: getIdDisplayName(id, profileMap),
           elo: eloMap[id] ?? ELO_BASELINE,
-          delta,
+          delta:
+            id === GUEST_ID
+              ? 0
+              : Math.round(
+                  delta * getPlayerWeight(eloMap[id] ?? ELO_BASELINE, teamAverageElo)
+                ),
         }));
 
     const recap = {
@@ -205,13 +211,13 @@ export default function MatchForm({
         ids: teamAIds,
         averageElo: Math.round(teamAElo),
         delta: teamADelta,
-        players: mapPlayers(teamAIds, teamADelta),
+        players: mapPlayers(teamAIds, teamADelta, teamAElo),
       },
       teamB: {
         ids: teamBIds,
         averageElo: Math.round(teamBElo),
         delta: teamBDelta,
-        players: mapPlayers(teamBIds, teamBDelta),
+        players: mapPlayers(teamBIds, teamBDelta, teamBElo),
       },
     };
 
