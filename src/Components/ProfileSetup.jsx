@@ -14,6 +14,9 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [savingAvatar, setSavingAvatar] = useState(false);
 
+  const isAvatarColumnMissing = (error) =>
+    error?.message?.includes("avatar_url") && error.message.includes("schema cache");
+
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     if (!file || !avatarStorageKey) return;
@@ -40,7 +43,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
         const { error } = await supabase
           .from("profiles")
           .upsert({ id: user.id, avatar_url: cropped }, { onConflict: "id" });
-        if (error) {
+        if (error && !isAvatarColumnMissing(error)) {
           alert(error.message || "Kunde inte spara profilbilden.");
         }
       }
@@ -63,11 +66,22 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     if (!user?.id) return;
 
     setSaving(true);
-    const { data, error } = await supabase
+    const payload = { id: user.id, name: trimmed };
+    if (avatarUrl) {
+      payload.avatar_url = avatarUrl;
+    }
+    let { data, error } = await supabase
       .from("profiles")
-      .upsert({ id: user.id, name: trimmed, avatar_url: avatarUrl }, { onConflict: "id" })
+      .upsert(payload, { onConflict: "id" })
       .select()
       .single();
+    if (error && isAvatarColumnMissing(error) && payload.avatar_url) {
+      ({ data, error } = await supabase
+        .from("profiles")
+        .upsert({ id: user.id, name: trimmed }, { onConflict: "id" })
+        .select()
+        .single());
+    }
 
     setSaving(false);
     if (error) return alert(error.message);
