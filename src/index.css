@@ -33,6 +33,33 @@ table { width:100%; border-collapse:collapse; margin-bottom:20px; display:block;
 th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowrap; }
 .auth-notice { margin-top:12px; padding:12px 14px; background:#fef3f2; border:1px solid #f7c7c5; border-radius:var(--radius-md); color:#7c2d12; font-weight:600; }
 
+.notice-banner {
+  background:#fff5f5;
+  border:1px solid var(--color-border-strong);
+  color:#7c2d12;
+  padding:12px 16px;
+  border-radius:var(--radius-md);
+  margin-bottom:16px;
+  font-weight:600;
+}
+
+.notice-banner.error {
+  background:#fef3f2;
+  border-color:#f7c7c5;
+}
+
+.inline-alert {
+  margin:8px 0 0;
+  font-size:0.9rem;
+  color:#7c2d12;
+}
+
+.load-more {
+  display:flex;
+  justify-content:center;
+  margin-top:16px;
+}
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,

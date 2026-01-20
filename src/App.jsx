@@ -25,6 +25,13 @@ export default function App() {
   const [allProfiles, setAllProfiles] = useState([]);
   const [matches, setMatches] = useState([]);
   const [matchFilter, setMatchFilter] = useState("all");
+  const [dataError, setDataError] = useState("");
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(true);
+  const [matchPage, setMatchPage] = useState(1);
+  const [hasMoreMatches, setHasMoreMatches] = useState(true);
+
+  const MATCH_PAGE_SIZE = 40;
 
   // 1) Auth state
   useEffect(() => {
@@ -40,8 +47,12 @@ export default function App() {
   // 2) Load profiles + matches + realtime
   useEffect(() => {
     // Profiles (alla)
+    setIsLoadingProfiles(true);
     supabase.from("profiles").select("*").then(({ data, error }) => {
-      if (error) console.error(error);
+      if (error) {
+        console.error(error);
+        setDataError("Kunde inte hämta spelare. Försök igen senare.");
+      }
       const loadedProfiles = data || [];
       setAllProfiles(loadedProfiles);
       setProfiles(
@@ -49,16 +60,25 @@ export default function App() {
           profile => !profile.is_deleted && (profile.is_approved || profile.is_admin)
         )
       );
+      setIsLoadingProfiles(false);
     });
 
     // Matches
+    setIsLoadingMatches(true);
     supabase
       .from("matches")
       .select("*")
       .order("created_at", { ascending: false })
+      .range(0, MATCH_PAGE_SIZE - 1)
       .then(({ data, error }) => {
-        if (error) console.error(error);
-        setMatches(data || []);
+        if (error) {
+          console.error(error);
+          setDataError("Kunde inte hämta matcher. Försök igen senare.");
+        }
+        const initialMatches = data || [];
+        setMatches(initialMatches);
+        setHasMoreMatches(initialMatches.length === MATCH_PAGE_SIZE);
+        setIsLoadingMatches(false);
       });
 
     // Realtime matches
@@ -146,6 +166,37 @@ export default function App() {
     } else {
       supabase.auth.signOut();
     }
+  };
+
+  const loadMoreMatches = async () => {
+    if (isLoadingMatches || !hasMoreMatches) return;
+    const nextPage = matchPage + 1;
+    setIsLoadingMatches(true);
+    const start = (nextPage - 1) * MATCH_PAGE_SIZE;
+    const end = start + MATCH_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("matches")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(start, end);
+    if (error) {
+      console.error(error);
+      setDataError("Kunde inte hämta fler matcher. Försök igen senare.");
+      setIsLoadingMatches(false);
+      return;
+    }
+    const nextMatches = data || [];
+    setMatches(prev => {
+      const seen = new Set(prev.map(match => match.id));
+      const merged = [...prev];
+      nextMatches.forEach(match => {
+        if (!seen.has(match.id)) merged.push(match);
+      });
+      return merged;
+    });
+    setMatchPage(nextPage);
+    setHasMoreMatches(nextMatches.length === MATCH_PAGE_SIZE);
+    setIsLoadingMatches(false);
   };
 
   if (!user && !isGuest) {
@@ -250,6 +301,11 @@ export default function App() {
 
   return (
     <div className="container">
+      {dataError && (
+        <div className="notice-banner error">
+          <strong>Fel:</strong> {dataError}
+        </div>
+      )}
       <div className="app-header">
         <h1 className="app-title">🎾 Padel Tracker</h1>
         <button
@@ -315,6 +371,9 @@ export default function App() {
             eloPlayers={allEloPlayers}
           />
         )}
+        {(isLoadingProfiles || isLoadingMatches) && (
+          <p className="muted">Laddar data...</p>
+        )}
         <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
         <div className="mvp-grid">
           <MVP
@@ -352,6 +411,13 @@ export default function App() {
           profiles={historyProfiles}
           user={isGuest ? null : userWithAdmin}
         />
+        {hasMoreMatches && (
+          <div className="load-more">
+            <button type="button" onClick={loadMoreMatches} disabled={isLoadingMatches}>
+              {isLoadingMatches ? "Laddar..." : "Visa fler matcher"}
+            </button>
+          </div>
+        )}
       </section>
 
       {userWithAdmin?.is_admin && (

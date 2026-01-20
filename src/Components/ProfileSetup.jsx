@@ -13,6 +13,10 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [pendingAvatar, setPendingAvatar] = useState(null);
   const [avatarZoom, setAvatarZoom] = useState(1);
   const [savingAvatar, setSavingAvatar] = useState(false);
+  const [avatarNotice, setAvatarNotice] = useState("");
+
+  const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
   const isAvatarColumnMissing = (error) =>
     error?.message?.includes("avatar_url") && error.message.includes("schema cache");
@@ -20,6 +24,15 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     if (!file || !avatarStorageKey) return;
+    setAvatarNotice("");
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setAvatarNotice("Endast JPG, PNG eller WEBP stöds.");
+      return;
+    }
+    if (file.size > MAX_AVATAR_SIZE) {
+      setAvatarNotice("Bilden är för stor (max 2 MB).");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -55,6 +68,14 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   };
 
   const cancelAvatar = () => {
+    setPendingAvatar(null);
+    setAvatarZoom(1);
+  };
+
+  const removeAvatar = () => {
+    if (!avatarStorageKey) return;
+    localStorage.removeItem(avatarStorageKey);
+    setAvatarUrl(null);
     setPendingAvatar(null);
     setAvatarZoom(1);
   };
@@ -122,6 +143,12 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
               Välj profilbild
               <input type="file" accept="image/*" onChange={handleAvatarChange} />
             </label>
+            {avatarNotice && <p className="inline-alert">{avatarNotice}</p>}
+            {avatarUrl && !pendingAvatar && (
+              <button type="button" className="ghost-button" onClick={removeAvatar}>
+                Ta bort profilbild
+              </button>
+            )}
           </div>
         </div>
 
