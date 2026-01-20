@@ -172,7 +172,7 @@ const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
-  sortedMatches.forEach(match => {
+  sortedMatches.forEach((match, matchIndex) => {
     const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
     const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
 
@@ -212,7 +212,8 @@ const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
       if (historyDate) {
         eloMap[id].history.push({
           date: historyDate,
-          elo: Math.round(player.elo)
+          elo: Math.round(player.elo),
+          matchIndex
         });
       }
     });
@@ -230,7 +231,8 @@ const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
       if (historyDate) {
         eloMap[id].history.push({
           date: historyDate,
-          elo: Math.round(player.elo)
+          elo: Math.round(player.elo),
+          matchIndex
         });
       }
     });
@@ -255,41 +257,59 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
     return acc;
   }, {});
 
-  const dateSet = new Set();
+  const timelineEntries = new Map();
   playerIds.forEach(id => {
     const history = historyMap[id]?.history || [];
     history.forEach(entry => {
       if (!entry.date) return;
       const entryDate = new Date(entry.date);
       if (Number.isNaN(entryDate.getTime()) || entryDate < oneYearAgo) return;
-      dateSet.add(entry.date);
+      const matchIndex = entry.matchIndex ?? 0;
+      const key = `${entry.date}::${matchIndex}`;
+      if (!timelineEntries.has(key)) {
+        timelineEntries.set(key, { date: entry.date, matchIndex });
+      }
     });
   });
 
-  const dates = Array.from(dateSet).sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  );
+  const dates = Array.from(timelineEntries.values()).sort((a, b) => {
+    const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (timeDiff !== 0) return timeDiff;
+    return a.matchIndex - b.matchIndex;
+  });
   if (!dates.length) return [];
 
   const historyPointers = playerIds.map(id => {
     const history = (historyMap[id]?.history || [])
-      .filter(entry => entry.date)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .filter(entry => entry.date);
     return {
       id,
       name: profileNameMap[id] || "Okänd",
-      history,
+      history: history
+        .sort((a, b) => {
+          const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+          if (timeDiff !== 0) return timeDiff;
+          return (a.matchIndex ?? 0) - (b.matchIndex ?? 0);
+        }),
       index: 0,
       lastElo: ELO_BASELINE
     };
   });
 
-  return dates.map(date => {
-    const row = { date };
+  const isEntryBeforeOrEqual = (entry, dateEntry) => {
+    const entryTime = new Date(entry.date).getTime();
+    const dateTime = new Date(dateEntry.date).getTime();
+    if (entryTime < dateTime) return true;
+    if (entryTime > dateTime) return false;
+    return (entry.matchIndex ?? 0) <= dateEntry.matchIndex;
+  };
+
+  return dates.map(dateEntry => {
+    const row = { date: dateEntry.date };
     historyPointers.forEach(pointer => {
       while (
         pointer.index < pointer.history.length &&
-        new Date(pointer.history[pointer.index].date).getTime() <= new Date(date).getTime()
+        isEntryBeforeOrEqual(pointer.history[pointer.index], dateEntry)
       ) {
         pointer.lastElo = pointer.history[pointer.index].elo;
         pointer.index += 1;
