@@ -41,6 +41,11 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   border-radius:var(--radius-md);
   margin-bottom:16px;
   font-weight:600;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
 }
 
 .notice-banner.error {

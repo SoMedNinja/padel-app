@@ -233,7 +233,8 @@ export default function MatchForm({
       team2.includes("") ||
       team1.some(p => team2.includes(p))
     ) {
-      return alert("Ogiltiga lag");
+      showToast("Ogiltiga lag.");
+      return;
     }
 
     const scoreA = Number(a);
@@ -254,11 +255,11 @@ export default function MatchForm({
       });
 
       if (error) {
-        alert(error.message);
+        showToast(error.message);
         return;
       }
     } catch (error) {
-      alert(error.message || "Kunde inte spara matchen.");
+      showToast(error.message || "Kunde inte spara matchen.");
       return;
     }
 
@@ -330,8 +331,9 @@ export default function MatchForm({
     return `🎾 Matchen: ${teamA} vs ${teamB} (${matchRecap.scoreline}). Vinnare: ${winner}.`;
   }, [eveningRecap, matchRecap, recapMode]);
 
-  const renderPlayerSelect = (team, setTeam, index) => (
+  const renderPlayerSelect = (team, setTeam, index, teamLabel) => (
     <select
+      aria-label={`${teamLabel} spelare ${index + 1}`}
       value={team[index]}
       onChange={e => {
         const t = [...team];
@@ -370,19 +372,19 @@ export default function MatchForm({
 
           <div className="match-form-row">
             <div className="match-form-cell">
-              {renderPlayerSelect(team1, setTeam1, 0)}
+              {renderPlayerSelect(team1, setTeam1, 0, "Lag A")}
             </div>
             <div className="match-form-cell">
-              {renderPlayerSelect(team2, setTeam2, 0)}
+              {renderPlayerSelect(team2, setTeam2, 0, "Lag B")}
             </div>
           </div>
 
           <div className="match-form-row">
             <div className="match-form-cell">
-              {renderPlayerSelect(team1, setTeam1, 1)}
+              {renderPlayerSelect(team1, setTeam1, 1, "Lag A")}
             </div>
             <div className="match-form-cell">
-              {renderPlayerSelect(team2, setTeam2, 1)}
+              {renderPlayerSelect(team2, setTeam2, 1, "Lag B")}
             </div>
           </div>
 
@@ -396,6 +398,7 @@ export default function MatchForm({
               type="number"
               min="0"
               className="match-form-score-input"
+              aria-label="Set Lag A"
               value={a}
               onChange={e => setA(e.target.value)}
             />
@@ -404,6 +407,7 @@ export default function MatchForm({
               type="number"
               min="0"
               className="match-form-score-input"
+              aria-label="Set Lag B"
               value={b}
               onChange={e => setB(e.target.value)}
             />
