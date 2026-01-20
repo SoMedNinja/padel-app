@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 import Auth from "./Components/Auth";
@@ -30,6 +30,8 @@ export default function App() {
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
   const [matchPage, setMatchPage] = useState(1);
   const [hasMoreMatches, setHasMoreMatches] = useState(true);
+  const menuButtonRef = useRef(null);
+  const menuRef = useRef(null);
 
   const MATCH_PAGE_SIZE = 40;
 
@@ -44,42 +46,57 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // 2) Load profiles + matches + realtime
-  useEffect(() => {
-    // Profiles (alla)
+  const loadProfiles = useCallback(async () => {
     setIsLoadingProfiles(true);
-    supabase.from("profiles").select("*").then(({ data, error }) => {
-      if (error) {
-        console.error(error);
-        setDataError("Kunde inte hämta spelare. Försök igen senare.");
-      }
-      const loadedProfiles = data || [];
-      setAllProfiles(loadedProfiles);
-      setProfiles(
-        loadedProfiles.filter(
-          profile => !profile.is_deleted && (profile.is_approved || profile.is_admin)
-        )
-      );
-      setIsLoadingProfiles(false);
-    });
+    const { data, error } = await supabase.from("profiles").select("*");
+    if (error) {
+      console.error(error);
+      setDataError("Kunde inte hämta spelare. Försök igen senare.");
+    }
+    const loadedProfiles = data || [];
+    setAllProfiles(loadedProfiles);
+    setProfiles(
+      loadedProfiles.filter(
+        profile => !profile.is_deleted && (profile.is_approved || profile.is_admin)
+      )
+    );
+    setIsLoadingProfiles(false);
+  }, []);
 
-    // Matches
+  const loadMatchesPage = useCallback(async (page, { replace = false } = {}) => {
     setIsLoadingMatches(true);
-    supabase
+    const start = (page - 1) * MATCH_PAGE_SIZE;
+    const end = start + MATCH_PAGE_SIZE - 1;
+    const { data, error } = await supabase
       .from("matches")
       .select("*")
       .order("created_at", { ascending: false })
-      .range(0, MATCH_PAGE_SIZE - 1)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error(error);
-          setDataError("Kunde inte hämta matcher. Försök igen senare.");
-        }
-        const initialMatches = data || [];
-        setMatches(initialMatches);
-        setHasMoreMatches(initialMatches.length === MATCH_PAGE_SIZE);
-        setIsLoadingMatches(false);
+      .range(start, end);
+    if (error) {
+      console.error(error);
+      setDataError("Kunde inte hämta matcher. Försök igen senare.");
+      setIsLoadingMatches(false);
+      return;
+    }
+    const pageMatches = data || [];
+    setMatches(prev => {
+      if (replace) return pageMatches;
+      const seen = new Set(prev.map(match => match.id));
+      const merged = [...prev];
+      pageMatches.forEach(match => {
+        if (!seen.has(match.id)) merged.push(match);
       });
+      return merged;
+    });
+    setMatchPage(page);
+    setHasMoreMatches(pageMatches.length === MATCH_PAGE_SIZE);
+    setIsLoadingMatches(false);
+  }, [MATCH_PAGE_SIZE]);
+
+  // 2) Load profiles + matches + realtime
+  useEffect(() => {
+    loadProfiles();
+    loadMatchesPage(1, { replace: true });
 
     // Realtime matches
     const channel = supabase
@@ -103,7 +120,27 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
+  }, [loadProfiles, loadMatchesPage]);
+
+  const closeMenu = useCallback(() => {
+    setIsMenuOpen(false);
+    requestAnimationFrame(() => menuButtonRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const focusable = menuRef.current?.querySelector("a, button");
+    focusable?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMenu();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isMenuOpen, closeMenu]);
 
   // 3) Load my profile (is_admin)
   useEffect(() => {
@@ -158,7 +195,6 @@ export default function App() {
     return { ...user, is_admin: activeProfile?.is_admin === true };
   }, [user, activeProfile]);
 
-  const closeMenu = () => setIsMenuOpen(false);
   const handleAuthAction = () => {
     closeMenu();
     if (isGuest) {
@@ -171,33 +207,14 @@ export default function App() {
   const loadMoreMatches = async () => {
     if (isLoadingMatches || !hasMoreMatches) return;
     const nextPage = matchPage + 1;
-    setIsLoadingMatches(true);
-    const start = (nextPage - 1) * MATCH_PAGE_SIZE;
-    const end = start + MATCH_PAGE_SIZE - 1;
-    const { data, error } = await supabase
-      .from("matches")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(start, end);
-    if (error) {
-      console.error(error);
-      setDataError("Kunde inte hämta fler matcher. Försök igen senare.");
-      setIsLoadingMatches(false);
-      return;
-    }
-    const nextMatches = data || [];
-    setMatches(prev => {
-      const seen = new Set(prev.map(match => match.id));
-      const merged = [...prev];
-      nextMatches.forEach(match => {
-        if (!seen.has(match.id)) merged.push(match);
-      });
-      return merged;
-    });
-    setMatchPage(nextPage);
-    setHasMoreMatches(nextMatches.length === MATCH_PAGE_SIZE);
-    setIsLoadingMatches(false);
+    await loadMatchesPage(nextPage);
   };
+
+  const retryData = useCallback(() => {
+    setDataError("");
+    loadProfiles();
+    loadMatchesPage(1, { replace: true });
+  }, [loadProfiles, loadMatchesPage]);
 
   if (!user && !isGuest) {
     return (
@@ -302,13 +319,24 @@ export default function App() {
   return (
     <div className="container">
       {dataError && (
-        <div className="notice-banner error">
-          <strong>Fel:</strong> {dataError}
+        <div className="notice-banner error" role="alert">
+          <div>
+            <strong>Fel:</strong> {dataError}
+          </div>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={retryData}
+            disabled={isLoadingProfiles || isLoadingMatches}
+          >
+            Försök igen
+          </button>
         </div>
       )}
       <div className="app-header">
         <h1 className="app-title">🎾 Padel Tracker</h1>
         <button
+          ref={menuButtonRef}
           className="menu-toggle"
           type="button"
           aria-label="Öppna meny"
@@ -322,7 +350,12 @@ export default function App() {
 
       {isMenuOpen && <div className="app-menu-backdrop" onClick={closeMenu} />}
 
-      <nav id="app-menu" className={`app-menu ${isMenuOpen ? "open" : ""}`}>
+      <nav
+        id="app-menu"
+        ref={menuRef}
+        className={`app-menu ${isMenuOpen ? "open" : ""}`}
+        aria-label="Huvudmeny"
+      >
         <a href="#dashboard" onClick={closeMenu}>Hemskärm</a>
         {!isGuest && (
           <a href="#profile" onClick={closeMenu}>Spelprofil</a>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -28,23 +28,9 @@ export default function History({ matches = [], profiles = [], user }) {
     return [{ id: GUEST_ID, name: GUEST_NAME }, ...options];
   }, [profiles]);
 
-  const [page, setPage] = useState(1);
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState(null);
-
-  const pageSize = 20;
-  const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedMatches = matches.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
+  const [errorMessage, setErrorMessage] = useState("");
 
   if (!matches.length) return <div>Inga matcher ännu.</div>;
 
@@ -68,6 +54,7 @@ export default function History({ matches = [], profiles = [], user }) {
   };
 
   const startEdit = (match) => {
+    setErrorMessage("");
     setEditingId(match.id);
     setEdit({
       created_at: toDateTimeInput(match.created_at),
@@ -81,6 +68,7 @@ export default function History({ matches = [], profiles = [], user }) {
   const cancelEdit = () => {
     setEditingId(null);
     setEdit(null);
+    setErrorMessage("");
   };
 
   const updateTeam = (teamKey, index, value) => {
@@ -101,17 +89,17 @@ export default function History({ matches = [], profiles = [], user }) {
     if (!edit) return;
 
     if (!edit.created_at) {
-      alert("Välj datum och tid.");
+      setErrorMessage("Välj datum och tid.");
       return;
     }
 
     if (edit.team1_ids.some(id => !id) || edit.team2_ids.some(id => !id)) {
-      alert("Välj spelare för alla positioner.");
+      setErrorMessage("Välj spelare för alla positioner.");
       return;
     }
 
     if (hasDuplicatePlayers(edit.team1_ids, edit.team2_ids)) {
-      alert("Samma spelare kan inte vara med i båda lagen.");
+      setErrorMessage("Samma spelare kan inte vara med i båda lagen.");
       return;
     }
 
@@ -131,20 +119,31 @@ export default function History({ matches = [], profiles = [], user }) {
       })
       .eq("id", matchId);
 
-    if (error) alert(error.message);
-    else cancelEdit();
+    if (error) {
+      setErrorMessage(error.message);
+    } else {
+      cancelEdit();
+    }
   };
 
   const deleteMatch = async (matchId) => {
     if (!window.confirm("Radera matchen?")) return;
 
     const { error } = await supabase.from("matches").delete().eq("id", matchId);
-    if (error) alert(error.message);
+    if (error) setErrorMessage(error.message);
   };
 
   return (
     <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
+      {errorMessage && (
+        <div className="notice-banner error" role="alert">
+          <div>{errorMessage}</div>
+          <button type="button" className="ghost-button" onClick={() => setErrorMessage("")}>
+            Stäng
+          </button>
+        </div>
+      )}
       <table className="styled-table">
         <thead>
           <tr>
@@ -157,7 +156,7 @@ export default function History({ matches = [], profiles = [], user }) {
         </thead>
 
         <tbody>
-          {paginatedMatches.map(m => {
+          {matches.map(m => {
             const teamAList =
               m.team1_ids?.length ? idsToNames(m.team1_ids, profileMap) : m.team1 || [];
             const teamBList =
@@ -173,6 +172,7 @@ export default function History({ matches = [], profiles = [], user }) {
                   {isEditing ? (
                     <input
                       type="datetime-local"
+                      aria-label="Matchdatum och tid"
                       value={edit?.created_at || ""}
                       onChange={(event) =>
                         setEdit(prev => (prev ? { ...prev, created_at: event.target.value } : prev))
@@ -189,6 +189,7 @@ export default function History({ matches = [], profiles = [], user }) {
                       {edit?.team1_ids.map((value, index) => (
                         <select
                           key={`team1-${index}`}
+                          aria-label={`Lag A spelare ${index + 1}`}
                           value={value}
                           onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
                         >
@@ -212,6 +213,7 @@ export default function History({ matches = [], profiles = [], user }) {
                       {edit?.team2_ids.map((value, index) => (
                         <select
                           key={`team2-${index}`}
+                          aria-label={`Lag B spelare ${index + 1}`}
                           value={value}
                           onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
                         >
@@ -235,6 +237,7 @@ export default function History({ matches = [], profiles = [], user }) {
                       <input
                         type="number"
                         min="0"
+                        aria-label="Set Lag A"
                         value={edit?.team1_sets ?? 0}
                         onChange={(event) =>
                           setEdit(prev => (prev ? { ...prev, team1_sets: event.target.value } : prev))
@@ -244,6 +247,7 @@ export default function History({ matches = [], profiles = [], user }) {
                       <input
                         type="number"
                         min="0"
+                        aria-label="Set Lag B"
                         value={edit?.team2_sets ?? 0}
                         onChange={(event) =>
                           setEdit(prev => (prev ? { ...prev, team2_sets: event.target.value } : prev))
@@ -287,28 +291,6 @@ export default function History({ matches = [], profiles = [], user }) {
           })}
         </tbody>
       </table>
-
-      <div className="pagination">
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-        >
-          Föregående
-        </button>
-        <span className="pagination-status">
-          Sida {currentPage} av {totalPages}
-        </span>
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages}
-        >
-          Nästa
-        </button>
-      </div>
 
       <p style={{ fontSize: 12, opacity: 0.7 }}>
         * Rättigheter styrs av databasen (RLS). Endast admin kan redigera matcher.
