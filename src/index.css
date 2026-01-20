@@ -812,7 +812,13 @@ select:focus-visible {
   display:flex;
   justify-content:flex-start;
   gap:6px;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
+}
+
+.recent-results-column,
+.recent-results-cell {
+  min-width:170px;
+  white-space:nowrap;
 }
 
 .result-pill {
