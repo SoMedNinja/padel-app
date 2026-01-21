@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -31,8 +31,18 @@ export default function History({ matches = [], profiles = [], user }) {
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   if (!matches.length) return <div>Inga matcher ännu.</div>;
+
+  const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const canDelete = (m) => {
     return user?.id && (m.created_by === user.id || user?.is_admin === true);
@@ -133,6 +143,9 @@ export default function History({ matches = [], profiles = [], user }) {
     if (error) setErrorMessage(error.message);
   };
 
+  const startIndex = (currentPage - 1) * pageSize;
+  const pagedMatches = matches.slice(startIndex, startIndex + pageSize);
+
   return (
     <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
@@ -144,153 +157,180 @@ export default function History({ matches = [], profiles = [], user }) {
           </button>
         </div>
       )}
-      <table className="styled-table">
-        <thead>
-          <tr>
-            <th>Datum</th>
-            <th>Lag A</th>
-            <th>Lag B</th>
-            <th>Resultat</th>
-            <th>Åtgärder</th>
-          </tr>
-        </thead>
+      <div className="pagination">
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+          disabled={currentPage === 1}
+        >
+          Föregående
+        </button>
+        <span className="pagination-status">
+          Sida {currentPage} av {totalPages}
+        </span>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+          disabled={currentPage === totalPages}
+        >
+          Nästa
+        </button>
+      </div>
+      <div className="muted" style={{ marginBottom: 12 }}>
+        Visar {startIndex + 1}–{Math.min(startIndex + pageSize, matches.length)} av{" "}
+        {matches.length} matcher
+      </div>
+      <div className="table-scroll">
+        <table className="styled-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Lag A</th>
+              <th>Lag B</th>
+              <th>Resultat</th>
+              <th>Åtgärder</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {matches.map(m => {
-            const teamAList =
-              m.team1_ids?.length ? idsToNames(m.team1_ids, profileMap) : m.team1 || [];
-            const teamBList =
-              m.team2_ids?.length ? idsToNames(m.team2_ids, profileMap) : m.team2 || [];
-            const teamA = teamAList.join(" & ");
-            const teamB = teamBList.join(" & ");
-            const date = m.created_at?.slice(0, 10);
-            const isEditing = editingId === m.id;
+          <tbody>
+            {pagedMatches.map(m => {
+              const teamAList =
+                m.team1_ids?.length ? idsToNames(m.team1_ids, profileMap) : m.team1 || [];
+              const teamBList =
+                m.team2_ids?.length ? idsToNames(m.team2_ids, profileMap) : m.team2 || [];
+              const teamA = teamAList.join(" & ");
+              const teamB = teamBList.join(" & ");
+              const date = m.created_at?.slice(0, 10);
+              const isEditing = editingId === m.id;
 
-            return (
-              <tr key={m.id}>
-                <td>
-                  {isEditing ? (
-                    <input
-                      type="datetime-local"
-                      aria-label="Matchdatum och tid"
-                      value={edit?.created_at || ""}
-                      onChange={(event) =>
-                        setEdit(prev => (prev ? { ...prev, created_at: event.target.value } : prev))
-                      }
-                    />
-                  ) : (
-                    date
-                  )}
-                </td>
-
-                <td>
-                  {isEditing ? (
-                    <div className="history-edit-team">
-                      {edit?.team1_ids.map((value, index) => (
-                        <select
-                          key={`team1-${index}`}
-                          aria-label={`Lag A spelare ${index + 1}`}
-                          value={value}
-                          onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
-                        >
-                          <option value="">Välj spelare</option>
-                          {playerOptions.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
-                      ))}
-                    </div>
-                  ) : (
-                    teamA
-                  )}
-                </td>
-
-                <td>
-                  {isEditing ? (
-                    <div className="history-edit-team">
-                      {edit?.team2_ids.map((value, index) => (
-                        <select
-                          key={`team2-${index}`}
-                          aria-label={`Lag B spelare ${index + 1}`}
-                          value={value}
-                          onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
-                        >
-                          <option value="">Välj spelare</option>
-                          {playerOptions.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
-                      ))}
-                    </div>
-                  ) : (
-                    teamB
-                  )}
-                </td>
-
-                <td>
-                  {isEditing ? (
-                    <div className="history-edit-score">
+              return (
+                <tr key={m.id}>
+                  <td>
+                    {isEditing ? (
                       <input
-                        type="number"
-                        min="0"
-                        aria-label="Set Lag A"
-                        value={edit?.team1_sets ?? 0}
+                        type="datetime-local"
+                        aria-label="Matchdatum och tid"
+                        value={edit?.created_at || ""}
                         onChange={(event) =>
-                          setEdit(prev => (prev ? { ...prev, team1_sets: event.target.value } : prev))
+                          setEdit(prev => (prev ? { ...prev, created_at: event.target.value } : prev))
                         }
                       />
-                      <span>–</span>
-                      <input
-                        type="number"
-                        min="0"
-                        aria-label="Set Lag B"
-                        value={edit?.team2_sets ?? 0}
-                        onChange={(event) =>
-                          setEdit(prev => (prev ? { ...prev, team2_sets: event.target.value } : prev))
-                        }
-                      />
-                    </div>
-                  ) : (
-                    `${m.team1_sets} – ${m.team2_sets}`
-                  )}
-                </td>
+                    ) : (
+                      date
+                    )}
+                  </td>
 
-                <td>
-                  {isEditing ? (
-                    <div className="history-edit-actions">
-                      <button type="button" onClick={() => saveEdit(m.id)}>
-                        Spara
-                      </button>
-                      <button type="button" className="ghost-button" onClick={cancelEdit}>
-                        Avbryt
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="history-actions">
-                      {canEdit ? (
-                        <button type="button" onClick={() => startEdit(m)}>
-                          Redigera
+                  <td>
+                    {isEditing ? (
+                      <div className="history-edit-team">
+                        {edit?.team1_ids.map((value, index) => (
+                          <select
+                            key={`team1-${index}`}
+                            aria-label={`Lag A spelare ${index + 1}`}
+                            value={value}
+                            onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
+                          >
+                            <option value="">Välj spelare</option>
+                            {playerOptions.map(option => (
+                              <option key={option.id} value={option.id}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                        ))}
+                      </div>
+                    ) : (
+                      teamA
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <div className="history-edit-team">
+                        {edit?.team2_ids.map((value, index) => (
+                          <select
+                            key={`team2-${index}`}
+                            aria-label={`Lag B spelare ${index + 1}`}
+                            value={value}
+                            onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
+                          >
+                            <option value="">Välj spelare</option>
+                            {playerOptions.map(option => (
+                              <option key={option.id} value={option.id}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                        ))}
+                      </div>
+                    ) : (
+                      teamB
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <div className="history-edit-score">
+                        <input
+                          type="number"
+                          min="0"
+                          aria-label="Set Lag A"
+                          value={edit?.team1_sets ?? 0}
+                          onChange={(event) =>
+                            setEdit(prev => (prev ? { ...prev, team1_sets: event.target.value } : prev))
+                          }
+                        />
+                        <span>–</span>
+                        <input
+                          type="number"
+                          min="0"
+                          aria-label="Set Lag B"
+                          value={edit?.team2_sets ?? 0}
+                          onChange={(event) =>
+                            setEdit(prev => (prev ? { ...prev, team2_sets: event.target.value } : prev))
+                          }
+                        />
+                      </div>
+                    ) : (
+                      `${m.team1_sets} – ${m.team2_sets}`
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <div className="history-edit-actions">
+                        <button type="button" onClick={() => saveEdit(m.id)}>
+                          Spara
                         </button>
-                      ) : null}
-                      {canDelete(m) ? (
-                        <button type="button" onClick={() => deleteMatch(m.id)}>
-                          Radera
+                        <button type="button" className="ghost-button" onClick={cancelEdit}>
+                          Avbryt
                         </button>
-                      ) : !canEdit ? (
-                        <span style={{ opacity: 0.6 }}>—</span>
-                      ) : null}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      </div>
+                    ) : (
+                      <div className="history-actions">
+                        {canEdit ? (
+                          <button type="button" onClick={() => startEdit(m)}>
+                            Redigera
+                          </button>
+                        ) : null}
+                        {canDelete(m) ? (
+                          <button type="button" onClick={() => deleteMatch(m.id)}>
+                            Radera
+                          </button>
+                        ) : !canEdit ? (
+                          <span style={{ opacity: 0.6 }}>—</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <p style={{ fontSize: 12, opacity: 0.7 }}>
         * Rättigheter styrs av databasen (RLS). Endast admin kan redigera matcher.

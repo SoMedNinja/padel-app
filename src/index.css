@@ -102,6 +102,10 @@ select:focus-visible {
   -webkit-overflow-scrolling:touch;
 }
 
+.table-scroll .styled-table {
+  min-width:680px;
+}
+
 .styled-table th,
 .styled-table td {
   padding:10px 12px;
