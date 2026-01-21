@@ -28,7 +28,7 @@ export default function App() {
   const [dataError, setDataError] = useState("");
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
-  const [matchPage, setMatchPage] = useState(1);
+  const [matchCursor, setMatchCursor] = useState(null);
   const [hasMoreMatches, setHasMoreMatches] = useState(true);
   const menuButtonRef = useRef(null);
   const menuRef = useRef(null);
@@ -63,15 +63,44 @@ export default function App() {
     setIsLoadingProfiles(false);
   }, []);
 
-  const loadMatchesPage = useCallback(async (page, { replace = false } = {}) => {
+  const applyMatchFilter = (query, filter) => {
+    if (filter === "short") {
+      return query.lte("team1_sets", 3).lte("team2_sets", 3);
+    }
+    if (filter === "long") {
+      return query.or("team1_sets.gte.6,team2_sets.gte.6");
+    }
+    return query;
+  };
+
+  const matchPassesFilter = (match, filter) => {
+    const team1Sets = Number(match.team1_sets ?? 0);
+    const team2Sets = Number(match.team2_sets ?? 0);
+    if (filter === "short") {
+      return team1Sets <= 3 && team2Sets <= 3;
+    }
+    if (filter === "long") {
+      return team1Sets >= 6 || team2Sets >= 6;
+    }
+    return true;
+  };
+
+  const loadMatchesPage = useCallback(async ({
+    replace = false,
+    cursor = null,
+    filter = matchFilter,
+  } = {}) => {
     setIsLoadingMatches(true);
-    const start = (page - 1) * MATCH_PAGE_SIZE;
-    const end = start + MATCH_PAGE_SIZE - 1;
-    const { data, error } = await supabase
+    let query = supabase
       .from("matches")
       .select("*")
       .order("created_at", { ascending: false })
-      .range(start, end);
+      .limit(MATCH_PAGE_SIZE);
+    if (cursor) {
+      query = query.lt("created_at", cursor);
+    }
+    query = applyMatchFilter(query, filter);
+    const { data, error } = await query;
     if (error) {
       console.error(error);
       setDataError("Kunde inte hämta matcher. Försök igen senare.");
@@ -88,17 +117,21 @@ export default function App() {
       });
       return merged;
     });
-    setMatchPage(page);
+    setMatchCursor(pageMatches.length ? pageMatches[pageMatches.length - 1].created_at : null);
     setHasMoreMatches(pageMatches.length === MATCH_PAGE_SIZE);
     setIsLoadingMatches(false);
-  }, [MATCH_PAGE_SIZE]);
+  }, [MATCH_PAGE_SIZE, matchFilter]);
 
   // 2) Load profiles + matches + realtime
   useEffect(() => {
     loadProfiles();
-    loadMatchesPage(1, { replace: true });
+  }, [loadProfiles]);
 
-    // Realtime matches
+  useEffect(() => {
+    loadMatchesPage({ replace: true, cursor: null, filter: matchFilter });
+  }, [matchFilter, loadMatchesPage]);
+
+  useEffect(() => {
     const channel = supabase
       .channel("matches-live")
       .on(
@@ -106,11 +139,18 @@ export default function App() {
         { event: "*", schema: "public", table: "matches" },
         payload => {
           setMatches(prev => {
-            if (payload.eventType === "INSERT") return [payload.new, ...prev];
+            if (payload.eventType === "INSERT") {
+              if (!matchPassesFilter(payload.new, matchFilter)) return prev;
+              return [payload.new, ...prev];
+            }
             if (payload.eventType === "DELETE")
               return prev.filter(m => m.id !== payload.old.id);
-            if (payload.eventType === "UPDATE")
+            if (payload.eventType === "UPDATE") {
+              if (!matchPassesFilter(payload.new, matchFilter)) {
+                return prev.filter(m => m.id !== payload.new.id);
+              }
               return prev.map(m => (m.id === payload.new.id ? payload.new : m));
+            }
             return prev;
           });
         }
@@ -120,7 +160,7 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadProfiles, loadMatchesPage]);
+  }, [matchFilter]);
 
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
@@ -205,16 +245,15 @@ export default function App() {
   };
 
   const loadMoreMatches = async () => {
-    if (isLoadingMatches || !hasMoreMatches) return;
-    const nextPage = matchPage + 1;
-    await loadMatchesPage(nextPage);
+    if (isLoadingMatches || !hasMoreMatches || !matchCursor) return;
+    await loadMatchesPage({ cursor: matchCursor, filter: matchFilter });
   };
 
   const retryData = useCallback(() => {
     setDataError("");
     loadProfiles();
-    loadMatchesPage(1, { replace: true });
-  }, [loadProfiles, loadMatchesPage]);
+    loadMatchesPage({ replace: true, cursor: null, filter: matchFilter });
+  }, [loadProfiles, loadMatchesPage, matchFilter]);
 
   if (!user && !isGuest) {
     return (
