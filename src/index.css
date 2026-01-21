@@ -105,7 +105,7 @@ select:focus-visible {
 .table-scroll-inner {
   width:100%;
   overflow-x:auto;
-  overflow-y:visible;
+  overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
 }
 
@@ -739,6 +739,10 @@ select:focus-visible {
 }
 
 .head-to-head-card strong {
+  display:block;
+}
+
+.head-to-head-card .muted {
   display:block;
 }
 
