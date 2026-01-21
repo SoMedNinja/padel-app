@@ -29,7 +29,7 @@ input[type=number] { max-width:160px; }
 button { padding:10px 16px; margin-top:10px; cursor:pointer; background:var(--color-brand); color:white; border:none; border-radius:var(--radius-md); transition:0.2s ease; font-weight:600; }
 button:hover { background:var(--color-brand-dark); transform:translateY(-1px); box-shadow:0 6px 14px rgba(211, 47, 47, 0.18); }
 button:disabled { opacity:0.7; cursor:not-allowed; }
-table { width:100%; border-collapse:collapse; margin-bottom:20px; display:block; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; margin-bottom:20px; }
 th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowrap; }
 .auth-notice { margin-top:12px; padding:12px 14px; background:#fef3f2; border:1px solid #f7c7c5; border-radius:var(--radius-md); color:#7c2d12; font-weight:600; }
 
@@ -92,10 +92,14 @@ select:focus-visible {
   border-collapse:separate;
   border-spacing:0;
   margin-bottom:0;
-  display:block;
-  overflow-x:auto;
   border:1px solid var(--color-border);
   border-radius:var(--radius-lg);
+}
+
+.table-scroll {
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
 }
 
 .styled-table th,
@@ -831,8 +835,7 @@ select:focus-visible {
 }
 
 .leaderboard-table {
-  display:table;
-  overflow:visible;
+  width:100%;
 }
 
 .head-to-head-results {

@@ -107,45 +107,47 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
   return (
     <div className="table-card">
       <h2>Lag-kombinationer</h2>
-      <table className="styled-table">
-        <thead>
-          <tr>
-            <th className="sortable" onClick={() => handleSort("players")}>Lag</th>
-            <th className="sortable" onClick={() => handleSort("games")}>Matcher</th>
-            <th className="sortable" onClick={() => handleSort("wins")}>Vinster</th>
-            <th className="sortable" onClick={() => handleSort("winPct")}>Vinst %</th>
-            <th className="recent-results-column">Senaste 5</th>
-            <th className="sortable" onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.players.join("-")}>
-              <td>{r.players.join(" & ")}</td>
-              <td>{r.games}</td>
-              <td>{r.wins}</td>
-              <td>{r.winPct}%</td>
-              <td className="recent-results-cell">
-                {r.recentResults?.length ? (
-                  <span className="table-results">
-                    {r.recentResults.map((result, index) => (
-                      <span
-                        key={`${result}-${index}`}
-                        className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
-                      >
-                        {result}
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  "-"
-                )}
-              </td>
-              <td>{r.avgElo}</td>
+      <div className="table-scroll">
+        <table className="styled-table">
+          <thead>
+            <tr>
+              <th className="sortable" onClick={() => handleSort("players")}>Lag</th>
+              <th className="sortable" onClick={() => handleSort("games")}>Matcher</th>
+              <th className="sortable" onClick={() => handleSort("wins")}>Vinster</th>
+              <th className="sortable" onClick={() => handleSort("winPct")}>Vinst %</th>
+              <th className="recent-results-column">Senaste 5</th>
+              <th className="sortable" onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.players.join("-")}>
+                <td>{r.players.join(" & ")}</td>
+                <td>{r.games}</td>
+                <td>{r.wins}</td>
+                <td>{r.winPct}%</td>
+                <td className="recent-results-cell">
+                  {r.recentResults?.length ? (
+                    <span className="table-results">
+                      {r.recentResults.map((result, index) => (
+                        <span
+                          key={`${result}-${index}`}
+                          className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
+                        >
+                          {result}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+                <td>{r.avgElo}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
