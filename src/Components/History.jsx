@@ -34,8 +34,6 @@ export default function History({ matches = [], profiles = [], user }) {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  if (!matches.length) return <div>Inga matcher ännu.</div>;
-
   const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
 
   useEffect(() => {
@@ -43,6 +41,8 @@ export default function History({ matches = [], profiles = [], user }) {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  if (!matches.length) return <div>Inga matcher ännu.</div>;
 
   const canDelete = (m) => {
     return user?.id && (m.created_by === user.id || user?.is_admin === true);
