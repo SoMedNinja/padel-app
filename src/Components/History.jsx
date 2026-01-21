@@ -183,7 +183,8 @@ export default function History({ matches = [], profiles = [], user }) {
         {matches.length} matcher
       </div>
       <div className="table-scroll">
-        <table className="styled-table">
+        <div className="table-scroll-inner">
+          <table className="styled-table">
           <thead>
             <tr>
               <th>Datum</th>
@@ -329,7 +330,8 @@ export default function History({ matches = [], profiles = [], user }) {
               );
             })}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       <p style={{ fontSize: 12, opacity: 0.7 }}>
