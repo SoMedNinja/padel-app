@@ -73,66 +73,68 @@ export default function EloLeaderboard({ players = [] }) {
   return (
     <div className="table-card">
       <h2>ELO Leaderboard</h2>
-      <table className="styled-table leaderboard-table">
-        <thead>
-          <tr>
-            <th className="sortable" onClick={() => toggleSort("name")}>Spelare</th>
-            <th className="sortable" onClick={() => toggleSort("elo")}>ELO</th>
-            <th className="sortable" onClick={() => toggleSort("games")}>Matcher</th>
-            <th className="sortable" onClick={() => toggleSort("wins")}>Vinster</th>
-            <th>Streak</th>
-            <th>Trend</th>
-            <th className="sortable" onClick={() => toggleSort("winPct")}>Vinst %</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedPlayers.map(p => (
-            <tr key={p.name}>
-              <td>
-                <div className="leaderboard-name" tabIndex={0}>
-                  <Avatar
-                    className="leaderboard-avatar"
-                    src={p.avatarUrl || getStoredAvatar(p.id)}
-                    name={p.name}
-                    alt={`Profilbild för ${p.name}`}
-                  />
-                  <span>{p.name}</span>
-                  <div className="leaderboard-card" aria-hidden="true">
-                    <div className="leaderboard-card-title">Snabbstatistik</div>
-                    <div className="leaderboard-card-row">
-                      <span>Vinst %</span>
-                      <strong>{winPct(p.wins, p.losses)}%</strong>
-                    </div>
-                    <div className="leaderboard-card-row">
-                      <span>Matcher</span>
-                      <strong>{p.wins + p.losses}</strong>
-                    </div>
-                    <div className="leaderboard-card-row">
-                      <span>Bästa partner</span>
-                      <strong>{p.bestPartner?.name || "—"}</strong>
-                    </div>
-                    <div className="leaderboard-card-meta">
-                      {p.bestPartner
-                        ? `${Math.round(p.bestPartner.winRate * 100)}% vinst · ${p.bestPartner.games} matcher`
-                        : "Ingen partnerstatistik än."}
+      <div className="table-scroll">
+        <table className="styled-table leaderboard-table">
+          <thead>
+            <tr>
+              <th className="sortable" onClick={() => toggleSort("name")}>Spelare</th>
+              <th className="sortable" onClick={() => toggleSort("elo")}>ELO</th>
+              <th className="sortable" onClick={() => toggleSort("games")}>Matcher</th>
+              <th className="sortable" onClick={() => toggleSort("wins")}>Vinster</th>
+              <th>Streak</th>
+              <th>Trend</th>
+              <th className="sortable" onClick={() => toggleSort("winPct")}>Vinst %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedPlayers.map(p => (
+              <tr key={p.name}>
+                <td>
+                  <div className="leaderboard-name" tabIndex={0}>
+                    <Avatar
+                      className="leaderboard-avatar"
+                      src={p.avatarUrl || getStoredAvatar(p.id)}
+                      name={p.name}
+                      alt={`Profilbild för ${p.name}`}
+                    />
+                    <span>{p.name}</span>
+                    <div className="leaderboard-card" aria-hidden="true">
+                      <div className="leaderboard-card-title">Snabbstatistik</div>
+                      <div className="leaderboard-card-row">
+                        <span>Vinst %</span>
+                        <strong>{winPct(p.wins, p.losses)}%</strong>
+                      </div>
+                      <div className="leaderboard-card-row">
+                        <span>Matcher</span>
+                        <strong>{p.wins + p.losses}</strong>
+                      </div>
+                      <div className="leaderboard-card-row">
+                        <span>Bästa partner</span>
+                        <strong>{p.bestPartner?.name || "—"}</strong>
+                      </div>
+                      <div className="leaderboard-card-meta">
+                        {p.bestPartner
+                          ? `${Math.round(p.bestPartner.winRate * 100)}% vinst · ${p.bestPartner.games} matcher`
+                          : "Ingen partnerstatistik än."}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </td>
-              <td>{Math.round(p.elo)}</td>
-              <td>{p.wins + p.losses}</td>
-              <td>{p.wins}</td>
-              <td>{getStreak(p)}</td>
-              <td>
-                <span className="form-trend" aria-hidden="true">
-                  {getTrendIndicator(p)}
-                </span>
-              </td>
-              <td>{winPct(p.wins, p.losses)}%</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                </td>
+                <td>{Math.round(p.elo)}</td>
+                <td>{p.wins + p.losses}</td>
+                <td>{p.wins}</td>
+                <td>{getStreak(p)}</td>
+                <td>
+                  <span className="form-trend" aria-hidden="true">
+                    {getTrendIndicator(p)}
+                  </span>
+                </td>
+                <td>{winPct(p.wins, p.losses)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
