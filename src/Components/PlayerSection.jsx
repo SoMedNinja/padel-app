@@ -320,6 +320,16 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
   });
 };
 
+const getHighestEloRating = (historyEntry) => {
+  if (!historyEntry) return ELO_BASELINE;
+  const history = Array.isArray(historyEntry.history) ? historyEntry.history : [];
+  const historyMax = history.reduce(
+    (max, entry) => Math.max(max, entry?.elo ?? ELO_BASELINE),
+    ELO_BASELINE
+  );
+  return Math.max(historyMax, historyEntry.currentElo ?? ELO_BASELINE);
+};
+
 const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
   if (!playerId) return null;
 
@@ -642,6 +652,14 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
   const opponentName = opponentProfile ? getProfileDisplayName(opponentProfile) : "Motståndare";
   const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
   const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
+  const playerHighestElo = useMemo(
+    () => getHighestEloRating(eloHistoryMap[user?.id]),
+    [eloHistoryMap, user?.id]
+  );
+  const opponentHighestElo = useMemo(
+    () => getHighestEloRating(eloHistoryMap[resolvedOpponentId]),
+    [eloHistoryMap, resolvedOpponentId]
+  );
   const playerMvpDays = mvpSummary.monthlyMvpDays[playerName] || 0;
   const opponentMvpDays = mvpSummary.monthlyMvpDays[opponentName] || 0;
   const playerEveningMvps = mvpSummary.eveningMvpCounts[playerName] || 0;
@@ -919,6 +937,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
                   <strong>{playerName}</strong>
                   <span className="muted">Du</span>
                   <span className="muted">ELO {currentPlayerElo}</span>
+                  <span className="muted">Högsta ELO {playerHighestElo}</span>
                 </div>
               </div>
               <div className="head-to-head-card">
@@ -934,6 +953,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
                   </strong>
                   <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
                   <span className="muted">ELO {opponentElo}</span>
+                  <span className="muted">Högsta ELO {opponentHighestElo}</span>
                 </div>
               </div>
             </div>
