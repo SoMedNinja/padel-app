@@ -98,12 +98,20 @@ select:focus-visible {
 
 .table-scroll {
   width:100%;
+  position:relative;
+  overflow:visible;
+}
+
+.table-scroll-inner {
+  width:100%;
   overflow-x:auto;
+  overflow-y:visible;
   -webkit-overflow-scrolling:touch;
 }
 
-.table-scroll .styled-table {
-  min-width:680px;
+.table-scroll-inner .styled-table {
+  min-width:100%;
+  width:max-content;
 }
 
 .styled-table th,

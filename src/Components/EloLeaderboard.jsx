@@ -74,7 +74,8 @@ export default function EloLeaderboard({ players = [] }) {
     <div className="table-card">
       <h2>ELO Leaderboard</h2>
       <div className="table-scroll">
-        <table className="styled-table leaderboard-table">
+        <div className="table-scroll-inner">
+          <table className="styled-table leaderboard-table">
           <thead>
             <tr>
               <th className="sortable" onClick={() => toggleSort("name")}>Spelare</th>
@@ -133,7 +134,8 @@ export default function EloLeaderboard({ players = [] }) {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );

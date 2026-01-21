@@ -108,7 +108,8 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     <div className="table-card">
       <h2>Lag-kombinationer</h2>
       <div className="table-scroll">
-        <table className="styled-table">
+        <div className="table-scroll-inner">
+          <table className="styled-table">
           <thead>
             <tr>
               <th className="sortable" onClick={() => handleSort("players")}>Lag</th>
@@ -146,7 +147,8 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );
