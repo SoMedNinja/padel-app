@@ -438,12 +438,48 @@ select:focus-visible {
   margin:24px 0;
 }
 
+.performance-card {
+  margin:24px 0;
+  padding:16px;
+  border-radius:var(--radius-lg);
+  border:1px solid var(--color-border);
+  background:#fff7f7;
+}
+
+.performance-card-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+
+.performance-card-header h3 {
+  margin:0 0 4px;
+}
+
+.performance-elo {
+  font-weight:700;
+  font-size:20px;
+}
+
+.performance-card-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+  gap:16px;
+}
+
 .stat-card {
   background:#fafafa;
   border:1px solid var(--color-border);
   border-radius:var(--radius-md);
   padding:14px;
   text-align:center;
+}
+
+.stat-card-wide {
+  grid-column:1 / -1;
 }
 
 .stat-card-compare {
@@ -462,6 +498,15 @@ select:focus-visible {
   font-size:22px;
   font-weight:700;
   margin-top:6px;
+}
+
+.performance-results {
+  display:flex;
+  gap:6px;
+  justify-content:flex-start;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:8px;
 }
 
 .stat-delta-positive {
