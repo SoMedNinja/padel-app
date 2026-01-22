@@ -441,6 +441,18 @@ export default function App() {
       )}
 
       <section id="dashboard" className="page-section">
+        {!isGuest && (
+          <div id="spelproducent">
+            <h2>Spelproducent</h2>
+            <MatchForm
+              user={user}
+              profiles={profiles}
+              matches={matches}
+              eloPlayers={allEloPlayers}
+            />
+          </div>
+        )}
+
         {(isLoadingProfiles || isLoadingMatches) && (
           <p className="muted">Laddar data...</p>
         )}
@@ -462,18 +474,6 @@ export default function App() {
         <EloLeaderboard players={playersWithTrend} />
         <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
       </section>
-
-      {!isGuest && (
-        <section id="spelproducent" className="page-section">
-          <h2>Spelproducent</h2>
-          <MatchForm
-            user={user}
-            profiles={profiles}
-            matches={matches}
-            eloPlayers={allEloPlayers}
-          />
-        </section>
-      )}
 
       {!isGuest && (
         <section id="profile" className="page-section">

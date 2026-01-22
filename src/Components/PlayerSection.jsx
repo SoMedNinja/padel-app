@@ -983,7 +983,7 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
   const opponentEveningMvps = mvpSummary.eveningMvpCounts[opponentName] || 0;
 
   return (
-    <div className="head-to-head">
+    <div className="head-to-head table-card">
       <h2>Head-to-head</h2>
 
       {selectablePlayers.length ? (
