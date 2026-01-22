@@ -354,7 +354,7 @@ export default function MatchForm({
     <div className="match-form-stack">
       <form onSubmit={submit} className="match-form">
         <div className="match-form-title">
-          <h2>Ny match</h2>
+          <h3>Ny match</h3>
           <button
             type="button"
             className="ghost-button matchmaker-button"
