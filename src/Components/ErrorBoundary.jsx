@@ -22,10 +22,7 @@ export default class ErrorBoundary extends Component {
     return (
       <div className="container">
         <div className="notice-banner error" role="alert">
-          <div>
-            <strong>Något gick fel.</strong>{" "}
-            <span className="muted">Ladda om sidan och försök igen.</span>
-          </div>
+          <div />
           <button type="button" className="ghost-button" onClick={() => window.location.reload()}>
             Ladda om
           </button>
