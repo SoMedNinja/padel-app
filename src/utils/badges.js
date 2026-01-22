@@ -48,11 +48,19 @@ const buildThresholdBadges = ({
     }
   }));
 
-export const buildPlayerBadgeStats = (matches, profiles, playerId, nameToIdMap) => {
+export const buildPlayerBadgeStats = (
+  matches = [],
+  profiles = [],
+  playerId,
+  nameToIdMap = {}
+) => {
   if (!playerId) return null;
 
+  const safeMatches = Array.isArray(matches) ? matches : [];
+  const safeProfiles = Array.isArray(profiles) ? profiles : [];
+
   const eloMap = {};
-  profiles.forEach(profile => {
+  safeProfiles.forEach(profile => {
     eloMap[profile.id] = { elo: ELO_BASELINE, games: 0 };
   });
 
@@ -67,7 +75,7 @@ export const buildPlayerBadgeStats = (matches, profiles, playerId, nameToIdMap) 
     currentElo: ELO_BASELINE
   };
 
-  const sortedMatches = [...matches].sort(
+  const sortedMatches = [...safeMatches].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
 
