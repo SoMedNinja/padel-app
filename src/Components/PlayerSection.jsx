@@ -339,6 +339,7 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
   });
 
   const history = [];
+  const results = [];
   let wins = 0;
   let losses = 0;
   let lastMatchDelta = 0;
@@ -412,6 +413,7 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
     if (isTeam1 || isTeam2) {
       const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
       playerWon ? wins++ : losses++;
+      results.push(playerWon ? "V" : "F");
       const postMatchElo = Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE);
       lastMatchDelta = postMatchElo - (preMatchElo ?? postMatchElo);
       if (match.created_at) {
@@ -445,6 +447,7 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
     wins,
     losses,
     history,
+    results,
     currentElo: Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE),
     lastMatchDelta,
     lastSessionDelta:
@@ -564,6 +567,21 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     () => buildPlayerSummary(matches, profiles, user?.id, nameToIdMap),
     [matches, profiles, user, nameToIdMap]
   );
+  const recentForm = useMemo(() => {
+    const results = summary?.results ?? [];
+    return results.slice(-10);
+  }, [summary]);
+  const recentFormStats = useMemo(() => {
+    const wins = recentForm.filter(result => result === "V").length;
+    return { wins, losses: recentForm.length - wins };
+  }, [recentForm]);
+  const recentEloDelta = useMemo(() => {
+    const history = summary?.history ?? [];
+    if (history.length < 2) return 0;
+    const slice = history.slice(-10);
+    if (slice.length < 2) return 0;
+    return (slice[slice.length - 1]?.elo ?? 0) - (slice[0]?.elo ?? 0);
+  }, [summary]);
 
   const eloHistoryMap = useMemo(
     () => buildEloHistoryMap(matches, profiles, nameToIdMap),
@@ -818,6 +836,45 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
           </div>
         </div>
       )}
+
+      <div className="performance-card">
+        <div className="performance-card-header">
+          <div>
+            <h3>Formkort</h3>
+            <p className="muted">Senaste 10 matcher</p>
+          </div>
+          <div className={`performance-elo ${getEloDeltaClass(recentEloDelta)}`}>
+            {formatEloDelta(recentEloDelta)} ELO
+          </div>
+        </div>
+        <div className="performance-card-grid">
+          <div className="stat-card">
+            <span className="stat-label">Vinster</span>
+            <span className="stat-value">{recentFormStats.wins}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Förluster</span>
+            <span className="stat-value">{recentFormStats.losses}</span>
+          </div>
+          <div className="stat-card stat-card-wide">
+            <span className="stat-label">Resultat</span>
+            <span className="stat-value performance-results">
+              {recentForm.length ? (
+                [...recentForm].reverse().map((result, index) => (
+                  <span
+                    key={`${result}-${index}`}
+                    className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
+                  >
+                    {result}
+                  </span>
+                ))
+              ) : (
+                <span className="muted">Inga matcher ännu.</span>
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
 
       <div className="player-stats">
         <div className="stat-card">
