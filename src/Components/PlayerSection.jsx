@@ -609,6 +609,9 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
 
   const [compareTarget, setCompareTarget] = useState("none");
   const [showAllBadges, setShowAllBadges] = useState(false);
+  const [isBadgesExpanded, setIsBadgesExpanded] = useState(true);
+  const [isEarnedExpanded, setIsEarnedExpanded] = useState(true);
+  const [isLockedExpanded, setIsLockedExpanded] = useState(true);
   const comparisonIds = useMemo(() => {
     if (!user?.id) return [];
     if (compareTarget === "all") {
@@ -923,88 +926,127 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
               {badgeSummary.totalEarned} av {badgeSummary.totalBadges} meriter upplåsta
             </p>
           </div>
-          {hasHiddenBadges && (
+          <div className="badges-header-actions">
+            {hasHiddenBadges && isBadgesExpanded && (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setShowAllBadges(prev => !prev)}
+              >
+                {showAllBadges ? "Visa färre" : "Visa alla"}
+              </button>
+            )}
             <button
               type="button"
               className="ghost-button"
-              onClick={() => setShowAllBadges(prev => !prev)}
+              onClick={() => setIsBadgesExpanded(prev => !prev)}
             >
-              {showAllBadges ? "Visa färre" : "Visa alla"}
+              {isBadgesExpanded ? "Minimera" : "Visa meriter"}
             </button>
-          )}
+          </div>
         </div>
 
-        {badgeSummary.totalBadges === 0 ? (
-          <p className="muted">Spela några matcher för att låsa upp badges.</p>
-        ) : (
+        {isBadgesExpanded && (
           <>
-            <div className="badge-group">
-              <div className="badge-group-title">Upplåsta</div>
-              {visibleEarnedBadgeGroups.length ? (
-                visibleEarnedBadgeGroups.map(group => (
-                  <div key={`earned-${group.label}`} className="badge-type-group">
-                    <div className="badge-type-title">{group.label}</div>
-                    <div className="badges-grid">
-                      {group.items.map(badge => (
-                        <div key={badge.id} className="badge-card badge-earned">
-                          <div className="badge-icon">{badge.icon}</div>
-                          <div className="badge-title">{badge.title}</div>
-                          <div className="badge-description">{badge.description}</div>
-                          {badge.meta && <div className="badge-meta">{badge.meta}</div>}
+            {badgeSummary.totalBadges === 0 ? (
+              <p className="muted">Spela några matcher för att låsa upp badges.</p>
+            ) : (
+              <>
+                <div className="badge-group">
+                  <div className="badge-group-header">
+                    <div className="badge-group-title">Upplåsta</div>
+                    <button
+                      type="button"
+                      className="ghost-button badge-group-toggle"
+                      onClick={() => setIsEarnedExpanded(prev => !prev)}
+                    >
+                      {isEarnedExpanded ? "Minimera" : "Visa"}
+                    </button>
+                  </div>
+                  {isEarnedExpanded && (
+                    <>
+                      {visibleEarnedBadgeGroups.length ? (
+                        visibleEarnedBadgeGroups.map(group => (
+                          <div key={`earned-${group.label}`} className="badge-type-group">
+                            <div className="badge-type-title">{group.label}</div>
+                            <div className="badges-grid">
+                              {group.items.map(badge => (
+                                <div key={badge.id} className="badge-card badge-earned">
+                                  <div className="badge-icon">{badge.icon}</div>
+                                  <div className="badge-title">{badge.title}</div>
+                                  <div className="badge-description">{badge.description}</div>
+                                  {badge.meta && <div className="badge-meta">{badge.meta}</div>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="badges-grid">
+                          <div className="badge-card badge-empty">
+                            <div className="badge-title">Inga upplåsta ännu</div>
+                            <div className="badge-description">
+                              Fortsätt spela för att låsa upp dina första badges.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="badge-group">
+                  <div className="badge-group-header">
+                    <div className="badge-group-title">På väg</div>
+                    <button
+                      type="button"
+                      className="ghost-button badge-group-toggle"
+                      onClick={() => setIsLockedExpanded(prev => !prev)}
+                    >
+                      {isLockedExpanded ? "Minimera" : "Visa"}
+                    </button>
+                  </div>
+                  {isLockedExpanded && (
+                    <>
+                      {visibleLockedBadgeGroups.map(group => (
+                        <div key={`locked-${group.label}`} className="badge-type-group">
+                          <div className="badge-type-title">{group.label}</div>
+                          <div className="badges-grid">
+                            {group.items.map(badge => {
+                              const progress = badge.progress;
+                              const progressPercent = progress
+                                ? Math.round((progress.current / progress.target) * 100)
+                                : 0;
+                              return (
+                                <div key={badge.id} className="badge-card">
+                                  <div className="badge-icon">{badge.icon}</div>
+                                  <div className="badge-title">{badge.title}</div>
+                                  <div className="badge-description">{badge.description}</div>
+                                  {badge.meta && <div className="badge-meta">{badge.meta}</div>}
+                                  {progress && (
+                                    <div className="badge-progress">
+                                      <div className="badge-progress-bar">
+                                        <div
+                                          className="badge-progress-fill"
+                                          style={{ width: `${progressPercent}%` }}
+                                        />
+                                      </div>
+                                      <span className="badge-progress-text">
+                                        {progress.current}/{progress.target}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       ))}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="badges-grid">
-                  <div className="badge-card badge-empty">
-                    <div className="badge-title">Inga upplåsta ännu</div>
-                    <div className="badge-description">
-                      Fortsätt spela för att låsa upp dina första badges.
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <div className="badge-group">
-              <div className="badge-group-title">På väg</div>
-              {visibleLockedBadgeGroups.map(group => (
-                <div key={`locked-${group.label}`} className="badge-type-group">
-                  <div className="badge-type-title">{group.label}</div>
-                  <div className="badges-grid">
-                    {group.items.map(badge => {
-                      const progress = badge.progress;
-                      const progressPercent = progress
-                        ? Math.round((progress.current / progress.target) * 100)
-                        : 0;
-                      return (
-                        <div key={badge.id} className="badge-card">
-                          <div className="badge-icon">{badge.icon}</div>
-                          <div className="badge-title">{badge.title}</div>
-                          <div className="badge-description">{badge.description}</div>
-                          {badge.meta && <div className="badge-meta">{badge.meta}</div>}
-                          {progress && (
-                            <div className="badge-progress">
-                              <div className="badge-progress-bar">
-                                <div
-                                  className="badge-progress-fill"
-                                  style={{ width: `${progressPercent}%` }}
-                                />
-                              </div>
-                              <span className="badge-progress-text">
-                                {progress.current}/{progress.target}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+              </>
+            )}
           </>
         )}
       </div>
