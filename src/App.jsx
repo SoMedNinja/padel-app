@@ -5,7 +5,7 @@ import Auth from "./Components/Auth";
 import MatchForm from "./Components/MatchForm";
 import EloLeaderboard from "./Components/EloLeaderboard";
 import History from "./Components/History";
-import PlayerSection from "./Components/PlayerSection";
+import PlayerSection, { HeadToHeadSection } from "./Components/PlayerSection";
 import ProfileSetup from "./Components/ProfileSetup";
 import AdminPanel from "./Components/AdminPanel";
 import MVP from "./Components/MVP";
@@ -397,7 +397,13 @@ export default function App() {
       >
         <a href="#dashboard" onClick={closeMenu}>Hemskärm</a>
         {!isGuest && (
+          <a href="#spelproducent" onClick={closeMenu}>Spelproducent</a>
+        )}
+        {!isGuest && (
           <a href="#profile" onClick={closeMenu}>Spelprofil</a>
+        )}
+        {!isGuest && (
+          <a href="#head-to-head" onClick={closeMenu}>Head-to-head</a>
         )}
         <a href="#history" onClick={closeMenu}>Match-historik</a>
         {userWithAdmin?.is_admin && (
@@ -436,13 +442,17 @@ export default function App() {
 
       <section id="dashboard" className="page-section">
         {!isGuest && (
-          <MatchForm
-            user={user}
-            profiles={profiles}
-            matches={matches}
-            eloPlayers={allEloPlayers}
-          />
+          <div id="spelproducent">
+            <h2>Spelproducent</h2>
+            <MatchForm
+              user={user}
+              profiles={profiles}
+              matches={matches}
+              eloPlayers={allEloPlayers}
+            />
+          </div>
         )}
+
         {(isLoadingProfiles || isLoadingMatches) && (
           <p className="muted">Laddar data...</p>
         )}
@@ -473,6 +483,16 @@ export default function App() {
             profiles={profiles}
             matches={filteredMatches}
             onProfileUpdate={handleProfileUpdate}
+          />
+        </section>
+      )}
+
+      {!isGuest && (
+        <section id="head-to-head" className="page-section">
+          <HeadToHeadSection
+            user={userWithAdmin}
+            profiles={profiles}
+            matches={filteredMatches}
           />
         </section>
       )}

@@ -589,34 +589,9 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     [matches, profiles, nameToIdMap]
   );
 
-  const [mode, setMode] = useState("against");
   const selectablePlayers = useMemo(
     () => profiles.filter(profile => profile.id !== user?.id),
     [profiles, user]
-  );
-
-  const [opponentId, setOpponentId] = useState("");
-  const resolvedOpponentId =
-    selectablePlayers.find(player => player.id === opponentId)?.id ||
-    selectablePlayers[0]?.id ||
-    "";
-
-  const headToHead = useMemo(
-    () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap),
-    [matches, user, resolvedOpponentId, mode, nameToIdMap]
-  );
-
-  const recentResults = useMemo(
-    () =>
-      buildHeadToHeadRecentResults(
-        matches,
-        user?.id,
-        resolvedOpponentId,
-        mode,
-        5,
-        nameToIdMap
-      ),
-    [matches, user, resolvedOpponentId, mode, nameToIdMap]
   );
 
   const [compareTarget, setCompareTarget] = useState("none");
@@ -662,19 +637,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     return map;
   }, [comparisonData]);
 
-  const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
-  const opponentAvatarUrl = opponentProfile?.avatar_url || getStoredAvatar(opponentProfile?.id);
-  const opponentName = opponentProfile ? getProfileDisplayName(opponentProfile) : "Motståndare";
-  const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
-  const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
-  const playerHighestElo = useMemo(
-    () => getHighestEloRating(eloHistoryMap[user?.id]),
-    [eloHistoryMap, user?.id]
-  );
-  const opponentHighestElo = useMemo(
-    () => getHighestEloRating(eloHistoryMap[resolvedOpponentId]),
-    [eloHistoryMap, resolvedOpponentId]
-  );
+
   useEffect(() => {
     if (!avatarStorageKey || !user?.id) return;
     const stored = localStorage.getItem(avatarStorageKey);
@@ -810,7 +773,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
         <div className="player-details">
           <h3>{playerName}</h3>
           <p className="muted">
-            Matchstatistik och head-to-head för din profil.
+            Matchstatistik för din profil.
           </p>
 
           <label className="file-input">
@@ -1051,133 +1014,206 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
         )}
       </div>
 
-      <div className="head-to-head">
-        <h3>Head-to-head</h3>
-
-        {selectablePlayers.length ? (
-          <>
-            <div className="head-to-head-controls">
-              <label>
-                Lägesval
-                <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                  <option value="against">Jag mot spelare</option>
-                  <option value="together">Jag med spelare</option>
-                </select>
-              </label>
-
-              <label>
-                Spelare
-                <select value={resolvedOpponentId} onChange={(e) => setOpponentId(e.target.value)}>
-                  {selectablePlayers.map(player => (
-                    <option key={player.id} value={player.id}>
-                      {getProfileDisplayName(player)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="head-to-head-summary">
-            <div className="head-to-head-card">
-                <Avatar
-                  className="head-to-head-avatar"
-                  src={avatarUrl}
-                  name={playerName}
-                  alt="Din profilbild"
-                />
-                <div>
-                  <strong>{playerName}</strong>
-                  <span className="muted">Du</span>
-                  <span className="muted">ELO {currentPlayerElo}</span>
-                  <span className="muted">Högsta ELO {playerHighestElo}</span>
-                </div>
-              </div>
-              <div className="head-to-head-card">
-                <Avatar
-                  className="head-to-head-avatar"
-                  src={opponentAvatarUrl}
-                  name={getProfileDisplayName(opponentProfile)}
-                  alt="Motståndare"
-                />
-                <div>
-                  <strong>
-                    {getProfileDisplayName(opponentProfile)}
-                  </strong>
-                  <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
-                  <span className="muted">ELO {opponentElo}</span>
-                  <span className="muted">Högsta ELO {opponentHighestElo}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="player-stats">
-              <div className="stat-card">
-                <span className="stat-label">Matcher</span>
-                <span className="stat-value">{headToHead.matches}</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">Vinster</span>
-                <span className="stat-value">{headToHead.wins}</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">Förluster</span>
-                <span className="stat-value">{headToHead.losses}</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">Vinst %</span>
-                <span className="stat-value">{percent(headToHead.wins, headToHead.losses)}%</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">Senaste 5</span>
-                {recentResults.length ? (
-                  <span className="stat-value head-to-head-results">
-                    {recentResults.map((result, index) => (
-                      <span
-                        key={`${result}-${index}`}
-                        className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
-                      >
-                        {result}
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="stat-value">-</span>
-                )}
-              </div>
-              <div className="stat-card stat-card-compare">
-                <span className="stat-label">MVP-månader</span>
-                <div className="stat-compare">
-                  <div className="stat-compare-item">
-                    <span className="stat-compare-name">Du</span>
-                    <span className="stat-compare-value">{formatMvpDays(playerMvpDays)}</span>
-                  </div>
-                  <div className="stat-compare-item">
-                    <span className="stat-compare-name">{opponentName}</span>
-                    <span className="stat-compare-value">
-                      {formatMvpDays(opponentMvpDays)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="stat-card stat-card-compare">
-                <span className="stat-label">Kvällens MVP</span>
-                <div className="stat-compare">
-                  <div className="stat-compare-item">
-                    <span className="stat-compare-name">Du</span>
-                    <span className="stat-compare-value">{playerEveningMvps}</span>
-                  </div>
-                  <div className="stat-compare-item">
-                    <span className="stat-compare-name">{opponentName}</span>
-                    <span className="stat-compare-value">{opponentEveningMvps}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="muted">Lägg till fler spelare för head-to-head statistik.</p>
-        )}
-      </div>
     </section>
+  );
+}
+
+export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
+  const playerProfile = useMemo(
+    () => profiles.find(profile => profile.id === user?.id),
+    [profiles, user]
+  );
+  const playerName = playerProfile
+    ? getProfileDisplayName(playerProfile)
+    : user?.email || "Din profil";
+  const playerAvatarUrl = playerProfile?.avatar_url || getStoredAvatar(user?.id);
+
+  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
+  const [mode, setMode] = useState("against");
+  const selectablePlayers = useMemo(
+    () => profiles.filter(profile => profile.id !== user?.id),
+    [profiles, user]
+  );
+
+  const [opponentId, setOpponentId] = useState("");
+  const resolvedOpponentId =
+    selectablePlayers.find(player => player.id === opponentId)?.id ||
+    selectablePlayers[0]?.id ||
+    "";
+
+  const headToHead = useMemo(
+    () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap),
+    [matches, user, resolvedOpponentId, mode, nameToIdMap]
+  );
+
+  const recentResults = useMemo(
+    () =>
+      buildHeadToHeadRecentResults(
+        matches,
+        user?.id,
+        resolvedOpponentId,
+        mode,
+        5,
+        nameToIdMap
+      ),
+    [matches, user, resolvedOpponentId, mode, nameToIdMap]
+  );
+
+  const eloHistoryMap = useMemo(
+    () => buildEloHistoryMap(matches, profiles, nameToIdMap),
+    [matches, profiles, nameToIdMap]
+  );
+
+  const mvpSummary = useMemo(
+    () => buildMvpSummary(matches, profiles),
+    [matches, profiles]
+  );
+
+  const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
+  const opponentAvatarUrl = opponentProfile?.avatar_url || getStoredAvatar(opponentProfile?.id);
+  const opponentName = opponentProfile ? getProfileDisplayName(opponentProfile) : "Motståndare";
+  const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
+  const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
+  const playerHighestElo = useMemo(
+    () => getHighestEloRating(eloHistoryMap[user?.id]),
+    [eloHistoryMap, user?.id]
+  );
+  const opponentHighestElo = useMemo(
+    () => getHighestEloRating(eloHistoryMap[resolvedOpponentId]),
+    [eloHistoryMap, resolvedOpponentId]
+  );
+  const playerMvpDays = mvpSummary.monthlyMvpDays[playerName] || 0;
+  const opponentMvpDays = mvpSummary.monthlyMvpDays[opponentName] || 0;
+  const playerEveningMvps = mvpSummary.eveningMvpCounts[playerName] || 0;
+  const opponentEveningMvps = mvpSummary.eveningMvpCounts[opponentName] || 0;
+
+  return (
+    <div className="head-to-head table-card">
+      <h2>Head-to-head</h2>
+
+      {selectablePlayers.length ? (
+        <>
+          <div className="head-to-head-controls">
+            <label>
+              Lägesval
+              <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option value="against">Jag mot spelare</option>
+                <option value="together">Jag med spelare</option>
+              </select>
+            </label>
+
+            <label>
+              Spelare
+              <select value={resolvedOpponentId} onChange={(e) => setOpponentId(e.target.value)}>
+                {selectablePlayers.map(player => (
+                  <option key={player.id} value={player.id}>
+                    {getProfileDisplayName(player)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="head-to-head-summary">
+            <div className="head-to-head-card">
+              <Avatar
+                className="head-to-head-avatar"
+                src={playerAvatarUrl}
+                name={playerName}
+                alt="Din profilbild"
+              />
+              <div>
+                <strong>{playerName}</strong>
+                <span className="muted">Du</span>
+                <span className="muted">ELO {currentPlayerElo}</span>
+                <span className="muted">Högsta ELO {playerHighestElo}</span>
+              </div>
+            </div>
+            <div className="head-to-head-card">
+              <Avatar
+                className="head-to-head-avatar"
+                src={opponentAvatarUrl}
+                name={getProfileDisplayName(opponentProfile)}
+                alt="Motståndare"
+              />
+              <div>
+                <strong>
+                  {getProfileDisplayName(opponentProfile)}
+                </strong>
+                <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
+                <span className="muted">ELO {opponentElo}</span>
+                <span className="muted">Högsta ELO {opponentHighestElo}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="player-stats">
+            <div className="stat-card">
+              <span className="stat-label">Matcher</span>
+              <span className="stat-value">{headToHead.matches}</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Vinster</span>
+              <span className="stat-value">{headToHead.wins}</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Förluster</span>
+              <span className="stat-value">{headToHead.losses}</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Vinst %</span>
+              <span className="stat-value">{percent(headToHead.wins, headToHead.losses)}%</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Senaste 5</span>
+              {recentResults.length ? (
+                <span className="stat-value head-to-head-results">
+                  {recentResults.map((result, index) => (
+                    <span
+                      key={`${result}-${index}`}
+                      className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
+                    >
+                      {result}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="stat-value">-</span>
+              )}
+            </div>
+            <div className="stat-card stat-card-compare">
+              <span className="stat-label">MVP-månader</span>
+              <div className="stat-compare">
+                <div className="stat-compare-item">
+                  <span className="stat-compare-name">Du</span>
+                  <span className="stat-compare-value">{formatMvpDays(playerMvpDays)}</span>
+                </div>
+                <div className="stat-compare-item">
+                  <span className="stat-compare-name">{opponentName}</span>
+                  <span className="stat-compare-value">
+                    {formatMvpDays(opponentMvpDays)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="stat-card stat-card-compare">
+              <span className="stat-label">Kvällens MVP</span>
+              <div className="stat-compare">
+                <div className="stat-compare-item">
+                  <span className="stat-compare-name">Du</span>
+                  <span className="stat-compare-value">{playerEveningMvps}</span>
+                </div>
+                <div className="stat-compare-item">
+                  <span className="stat-compare-name">{opponentName}</span>
+                  <span className="stat-compare-value">{opponentEveningMvps}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <p className="muted">Lägg till fler spelare för head-to-head statistik.</p>
+      )}
+    </div>
   );
 }
