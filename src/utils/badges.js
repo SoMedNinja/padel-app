@@ -34,7 +34,9 @@ const buildThresholdBadges = ({
   title,
   description,
   thresholds,
-  value
+  value,
+  group,
+  groupOrder = 0
 }) =>
   thresholds.map(target => ({
     id: `${idPrefix}-${target}`,
@@ -42,6 +44,8 @@ const buildThresholdBadges = ({
     title: `${title} ${target}`,
     description: description(target),
     earned: value >= target,
+    group: group || title,
+    groupOrder,
     progress: {
       current: Math.min(value, target),
       target
@@ -72,12 +76,14 @@ export const buildPlayerBadgeStats = (
     bestWinStreak: 0,
     firstWinVsHigherEloAt: null,
     biggestUpsetEloGap: 0,
-    currentElo: ELO_BASELINE
+    currentElo: ELO_BASELINE,
+    matchesLast30Days: 0
   };
 
   const sortedMatches = [...safeMatches].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at)
   );
+  const now = Date.now();
 
   sortedMatches.forEach(match => {
     const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
@@ -112,6 +118,11 @@ export const buildPlayerBadgeStats = (
       const playerPreElo = eloMap[playerId]?.elo ?? ELO_BASELINE;
       const opponentAvg = isTeam1 ? e2 : e1;
       const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
+      const matchDate = match.created_at ? new Date(match.created_at) : null;
+      if (matchDate && !Number.isNaN(matchDate.getTime())) {
+        const diffDays = (now - matchDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays <= 30) stats.matchesLast30Days += 1;
+      }
 
       stats.matchesPlayed += 1;
       if (playerWon) {
@@ -177,7 +188,9 @@ export const buildPlayerBadges = (stats) => {
       title: "Matcher",
       description: (target) => `Spela ${target} matcher`,
       thresholds: [1, 5, 10, 25, 50, 100],
-      value: stats.matchesPlayed
+      value: stats.matchesPlayed,
+      group: "Matcher",
+      groupOrder: 1
     }),
     ...buildThresholdBadges({
       idPrefix: "wins",
@@ -185,7 +198,19 @@ export const buildPlayerBadges = (stats) => {
       title: "Vinster",
       description: (target) => `Vinn ${target} matcher`,
       thresholds: [1, 5, 10, 25, 50],
-      value: stats.wins
+      value: stats.wins,
+      group: "Vinster",
+      groupOrder: 2
+    }),
+    ...buildThresholdBadges({
+      idPrefix: "losses",
+      icon: "🧱",
+      title: "Förluster",
+      description: (target) => `Spela ${target} förluster`,
+      thresholds: [1, 5, 10, 25],
+      value: stats.losses,
+      group: "Förluster",
+      groupOrder: 3
     }),
     ...buildThresholdBadges({
       idPrefix: "streak",
@@ -193,7 +218,19 @@ export const buildPlayerBadges = (stats) => {
       title: "Vinststreak",
       description: (target) => `Vinn ${target} matcher i rad`,
       thresholds: [3, 5, 7, 10],
-      value: stats.bestWinStreak
+      value: stats.bestWinStreak,
+      group: "Vinststreak",
+      groupOrder: 4
+    }),
+    ...buildThresholdBadges({
+      idPrefix: "activity",
+      icon: "📅",
+      title: "Aktivitet",
+      description: (target) => `Spela ${target} matcher senaste 30 dagarna`,
+      thresholds: [3, 6, 10],
+      value: stats.matchesLast30Days,
+      group: "Aktivitet",
+      groupOrder: 5
     }),
     ...buildThresholdBadges({
       idPrefix: "elo",
@@ -201,7 +238,19 @@ export const buildPlayerBadges = (stats) => {
       title: "ELO",
       description: (target) => `Nå ${target} ELO`,
       thresholds: [1100, 1200, 1300, 1400],
-      value: stats.currentElo
+      value: stats.currentElo,
+      group: "ELO",
+      groupOrder: 6
+    }),
+    ...buildThresholdBadges({
+      idPrefix: "upset",
+      icon: "🎯",
+      title: "Skräll",
+      description: (target) => `Vinn mot ${target}+ ELO högre`,
+      thresholds: [25, 50, 100],
+      value: stats.biggestUpsetEloGap,
+      group: "Skräll",
+      groupOrder: 7
     }),
     {
       id: "giant-slayer",
@@ -209,6 +258,8 @@ export const buildPlayerBadges = (stats) => {
       title: "Jättedödare",
       description: "Vinn mot ett lag med högre genomsnittlig ELO",
       earned: Boolean(stats.firstWinVsHigherEloAt),
+      group: "Jättedödare",
+      groupOrder: 8,
       meta: stats.firstWinVsHigherEloAt
         ? `Första gången: ${formatDate(stats.firstWinVsHigherEloAt)}`
         : "Sikta på en seger mot högre ELO.",
