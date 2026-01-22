@@ -255,6 +255,53 @@ export default function App() {
     loadMatchesPage({ replace: true, cursor: null, filter: matchFilter });
   }, [loadProfiles, loadMatchesPage, matchFilter]);
 
+  const handleProfileUpdate = (updatedProfile) => {
+    setAllProfiles(prev => {
+      const exists = prev.some(profile => profile.id === updatedProfile.id);
+      if (exists) {
+        return prev.map(profile =>
+          profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
+        );
+      }
+      return [...prev, updatedProfile];
+    });
+    const shouldInclude =
+      !updatedProfile.is_deleted && (updatedProfile.is_approved || updatedProfile.is_admin);
+    setProfiles(prev => {
+      const exists = prev.some(profile => profile.id === updatedProfile.id);
+      if (shouldInclude) {
+        if (exists) {
+          return prev.map(profile =>
+            profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
+          );
+        }
+        return [...prev, updatedProfile];
+      }
+      return prev.filter(profile => profile.id !== updatedProfile.id);
+    });
+    const currentUserId = profileUserId ?? user?.id;
+    if (updatedProfile.id === currentUserId) {
+      setProfile(prev => ({ ...(prev || {}), ...updatedProfile }));
+    }
+  };
+
+  const handleProfileDelete = (deletedProfile) => {
+    if (!deletedProfile) return;
+    setAllProfiles(prev => {
+      const exists = prev.some(profile => profile.id === deletedProfile.id);
+      if (exists) {
+        return prev.map(profile =>
+          profile.id === deletedProfile.id ? { ...profile, ...deletedProfile } : profile
+        );
+      }
+      return [...prev, deletedProfile];
+    });
+    setProfiles(prev => prev.filter(profile => profile.id !== deletedProfile.id));
+    if (deletedProfile.id === profileUserId) {
+      setProfile(null);
+    }
+  };
+
   if (!user && !isGuest) {
     return (
       <Auth
@@ -307,53 +354,6 @@ export default function App() {
       </div>
     );
   }
-
-  const handleProfileUpdate = (updatedProfile) => {
-    setAllProfiles(prev => {
-      const exists = prev.some(profile => profile.id === updatedProfile.id);
-      if (exists) {
-        return prev.map(profile =>
-          profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
-        );
-      }
-      return [...prev, updatedProfile];
-    });
-    const shouldInclude =
-      !updatedProfile.is_deleted && (updatedProfile.is_approved || updatedProfile.is_admin);
-    setProfiles(prev => {
-      const exists = prev.some(profile => profile.id === updatedProfile.id);
-      if (shouldInclude) {
-        if (exists) {
-          return prev.map(profile =>
-            profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
-          );
-        }
-        return [...prev, updatedProfile];
-      }
-      return prev.filter(profile => profile.id !== updatedProfile.id);
-    });
-    const currentUserId = profileUserId ?? user?.id;
-    if (updatedProfile.id === currentUserId) {
-      setProfile(prev => ({ ...(prev || {}), ...updatedProfile }));
-    }
-  };
-
-  const handleProfileDelete = (deletedProfile) => {
-    if (!deletedProfile) return;
-    setAllProfiles(prev => {
-      const exists = prev.some(profile => profile.id === deletedProfile.id);
-      if (exists) {
-        return prev.map(profile =>
-          profile.id === deletedProfile.id ? { ...profile, ...deletedProfile } : profile
-        );
-      }
-      return [...prev, deletedProfile];
-    });
-    setProfiles(prev => prev.filter(profile => profile.id !== deletedProfile.id));
-    if (deletedProfile.id === profileUserId) {
-      setProfile(null);
-    }
-  };
 
   return (
     <div className="container">
