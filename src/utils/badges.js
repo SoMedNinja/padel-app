@@ -181,13 +181,18 @@ export const buildPlayerBadges = (stats) => {
     };
   }
 
+  const winRate = stats.matchesPlayed
+    ? Math.round((stats.wins / stats.matchesPlayed) * 100)
+    : 0;
+  const eloLift = Math.max(0, stats.currentElo - ELO_BASELINE);
+
   const badges = [
     ...buildThresholdBadges({
       idPrefix: "matches",
       icon: "🏟️",
       title: "Matcher",
       description: (target) => `Spela ${target} matcher`,
-      thresholds: [1, 5, 10, 25, 50, 100],
+      thresholds: [1, 5, 10, 25, 50, 75, 100, 150, 200],
       value: stats.matchesPlayed,
       group: "Matcher",
       groupOrder: 1
@@ -197,7 +202,7 @@ export const buildPlayerBadges = (stats) => {
       icon: "🏆",
       title: "Vinster",
       description: (target) => `Vinn ${target} matcher`,
-      thresholds: [1, 5, 10, 25, 50],
+      thresholds: [1, 5, 10, 25, 50, 75, 100, 150],
       value: stats.wins,
       group: "Vinster",
       groupOrder: 2
@@ -207,7 +212,7 @@ export const buildPlayerBadges = (stats) => {
       icon: "🧱",
       title: "Förluster",
       description: (target) => `Spela ${target} förluster`,
-      thresholds: [1, 5, 10, 25],
+      thresholds: [1, 5, 10, 25, 50, 75],
       value: stats.losses,
       group: "Förluster",
       groupOrder: 3
@@ -217,7 +222,7 @@ export const buildPlayerBadges = (stats) => {
       icon: "🔥",
       title: "Vinststreak",
       description: (target) => `Vinn ${target} matcher i rad`,
-      thresholds: [3, 5, 7, 10],
+      thresholds: [3, 5, 7, 10, 15],
       value: stats.bestWinStreak,
       group: "Vinststreak",
       groupOrder: 4
@@ -227,7 +232,7 @@ export const buildPlayerBadges = (stats) => {
       icon: "📅",
       title: "Aktivitet",
       description: (target) => `Spela ${target} matcher senaste 30 dagarna`,
-      thresholds: [3, 6, 10],
+      thresholds: [3, 6, 10, 15, 20],
       value: stats.matchesLast30Days,
       group: "Aktivitet",
       groupOrder: 5
@@ -237,7 +242,7 @@ export const buildPlayerBadges = (stats) => {
       icon: "📈",
       title: "ELO",
       description: (target) => `Nå ${target} ELO`,
-      thresholds: [1100, 1200, 1300, 1400],
+      thresholds: [1100, 1200, 1300, 1400, 1500],
       value: stats.currentElo,
       group: "ELO",
       groupOrder: 6
@@ -247,10 +252,30 @@ export const buildPlayerBadges = (stats) => {
       icon: "🎯",
       title: "Skräll",
       description: (target) => `Vinn mot ${target}+ ELO högre`,
-      thresholds: [25, 50, 100],
+      thresholds: [25, 50, 100, 150],
       value: stats.biggestUpsetEloGap,
       group: "Skräll",
       groupOrder: 7
+    }),
+    ...buildThresholdBadges({
+      idPrefix: "win-rate",
+      icon: "📊",
+      title: "Vinstprocent",
+      description: (target) => `Ha minst ${target}% vinstprocent`,
+      thresholds: [50, 60, 70, 80, 90],
+      value: winRate,
+      group: "Vinstprocent",
+      groupOrder: 8
+    }),
+    ...buildThresholdBadges({
+      idPrefix: "elo-lift",
+      icon: "🚀",
+      title: "ELO-lyft",
+      description: (target) => `Öka ${target} ELO från ${ELO_BASELINE}`,
+      thresholds: [50, 100],
+      value: eloLift,
+      group: "ELO-lyft",
+      groupOrder: 9
     }),
     {
       id: "giant-slayer",
@@ -259,7 +284,7 @@ export const buildPlayerBadges = (stats) => {
       description: "Vinn mot ett lag med högre genomsnittlig ELO",
       earned: Boolean(stats.firstWinVsHigherEloAt),
       group: "Jättedödare",
-      groupOrder: 8,
+      groupOrder: 10,
       meta: stats.firstWinVsHigherEloAt
         ? `Första gången: ${formatDate(stats.firstWinVsHigherEloAt)}`
         : "Sikta på en seger mot högre ELO.",

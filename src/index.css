@@ -576,14 +576,33 @@ select:focus-visible {
   flex-wrap:wrap;
 }
 
+.badges-header-actions {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
 .badge-group {
   margin-top:14px;
 }
 
+.badge-group-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px;
+}
+
 .badge-group-title {
   font-weight:700;
-  margin-bottom:8px;
   color:#4a4a4a;
+}
+
+.badge-group-toggle {
+  padding:6px 10px;
+  font-size:12px;
 }
 
 .badge-type-group {
