@@ -4,6 +4,11 @@ import { GUEST_NAME } from "../utils/guest";
 
 const ELO_BASELINE = 1000;
 const normalizeProfileName = (name) => name?.trim().toLowerCase();
+const normalizeServeFlag = (value) => {
+  if (value === true || value === 1 || value === "1" || value === "true") return true;
+  if (value === false || value === 0 || value === "0" || value === "false") return false;
+  return null;
+};
 
 export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }) {
   const [sortKey, setSortKey] = useState("games");
@@ -36,8 +41,9 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
   sortedMatches.forEach((m) => {
     const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
     const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
-    const team1ServedFirst = m.team1_serves_first === true;
-    const team2ServedFirst = m.team1_serves_first === false;
+    const normalizedServeFlag = normalizeServeFlag(m.team1_serves_first);
+    const team1ServedFirst = normalizedServeFlag === true;
+    const team2ServedFirst = normalizedServeFlag === false;
     const teams = [
       { players: team1, won: m.team1_sets > m.team2_sets, servedFirst: team1ServedFirst },
       { players: team2, won: m.team2_sets > m.team1_sets, servedFirst: team2ServedFirst },
