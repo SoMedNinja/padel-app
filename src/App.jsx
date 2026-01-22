@@ -226,13 +226,6 @@ export default function App() {
   }, [parseHash]);
 
   useEffect(() => {
-    if (activePage === "admin" && !userWithAdmin?.is_admin) {
-      setActivePage("dashboard");
-      window.location.hash = "#dashboard";
-    }
-  }, [activePage, userWithAdmin]);
-
-  useEffect(() => {
     if (!pendingScrollId) return;
     requestAnimationFrame(() => {
       document.getElementById(pendingScrollId)?.scrollIntoView({ behavior: "smooth" });
@@ -292,6 +285,13 @@ export default function App() {
     if (!user) return null;
     return { ...user, is_admin: activeProfile?.is_admin === true };
   }, [user, activeProfile]);
+
+  useEffect(() => {
+    if (activePage === "admin" && !userWithAdmin?.is_admin) {
+      setActivePage("dashboard");
+      window.location.hash = "#dashboard";
+    }
+  }, [activePage, userWithAdmin]);
 
   const handleAuthAction = () => {
     closeMenu();
