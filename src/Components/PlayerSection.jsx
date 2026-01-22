@@ -58,6 +58,19 @@ const formatChartTimestamp = (value, includeTime = false) => {
   return new Intl.DateTimeFormat("sv-SE", options).format(date);
 };
 
+const groupBadgesByType = (badges = []) => {
+  const grouped = new Map();
+  badges.forEach((badge) => {
+    const group = badge.group || "Övrigt";
+    if (!grouped.has(group)) {
+      grouped.set(group, { label: group, order: badge.groupOrder ?? 999, items: [] });
+    }
+    grouped.get(group).items.push(badge);
+  });
+
+  return [...grouped.values()].sort((a, b) => a.order - b.order);
+};
+
 const normalizeTeam = (team) =>
   Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
 
@@ -670,13 +683,36 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     [matches, profiles, user, nameToIdMap]
   );
   const badgeSummary = useMemo(() => buildPlayerBadges(badgeStats), [badgeStats]);
-  const visibleBadgeLimit = 6;
-  const visibleEarnedBadges = showAllBadges
-    ? badgeSummary.earnedBadges
-    : badgeSummary.earnedBadges.slice(0, visibleBadgeLimit);
-  const visibleLockedBadges = showAllBadges
-    ? badgeSummary.lockedBadges
-    : badgeSummary.lockedBadges.slice(0, visibleBadgeLimit);
+  const visibleBadgeLimit = 4;
+  const earnedBadgeGroups = useMemo(
+    () => groupBadgesByType(badgeSummary.earnedBadges),
+    [badgeSummary.earnedBadges]
+  );
+  const lockedBadgeGroups = useMemo(
+    () => groupBadgesByType(badgeSummary.lockedBadges),
+    [badgeSummary.lockedBadges]
+  );
+  const visibleEarnedBadgeGroups = useMemo(
+    () =>
+      showAllBadges
+        ? earnedBadgeGroups
+        : earnedBadgeGroups.map(group => ({ ...group, items: group.items.slice(0, visibleBadgeLimit) })),
+    [earnedBadgeGroups, showAllBadges]
+  );
+  const visibleLockedBadgeGroups = useMemo(
+    () =>
+      showAllBadges
+        ? lockedBadgeGroups
+        : lockedBadgeGroups.map(group => ({ ...group, items: group.items.slice(0, visibleBadgeLimit) })),
+    [lockedBadgeGroups, showAllBadges]
+  );
+  const hasHiddenBadges = useMemo(
+    () =>
+      [...earnedBadgeGroups, ...lockedBadgeGroups].some(
+        group => group.items.length > visibleBadgeLimit
+      ),
+    [earnedBadgeGroups, lockedBadgeGroups]
+  );
 
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
@@ -884,10 +920,10 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
           <div>
             <h3>Meriter</h3>
             <p className="muted">
-              {badgeSummary.totalEarned} av {badgeSummary.totalBadges} badges upplåsta
+              {badgeSummary.totalEarned} av {badgeSummary.totalBadges} meriter upplåsta
             </p>
           </div>
-          {badgeSummary.totalBadges > visibleBadgeLimit && (
+          {hasHiddenBadges && (
             <button
               type="button"
               className="ghost-button"
@@ -904,58 +940,70 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
           <>
             <div className="badge-group">
               <div className="badge-group-title">Upplåsta</div>
-              <div className="badges-grid">
-                {visibleEarnedBadges.length ? (
-                  visibleEarnedBadges.map(badge => (
-                    <div key={badge.id} className="badge-card badge-earned">
-                      <div className="badge-icon">{badge.icon}</div>
-                      <div className="badge-title">{badge.title}</div>
-                      <div className="badge-description">{badge.description}</div>
-                      {badge.meta && <div className="badge-meta">{badge.meta}</div>}
+              {visibleEarnedBadgeGroups.length ? (
+                visibleEarnedBadgeGroups.map(group => (
+                  <div key={`earned-${group.label}`} className="badge-type-group">
+                    <div className="badge-type-title">{group.label}</div>
+                    <div className="badges-grid">
+                      {group.items.map(badge => (
+                        <div key={badge.id} className="badge-card badge-earned">
+                          <div className="badge-icon">{badge.icon}</div>
+                          <div className="badge-title">{badge.title}</div>
+                          <div className="badge-description">{badge.description}</div>
+                          {badge.meta && <div className="badge-meta">{badge.meta}</div>}
+                        </div>
+                      ))}
                     </div>
-                  ))
-                ) : (
+                  </div>
+                ))
+              ) : (
+                <div className="badges-grid">
                   <div className="badge-card badge-empty">
                     <div className="badge-title">Inga upplåsta ännu</div>
                     <div className="badge-description">
                       Fortsätt spela för att låsa upp dina första badges.
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <div className="badge-group">
               <div className="badge-group-title">På väg</div>
-              <div className="badges-grid">
-                {visibleLockedBadges.map(badge => {
-                  const progress = badge.progress;
-                  const progressPercent = progress
-                    ? Math.round((progress.current / progress.target) * 100)
-                    : 0;
-                  return (
-                    <div key={badge.id} className="badge-card">
-                      <div className="badge-icon">{badge.icon}</div>
-                      <div className="badge-title">{badge.title}</div>
-                      <div className="badge-description">{badge.description}</div>
-                      {badge.meta && <div className="badge-meta">{badge.meta}</div>}
-                      {progress && (
-                        <div className="badge-progress">
-                          <div className="badge-progress-bar">
-                            <div
-                              className="badge-progress-fill"
-                              style={{ width: `${progressPercent}%` }}
-                            />
-                          </div>
-                          <span className="badge-progress-text">
-                            {progress.current}/{progress.target}
-                          </span>
+              {visibleLockedBadgeGroups.map(group => (
+                <div key={`locked-${group.label}`} className="badge-type-group">
+                  <div className="badge-type-title">{group.label}</div>
+                  <div className="badges-grid">
+                    {group.items.map(badge => {
+                      const progress = badge.progress;
+                      const progressPercent = progress
+                        ? Math.round((progress.current / progress.target) * 100)
+                        : 0;
+                      return (
+                        <div key={badge.id} className="badge-card">
+                          <div className="badge-icon">{badge.icon}</div>
+                          <div className="badge-title">{badge.title}</div>
+                          <div className="badge-description">{badge.description}</div>
+                          {badge.meta && <div className="badge-meta">{badge.meta}</div>}
+                          {progress && (
+                            <div className="badge-progress">
+                              <div className="badge-progress-bar">
+                                <div
+                                  className="badge-progress-fill"
+                                  style={{ width: `${progressPercent}%` }}
+                                />
+                              </div>
+                              <span className="badge-progress-text">
+                                {progress.current}/{progress.target}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         )}
