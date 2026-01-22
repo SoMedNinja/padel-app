@@ -30,6 +30,8 @@ export default function App() {
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
   const [matchCursor, setMatchCursor] = useState(null);
   const [hasMoreMatches, setHasMoreMatches] = useState(true);
+  const [activePage, setActivePage] = useState("dashboard");
+  const [pendingScrollId, setPendingScrollId] = useState(null);
   const menuButtonRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -167,6 +169,34 @@ export default function App() {
     requestAnimationFrame(() => menuButtonRef.current?.focus());
   }, []);
 
+  const parseHash = useCallback((hashValue) => {
+    const hash = hashValue.replace(/^#/, "");
+    if (!hash || hash === "dashboard") {
+      return { page: "dashboard", scrollId: null };
+    }
+    if (hash === "history") {
+      return { page: "history", scrollId: null };
+    }
+    if (hash === "admin") {
+      return { page: "admin", scrollId: null };
+    }
+    if (["spelproducent", "profile", "head-to-head"].includes(hash)) {
+      return { page: "dashboard", scrollId: hash };
+    }
+    return { page: "dashboard", scrollId: null };
+  }, []);
+
+  const navigateTo = useCallback((page, scrollId = null) => {
+    setActivePage(page);
+    setPendingScrollId(scrollId);
+    if (page === "dashboard") {
+      window.location.hash = scrollId ? `#${scrollId}` : "#dashboard";
+    } else {
+      window.location.hash = `#${page}`;
+    }
+    closeMenu();
+  }, [closeMenu]);
+
   useEffect(() => {
     if (!isMenuOpen) return;
     const focusable = menuRef.current?.querySelector("a, button");
@@ -181,6 +211,34 @@ export default function App() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isMenuOpen, closeMenu]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const { page, scrollId } = parseHash(window.location.hash);
+      setActivePage(page);
+      if (scrollId) {
+        setPendingScrollId(scrollId);
+      }
+    };
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [parseHash]);
+
+  useEffect(() => {
+    if (activePage === "admin" && !userWithAdmin?.is_admin) {
+      setActivePage("dashboard");
+      window.location.hash = "#dashboard";
+    }
+  }, [activePage, userWithAdmin]);
+
+  useEffect(() => {
+    if (!pendingScrollId) return;
+    requestAnimationFrame(() => {
+      document.getElementById(pendingScrollId)?.scrollIntoView({ behavior: "smooth" });
+      setPendingScrollId(null);
+    });
+  }, [pendingScrollId, activePage]);
 
   // 3) Load my profile (is_admin)
   useEffect(() => {
@@ -395,19 +453,67 @@ export default function App() {
         className={`app-menu ${isMenuOpen ? "open" : ""}`}
         aria-label="Huvudmeny"
       >
-        <a href="#dashboard" onClick={closeMenu}>Hemskärm</a>
+        <a
+          href="#dashboard"
+          onClick={(event) => {
+            event.preventDefault();
+            navigateTo("dashboard");
+          }}
+        >
+          Hemskärm
+        </a>
         {!isGuest && (
-          <a href="#spelproducent" onClick={closeMenu}>Spelproducent</a>
+          <a
+            href="#spelproducent"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("dashboard", "spelproducent");
+            }}
+          >
+            Spelproducent
+          </a>
         )}
         {!isGuest && (
-          <a href="#profile" onClick={closeMenu}>Spelprofil</a>
+          <a
+            href="#profile"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("dashboard", "profile");
+            }}
+          >
+            Spelprofil
+          </a>
         )}
         {!isGuest && (
-          <a href="#head-to-head" onClick={closeMenu}>Head-to-head</a>
+          <a
+            href="#head-to-head"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("dashboard", "head-to-head");
+            }}
+          >
+            Head-to-head
+          </a>
         )}
-        <a href="#history" onClick={closeMenu}>Match-historik</a>
+        <a
+          href="#history"
+          onClick={(event) => {
+            event.preventDefault();
+            navigateTo("history");
+          }}
+        >
+          Match-historik
+        </a>
         {userWithAdmin?.is_admin && (
-          <a href="#admin" onClick={closeMenu}>Admin</a>
+          <a
+            href="#admin"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("admin");
+            }}
+          >
+            Admin
+          </a>
         )}
         <button type="button" className="ghost-button" onClick={handleAuthAction}>
           {isGuest ? "Logga in / skapa konto" : "Logga ut"}
@@ -440,79 +546,85 @@ export default function App() {
         </div>
       )}
 
-      <section id="dashboard" className="page-section">
-        {!isGuest && (
-          <div id="spelproducent">
-            <h2>Spelproducent</h2>
-            <MatchForm
-              user={user}
-              profiles={profiles}
-              matches={matches}
-              eloPlayers={allEloPlayers}
+      {activePage === "dashboard" && (
+        <section id="dashboard" className="page-section">
+          {!isGuest && (
+            <div id="spelproducent">
+              <h2>Spelproducent</h2>
+              <MatchForm
+                user={user}
+                profiles={profiles}
+                matches={matches}
+                eloPlayers={allEloPlayers}
+              />
+            </div>
+          )}
+
+          {(isLoadingProfiles || isLoadingMatches) && (
+            <p className="muted">Laddar data...</p>
+          )}
+          <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+          <div className="mvp-grid">
+            <MVP
+              matches={filteredMatches}
+              players={playersWithTrend}
+              mode="evening"
+              title="Kvällens MVP"
+            />
+            <MVP
+              matches={filteredMatches}
+              players={playersWithTrend}
+              mode="30days"
+              title="Månadens MVP"
             />
           </div>
-        )}
+          <EloLeaderboard players={playersWithTrend} />
+          <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
 
-        {(isLoadingProfiles || isLoadingMatches) && (
-          <p className="muted">Laddar data...</p>
-        )}
-        <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
-        <div className="mvp-grid">
-          <MVP
-            matches={filteredMatches}
-            players={playersWithTrend}
-            mode="evening"
-            title="Kvällens MVP"
-          />
-          <MVP
-            matches={filteredMatches}
-            players={playersWithTrend}
-            mode="30days"
-            title="Månadens MVP"
-          />
-        </div>
-        <EloLeaderboard players={playersWithTrend} />
-        <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
-      </section>
+          {!isGuest && (
+            <section id="profile" className="page-section">
+              <PlayerSection
+                key={userWithAdmin?.id}
+                user={userWithAdmin}
+                profiles={profiles}
+                matches={filteredMatches}
+                onProfileUpdate={handleProfileUpdate}
+              />
+            </section>
+          )}
 
-      {!isGuest && (
-        <section id="profile" className="page-section">
-          <PlayerSection
-            key={userWithAdmin?.id}
-            user={userWithAdmin}
-            profiles={profiles}
-            matches={filteredMatches}
-            onProfileUpdate={handleProfileUpdate}
-          />
+          {!isGuest && (
+            <section id="head-to-head" className="page-section">
+              <HeadToHeadSection
+                user={userWithAdmin}
+                profiles={profiles}
+                matches={filteredMatches}
+              />
+            </section>
+          )}
         </section>
       )}
 
-      {!isGuest && (
-        <section id="head-to-head" className="page-section">
-          <HeadToHeadSection
-            user={userWithAdmin}
-            profiles={profiles}
+      {activePage === "history" && (
+        <section id="history" className="page-section">
+          <h2>Match-historik</h2>
+          <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+          <History
             matches={filteredMatches}
+            profiles={historyProfiles}
+            user={isGuest ? null : userWithAdmin}
           />
+          {hasMoreMatches && (
+            <div className="load-more">
+              <button type="button" onClick={loadMoreMatches} disabled={isLoadingMatches}>
+                {isLoadingMatches ? "Laddar..." : "Visa fler matcher"}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
-      <section id="history" className="page-section">
-        <History
-          matches={filteredMatches}
-          profiles={historyProfiles}
-          user={isGuest ? null : userWithAdmin}
-        />
-        {hasMoreMatches && (
-          <div className="load-more">
-            <button type="button" onClick={loadMoreMatches} disabled={isLoadingMatches}>
-              {isLoadingMatches ? "Laddar..." : "Visa fler matcher"}
-            </button>
-          </div>
-        )}
-      </section>
-
-      {userWithAdmin?.is_admin && (
+      {activePage === "admin" && userWithAdmin?.is_admin && (
         <section id="admin" className="page-section">
           <AdminPanel
             user={userWithAdmin}
