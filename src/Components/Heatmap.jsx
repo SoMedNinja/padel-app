@@ -36,12 +36,14 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
   sortedMatches.forEach((m) => {
     const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
     const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
+    const team1ServedFirst = m.team1_serves_first === true;
+    const team2ServedFirst = m.team1_serves_first === false;
     const teams = [
-      { players: team1, won: m.team1_sets > m.team2_sets },
-      { players: team2, won: m.team2_sets > m.team1_sets },
+      { players: team1, won: m.team1_sets > m.team2_sets, servedFirst: team1ServedFirst },
+      { players: team2, won: m.team2_sets > m.team1_sets, servedFirst: team2ServedFirst },
     ];
 
-    teams.forEach(({ players, won }) => {
+    teams.forEach(({ players, won, servedFirst }) => {
       if (!Array.isArray(players) || !players.length) return;
       const resolvedPlayers = players
         .map(player => {
@@ -65,11 +67,23 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
           players: [...resolvedPlayers].sort(),
           games: 0,
           wins: 0,
+          serveFirstGames: 0,
+          serveFirstWins: 0,
+          serveSecondGames: 0,
+          serveSecondWins: 0,
           recentResults: [],
         };
       }
       combos[key].games++;
       if (won) combos[key].wins++;
+      if (servedFirst === true) {
+        combos[key].serveFirstGames++;
+        if (won) combos[key].serveFirstWins++;
+      }
+      if (servedFirst === false) {
+        combos[key].serveSecondGames++;
+        if (won) combos[key].serveSecondWins++;
+      }
       if (combos[key].recentResults.length < 5) {
         combos[key].recentResults.push(won ? "V" : "F");
       }
@@ -82,13 +96,33 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
         c.players.reduce((sum, name) => sum + (eloMap.get(name) ?? ELO_BASELINE), 0) / c.players.length
       )
       : ELO_BASELINE;
-    return { ...c, winPct: Math.round((c.wins / c.games) * 100), avgElo };
+    const serveFirstWinPct = c.serveFirstGames
+      ? Math.round((c.serveFirstWins / c.serveFirstGames) * 100)
+      : null;
+    const serveSecondWinPct = c.serveSecondGames
+      ? Math.round((c.serveSecondWins / c.serveSecondGames) * 100)
+      : null;
+    return {
+      ...c,
+      winPct: Math.round((c.wins / c.games) * 100),
+      serveFirstWinPct,
+      serveSecondWinPct,
+      avgElo,
+    };
   });
 
   rows.sort((a, b) => {
     let valA = a[sortKey], valB = b[sortKey];
     if (sortKey === "winPct") {
       valA = a.winPct; valB = b.winPct;
+    }
+    if (sortKey === "serveFirstWinPct") {
+      valA = a.serveFirstWinPct ?? -1;
+      valB = b.serveFirstWinPct ?? -1;
+    }
+    if (sortKey === "serveSecondWinPct") {
+      valA = a.serveSecondWinPct ?? -1;
+      valB = b.serveSecondWinPct ?? -1;
     }
     if (sortKey === "avgElo") {
       valA = a.avgElo; valB = b.avgElo;
@@ -116,6 +150,8 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
               <th className="sortable" onClick={() => handleSort("games")}>Matcher</th>
               <th className="sortable" onClick={() => handleSort("wins")}>Vinster</th>
               <th className="sortable" onClick={() => handleSort("winPct")}>Vinst %</th>
+              <th className="sortable" onClick={() => handleSort("serveFirstWinPct")}>Vinst % (startade med serve)</th>
+              <th className="sortable" onClick={() => handleSort("serveSecondWinPct")}>Vinst % (startade ej med serve)</th>
               <th className="recent-results-column">Senaste 5</th>
               <th className="sortable" onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
             </tr>
@@ -127,6 +163,8 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
                 <td>{r.games}</td>
                 <td>{r.wins}</td>
                 <td>{r.winPct}%</td>
+                <td>{r.serveFirstWinPct === null ? "-" : `${r.serveFirstWinPct}%`}</td>
+                <td>{r.serveSecondWinPct === null ? "-" : `${r.serveSecondWinPct}%`}</td>
                 <td className="recent-results-cell">
                   {r.recentResults?.length ? (
                     <span className="table-results">
