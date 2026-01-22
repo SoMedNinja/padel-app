@@ -665,19 +665,11 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     }
   }, [avatarStorageKey, playerProfile?.avatar_url, user?.id]);
 
-  const mvpSummary = useMemo(
-    () => buildMvpSummary(matches, profiles),
-    [matches, profiles]
-  );
   const badgeStats = useMemo(
     () => buildPlayerBadgeStats(matches, profiles, user?.id, nameToIdMap),
     [matches, profiles, user, nameToIdMap]
   );
   const badgeSummary = useMemo(() => buildPlayerBadges(badgeStats), [badgeStats]);
-  const playerMvpDays = mvpSummary.monthlyMvpDays[playerName] || 0;
-  const opponentMvpDays = mvpSummary.monthlyMvpDays[opponentName] || 0;
-  const playerEveningMvps = mvpSummary.eveningMvpCounts[playerName] || 0;
-  const opponentEveningMvps = mvpSummary.eveningMvpCounts[opponentName] || 0;
   const visibleBadgeLimit = 6;
   const visibleEarnedBadges = showAllBadges
     ? badgeSummary.earnedBadges
