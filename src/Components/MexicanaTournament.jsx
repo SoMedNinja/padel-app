@@ -513,6 +513,7 @@ export default function MexicanaTournament({
       score_type: "points",
       score_target: activeTournament.score_target || SCORE_TARGET_DEFAULT,
       source_tournament_id: activeTournament.id,
+      source_tournament_type: "mexicana",
       team1_serves_first: true,
       created_by: user.id,
     }));
