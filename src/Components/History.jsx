@@ -6,9 +6,7 @@ import {
   makeProfileMap,
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { getBadgeLabelById } from "../utils/badges";
 import { supabase } from "../supabaseClient";
-import ProfileName from "./ProfileName";
 
 const normalizeName = (name) => name?.trim().toLowerCase();
 const toDateTimeInput = (value) => {
@@ -22,25 +20,10 @@ const toDateTimeInput = (value) => {
 export default function History({ matches = [], profiles = [], user }) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
-  const badgeMap = useMemo(
-    () => new Map(profiles.map(profile => [profile.id, profile.featured_badge_id || null])),
-    [profiles]
-  );
-  const badgeNameMap = useMemo(
-    () =>
-      new Map(
-        profiles.map(profile => [getProfileDisplayName(profile), profile.featured_badge_id || null])
-      ),
-    [profiles]
-  );
   const playerOptions = useMemo(() => {
     const options = profiles.map(profile => ({
       id: profile.id,
-      name: (() => {
-        const badgeLabel = getBadgeLabelById(profile.featured_badge_id);
-        const baseName = getProfileDisplayName(profile);
-        return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
-      })(),
+      name: getProfileDisplayName(profile),
     }));
     return [{ id: GUEST_ID, name: GUEST_NAME }, ...options];
   }, [profiles]);
@@ -165,20 +148,7 @@ export default function History({ matches = [], profiles = [], user }) {
 
   const renderTeam = (ids = [], names = []) => {
     const resolvedNames = names.length ? names : idsToNames(ids, profileMap);
-    return (
-      <span className="team-names">
-        {resolvedNames.map((name, index) => {
-          const id = ids[index] || `name:${name || index}`;
-          const badgeId = ids[index] ? badgeMap.get(ids[index]) : badgeNameMap.get(name);
-          return (
-            <span key={`${id}-${index}`} className="team-name">
-              <ProfileName name={name} badgeId={badgeId} />
-              {index < resolvedNames.length - 1 && <span className="team-separator"> & </span>}
-            </span>
-          );
-        })}
-      </span>
-    );
+    return resolvedNames.join(" & ");
   };
 
   return (
