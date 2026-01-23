@@ -32,7 +32,6 @@ export default function MatchForm({
   const [eveningRecap, setEveningRecap] = useState(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
-  const [matchmakerPool, setMatchmakerPool] = useState([]);
   const toastTimeoutRef = useRef(null);
 
   const selectablePlayers = useMemo(() => {
@@ -453,8 +452,7 @@ export default function MatchForm({
   };
 
   const suggestTeams = () => {
-    const pool = matchmakerPool.length ? matchmakerPool : playerPool;
-    const uniquePool = Array.from(new Set(pool)).filter(Boolean);
+    const uniquePool = Array.from(new Set(playerPool)).filter(Boolean);
 
     if (uniquePool.length < 4 || uniquePool.length > 8) {
       showToast("Välj 4–8 unika spelare för smarta lagförslag.");
@@ -554,33 +552,6 @@ export default function MatchForm({
           >
             ⚖️ Föreslå lag
           </button>
-        </div>
-
-        <div className="matchmaker-pool">
-          <label className="muted" htmlFor="matchmaker-pool-select">
-            Spelarpool (4–8 spelare)
-          </label>
-          <select
-            id="matchmaker-pool-select"
-            multiple
-            aria-label="Spelarpool för matchmaker"
-            value={matchmakerPool}
-            onChange={e => {
-              const selected = Array.from(e.target.selectedOptions, option => option.value);
-              setMatchmakerPool(selected);
-            }}
-          >
-            {selectablePlayers.map(p => (
-              <option key={p.id} value={p.id}>
-                {getPlayerOptionLabel(p)}
-              </option>
-            ))}
-          </select>
-          <div className="matchmaker-pool-meta muted">
-            {matchmakerPool.length
-              ? `${matchmakerPool.length} spelare valda.`
-              : "Tomt: matchmaker använder spelarna i den aktuella matchen."}
-          </div>
         </div>
 
         <div className="match-form-grid">
