@@ -2,6 +2,7 @@ import { getExpectedScore } from "./elo";
 
 const getRotationRounds = (playerCount) => {
   const roundMap = {
+    4: 3,
     5: 5,
     6: 3,
   };

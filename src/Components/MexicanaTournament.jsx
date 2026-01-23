@@ -56,8 +56,10 @@ export default function MexicanaTournament({
   const [participants, setParticipants] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [resultsByTournament, setResultsByTournament] = useState({});
   const [newTournament, setNewTournament] = useState({
     name: "",
     scheduled_at: toDateInput(new Date().toISOString()),
@@ -86,7 +88,7 @@ export default function MexicanaTournament({
 
   const results = useMemo(() => buildMexicanaResults(standings), [standings]);
 
-  const rosterTooSmall = participants.length < 5;
+  const rosterTooSmall = participants.length < 4;
   const rosterTooLarge = participants.length > 6;
 
   useEffect(() => {
@@ -107,6 +109,25 @@ export default function MexicanaTournament({
     };
 
     loadTournaments();
+  }, []);
+
+  useEffect(() => {
+    const loadResults = async () => {
+      const { data, error } = await supabase.from("mexicana_results").select("*");
+      if (error) {
+        setErrorMessage(error.message || "Kunde inte hämta historiska resultat.");
+        return;
+      }
+      const grouped = (data || []).reduce((acc, row) => {
+        if (!row?.tournament_id) return acc;
+        if (!acc[row.tournament_id]) acc[row.tournament_id] = [];
+        acc[row.tournament_id].push(row);
+        return acc;
+      }, {});
+      setResultsByTournament(grouped);
+    };
+
+    loadResults();
   }, []);
 
   useEffect(() => {
@@ -148,14 +169,17 @@ export default function MexicanaTournament({
     event.preventDefault();
     if (!newTournament.name.trim()) {
       setErrorMessage("Ange ett namn för turneringen.");
+      setSuccessMessage("");
       return;
     }
     if (isGuest || !user?.id) {
       setErrorMessage("Logga in för att skapa en turnering.");
+      setSuccessMessage("");
       return;
     }
     setIsSaving(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     const { data, error } = await supabase
       .from("mexicana_tournaments")
@@ -172,6 +196,7 @@ export default function MexicanaTournament({
 
     if (error) {
       setErrorMessage(error.message || "Kunde inte skapa turneringen.");
+      setSuccessMessage("");
       setIsSaving(false);
       return;
     }
@@ -187,6 +212,7 @@ export default function MexicanaTournament({
       score_target: SCORE_TARGET_DEFAULT,
     });
     setIsSaving(false);
+    setSuccessMessage("Turneringen är skapad.");
   };
 
   const toggleParticipant = (profileId) => {
@@ -203,14 +229,17 @@ export default function MexicanaTournament({
     if (!activeTournamentId) return;
     if (isGuest || !user?.id) {
       setErrorMessage("Logga in för att spara roster.");
+      setSuccessMessage("");
       return;
     }
-    if (participants.length < 5 || participants.length > 6) {
-      setErrorMessage("Mexicana kräver 5 eller 6 spelare.");
+    if (participants.length < 4 || participants.length > 6) {
+      setErrorMessage("Mexicana kräver 4, 5 eller 6 spelare.");
+      setSuccessMessage("");
       return;
     }
     setIsSaving(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     await supabase.from("mexicana_participants").delete().eq("tournament_id", activeTournamentId);
 
@@ -223,6 +252,9 @@ export default function MexicanaTournament({
 
     if (error) {
       setErrorMessage(error.message || "Kunde inte spara roster.");
+      setSuccessMessage("");
+    } else {
+      setSuccessMessage("Roster sparad.");
     }
     setIsSaving(false);
   };
@@ -231,21 +263,25 @@ export default function MexicanaTournament({
     if (!activeTournamentId) return;
     if (isGuest || !user?.id) {
       setErrorMessage("Logga in för att skapa rondschema.");
+      setSuccessMessage("");
       return;
     }
-    if (participants.length < 5 || participants.length > 6) {
-      setErrorMessage("Välj 5 eller 6 spelare innan du skapar rondschema.");
+    if (participants.length < 4 || participants.length > 6) {
+      setErrorMessage("Välj 4, 5 eller 6 spelare innan du skapar rondschema.");
+      setSuccessMessage("");
       return;
     }
 
     const { rounds: generatedRounds } = generateMexicanaRounds(participants, eloMap);
     if (!generatedRounds.length) {
       setErrorMessage("Kunde inte skapa rondschema.");
+      setSuccessMessage("");
       return;
     }
 
     setIsSaving(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     await supabase.from("mexicana_rounds").delete().eq("tournament_id", activeTournamentId);
 
@@ -261,6 +297,7 @@ export default function MexicanaTournament({
 
     if (error) {
       setErrorMessage(error.message || "Kunde inte spara rondschema.");
+      setSuccessMessage("");
       setIsSaving(false);
       return;
     }
@@ -282,6 +319,7 @@ export default function MexicanaTournament({
       )
     );
     setIsSaving(false);
+    setSuccessMessage("Rondschema skapat.");
   };
 
   const updateRoundScore = (roundId, key, value) => {
@@ -296,14 +334,17 @@ export default function MexicanaTournament({
     if (!round?.id) return;
     if (isGuest || !user?.id) {
       setErrorMessage("Logga in för att spara resultat.");
+      setSuccessMessage("");
       return;
     }
     if (!Number.isFinite(round.team1_score) || !Number.isFinite(round.team2_score)) {
       setErrorMessage("Fyll i poäng för båda lagen innan du sparar.");
+      setSuccessMessage("");
       return;
     }
     setIsSaving(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     const { error } = await supabase
       .from("mexicana_rounds")
@@ -315,19 +356,32 @@ export default function MexicanaTournament({
 
     if (error) {
       setErrorMessage(error.message || "Kunde inte uppdatera ronden.");
+      setSuccessMessage("");
+    } else {
+      setSuccessMessage(`Rond ${round.round_number} sparad.`);
     }
     setIsSaving(false);
+  };
+
+  const resetForNewTournament = () => {
+    setActiveTournamentId("");
+    setParticipants([]);
+    setRounds([]);
+    setErrorMessage("");
+    setSuccessMessage("Redo att skapa en ny turnering.");
   };
 
   const markAbandoned = async () => {
     if (!activeTournamentId) return;
     if (isGuest || !user?.id) {
       setErrorMessage("Logga in för att uppdatera turneringen.");
+      setSuccessMessage("");
       return;
     }
     if (!window.confirm("Markera turneringen som avbruten?")) return;
     setIsSaving(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     const { error } = await supabase
       .from("mexicana_tournaments")
@@ -336,6 +390,7 @@ export default function MexicanaTournament({
 
     if (error) {
       setErrorMessage(error.message || "Kunde inte markera som avbruten.");
+      setSuccessMessage("");
     } else {
       setTournaments(prev =>
         prev.map(tournament =>
@@ -344,6 +399,7 @@ export default function MexicanaTournament({
             : tournament
         )
       );
+      setSuccessMessage("Turneringen markerad som avbruten.");
     }
     setIsSaving(false);
   };
@@ -357,11 +413,13 @@ export default function MexicanaTournament({
     if (activeTournament.synced_to_matches) return;
     if (!user?.id) {
       setErrorMessage("Logga in för att slutföra turneringen.");
+      setSuccessMessage("");
       return;
     }
 
     setIsSaving(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     const matchPayload = rounds.map(round => ({
       team1: idsToNames(round.team1_ids, profileMap),
@@ -380,6 +438,7 @@ export default function MexicanaTournament({
     const { error: matchError } = await supabase.from("matches").insert(matchPayload);
     if (matchError) {
       setErrorMessage(matchError.message || "Kunde inte synka matcher.");
+      setSuccessMessage("");
       setIsSaving(false);
       return;
     }
@@ -398,21 +457,24 @@ export default function MexicanaTournament({
     const { error: resultError } = await supabase.from("mexicana_results").insert(resultsPayload);
     if (resultError) {
       setErrorMessage(resultError.message || "Kunde inte spara resultat.");
+      setSuccessMessage("");
       setIsSaving(false);
       return;
     }
 
+    const completedAt = new Date().toISOString();
     const { error: tournamentError } = await supabase
       .from("mexicana_tournaments")
       .update({
         status: "completed",
-        completed_at: new Date().toISOString(),
+        completed_at: completedAt,
         synced_to_matches: true,
       })
       .eq("id", activeTournament.id);
 
     if (tournamentError) {
       setErrorMessage(tournamentError.message || "Kunde inte avsluta turneringen.");
+      setSuccessMessage("");
     } else {
       setTournaments(prev =>
         prev.map(tournament =>
@@ -420,22 +482,29 @@ export default function MexicanaTournament({
             ? {
                 ...tournament,
                 status: "completed",
-                completed_at: new Date().toISOString(),
+                completed_at: completedAt,
                 synced_to_matches: true,
               }
             : tournament
         )
       );
+      setResultsByTournament(prev => ({
+        ...prev,
+        [activeTournament.id]: resultsPayload,
+      }));
       onTournamentSync?.();
+      setSuccessMessage("Turneringen är slutförd och synkad.");
     }
     setIsSaving(false);
   };
 
-  const rosterHint = participants.length === 5
-    ? "5 spelare: 1 spelare vilar varje rond."
-    : participants.length === 6
-      ? "6 spelare: 2 spelare vilar varje rond."
-      : "Välj 5 eller 6 spelare för Mexicana.";
+  const rosterHint = participants.length === 4
+    ? "4 spelare: alla spelar varje rond."
+    : participants.length === 5
+      ? "5 spelare: 1 spelare vilar varje rond."
+      : participants.length === 6
+        ? "6 spelare: 2 spelare vilar varje rond."
+        : "Välj 4, 5 eller 6 spelare för Mexicana.";
 
   const tournamentOptions = tournaments.map(tournament => ({
     value: tournament.id,
@@ -443,12 +512,20 @@ export default function MexicanaTournament({
   }));
 
   const rules = [
-    "Välj 5 eller 6 spelare och skapa rondschema med roterande partners.",
+    "Välj 4, 5 eller 6 spelare och skapa rondschema med roterande partners.",
     "Varje rond spelas till 24 poäng (kan justeras vid start).",
     "Poängen summeras per spelare. Flest poäng vinner.",
     "Om turneringen pausas kan ni återuppta senare – ingen statistik synkas förrän allt är klart.",
     "När sista ronden är ifylld kan du slutföra och synka till historiken/ELO.",
   ];
+
+  const completedTournaments = tournaments.filter(
+    tournament => tournament.status === "completed"
+  );
+
+  const hasSyncedResults =
+    activeTournament?.status === "completed" && activeTournament?.synced_to_matches;
+  const podium = results.slice(0, 3);
 
   if (isLoading) {
     return <p className="muted">Laddar Mexicana...</p>;
@@ -471,6 +548,33 @@ export default function MexicanaTournament({
           )}
         </div>
       </header>
+
+      <div className="mexicana-card mexicana-rules">
+        <h3>Regler & process</h3>
+        <ul>
+          {rules.map(rule => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+        <p className="muted">
+          Om turneringen inte blir klar stannar den som "Pågår" eller "Avbruten" och påverkar
+          inte leaderboard, badges eller ELO förrän den slutförs.
+        </p>
+      </div>
+
+      {successMessage && (
+        <div className="notice-banner success" role="status">
+          <div>{successMessage}</div>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setSuccessMessage("")}
+            disabled={isSaving}
+          >
+            Stäng
+          </button>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="notice-banner error" role="alert">
@@ -591,6 +695,18 @@ export default function MexicanaTournament({
                   </button>
                 </div>
               )}
+              {activeTournament.status === "completed" && (
+                <div className="mexicana-actions">
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={resetForNewTournament}
+                    disabled={isSaving}
+                  >
+                    Starta ny turnering
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <p className="muted">Välj eller skapa en turnering för att se detaljer.</p>
@@ -601,7 +717,7 @@ export default function MexicanaTournament({
           <h3>Roster</h3>
           {activeTournament ? (
             <>
-              <p className="muted">Välj 5 eller 6 spelare.</p>
+              <p className="muted">Välj 4 till 6 spelare.</p>
               <div className="mexicana-roster">
                 {profiles.map(profile => (
                   <label key={profile.id} className="mexicana-roster-item">
@@ -772,16 +888,105 @@ export default function MexicanaTournament({
         </div>
       </div>
 
-      <div className="mexicana-card mexicana-rules">
-        <h3>Regler & process</h3>
-        <ul>
-          {rules.map(rule => (
-            <li key={rule}>{rule}</li>
-          ))}
-        </ul>
+      {hasSyncedResults && (
+        <div className="mexicana-card mexicana-results">
+          <h3>Resultat</h3>
+          {podium.length > 0 ? (
+            <div className="mexicana-podium">
+              {podium.map((entry, index) => (
+                <div key={entry.id} className="mexicana-podium-spot">
+                  <span className="mexicana-podium-rank">{index + 1}</span>
+                  <strong>{profileMap[entry.id] || "Okänd"}</strong>
+                  <span className="muted">{entry.pointsFor} poäng</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">Inga resultat att visa ännu.</p>
+          )}
+          {results.length > 0 && (
+            <div className="table-scroll">
+              <div className="table-scroll-inner">
+                <table className="styled-table">
+                  <thead>
+                    <tr>
+                      <th>Plac.</th>
+                      <th>Spelare</th>
+                      <th>Spelade</th>
+                      <th>Vinster</th>
+                      <th>Poäng</th>
+                      <th>Diff</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map(result => (
+                      <tr key={result.id}>
+                        <td>{result.rank}</td>
+                        <td>{profileMap[result.id] || "Okänd"}</td>
+                        <td>{result.matchesPlayed}</td>
+                        <td>{result.wins}</td>
+                        <td>{result.pointsFor}</td>
+                        <td>{result.pointsDiff}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="mexicana-card mexicana-history">
+        <h3>Historik</h3>
+        {completedTournaments.length === 0 ? (
+          <p className="muted">Inga avslutade turneringar än.</p>
+        ) : (
+          <div className="table-scroll">
+            <div className="table-scroll-inner">
+              <table className="styled-table">
+                <thead>
+                  <tr>
+                    <th>Turnering</th>
+                    <th>Datum</th>
+                    <th>Spelare</th>
+                    <th>Topp 3</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {completedTournaments.map(tournament => {
+                    const tournamentResults = resultsByTournament[tournament.id] || [];
+                    const topThree = [...tournamentResults]
+                      .sort((a, b) => (a.rank || 0) - (b.rank || 0))
+                      .slice(0, 3)
+                      .map(result => profileMap[result.profile_id] || "Okänd")
+                      .join(", ");
+                    return (
+                      <tr key={tournament.id}>
+                        <td>{tournament.name}</td>
+                        <td>{formatDate(tournament.completed_at || tournament.scheduled_at)}</td>
+                        <td>{tournamentResults.length || "—"}</td>
+                        <td>{topThree || "—"}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="ghost-button"
+                            onClick={() => setActiveTournamentId(tournament.id)}
+                          >
+                            Visa
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         <p className="muted">
-          Om turneringen inte blir klar stannar den som "Pågår" eller "Avbruten" och påverkar
-          inte leaderboard, badges eller ELO förrän den slutförs.
+          Välj en avslutad turnering för att se den låsta vyn med resultat och ronder.
         </p>
       </div>
     </section>
