@@ -956,7 +956,7 @@ export default function MexicanaTournament({
                       <th>Spelade</th>
                       <th>Vinster</th>
                       <th>Poäng</th>
-                      <th>Diff</th>
+                      <th>Poäng diff</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1018,7 +1018,7 @@ export default function MexicanaTournament({
                       <th>Spelade</th>
                       <th>Vinster</th>
                       <th>Poäng</th>
-                      <th>Diff</th>
+                      <th>Poäng diff</th>
                     </tr>
                   </thead>
                   <tbody>
