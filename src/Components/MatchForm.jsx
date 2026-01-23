@@ -257,6 +257,8 @@ export default function MatchForm({
 
     const scoreA = Number(a);
     const scoreB = Number(b);
+    const team1Label = team1.map(id => getIdDisplayName(id, profileMap)).join(" & ");
+    const team2Label = team2.map(id => getIdDisplayName(id, profileMap)).join(" & ");
 
     const team1IdsForDb = team1.map(id => (id === GUEST_ID ? null : id));
     const team2IdsForDb = team2.map(id => (id === GUEST_ID ? null : id));
@@ -269,6 +271,7 @@ export default function MatchForm({
         team2_ids: team2IdsForDb,
         team1_sets: scoreA,
         team2_sets: scoreB,
+        team1_serves_first: true,
         created_by: user.id,
       });
 
@@ -298,7 +301,7 @@ export default function MatchForm({
     setMatchSuggestion(null);
     setRecapMode("evening");
     setShowRecap(true);
-    showToast("Resultat tillagt");
+    showToast(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
   };
 
   const suggestTeams = () => {
