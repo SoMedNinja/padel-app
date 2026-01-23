@@ -1359,6 +1359,28 @@ select:focus-visible {
     text-align:center;
   }
 
+  .head-to-head-summary {
+    flex-wrap:nowrap;
+  }
+
+  .head-to-head-card {
+    flex:1 1 0;
+    min-width:0;
+    padding:10px 12px;
+  }
+
+  .head-to-head-card strong {
+    font-size:14px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .head-to-head-avatar {
+    width:44px;
+    height:44px;
+  }
+
   .app-header {
     flex-direction:column;
     align-items:flex-start;
