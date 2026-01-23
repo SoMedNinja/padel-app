@@ -1552,6 +1552,13 @@ select:focus-visible {
   gap:10px;
 }
 
+.mexicana-form input,
+.mexicana-form select {
+  width:100%;
+  max-width:100%;
+  min-width:0;
+}
+
 .mexicana-form label {
   display:flex;
   flex-direction:column;

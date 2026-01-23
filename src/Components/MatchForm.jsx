@@ -421,6 +421,7 @@ export default function MatchForm({
         score_type: "sets",
         score_target: null,
         source_tournament_id: null,
+        source_tournament_type: "standalone",
         team1_serves_first: true,
         created_by: user.id,
       });
