@@ -11,6 +11,7 @@ import AdminPanel from "./Components/AdminPanel";
 import MVP from "./Components/MVP";
 import Heatmap from "./Components/Heatmap";
 import FilterBar from "./Components/FilterBar";
+import MexicanaTournament from "./Components/MexicanaTournament";
 
 import { calculateElo } from "./utils/elo";
 import { usePadelData } from "./hooks/usePadelData";
@@ -24,6 +25,7 @@ export default function App() {
   const [profiles, setProfiles] = useState([]);
   const [allProfiles, setAllProfiles] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [tournamentResults, setTournamentResults] = useState([]);
   const [matchFilter, setMatchFilter] = useState("all");
   const [dataError, setDataError] = useState("");
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
@@ -65,6 +67,15 @@ export default function App() {
     setIsLoadingProfiles(false);
   }, []);
 
+  const loadTournamentResults = useCallback(async () => {
+    const { data, error } = await supabase.from("mexicana_results").select("*");
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setTournamentResults(data || []);
+  }, []);
+
   const applyMatchFilter = (query, filter) => {
     if (filter === "short") {
       return query.lte("team1_sets", 3).lte("team2_sets", 3);
@@ -76,6 +87,9 @@ export default function App() {
   };
 
   const matchPassesFilter = (match, filter) => {
+    if ((match?.score_type || "sets") === "points" && filter !== "all") {
+      return false;
+    }
     const team1Sets = Number(match.team1_sets ?? 0);
     const team2Sets = Number(match.team2_sets ?? 0);
     if (filter === "short") {
@@ -130,6 +144,10 @@ export default function App() {
   }, [loadProfiles]);
 
   useEffect(() => {
+    loadTournamentResults();
+  }, [loadTournamentResults]);
+
+  useEffect(() => {
     loadMatchesPage({ replace: true, cursor: null, filter: matchFilter });
   }, [matchFilter, loadMatchesPage]);
 
@@ -176,6 +194,9 @@ export default function App() {
     }
     if (hash === "history") {
       return { page: "history", scrollId: null };
+    }
+    if (hash === "mexicana") {
+      return { page: "mexicana", scrollId: null };
     }
     if (hash === "admin") {
       return { page: "admin", scrollId: null };
@@ -311,7 +332,8 @@ export default function App() {
     setDataError("");
     loadProfiles();
     loadMatchesPage({ replace: true, cursor: null, filter: matchFilter });
-  }, [loadProfiles, loadMatchesPage, matchFilter]);
+    loadTournamentResults();
+  }, [loadProfiles, loadMatchesPage, matchFilter, loadTournamentResults]);
 
   const handleProfileUpdate = (updatedProfile) => {
     setAllProfiles(prev => {
@@ -499,6 +521,15 @@ export default function App() {
         >
           Match-historik
         </a>
+        <a
+          href="#mexicana"
+          onClick={(event) => {
+            event.preventDefault();
+            navigateTo("mexicana");
+          }}
+        >
+          Mexicana-turnering
+        </a>
         {userWithAdmin?.is_admin && (
           <a
             href="#admin"
@@ -582,6 +613,7 @@ export default function App() {
                 user={userWithAdmin}
                 profiles={profiles}
                 matches={filteredMatches}
+                tournamentResults={tournamentResults}
                 onProfileUpdate={handleProfileUpdate}
               />
             </section>
@@ -615,6 +647,18 @@ export default function App() {
               </button>
             </div>
           )}
+        </section>
+      )}
+
+      {activePage === "mexicana" && (
+        <section id="mexicana" className="page-section">
+          <MexicanaTournament
+            user={isGuest ? null : userWithAdmin}
+            profiles={profiles}
+            eloPlayers={allEloPlayers}
+            isGuest={isGuest}
+            onTournamentSync={loadTournamentResults}
+          />
         </section>
       )}
 
