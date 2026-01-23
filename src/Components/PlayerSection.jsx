@@ -10,7 +10,12 @@ import {
   Legend
 } from "recharts";
 import Avatar from "./Avatar";
-import { cropAvatarImage, getStoredAvatar } from "../utils/avatar";
+import {
+  cropAvatarImage,
+  getStoredAvatar,
+  removeStoredAvatar,
+  setStoredAvatar
+} from "../utils/avatar";
 import {
   ELO_BASELINE,
   getExpectedScore,
@@ -570,9 +575,9 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     ? getProfileDisplayName(playerProfile)
     : user?.email || "Din profil";
 
-  const avatarStorageKey = user?.id ? `padel-avatar:${user.id}` : null;
+  const avatarStorageId = user?.id || null;
   const [avatarUrl, setAvatarUrl] = useState(() =>
-    avatarStorageKey ? localStorage.getItem(avatarStorageKey) : null
+    avatarStorageId ? getStoredAvatar(avatarStorageId) : null
   );
   const [pendingAvatar, setPendingAvatar] = useState(null);
   const [avatarZoom, setAvatarZoom] = useState(1);
@@ -659,13 +664,13 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
 
 
   useEffect(() => {
-    if (!avatarStorageKey || !user?.id) return;
-    const stored = localStorage.getItem(avatarStorageKey);
+    if (!avatarStorageId || !user?.id) return;
+    const stored = getStoredAvatar(avatarStorageId);
     const serverAvatar = playerProfile?.avatar_url || null;
 
     if (serverAvatar) {
       if (stored !== serverAvatar) {
-        localStorage.setItem(avatarStorageKey, serverAvatar);
+        setStoredAvatar(avatarStorageId, serverAvatar);
       }
       setAvatarUrl(serverAvatar);
       return;
@@ -683,7 +688,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
           if (data) onProfileUpdate?.(data);
         });
     }
-  }, [avatarStorageKey, playerProfile?.avatar_url, user?.id]);
+  }, [avatarStorageId, playerProfile?.avatar_url, user?.id]);
 
   useEffect(() => {
     setSelectedBadgeId(playerProfile?.featured_badge_id || null);
@@ -733,7 +738,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
 
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
-    if (!file || !avatarStorageKey) return;
+    if (!file || !avatarStorageId) return;
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -746,11 +751,11 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
   };
 
   const saveAvatar = async () => {
-    if (!pendingAvatar || !avatarStorageKey) return;
+    if (!pendingAvatar || !avatarStorageId) return;
     setSavingAvatar(true);
     try {
       const cropped = await cropAvatarImage(pendingAvatar, avatarZoom);
-      localStorage.setItem(avatarStorageKey, cropped);
+      setStoredAvatar(avatarStorageId, cropped);
       setAvatarUrl(cropped);
       setPendingAvatar(null);
       if (user?.id) {
@@ -778,8 +783,8 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
   };
 
   const resetAvatar = async () => {
-    if (!avatarStorageKey) return;
-    localStorage.removeItem(avatarStorageKey);
+    if (!avatarStorageId) return;
+    removeStoredAvatar(avatarStorageId);
     setAvatarUrl(null);
     setPendingAvatar(null);
     if (user?.id) {
