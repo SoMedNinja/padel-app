@@ -64,6 +64,13 @@ const formatChartTimestamp = (value, includeTime = false) => {
   return new Intl.DateTimeFormat("sv-SE", options).format(date);
 };
 
+const getPlayerOptionLabel = (profile) => {
+  if (!profile) return "Okänd";
+  const badgeLabel = getBadgeLabelById(profile.featured_badge_id);
+  const baseName = getProfileDisplayName(profile);
+  return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
+};
+
 const groupBadgesByType = (badges = []) => {
   const grouped = new Map();
   badges.forEach((badge) => {
@@ -713,13 +720,6 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
       onProfileUpdate?.(data[0]);
     }
     setSavingBadgeId(null);
-  };
-
-  const getPlayerOptionLabel = (profile) => {
-    if (!profile) return "Okänd";
-    const badgeLabel = getBadgeLabelById(profile.featured_badge_id);
-    const baseName = getProfileDisplayName(profile);
-    return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
   };
 
   const badgeStats = useMemo(
