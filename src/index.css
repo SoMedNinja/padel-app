@@ -1451,6 +1451,16 @@ select:focus-visible {
   gap:16px;
 }
 
+.mexicana-action-bar {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.mexicana-action-bar button {
+  min-width:160px;
+}
+
 .mexicana-header-meta {
   display:flex;
   align-items:center;
@@ -1463,6 +1473,11 @@ select:focus-visible {
   font-size:12px;
   font-weight:600;
   text-transform:uppercase;
+}
+
+.mexicana-status.inline {
+  padding:4px 10px;
+  font-size:11px;
 }
 
 .mexicana-status.status-draft {
@@ -1545,12 +1560,32 @@ select:focus-visible {
   font-size:14px;
 }
 
+.mexicana-roster-item input {
+  width:auto;
+  margin:0;
+}
+
 .mexicana-roster-actions {
   display:flex;
   justify-content:space-between;
   align-items:center;
   gap:12px;
   flex-wrap:wrap;
+}
+
+.mexicana-history-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.ghost-button.danger {
+  color:#b91c1c;
+  border-color:#ef4444;
+}
+
+.ghost-button.danger:hover {
+  background:#fee2e2;
 }
 
 .mexicana-rounds {
