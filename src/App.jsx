@@ -180,7 +180,7 @@ export default function App() {
     if (hash === "admin") {
       return { page: "admin", scrollId: null };
     }
-    if (["spelproducent", "profile", "head-to-head"].includes(hash)) {
+    if (["profile", "head-to-head"].includes(hash)) {
       return { page: "dashboard", scrollId: hash };
     }
     return { page: "dashboard", scrollId: null };
@@ -431,7 +431,13 @@ export default function App() {
         </div>
       )}
       <div className="app-header">
-        <h1 className="app-title">🎾 Padel Tracker</h1>
+        <h1 className="app-title">
+          <span className="app-logo" aria-hidden="true">GS</span>
+          <span className="app-title-text">
+            <span className="app-title-name">Grabbarnas serie</span>
+            <span className="app-title-subtitle">Padel, prestige & bragging rights</span>
+          </span>
+        </h1>
         <button
           ref={menuButtonRef}
           className="menu-toggle"
@@ -462,17 +468,6 @@ export default function App() {
         >
           Hemskärm
         </a>
-        {!isGuest && (
-          <a
-            href="#spelproducent"
-            onClick={(event) => {
-              event.preventDefault();
-              navigateTo("dashboard", "spelproducent");
-            }}
-          >
-            Spelproducent
-          </a>
-        )}
         {!isGuest && (
           <a
             href="#profile"
@@ -549,8 +544,7 @@ export default function App() {
       {activePage === "dashboard" && (
         <section id="dashboard" className="page-section">
           {!isGuest && (
-            <div id="spelproducent">
-              <h2>Spelproducent</h2>
+            <div className="dashboard-match-form">
               <MatchForm
                 user={user}
                 profiles={profiles}

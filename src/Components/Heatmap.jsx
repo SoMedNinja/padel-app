@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { getProfileDisplayName, makeProfileMap, resolveTeamNames } from "../utils/profileMap";
+import ProfileName from "./ProfileName";
 import { GUEST_NAME } from "../utils/guest";
 
 const ELO_BASELINE = 1000;
@@ -25,6 +26,14 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
       }
     });
     map.set(normalizeProfileName(GUEST_NAME), GUEST_NAME);
+    return map;
+  }, [profiles]);
+  const badgeNameMap = useMemo(() => {
+    const map = new Map();
+    profiles.forEach(profile => {
+      const name = getProfileDisplayName(profile);
+      map.set(name, profile.featured_badge_id || null);
+    });
     return map;
   }, [profiles]);
   const eloMap = useMemo(() => {
@@ -165,7 +174,18 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
           <tbody>
             {rows.map((r) => (
               <tr key={r.players.join("-")}>
-                <td>{r.players.join(" & ")}</td>
+                <td>
+                  <span className="team-names">
+                    {r.players.map((name, index) => (
+                      <span key={`${name}-${index}`} className="team-name">
+                        <ProfileName name={name} badgeId={badgeNameMap.get(name)} />
+                        {index < r.players.length - 1 && (
+                          <span className="team-separator"> & </span>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                </td>
                 <td>{r.games}</td>
                 <td>{r.wins}</td>
                 <td>{r.winPct}%</td>

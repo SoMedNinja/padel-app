@@ -6,7 +6,9 @@ import {
   makeProfileMap,
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
+import { getBadgeLabelById } from "../utils/badges";
 import { supabase } from "../supabaseClient";
+import ProfileName from "./ProfileName";
 
 const normalizeName = (name) => name?.trim().toLowerCase();
 const toDateTimeInput = (value) => {
@@ -20,10 +22,25 @@ const toDateTimeInput = (value) => {
 export default function History({ matches = [], profiles = [], user }) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
+  const badgeMap = useMemo(
+    () => new Map(profiles.map(profile => [profile.id, profile.featured_badge_id || null])),
+    [profiles]
+  );
+  const badgeNameMap = useMemo(
+    () =>
+      new Map(
+        profiles.map(profile => [getProfileDisplayName(profile), profile.featured_badge_id || null])
+      ),
+    [profiles]
+  );
   const playerOptions = useMemo(() => {
     const options = profiles.map(profile => ({
       id: profile.id,
-      name: getProfileDisplayName(profile),
+      name: (() => {
+        const badgeLabel = getBadgeLabelById(profile.featured_badge_id);
+        const baseName = getProfileDisplayName(profile);
+        return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
+      })(),
     }));
     return [{ id: GUEST_ID, name: GUEST_NAME }, ...options];
   }, [profiles]);
@@ -146,6 +163,24 @@ export default function History({ matches = [], profiles = [], user }) {
   const startIndex = (currentPage - 1) * pageSize;
   const pagedMatches = matches.slice(startIndex, startIndex + pageSize);
 
+  const renderTeam = (ids = [], names = []) => {
+    const resolvedNames = names.length ? names : idsToNames(ids, profileMap);
+    return (
+      <span className="team-names">
+        {resolvedNames.map((name, index) => {
+          const id = ids[index] || `name:${name || index}`;
+          const badgeId = ids[index] ? badgeMap.get(ids[index]) : badgeNameMap.get(name);
+          return (
+            <span key={`${id}-${index}`} className="team-name">
+              <ProfileName name={name} badgeId={badgeId} />
+              {index < resolvedNames.length - 1 && <span className="team-separator"> & </span>}
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
+
   return (
     <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
@@ -201,8 +236,6 @@ export default function History({ matches = [], profiles = [], user }) {
                 m.team1_ids?.length ? idsToNames(m.team1_ids, profileMap) : m.team1 || [];
               const teamBList =
                 m.team2_ids?.length ? idsToNames(m.team2_ids, profileMap) : m.team2 || [];
-              const teamA = teamAList.join(" & ");
-              const teamB = teamBList.join(" & ");
               const date = m.created_at?.slice(0, 10);
               const isEditing = editingId === m.id;
 
@@ -243,7 +276,7 @@ export default function History({ matches = [], profiles = [], user }) {
                         ))}
                       </div>
                     ) : (
-                      teamA
+                      renderTeam(m.team1_ids || [], teamAList)
                     )}
                   </td>
 
@@ -267,7 +300,7 @@ export default function History({ matches = [], profiles = [], user }) {
                         ))}
                       </div>
                     ) : (
-                      teamB
+                      renderTeam(m.team2_ids || [], teamBList)
                     )}
                   </td>
 

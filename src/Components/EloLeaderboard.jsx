@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Avatar from "./Avatar";
+import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
 
 // Enkel hjälpfunktion för vinstprocent
@@ -98,7 +99,7 @@ export default function EloLeaderboard({ players = [] }) {
                       name={p.name}
                       alt={`Profilbild för ${p.name}`}
                     />
-                    <span>{p.name}</span>
+                    <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
                   </div>
                 </td>
                 <td>{Math.round(p.elo)}</td>
