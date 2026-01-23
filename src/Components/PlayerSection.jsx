@@ -21,7 +21,8 @@ import {
 import { GUEST_ID } from "../utils/guest";
 import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
 import { getMvpStats } from "../utils/stats";
-import { buildPlayerBadgeStats, buildPlayerBadges } from "../utils/badges";
+import { buildPlayerBadgeStats, buildPlayerBadges, getBadgeLabelById } from "../utils/badges";
+import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
 
 const percent = (wins, losses) => {
@@ -608,10 +609,13 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
   );
 
   const [compareTarget, setCompareTarget] = useState("none");
-  const [showAllBadges, setShowAllBadges] = useState(false);
   const [isBadgesExpanded, setIsBadgesExpanded] = useState(true);
   const [isEarnedExpanded, setIsEarnedExpanded] = useState(true);
   const [isLockedExpanded, setIsLockedExpanded] = useState(true);
+  const [selectedBadgeId, setSelectedBadgeId] = useState(
+    playerProfile?.featured_badge_id || null
+  );
+  const [savingBadgeId, setSavingBadgeId] = useState(null);
   const comparisonIds = useMemo(() => {
     if (!user?.id) return [];
     if (compareTarget === "all") {
@@ -681,12 +685,43 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
     }
   }, [avatarStorageKey, playerProfile?.avatar_url, user?.id]);
 
+  useEffect(() => {
+    setSelectedBadgeId(playerProfile?.featured_badge_id || null);
+  }, [playerProfile?.featured_badge_id]);
+
+  const handleBadgeSelection = async (badgeId) => {
+    if (!user?.id) return;
+    const nextBadgeId = badgeId === selectedBadgeId ? null : badgeId;
+    setSavingBadgeId(badgeId);
+    setSelectedBadgeId(nextBadgeId);
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({ featured_badge_id: nextBadgeId })
+      .eq("id", user.id)
+      .select();
+
+    if (error) {
+      alert(error.message || "Kunde inte uppdatera visad merit.");
+      setSelectedBadgeId(playerProfile?.featured_badge_id || null);
+    } else if (data?.length) {
+      onProfileUpdate?.(data[0]);
+    }
+    setSavingBadgeId(null);
+  };
+
+  const getPlayerOptionLabel = (profile) => {
+    if (!profile) return "Okänd";
+    const badgeLabel = getBadgeLabelById(profile.featured_badge_id);
+    const baseName = getProfileDisplayName(profile);
+    return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
+  };
+
   const badgeStats = useMemo(
     () => buildPlayerBadgeStats(matches, profiles, user?.id, nameToIdMap),
     [matches, profiles, user, nameToIdMap]
   );
   const badgeSummary = useMemo(() => buildPlayerBadges(badgeStats), [badgeStats]);
-  const visibleBadgeLimit = 4;
   const earnedBadgeGroups = useMemo(
     () => groupBadgesByType(badgeSummary.earnedBadges),
     [badgeSummary.earnedBadges]
@@ -694,27 +729,6 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
   const lockedBadgeGroups = useMemo(
     () => groupBadgesByType(badgeSummary.lockedBadges),
     [badgeSummary.lockedBadges]
-  );
-  const visibleEarnedBadgeGroups = useMemo(
-    () =>
-      showAllBadges
-        ? earnedBadgeGroups
-        : earnedBadgeGroups.map(group => ({ ...group, items: group.items.slice(0, visibleBadgeLimit) })),
-    [earnedBadgeGroups, showAllBadges]
-  );
-  const visibleLockedBadgeGroups = useMemo(
-    () =>
-      showAllBadges
-        ? lockedBadgeGroups
-        : lockedBadgeGroups.map(group => ({ ...group, items: group.items.slice(0, visibleBadgeLimit) })),
-    [lockedBadgeGroups, showAllBadges]
-  );
-  const hasHiddenBadges = useMemo(
-    () =>
-      [...earnedBadgeGroups, ...lockedBadgeGroups].some(
-        group => group.items.length > visibleBadgeLimit
-      ),
-    [earnedBadgeGroups, lockedBadgeGroups]
   );
 
   const handleAvatarChange = (event) => {
@@ -802,10 +816,9 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
         </div>
 
         <div className="player-details">
-          <h3>{playerName}</h3>
-          <p className="muted">
-            Matchstatistik för din profil.
-          </p>
+          <h3>
+            <ProfileName name={playerName} badgeId={selectedBadgeId} />
+          </h3>
 
           <label className="file-input">
             Byt profilbild
@@ -927,21 +940,13 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
             </p>
           </div>
           <div className="badges-header-actions">
-            {hasHiddenBadges && isBadgesExpanded && (
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => setShowAllBadges(prev => !prev)}
-              >
-                {showAllBadges ? "Visa färre" : "Visa alla"}
-              </button>
-            )}
             <button
               type="button"
-              className="ghost-button"
+              className="badge-toggle"
               onClick={() => setIsBadgesExpanded(prev => !prev)}
             >
-              {isBadgesExpanded ? "Minimera" : "Visa meriter"}
+              <span>{isBadgesExpanded ? "Minimera" : "Visa meriter"}</span>
+              <span aria-hidden="true">{isBadgesExpanded ? "▴" : "▾"}</span>
             </button>
           </div>
         </div>
@@ -957,25 +962,44 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
                     <div className="badge-group-title">Upplåsta</div>
                     <button
                       type="button"
-                      className="ghost-button badge-group-toggle"
+                      className="badge-toggle badge-group-toggle"
                       onClick={() => setIsEarnedExpanded(prev => !prev)}
                     >
-                      {isEarnedExpanded ? "Minimera" : "Visa"}
+                      <span>{isEarnedExpanded ? "Minimera" : "Visa"}</span>
+                      <span aria-hidden="true">{isEarnedExpanded ? "▴" : "▾"}</span>
                     </button>
                   </div>
                   {isEarnedExpanded && (
                     <>
-                      {visibleEarnedBadgeGroups.length ? (
-                        visibleEarnedBadgeGroups.map(group => (
+                      {earnedBadgeGroups.length ? (
+                        earnedBadgeGroups.map(group => (
                           <div key={`earned-${group.label}`} className="badge-type-group">
                             <div className="badge-type-title">{group.label}</div>
                             <div className="badges-grid">
                               {group.items.map(badge => (
-                                <div key={badge.id} className="badge-card badge-earned">
-                                  <div className="badge-icon">{badge.icon}</div>
+                                <div
+                                  key={badge.id}
+                                  className={`badge-card badge-earned ${
+                                    selectedBadgeId === badge.id ? "badge-selected" : ""
+                                  }`}
+                                >
+                                  <div className="badge-icon">
+                                    <span>{badge.icon}</span>
+                                    {badge.tier && <span className="badge-tier">{badge.tier}</span>}
+                                  </div>
                                   <div className="badge-title">{badge.title}</div>
                                   <div className="badge-description">{badge.description}</div>
                                   {badge.meta && <div className="badge-meta">{badge.meta}</div>}
+                                  <div className="badge-actions">
+                                    <button
+                                      type="button"
+                                      className="badge-select"
+                                      onClick={() => handleBadgeSelection(badge.id)}
+                                      disabled={savingBadgeId === badge.id}
+                                    >
+                                      {selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn"}
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1000,15 +1024,16 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
                     <div className="badge-group-title">På väg</div>
                     <button
                       type="button"
-                      className="ghost-button badge-group-toggle"
+                      className="badge-toggle badge-group-toggle"
                       onClick={() => setIsLockedExpanded(prev => !prev)}
                     >
-                      {isLockedExpanded ? "Minimera" : "Visa"}
+                      <span>{isLockedExpanded ? "Minimera" : "Visa"}</span>
+                      <span aria-hidden="true">{isLockedExpanded ? "▴" : "▾"}</span>
                     </button>
                   </div>
                   {isLockedExpanded && (
                     <>
-                      {visibleLockedBadgeGroups.map(group => (
+                      {lockedBadgeGroups.map(group => (
                         <div key={`locked-${group.label}`} className="badge-type-group">
                           <div className="badge-type-title">{group.label}</div>
                           <div className="badges-grid">
@@ -1019,7 +1044,10 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
                                 : 0;
                               return (
                                 <div key={badge.id} className="badge-card">
-                                  <div className="badge-icon">{badge.icon}</div>
+                                  <div className="badge-icon">
+                                    <span>{badge.icon}</span>
+                                    {badge.tier && <span className="badge-tier">{badge.tier}</span>}
+                                  </div>
                                   <div className="badge-title">{badge.title}</div>
                                   <div className="badge-description">{badge.description}</div>
                                   {badge.meta && <div className="badge-meta">{badge.meta}</div>}
@@ -1061,7 +1089,7 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
               <option value="all">Alla</option>
               {selectablePlayers.map(player => (
                 <option key={player.id} value={player.id}>
-                  {getProfileDisplayName(player)}
+                  {getPlayerOptionLabel(player)}
                 </option>
               ))}
             </select>
@@ -1108,6 +1136,7 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
   const playerName = playerProfile
     ? getProfileDisplayName(playerProfile)
     : user?.email || "Din profil";
+  const playerBadgeId = playerProfile?.featured_badge_id || null;
   const playerAvatarUrl = playerProfile?.avatar_url || getStoredAvatar(user?.id);
 
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
@@ -1154,6 +1183,7 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
   const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);
   const opponentAvatarUrl = opponentProfile?.avatar_url || getStoredAvatar(opponentProfile?.id);
   const opponentName = opponentProfile ? getProfileDisplayName(opponentProfile) : "Motståndare";
+  const opponentBadgeId = opponentProfile?.featured_badge_id || null;
   const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
   const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
   const playerHighestElo = useMemo(
@@ -1189,7 +1219,7 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
               <select value={resolvedOpponentId} onChange={(e) => setOpponentId(e.target.value)}>
                 {selectablePlayers.map(player => (
                   <option key={player.id} value={player.id}>
-                    {getProfileDisplayName(player)}
+                    {getPlayerOptionLabel(player)}
                   </option>
                 ))}
               </select>
@@ -1205,7 +1235,9 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
                 alt="Din profilbild"
               />
               <div>
-                <strong>{playerName}</strong>
+                <strong>
+                  <ProfileName name={playerName} badgeId={playerBadgeId} />
+                </strong>
                 <span className="muted">Du</span>
                 <span className="muted">ELO {currentPlayerElo}</span>
                 <span className="muted">Högsta ELO {playerHighestElo}</span>
@@ -1220,7 +1252,10 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
               />
               <div>
                 <strong>
-                  {getProfileDisplayName(opponentProfile)}
+                  <ProfileName
+                    name={getProfileDisplayName(opponentProfile)}
+                    badgeId={opponentBadgeId}
+                  />
                 </strong>
                 <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
                 <span className="muted">ELO {opponentElo}</span>

@@ -1,4 +1,5 @@
 import { getMvpStats, getLatestMatchDate } from "../utils/stats";
+import ProfileName from "./ProfileName";
 
 export default function MVP({
   matches = [],
@@ -45,6 +46,7 @@ export default function MVP({
       eloDelta: Math.round(
         (player?.elo || 1000) - (player?.startElo || 1000)
       ),
+      badgeId: player?.featuredBadgeId || null,
       score: s.wins * 3 + winPct * 5 + s.games,
     };
   });
@@ -58,7 +60,7 @@ export default function MVP({
   return (
     <div className="mvp">
       <div className="mvp-title">{titleEmoji} {title}</div>
-      <div className="mvp-name">{mvp.name}</div>
+      <ProfileName className="mvp-name" name={mvp.name} badgeId={mvp.badgeId} />
       <div className="mvp-meta">
         {mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {mvp.eloDelta}
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { getPlayerWeight } from "../utils/elo";
+import { getBadgeLabelById } from "../utils/badges";
 import {
   getIdDisplayName,
   getProfileDisplayName,
@@ -10,6 +11,7 @@ import {
   makeProfileMap,
   resolveTeamIds,
 } from "../utils/profileMap";
+import ProfileName from "./ProfileName";
 
 const ELO_BASELINE = 1000;
 const K = 20;
@@ -41,6 +43,13 @@ export default function MatchForm({
     () => makeNameToIdMap(selectablePlayers),
     [selectablePlayers]
   );
+  const badgeNameMap = useMemo(() => {
+    const map = new Map();
+    profiles.forEach(profile => {
+      map.set(getProfileDisplayName(profile), profile.featured_badge_id || null);
+    });
+    return map;
+  }, [profiles]);
   const eloMap = useMemo(() => {
     const map = { [GUEST_ID]: ELO_BASELINE };
     eloPlayers.forEach(player => {
@@ -70,6 +79,15 @@ export default function MatchForm({
       setToastMessage("");
     }, 2500);
   };
+
+  const getPlayerOptionLabel = (player) => {
+    if (player.id === GUEST_ID) return GUEST_NAME;
+    const baseName = getProfileDisplayName(player);
+    const badgeLabel = getBadgeLabelById(player.featured_badge_id);
+    return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
+  };
+
+  const getBadgeIdForName = (name) => badgeNameMap.get(name) || null;
 
   const getTeamAverageElo = (team) => {
     const active = team.filter(id => id && id !== GUEST_ID);
@@ -344,7 +362,7 @@ export default function MatchForm({
       <option value="">Välj</option>
       {selectablePlayers.map(p => (
         <option key={p.id} value={p.id}>
-          {getProfileDisplayName(p)}
+          {getPlayerOptionLabel(p)}
         </option>
       ))}
     </select>
@@ -487,7 +505,12 @@ export default function MatchForm({
                   </div>
                   <div className="recap-summary-mvp">
                     <span className="chip chip-success">MVP</span>
-                    <strong>{eveningRecap.mvp?.name || "—"}</strong>
+                    <strong>
+                      <ProfileName
+                        name={eveningRecap.mvp?.name || "—"}
+                        badgeId={getBadgeIdForName(eveningRecap.mvp?.name || "")}
+                      />
+                    </strong>
                   </div>
                 </div>
                 <div className="recap-team">
@@ -497,7 +520,10 @@ export default function MatchForm({
                   <div className="recap-team-players">
                     {eveningRecap.leaders.map(player => (
                       <div key={player.id} className="recap-player">
-                        <span>{player.name}</span>
+                        <ProfileName
+                          name={player.name}
+                          badgeId={getBadgeIdForName(player.name)}
+                        />
                         <span className="muted">
                           {player.wins} vinster · {player.games} matcher
                         </span>
@@ -519,7 +545,10 @@ export default function MatchForm({
                   <div className="recap-team-players">
                     {matchRecap.teamA.players.map(player => (
                       <div key={player.id} className="recap-player">
-                        <span>{player.name}</span>
+                        <ProfileName
+                          name={player.name}
+                          badgeId={getBadgeIdForName(player.name)}
+                        />
                         <span className="muted">
                           ELO {player.elo} · {player.delta >= 0 ? "+" : ""}{player.delta}
                         </span>
@@ -537,7 +566,10 @@ export default function MatchForm({
                   <div className="recap-team-players">
                     {matchRecap.teamB.players.map(player => (
                       <div key={player.id} className="recap-player">
-                        <span>{player.name}</span>
+                        <ProfileName
+                          name={player.name}
+                          badgeId={getBadgeIdForName(player.name)}
+                        />
                         <span className="muted">
                           ELO {player.elo} · {player.delta >= 0 ? "+" : ""}{player.delta}
                         </span>

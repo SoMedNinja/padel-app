@@ -146,6 +146,11 @@ export default function History({ matches = [], profiles = [], user }) {
   const startIndex = (currentPage - 1) * pageSize;
   const pagedMatches = matches.slice(startIndex, startIndex + pageSize);
 
+  const renderTeam = (ids = [], names = []) => {
+    const resolvedNames = names.length ? names : idsToNames(ids, profileMap);
+    return resolvedNames.join(" & ");
+  };
+
   return (
     <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
@@ -201,8 +206,6 @@ export default function History({ matches = [], profiles = [], user }) {
                 m.team1_ids?.length ? idsToNames(m.team1_ids, profileMap) : m.team1 || [];
               const teamBList =
                 m.team2_ids?.length ? idsToNames(m.team2_ids, profileMap) : m.team2 || [];
-              const teamA = teamAList.join(" & ");
-              const teamB = teamBList.join(" & ");
               const date = m.created_at?.slice(0, 10);
               const isEditing = editingId === m.id;
 
@@ -243,7 +246,7 @@ export default function History({ matches = [], profiles = [], user }) {
                         ))}
                       </div>
                     ) : (
-                      teamA
+                      renderTeam(m.team1_ids || [], teamAList)
                     )}
                   </td>
 
@@ -267,7 +270,7 @@ export default function History({ matches = [], profiles = [], user }) {
                         ))}
                       </div>
                     ) : (
-                      teamB
+                      renderTeam(m.team2_ids || [], teamBList)
                     )}
                   </td>
 

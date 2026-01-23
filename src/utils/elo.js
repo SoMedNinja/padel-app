@@ -50,8 +50,12 @@ export function calculateElo(matches, profiles = []) {
     acc[profile.id] = profile.avatar_url || null;
     return acc;
   }, {});
+  const badgeMap = profiles.reduce((acc, profile) => {
+    acc[profile.id] = profile.featured_badge_id || null;
+    return acc;
+  }, {});
 
-  const ensurePlayer = (id, name = "Okänd", avatarUrl = null) => {
+  const ensurePlayer = (id, name = "Okänd", avatarUrl = null, featuredBadgeId = null) => {
     if (id === GUEST_ID) return;
     if (!players[id]) {
       players[id] = {
@@ -65,6 +69,7 @@ export function calculateElo(matches, profiles = []) {
         history: [],
         partners: {},
         avatarUrl,
+        featuredBadgeId,
       };
     } else {
       if (name && players[id].name === "Okänd") {
@@ -73,11 +78,14 @@ export function calculateElo(matches, profiles = []) {
       if (avatarUrl && !players[id].avatarUrl) {
         players[id].avatarUrl = avatarUrl;
       }
+      if (featuredBadgeId && !players[id].featuredBadgeId) {
+        players[id].featuredBadgeId = featuredBadgeId;
+      }
     }
   };
 
   profiles.forEach(p => {
-    ensurePlayer(p.id, getProfileDisplayName(p), avatarMap[p.id]);
+    ensurePlayer(p.id, getProfileDisplayName(p), avatarMap[p.id], badgeMap[p.id]);
   });
 
   const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
@@ -106,7 +114,7 @@ export function calculateElo(matches, profiles = []) {
   sortedMatches.forEach(m => {
     const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
     const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
-    [...t1, ...t2].forEach(id => ensurePlayer(id, resolveName(id)));
+    [...t1, ...t2].forEach(id => ensurePlayer(id, resolveName(id), null, badgeMap[id]));
     const t1Active = activeTeam(t1);
     const t2Active = activeTeam(t2);
 
