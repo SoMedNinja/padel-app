@@ -838,20 +838,6 @@ select:focus-visible {
   margin-top:0;
 }
 
-.matchmaker-pool {
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.matchmaker-pool select {
-  min-height:120px;
-}
-
-.matchmaker-pool-meta {
-  font-size:12px;
-}
-
 .match-form-header {
   display:grid;
   grid-template-columns:1fr 1fr;
