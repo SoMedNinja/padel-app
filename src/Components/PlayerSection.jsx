@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart,
   Line,
@@ -634,6 +634,7 @@ export default function PlayerSection({
     playerProfile?.featured_badge_id || null
   );
   const [savingBadgeId, setSavingBadgeId] = useState(null);
+  const badgeUpdateRequestId = useRef(0);
   const comparisonIds = useMemo(() => {
     if (!user?.id) return [];
     if (compareTarget === "all") {
@@ -710,22 +711,38 @@ export default function PlayerSection({
   const handleBadgeSelection = async (badgeId) => {
     if (!user?.id) return;
     const nextBadgeId = badgeId === selectedBadgeId ? null : badgeId;
+    const requestId = (badgeUpdateRequestId.current += 1);
     setSavingBadgeId(badgeId);
     setSelectedBadgeId(nextBadgeId);
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ featured_badge_id: nextBadgeId })
-      .eq("id", user.id)
-      .select();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ featured_badge_id: nextBadgeId })
+        .eq("id", user.id)
+        .select();
 
-    if (error) {
-      alert(error.message || "Kunde inte uppdatera visad merit.");
+      if (requestId !== badgeUpdateRequestId.current) {
+        return;
+      }
+
+      if (error) {
+        alert(error.message || "Kunde inte uppdatera visad merit.");
+        setSelectedBadgeId(playerProfile?.featured_badge_id || null);
+      } else if (data?.length) {
+        onProfileUpdate?.(data[0]);
+      }
+    } catch (error) {
+      if (requestId !== badgeUpdateRequestId.current) {
+        return;
+      }
+      alert(error?.message || "Kunde inte uppdatera visad merit.");
       setSelectedBadgeId(playerProfile?.featured_badge_id || null);
-    } else if (data?.length) {
-      onProfileUpdate?.(data[0]);
+    } finally {
+      if (requestId === badgeUpdateRequestId.current) {
+        setSavingBadgeId(null);
+      }
     }
-    setSavingBadgeId(null);
   };
 
   const badgeStats = useMemo(
