@@ -838,6 +838,20 @@ select:focus-visible {
   margin-top:0;
 }
 
+.matchmaker-pool {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.matchmaker-pool select {
+  min-height:120px;
+}
+
+.matchmaker-pool-meta {
+  font-size:12px;
+}
+
 .match-form-header {
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -911,6 +925,36 @@ select:focus-visible {
 .matchmaker-body {
   display:grid;
   gap:12px;
+}
+
+.matchmaker-rotation {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.matchmaker-round {
+  border:1px solid var(--color-border);
+  border-radius:var(--radius-md);
+  padding:12px;
+  background:#fafafa;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.matchmaker-round-title {
+  font-weight:600;
+}
+
+.matchmaker-round-teams {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));
+  gap:12px;
+}
+
+.matchmaker-round-meta {
+  font-size:13px;
 }
 
 .matchmaker-team {

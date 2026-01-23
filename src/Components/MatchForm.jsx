@@ -32,6 +32,7 @@ export default function MatchForm({
   const [eveningRecap, setEveningRecap] = useState(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
+  const [matchmakerPool, setMatchmakerPool] = useState([]);
   const toastTimeoutRef = useRef(null);
 
   const selectablePlayers = useMemo(() => {
@@ -101,6 +102,153 @@ export default function MatchForm({
 
   const getFairnessScore = (winProbability) =>
     Math.max(0, Math.min(100, Math.round((1 - Math.abs(0.5 - winProbability) * 2) * 100)));
+
+  const getRotationRounds = (playerCount) => {
+    const roundMap = {
+      5: 5,
+      6: 3,
+      7: 7,
+      8: 4,
+    };
+    return roundMap[playerCount] || Math.ceil(playerCount / 2);
+  };
+
+  const buildRotationSchedule = (pool) => {
+    const players = [...pool];
+    const roundCount = getRotationRounds(players.length);
+    const targetGames = (4 * roundCount) / players.length;
+    const games = Object.fromEntries(players.map(id => [id, 0]));
+    const teammateCounts = new Map();
+    const opponentCounts = new Map();
+
+    const pairKey = (a, b) => [a, b].sort().join("|");
+    const getPairCount = (map, a, b) => map.get(pairKey(a, b)) || 0;
+    const addPairCount = (map, a, b) => {
+      const key = pairKey(a, b);
+      map.set(key, (map.get(key) || 0) + 1);
+    };
+
+    const buildCombos = (arr, size) => {
+      const result = [];
+      const helper = (start, combo) => {
+        if (combo.length === size) {
+          result.push([...combo]);
+          return;
+        }
+        for (let i = start; i <= arr.length - (size - combo.length); i += 1) {
+          combo.push(arr[i]);
+          helper(i + 1, combo);
+          combo.pop();
+        }
+      };
+      helper(0, []);
+      return result;
+    };
+
+    const teamSplits = (fourPlayers) => {
+      const [p1, p2, p3, p4] = fourPlayers;
+      return [
+        { teamA: [p1, p2], teamB: [p3, p4] },
+        { teamA: [p1, p3], teamB: [p2, p4] },
+        { teamA: [p1, p4], teamB: [p2, p3] },
+      ];
+    };
+
+    const rounds = [];
+    const combos = buildCombos(players, 4);
+
+    const pickCandidate = (strictGames) => {
+      let best = null;
+      combos.forEach(combo => {
+        const restPlayers = players.filter(id => !combo.includes(id));
+        const teams = teamSplits(combo);
+        teams.forEach(teamsOption => {
+          if (
+            strictGames &&
+            [...teamsOption.teamA, ...teamsOption.teamB].some(id => games[id] >= targetGames)
+          ) {
+            return;
+          }
+
+          const teamAElo = getTeamAverageElo(teamsOption.teamA);
+          const teamBElo = getTeamAverageElo(teamsOption.teamB);
+          const winProbability = getWinProbability(teamAElo, teamBElo);
+          const fairness = getFairnessScore(winProbability);
+
+          const teammatePenalty =
+            getPairCount(teammateCounts, teamsOption.teamA[0], teamsOption.teamA[1]) +
+            getPairCount(teammateCounts, teamsOption.teamB[0], teamsOption.teamB[1]);
+          const opponentPenalty = teamsOption.teamA.reduce(
+            (sum, aId) =>
+              sum +
+              teamsOption.teamB.reduce(
+                (innerSum, bId) => innerSum + getPairCount(opponentCounts, aId, bId),
+                0
+              ),
+            0
+          );
+          const gamePenalty = [...teamsOption.teamA, ...teamsOption.teamB].reduce(
+            (sum, id) => sum + games[id],
+            0
+          );
+          const restPenalty = restPlayers.reduce(
+            (sum, id) => sum + Math.max(0, targetGames - games[id]),
+            0
+          );
+          const score =
+            fairness * 2 -
+            teammatePenalty * 15 -
+            opponentPenalty * 6 -
+            gamePenalty * 4 -
+            restPenalty * 2;
+
+          if (!best || score > best.score) {
+            best = {
+              score,
+              fairness,
+              winProbability,
+              teamA: teamsOption.teamA,
+              teamB: teamsOption.teamB,
+              rest: restPlayers,
+            };
+          }
+        });
+      });
+      return best;
+    };
+
+    for (let round = 0; round < roundCount; round += 1) {
+      const candidate = pickCandidate(true) || pickCandidate(false);
+      if (!candidate) {
+        break;
+      }
+      rounds.push({
+        round: round + 1,
+        teamA: candidate.teamA,
+        teamB: candidate.teamB,
+        rest: candidate.rest,
+        fairness: candidate.fairness,
+        winProbability: candidate.winProbability,
+      });
+
+      [...candidate.teamA, ...candidate.teamB].forEach(id => {
+        games[id] += 1;
+      });
+      addPairCount(teammateCounts, candidate.teamA[0], candidate.teamA[1]);
+      addPairCount(teammateCounts, candidate.teamB[0], candidate.teamB[1]);
+      candidate.teamA.forEach(aId => {
+        candidate.teamB.forEach(bId => {
+          addPairCount(opponentCounts, aId, bId);
+        });
+      });
+    }
+
+    const averageFairness = rounds.length
+      ? Math.round(rounds.reduce((sum, round) => sum + round.fairness, 0) / rounds.length)
+      : 0;
+
+    return { rounds, averageFairness, targetGames };
+  };
 
   const isSameDay = (aDate, bDate) =>
     aDate.getFullYear() === bDate.getFullYear() &&
@@ -305,12 +453,34 @@ export default function MatchForm({
   };
 
   const suggestTeams = () => {
-    if (playerPool.length !== 4) {
-      showToast("Välj exakt fyra unika spelare för att balansera lag.");
+    const pool = matchmakerPool.length ? matchmakerPool : playerPool;
+    const uniquePool = Array.from(new Set(pool)).filter(Boolean);
+
+    if (uniquePool.length < 4 || uniquePool.length > 8) {
+      showToast("Välj 4–8 unika spelare för smarta lagförslag.");
       return;
     }
 
-    const [p1, p2, p3, p4] = playerPool;
+    if (uniquePool.length > 4) {
+      const rotation = buildRotationSchedule(uniquePool);
+      if (!rotation.rounds.length) {
+        showToast("Kunde inte skapa rotation. Prova med färre spelare.");
+        return;
+      }
+      const firstRound = rotation.rounds[0];
+      setTeam1(firstRound.teamA);
+      setTeam2(firstRound.teamB);
+      setMatchSuggestion({
+        mode: "rotation",
+        rounds: rotation.rounds,
+        fairness: rotation.averageFairness,
+        targetGames: rotation.targetGames,
+      });
+      showToast("Rotationsschema klart!");
+      return;
+    }
+
+    const [p1, p2, p3, p4] = uniquePool;
     const options = [
       { teamA: [p1, p2], teamB: [p3, p4] },
       { teamA: [p1, p3], teamB: [p2, p4] },
@@ -331,6 +501,7 @@ export default function MatchForm({
     setTeam1(best.teamA);
     setTeam2(best.teamB);
     setMatchSuggestion({
+      mode: "single",
       fairness: best.fairness,
       winProbability: best.winProbability,
       teamA: best.teamA,
@@ -383,6 +554,33 @@ export default function MatchForm({
           >
             ⚖️ Föreslå lag
           </button>
+        </div>
+
+        <div className="matchmaker-pool">
+          <label className="muted" htmlFor="matchmaker-pool-select">
+            Spelarpool (4–8 spelare)
+          </label>
+          <select
+            id="matchmaker-pool-select"
+            multiple
+            aria-label="Spelarpool för matchmaker"
+            value={matchmakerPool}
+            onChange={e => {
+              const selected = Array.from(e.target.selectedOptions, option => option.value);
+              setMatchmakerPool(selected);
+            }}
+          >
+            {selectablePlayers.map(p => (
+              <option key={p.id} value={p.id}>
+                {getPlayerOptionLabel(p)}
+              </option>
+            ))}
+          </select>
+          <div className="matchmaker-pool-meta muted">
+            {matchmakerPool.length
+              ? `${matchmakerPool.length} spelare valda.`
+              : "Tomt: matchmaker använder spelarna i den aktuella matchen."}
+          </div>
         </div>
 
         <div className="match-form-grid">
@@ -443,24 +641,64 @@ export default function MatchForm({
         <div className="matchmaker-card">
           <div className="matchmaker-header">
             <strong>Smart Matchmaker</strong>
-            <span className="chip chip-success">Balansering {matchSuggestion.fairness}%</span>
+            <span className="chip chip-success">
+              {matchSuggestion.mode === "rotation" ? "Rotation" : "Balansering"}{" "}
+              {matchSuggestion.fairness}%
+            </span>
           </div>
           <div className="matchmaker-body">
-            <div>
-              <span className="muted">Lag A</span>
-              <div className="matchmaker-team">
-                {matchSuggestion.teamA.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+            {matchSuggestion.mode === "rotation" ? (
+              <div className="matchmaker-rotation">
+                {matchSuggestion.rounds.map(round => (
+                  <div key={round.round} className="matchmaker-round">
+                    <div className="matchmaker-round-title">Runda {round.round}</div>
+                    <div className="matchmaker-round-teams">
+                      <div>
+                        <span className="muted">Lag A</span>
+                        <div className="matchmaker-team">
+                          {round.teamA.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="muted">Lag B</span>
+                        <div className="matchmaker-team">
+                          {round.teamB.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="matchmaker-round-meta muted">
+                      Balans {round.fairness}% · Vinstchans Lag A:{" "}
+                      {Math.round(round.winProbability * 100)}%
+                    </div>
+                    <div className="matchmaker-round-meta muted">
+                      Vilar: {round.rest.map(id => getIdDisplayName(id, profileMap)).join(", ")}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div>
-              <span className="muted">Lag B</span>
-              <div className="matchmaker-team">
-                {matchSuggestion.teamB.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
-              </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <span className="muted">Lag A</span>
+                  <div className="matchmaker-team">
+                    {matchSuggestion.teamA.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                  </div>
+                </div>
+                <div>
+                  <span className="muted">Lag B</span>
+                  <div className="matchmaker-team">
+                    {matchSuggestion.teamB.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <div className="matchmaker-footer muted">
-            Förväntad vinstchans Lag A: {Math.round(matchSuggestion.winProbability * 100)}%
+            {matchSuggestion.mode === "rotation"
+              ? `Mål: ${matchSuggestion.targetGames} matcher per spelare.`
+              : `Förväntad vinstchans Lag A: ${Math.round(
+                  matchSuggestion.winProbability * 100
+                )}%`}
           </div>
         </div>
       )}
