@@ -1559,6 +1559,13 @@ select:focus-visible {
   min-width:0;
 }
 
+.mexicana-form input[type="date"] {
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  display:block;
+}
+
 .mexicana-form label {
   display:flex;
   flex-direction:column;
