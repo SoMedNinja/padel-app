@@ -371,6 +371,88 @@ export default function MexicanaTournament({
     setSuccessMessage("Redo att skapa en ny turnering.");
   };
 
+  const deleteTournament = async (tournament) => {
+    if (!tournament?.id) return;
+    if (isGuest || !user?.id) {
+      setErrorMessage("Logga in för att ta bort turneringen.");
+      setSuccessMessage("");
+      return;
+    }
+    if (!window.confirm(`Ta bort turneringen "${tournament.name}" och all tillhörande data?`)) {
+      return;
+    }
+    setIsSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const tournamentId = tournament.id;
+    const { error: matchError } = await supabase
+      .from("matches")
+      .delete()
+      .eq("source_tournament_id", tournamentId);
+    if (matchError) {
+      setErrorMessage(matchError.message || "Kunde inte ta bort matcher.");
+      setIsSaving(false);
+      return;
+    }
+
+    const { error: resultError } = await supabase
+      .from("mexicana_results")
+      .delete()
+      .eq("tournament_id", tournamentId);
+    if (resultError) {
+      setErrorMessage(resultError.message || "Kunde inte ta bort resultat.");
+      setIsSaving(false);
+      return;
+    }
+
+    const { error: roundError } = await supabase
+      .from("mexicana_rounds")
+      .delete()
+      .eq("tournament_id", tournamentId);
+    if (roundError) {
+      setErrorMessage(roundError.message || "Kunde inte ta bort ronder.");
+      setIsSaving(false);
+      return;
+    }
+
+    const { error: participantError } = await supabase
+      .from("mexicana_participants")
+      .delete()
+      .eq("tournament_id", tournamentId);
+    if (participantError) {
+      setErrorMessage(participantError.message || "Kunde inte ta bort deltagare.");
+      setIsSaving(false);
+      return;
+    }
+
+    const { error: tournamentError } = await supabase
+      .from("mexicana_tournaments")
+      .delete()
+      .eq("id", tournamentId);
+    if (tournamentError) {
+      setErrorMessage(tournamentError.message || "Kunde inte ta bort turneringen.");
+      setIsSaving(false);
+      return;
+    }
+
+    setTournaments(prev => prev.filter(item => item.id !== tournamentId));
+    setResultsByTournament(prev => {
+      const next = { ...prev };
+      delete next[tournamentId];
+      return next;
+    });
+    if (activeTournamentId === tournamentId) {
+      const nextTournament = tournaments.find(item => item.id !== tournamentId);
+      setActiveTournamentId(nextTournament?.id || "");
+      setParticipants([]);
+      setRounds([]);
+    }
+    onTournamentSync?.();
+    setSuccessMessage("Turneringen är borttagen.");
+    setIsSaving(false);
+  };
+
   const markAbandoned = async () => {
     if (!activeTournamentId) return;
     if (isGuest || !user?.id) {
@@ -519,8 +601,8 @@ export default function MexicanaTournament({
     "När sista ronden är ifylld kan du slutföra och synka till historiken/ELO.",
   ];
 
-  const completedTournaments = tournaments.filter(
-    tournament => tournament.status === "completed"
+  const historicalTournaments = tournaments.filter(
+    tournament => tournament.status === "completed" || tournament.status === "abandoned"
   );
 
   const hasSyncedResults =
@@ -586,6 +668,38 @@ export default function MexicanaTournament({
           </button>
         </div>
       )}
+
+      <div className="mexicana-action-bar">
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={resetForNewTournament}
+          disabled={isSaving || !activeTournament}
+        >
+          Starta ny turnering
+        </button>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={markAbandoned}
+          disabled={
+            isSaving ||
+            isGuest ||
+            !activeTournament ||
+            activeTournament.status === "completed" ||
+            activeTournament.status === "abandoned"
+          }
+        >
+          Avbryt turnering
+        </button>
+        <button
+          type="button"
+          onClick={completeTournament}
+          disabled={isSaving || isGuest || !activeTournament || !canComplete || activeTournament?.status === "completed"}
+        >
+          Slutför & synka
+        </button>
+      </div>
 
       <div className="mexicana-grid">
         <div className="mexicana-card">
@@ -692,18 +806,6 @@ export default function MexicanaTournament({
                     disabled={isSaving || isGuest}
                   >
                     Markera som avbruten
-                  </button>
-                </div>
-              )}
-              {activeTournament.status === "completed" && (
-                <div className="mexicana-actions">
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={resetForNewTournament}
-                    disabled={isSaving}
-                  >
-                    Starta ny turnering
                   </button>
                 </div>
               )}
@@ -939,8 +1041,8 @@ export default function MexicanaTournament({
 
       <div className="mexicana-card mexicana-history">
         <h3>Historik</h3>
-        {completedTournaments.length === 0 ? (
-          <p className="muted">Inga avslutade turneringar än.</p>
+        {historicalTournaments.length === 0 ? (
+          <p className="muted">Inga avslutade eller avbrutna turneringar än.</p>
         ) : (
           <div className="table-scroll">
             <div className="table-scroll-inner">
@@ -949,13 +1051,14 @@ export default function MexicanaTournament({
                   <tr>
                     <th>Turnering</th>
                     <th>Datum</th>
+                    <th>Status</th>
                     <th>Spelare</th>
                     <th>Topp 3</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {completedTournaments.map(tournament => {
+                  {historicalTournaments.map(tournament => {
                     const tournamentResults = resultsByTournament[tournament.id] || [];
                     const topThree = [...tournamentResults]
                       .sort((a, b) => (a.rank || 0) - (b.rank || 0))
@@ -966,16 +1069,31 @@ export default function MexicanaTournament({
                       <tr key={tournament.id}>
                         <td>{tournament.name}</td>
                         <td>{formatDate(tournament.completed_at || tournament.scheduled_at)}</td>
+                        <td>
+                          <span className={`mexicana-status status-${tournament.status} inline`}>
+                            {getTournamentStatusLabel(tournament.status)}
+                          </span>
+                        </td>
                         <td>{tournamentResults.length || "—"}</td>
                         <td>{topThree || "—"}</td>
                         <td>
-                          <button
-                            type="button"
-                            className="ghost-button"
-                            onClick={() => setActiveTournamentId(tournament.id)}
-                          >
-                            Visa
-                          </button>
+                          <div className="mexicana-history-actions">
+                            <button
+                              type="button"
+                              className="ghost-button"
+                              onClick={() => setActiveTournamentId(tournament.id)}
+                            >
+                              Visa
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-button danger"
+                              onClick={() => deleteTournament(tournament)}
+                              disabled={isSaving || isGuest}
+                            >
+                              Ta bort
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -986,7 +1104,7 @@ export default function MexicanaTournament({
           </div>
         )}
         <p className="muted">
-          Välj en avslutad turnering för att se den låsta vyn med resultat och ronder.
+          Välj en avslutad eller avbruten turnering för att se den låsta vyn med resultat och ronder.
         </p>
       </div>
     </section>
