@@ -58,7 +58,9 @@ export const generateMexicanaRounds = (playerIds = [], eloMap = {}) => {
   const players = [...playerIds];
   const roundCount = getRotationRounds(players.length);
   const targetGames = (4 * roundCount) / players.length;
+  const targetRests = Math.max(0, roundCount - targetGames);
   const games = Object.fromEntries(players.map(id => [id, 0]));
+  const rests = Object.fromEntries(players.map(id => [id, 0]));
   const teammateCounts = new Map();
   const opponentCounts = new Map();
 
@@ -71,6 +73,13 @@ export const generateMexicanaRounds = (playerIds = [], eloMap = {}) => {
       const restPlayers = players.filter(id => !combo.includes(id));
       const teams = teamSplits(combo);
       teams.forEach(teamsOption => {
+        if (
+          strictGames &&
+          targetRests > 0 &&
+          restPlayers.some(id => rests[id] >= targetRests)
+        ) {
+          return;
+        }
         if (
           strictGames &&
           [...teamsOption.teamA, ...teamsOption.teamB].some(id => games[id] >= targetGames)
@@ -103,12 +112,14 @@ export const generateMexicanaRounds = (playerIds = [], eloMap = {}) => {
           (sum, id) => sum + Math.max(0, targetGames - games[id]),
           0
         );
+        const restCountPenalty = restPlayers.reduce((sum, id) => sum + rests[id], 0);
         const score =
           fairness * 2 -
           teammatePenalty * 15 -
           opponentPenalty * 6 -
           gamePenalty * 4 -
-          restPenalty * 2;
+          restPenalty * 2 -
+          restCountPenalty * 5;
 
         if (!best || score > best.score) {
           best = {
@@ -140,6 +151,9 @@ export const generateMexicanaRounds = (playerIds = [], eloMap = {}) => {
 
     [...candidate.teamA, ...candidate.teamB].forEach(id => {
       games[id] += 1;
+    });
+    candidate.rest.forEach(id => {
+      rests[id] += 1;
     });
     addPairCount(teammateCounts, candidate.teamA[0], candidate.teamA[1]);
     addPairCount(teammateCounts, candidate.teamB[0], candidate.teamB[1]);
