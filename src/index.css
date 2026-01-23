@@ -53,6 +53,12 @@ th,td { padding:8px; border:1px solid #ccc; text-align:center; white-space:nowra
   border-color:#f7c7c5;
 }
 
+.notice-banner.success {
+  background:#ecfdf3;
+  border-color:#bbf7d0;
+  color:#166534;
+}
+
 .inline-alert {
   margin:8px 0 0;
   font-size:0.9rem;
@@ -1596,6 +1602,34 @@ select:focus-visible {
   flex-direction:column;
   gap:8px;
   margin-top:12px;
+}
+
+.mexicana-podium {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));
+  gap:12px;
+}
+
+.mexicana-podium-spot {
+  background:#f8fafc;
+  border-radius:12px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  align-items:flex-start;
+}
+
+.mexicana-podium-rank {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  background:#fee2e2;
+  color:#991b1b;
+  font-weight:700;
 }
 
 .mexicana-rules ul {
