@@ -418,6 +418,9 @@ export default function MatchForm({
         team2_ids: team2IdsForDb,
         team1_sets: scoreA,
         team2_sets: scoreB,
+        score_type: "sets",
+        score_target: null,
+        source_tournament_id: null,
         team1_serves_first: true,
         created_by: user.id,
       });

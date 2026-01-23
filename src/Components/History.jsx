@@ -72,6 +72,8 @@ export default function History({ matches = [], profiles = [], user }) {
       team2_ids: getTeamIds(match.team2_ids, match.team2),
       team1_sets: match.team1_sets ?? 0,
       team2_sets: match.team2_sets ?? 0,
+      score_type: match.score_type || "sets",
+      score_target: match.score_target ?? "",
     });
   };
 
@@ -126,6 +128,11 @@ export default function History({ matches = [], profiles = [], user }) {
         team2_ids: team2IdsForDb,
         team1_sets: Number(edit.team1_sets),
         team2_sets: Number(edit.team2_sets),
+        score_type: edit.score_type || "sets",
+        score_target:
+          edit.score_type === "points" && edit.score_target !== ""
+            ? Number(edit.score_target)
+            : null,
       })
       .eq("id", matchId);
 
@@ -149,6 +156,16 @@ export default function History({ matches = [], profiles = [], user }) {
   const renderTeam = (ids = [], names = []) => {
     const resolvedNames = names.length ? names : idsToNames(ids, profileMap);
     return resolvedNames.join(" & ");
+  };
+
+  const formatScore = (match) => {
+    const scoreType = match.score_type || "sets";
+    const score = `${match.team1_sets} – ${match.team2_sets}`;
+    if (scoreType === "points") {
+      const target = match.score_target ? ` (till ${match.score_target})` : "";
+      return `${score} poäng${target}`;
+    }
+    return `${score} set`;
   };
 
   return (
@@ -277,6 +294,36 @@ export default function History({ matches = [], profiles = [], user }) {
                   <td>
                     {isEditing ? (
                       <div className="history-edit-score">
+                        <div className="history-score-type">
+                          <label>
+                            Typ
+                            <select
+                              value={edit?.score_type || "sets"}
+                              onChange={(event) =>
+                                setEdit(prev => (prev ? { ...prev, score_type: event.target.value } : prev))
+                              }
+                            >
+                              <option value="sets">Set</option>
+                              <option value="points">Poäng</option>
+                            </select>
+                          </label>
+                          {edit?.score_type === "points" && (
+                            <label>
+                              Mål
+                              <input
+                                type="number"
+                                min="1"
+                                value={edit?.score_target ?? ""}
+                                onChange={(event) =>
+                                  setEdit(prev =>
+                                    prev ? { ...prev, score_target: event.target.value } : prev
+                                  )
+                                }
+                              />
+                            </label>
+                          )}
+                        </div>
+                        <div className="history-score-values">
                         <input
                           type="number"
                           min="0"
@@ -296,9 +343,10 @@ export default function History({ matches = [], profiles = [], user }) {
                             setEdit(prev => (prev ? { ...prev, team2_sets: event.target.value } : prev))
                           }
                         />
+                        </div>
                       </div>
                     ) : (
-                      `${m.team1_sets} – ${m.team2_sets}`
+                      formatScore(m)
                     )}
                   </td>
 
