@@ -571,7 +571,13 @@ const buildHeadToHeadRecentResults = (
   return results;
 };
 
-export default function PlayerSection({ user, profiles = [], matches = [], onProfileUpdate }) {
+export default function PlayerSection({
+  user,
+  profiles = [],
+  matches = [],
+  tournamentResults = [],
+  onProfileUpdate,
+}) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
@@ -723,8 +729,8 @@ export default function PlayerSection({ user, profiles = [], matches = [], onPro
   };
 
   const badgeStats = useMemo(
-    () => buildPlayerBadgeStats(matches, profiles, user?.id, nameToIdMap),
-    [matches, profiles, user, nameToIdMap]
+    () => buildPlayerBadgeStats(matches, profiles, user?.id, nameToIdMap, tournamentResults),
+    [matches, profiles, user, nameToIdMap, tournamentResults]
   );
   const badgeSummary = useMemo(() => buildPlayerBadges(badgeStats), [badgeStats]);
   const earnedBadgeGroups = useMemo(

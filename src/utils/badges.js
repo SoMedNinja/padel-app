@@ -157,6 +157,33 @@ const BADGE_DEFINITIONS = [
     thresholds: [3, 5, 8, 12, 20],
     group: "Rivaler",
     groupOrder: 14
+  },
+  {
+    idPrefix: "tournaments-played",
+    icon: "🎲",
+    title: "Turneringar",
+    description: (target) => `Spela ${target} turneringar`,
+    thresholds: [1, 3, 5, 8],
+    group: "Turneringar",
+    groupOrder: 15
+  },
+  {
+    idPrefix: "tournaments-wins",
+    icon: "🥇",
+    title: "Turneringssegrar",
+    description: (target) => `Vinn ${target} turneringar`,
+    thresholds: [1, 2, 3],
+    group: "Turneringar",
+    groupOrder: 16
+  },
+  {
+    idPrefix: "tournaments-podiums",
+    icon: "🥉",
+    title: "Pallplatser",
+    description: (target) => `Ta ${target} pallplatser`,
+    thresholds: [1, 3, 5],
+    group: "Turneringar",
+    groupOrder: 17
   }
 ];
 
@@ -228,7 +255,8 @@ export const buildPlayerBadgeStats = (
   matches = [],
   profiles = [],
   playerId,
-  nameToIdMap = {}
+  nameToIdMap = {},
+  tournamentResults = []
 ) => {
   if (!playerId) return null;
 
@@ -254,7 +282,10 @@ export const buildPlayerBadgeStats = (
     quickWins: 0,
     closeWins: 0,
     uniquePartners: 0,
-    uniqueOpponents: 0
+    uniqueOpponents: 0,
+    tournamentsPlayed: 0,
+    tournamentWins: 0,
+    tournamentPodiums: 0
   };
   const partnerSet = new Set();
   const opponentSet = new Set();
@@ -302,15 +333,18 @@ export const buildPlayerBadgeStats = (
       const setsB = Number(match.team2_sets);
       const maxSets = Math.max(setsA, setsB);
       const margin = Math.abs(setsA - setsB);
+      const scoreType = match.score_type || "sets";
 
       const playerTeam = isTeam1 ? team1 : team2;
       const opponentTeam = isTeam1 ? team2 : team1;
       playerTeam.filter(id => id && id !== playerId).forEach(id => partnerSet.add(id));
       opponentTeam.filter(Boolean).forEach(id => opponentSet.add(id));
 
-      if (maxSets >= 6) stats.marathonMatches += 1;
-      if (playerWon && maxSets <= 3) stats.quickWins += 1;
-      if (playerWon && margin === 1) stats.closeWins += 1;
+      if (scoreType === "sets") {
+        if (maxSets >= 6) stats.marathonMatches += 1;
+        if (playerWon && maxSets <= 3) stats.quickWins += 1;
+        if (playerWon && margin === 1) stats.closeWins += 1;
+      }
       if (matchDate && !Number.isNaN(matchDate.getTime())) {
         const diffDays = (now - matchDate.getTime()) / (1000 * 60 * 60 * 24);
         if (diffDays <= 30) stats.matchesLast30Days += 1;
@@ -362,6 +396,16 @@ export const buildPlayerBadgeStats = (
   stats.currentElo = Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE);
   stats.uniquePartners = partnerSet.size;
   stats.uniqueOpponents = opponentSet.size;
+
+  const tournamentEntries = Array.isArray(tournamentResults) ? tournamentResults : [];
+  const playerTournamentResults = tournamentEntries.filter(
+    entry => entry?.profile_id === playerId
+  );
+  const tournamentIds = new Set(playerTournamentResults.map(entry => entry.tournament_id));
+  stats.tournamentsPlayed = tournamentIds.size;
+  stats.tournamentWins = playerTournamentResults.filter(entry => entry.rank === 1).length;
+  stats.tournamentPodiums = playerTournamentResults.filter(entry => entry.rank <= 3).length;
+
   return stats;
 };
 
@@ -394,7 +438,10 @@ export const buildPlayerBadges = (stats) => {
     "fast-win": stats.quickWins,
     clutch: stats.closeWins,
     partners: stats.uniquePartners,
-    rivals: stats.uniqueOpponents
+    rivals: stats.uniqueOpponents,
+    "tournaments-played": stats.tournamentsPlayed,
+    "tournaments-wins": stats.tournamentWins,
+    "tournaments-podiums": stats.tournamentPodiums
   };
 
   const badges = [
@@ -409,7 +456,7 @@ export const buildPlayerBadges = (stats) => {
       description: "Vinn mot ett lag med högre genomsnittlig ELO",
       earned: Boolean(stats.firstWinVsHigherEloAt),
       group: "Jättedödare",
-      groupOrder: 15,
+      groupOrder: 18,
       meta: stats.firstWinVsHigherEloAt
         ? `Första gången: ${formatDate(stats.firstWinVsHigherEloAt)}`
         : "Sikta på en seger mot högre ELO.",
