@@ -11,8 +11,11 @@ export default function EloLeaderboard({ players = [] }) {
   const [sortKey, setSortKey] = useState("elo");
   const [asc, setAsc] = useState(false);
 
+  const hasUnknownPlayers = players.some(player => !player.name || player.name === "Okänd");
+  const showLoadingOverlay = !players.length || hasUnknownPlayers;
+
   // Ta bort Gäst tidigt
-  const visiblePlayers = players.filter(p => p.name !== "Gäst");
+  const visiblePlayers = players.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
 
   const sortedPlayers = [...visiblePlayers].sort((a, b) => {
     let aVal, bVal;
@@ -75,6 +78,11 @@ export default function EloLeaderboard({ players = [] }) {
     <div className="table-card">
       <h2>ELO Leaderboard</h2>
       <div className="table-scroll">
+        {showLoadingOverlay && (
+          <div className="table-loading-overlay" role="status" aria-live="polite">
+            laddar data…
+          </div>
+        )}
         <div className="table-scroll-inner">
           <table className="styled-table leaderboard-table">
           <thead>
