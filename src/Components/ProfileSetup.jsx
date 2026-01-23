@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
 import Avatar from "./Avatar";
-import { cropAvatarImage } from "../utils/avatar";
+import {
+  cropAvatarImage,
+  getStoredAvatar,
+  removeStoredAvatar,
+  setStoredAvatar
+} from "../utils/avatar";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [name, setName] = useState(initialName);
   const [saving, setSaving] = useState(false);
-  const avatarStorageKey = user?.id ? `padel-avatar:${user.id}` : null;
+  const avatarStorageId = user?.id || null;
   const [avatarUrl, setAvatarUrl] = useState(() =>
-    avatarStorageKey ? localStorage.getItem(avatarStorageKey) : null
+    avatarStorageId ? getStoredAvatar(avatarStorageId) : null
   );
   const [pendingAvatar, setPendingAvatar] = useState(null);
   const [avatarZoom, setAvatarZoom] = useState(1);
@@ -23,7 +28,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
 
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
-    if (!file || !avatarStorageKey) return;
+    if (!file || !avatarStorageId) return;
     setAvatarNotice("");
     if (!ALLOWED_TYPES.includes(file.type)) {
       setAvatarNotice("Endast JPG, PNG eller WEBP stöds.");
@@ -45,11 +50,11 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   };
 
   const saveAvatar = async () => {
-    if (!pendingAvatar || !avatarStorageKey) return;
+    if (!pendingAvatar || !avatarStorageId) return;
     setSavingAvatar(true);
     try {
       const cropped = await cropAvatarImage(pendingAvatar, avatarZoom);
-      localStorage.setItem(avatarStorageKey, cropped);
+      setStoredAvatar(avatarStorageId, cropped);
       setAvatarUrl(cropped);
       setPendingAvatar(null);
       if (user?.id) {
@@ -73,8 +78,8 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   };
 
   const removeAvatar = () => {
-    if (!avatarStorageKey) return;
-    localStorage.removeItem(avatarStorageKey);
+    if (!avatarStorageId) return;
+    removeStoredAvatar(avatarStorageId);
     setAvatarUrl(null);
     setPendingAvatar(null);
     setAvatarZoom(1);

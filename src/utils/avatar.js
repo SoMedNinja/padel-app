@@ -4,9 +4,45 @@ export const getInitial = (name = "") => {
   return trimmed[0].toUpperCase();
 };
 
+const canUseStorage = () => {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    const testKey = "__padel_storage_test__";
+    localStorage.setItem(testKey, "ok");
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 export const getStoredAvatar = (id) => {
-  if (!id) return null;
-  return localStorage.getItem(`padel-avatar:${id}`);
+  if (!id || !canUseStorage()) return null;
+  try {
+    return localStorage.getItem(`padel-avatar:${id}`);
+  } catch (error) {
+    return null;
+  }
+};
+
+export const setStoredAvatar = (id, value) => {
+  if (!id || !canUseStorage()) return false;
+  try {
+    localStorage.setItem(`padel-avatar:${id}`, value);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const removeStoredAvatar = (id) => {
+  if (!id || !canUseStorage()) return false;
+  try {
+    localStorage.removeItem(`padel-avatar:${id}`);
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const cropAvatarImage = (source, zoom = 1, outputSize = 300) =>
