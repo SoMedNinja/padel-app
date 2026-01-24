@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Skeleton } from "@mui/material";
-import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { useTournaments, useTournamentDetails, useTournamentResults } from "../hooks/useTournamentData";
 import { useQueryClient } from "@tanstack/react-query";
 import TournamentBracket from "./TournamentBracket";
 import {
+  getIdDisplayName,
   getProfileDisplayName,
   idsToNames,
   makeProfileMap,
@@ -64,6 +63,8 @@ export default function MexicanaTournament({
 
   const [participants, setParticipants] = useState([]);
   const [rounds, setRounds] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const isLoading = isLoadingTournaments || (!!activeTournamentId && isLoadingDetails);
@@ -133,11 +134,11 @@ export default function MexicanaTournament({
   const createTournament = async (event) => {
     event.preventDefault();
     if (!newTournament.name.trim()) {
-      toast.error("Ange ett namn för turneringen.");
+      setErrorMessage("Ange ett namn för turneringen.");
       return;
     }
     if (isGuest || !user?.id) {
-      toast.error("Logga in för att skapa en turnering.");
+      setErrorMessage("Logga in för att skapa en turnering.");
       return;
     }
     setIsSaving(true);
@@ -156,11 +157,11 @@ export default function MexicanaTournament({
       .single();
 
     if (error) {
-      toast.error(error.message);
+      setErrorMessage(error.message);
     } else {
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       setActiveTournamentId(data.id);
-      toast.success("Turneringen är skapad.");
+      setSuccessMessage("Turneringen är skapad.");
     }
     setIsSaving(false);
   };
@@ -175,7 +176,7 @@ export default function MexicanaTournament({
   const saveRoster = async () => {
     if (!activeTournamentId || isGuest || !user?.id) return;
     if (participants.length < 4 || participants.length > 8) {
-      toast.error("Välj 4 till 8 spelare.");
+      setErrorMessage("Välj 4 till 8 spelare.");
       return;
     }
     setIsSaving(true);
@@ -186,10 +187,10 @@ export default function MexicanaTournament({
         profile_id: profileId === GUEST_ID ? null : profileId,
       }))
     );
-    if (error) toast.error(error.message);
+    if (error) setErrorMessage(error.message);
     else {
       queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
-      toast.success("Roster sparad.");
+      setSuccessMessage("Roster sparad.");
     }
     setIsSaving(false);
   };
@@ -197,6 +198,21 @@ export default function MexicanaTournament({
   const startTournament = async () => {
     if (!activeTournamentId || isGuest) return;
     setIsSaving(true);
+
+    // Save roster first to ensure participants are in DB
+    await supabase.from("mexicana_participants").delete().eq("tournament_id", activeTournamentId);
+    const { error: rosterError } = await supabase.from("mexicana_participants").insert(
+      participants.map(profileId => ({
+        tournament_id: activeTournamentId,
+        profile_id: profileId === GUEST_ID ? null : profileId,
+      }))
+    );
+
+    if (rosterError) {
+      setErrorMessage(rosterError.message);
+      setIsSaving(false);
+      return;
+    }
 
     if (tournamentMode === 'americano') {
       const generatedRounds = generateAmericanoRounds(participants);
@@ -214,7 +230,7 @@ export default function MexicanaTournament({
         .insert(roundsPayload);
 
       if (roundError) {
-        toast.error(roundError.message);
+        setErrorMessage(roundError.message);
         setIsSaving(false);
         return;
       }
@@ -226,11 +242,11 @@ export default function MexicanaTournament({
       .eq("id", activeTournamentId);
 
     if (error) {
-      toast.error(error.message);
+      setErrorMessage(error.message);
     } else {
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
-      toast.success("Turneringen har startat.");
+      setSuccessMessage("Turneringen har startat.");
     }
     setIsSaving(false);
   };
@@ -250,7 +266,7 @@ export default function MexicanaTournament({
     const s1 = Number(recordingRound.team1_score);
     const s2 = Number(recordingRound.team2_score);
     if (!Number.isFinite(s1) || !Number.isFinite(s2)) {
-      toast.error("Fyll i poäng för båda lagen.");
+      setErrorMessage("Fyll i poäng för båda lagen.");
       return;
     }
 
@@ -278,11 +294,11 @@ export default function MexicanaTournament({
         mode: recordingRound.mode,
       });
 
-    if (error) toast.error(error.message);
+    if (error) setErrorMessage(error.message);
     else {
       queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
       setRecordingRound(null);
-      toast.success(`Rond ${nextRoundNumber} sparad.`);
+      setSuccessMessage(`Rond ${nextRoundNumber} sparad.`);
     }
     setIsSaving(false);
   };
@@ -296,11 +312,11 @@ export default function MexicanaTournament({
     await supabase.from("matches").delete().eq("source_tournament_id", tournament.id);
 
     const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournament.id);
-    if (error) toast.error(error.message);
+    if (error) setErrorMessage(error.message);
     else {
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
-      toast.success("Turneringen borttagen.");
+      setSuccessMessage("Turneringen borttagen.");
     }
     setIsSaving(false);
   };
@@ -310,10 +326,10 @@ export default function MexicanaTournament({
     if (!window.confirm("Markera turneringen som avbruten?")) return;
     setIsSaving(true);
     const { error } = await supabase.from("mexicana_tournaments").update({ status: "abandoned" }).eq("id", activeTournamentId);
-    if (error) toast.error(error.message);
+    if (error) setErrorMessage(error.message);
     else {
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
-      toast.success("Turneringen avbruten.");
+      setSuccessMessage("Turneringen avbruten.");
     }
     setIsSaving(false);
   };
@@ -340,7 +356,7 @@ export default function MexicanaTournament({
 
     const { error: matchError } = await supabase.from("matches").insert(matchPayload);
     if (matchError) {
-      toast.error(matchError.message);
+      setErrorMessage(matchError.message);
       setIsSaving(false);
       return;
     }
@@ -358,7 +374,7 @@ export default function MexicanaTournament({
 
     const { error: resultError } = await supabase.from("mexicana_results").insert(resultsPayload);
     if (resultError) {
-      toast.error(resultError.message);
+      setErrorMessage(resultError.message);
       setIsSaving(false);
       return;
     }
@@ -368,12 +384,12 @@ export default function MexicanaTournament({
       .update({ status: "completed", completed_at: new Date().toISOString(), synced_to_matches: true })
       .eq("id", activeTournament.id);
 
-    if (tournamentError) toast.error(tournamentError.message);
+    if (tournamentError) setErrorMessage(tournamentError.message);
     else {
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       queryClient.invalidateQueries({ queryKey: ["tournamentResultsHistory"] });
       onTournamentSync?.();
-      toast.success("Turneringen slutförd.");
+      setSuccessMessage("Turneringen slutförd.");
     }
     setIsSaving(false);
   };
@@ -405,10 +421,10 @@ export default function MexicanaTournament({
       .eq("id", roundId);
 
     if (error) {
-      toast.error(error.message);
+      setErrorMessage(error.message);
     } else {
       queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
-      toast.success("Resultat sparat.");
+      setSuccessMessage("Resultat sparat.");
     }
     setIsSaving(false);
   };
@@ -427,6 +443,8 @@ export default function MexicanaTournament({
       return next;
     }));
   };
+
+  if (isLoading) return <div className="loading" style={{ padding: '2rem', textAlign: 'center' }}>Laddar turnering...</div>;
 
   return (
     <section className="page-section mexicana-page">
@@ -450,17 +468,9 @@ export default function MexicanaTournament({
         />
       )}
 
+      {successMessage && <div className="notice-banner success"><div>{successMessage}</div><button onClick={() => setSuccessMessage("")}>Stäng</button></div>}
+      {errorMessage && <div className="notice-banner error"><div>{errorMessage}</div><button onClick={() => setErrorMessage("")}>Stäng</button></div>}
 
-      {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="mexicana-grid">
-            <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '16px' }} />
-            <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '16px' }} />
-          </div>
-          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: '16px' }} />
-        </div>
-      ) : (
-      <>
       <div className="mexicana-grid">
         <div className="mexicana-card">
           <h3>Välj eller skapa turnering</h3>
@@ -499,7 +509,7 @@ export default function MexicanaTournament({
           )}
         </div>
 
-        {activeTournament && (
+        {activeTournament && activeTournament.status === 'draft' && (
           <div className="mexicana-card">
             <h3>Roster ({participants.length})</h3>
             <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -510,10 +520,8 @@ export default function MexicanaTournament({
                 </label>
               ))}
             </div>
-            {activeTournament.status === 'draft' && (
-              <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
-            )}
-            {activeTournament.status === 'draft' && participants.length >= 4 && (
+            <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
+            {participants.length >= 4 && (
               <button onClick={startTournament} disabled={isSaving} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Starta turnering</button>
             )}
           </div>
@@ -639,7 +647,8 @@ export default function MexicanaTournament({
           <div className="mexicana-card">
             <h3>Poängställning</h3>
             <div className="table-scroll">
-              <table className="styled-table">
+              <div className="table-scroll-inner">
+                <table className="styled-table">
                 <thead>
                   <tr>
                     <th>Plac.</th>
@@ -654,7 +663,7 @@ export default function MexicanaTournament({
                   {sortedStandings.map((res, i) => (
                     <tr key={res.id}>
                       <td>{i + 1}</td>
-                      <td>{profileMap[res.id] || "Okänd"}</td>
+                      <td>{getIdDisplayName(res.id, profileMap)}</td>
                       <td>{res.totalPoints}</td>
                       <td>{res.gamesPlayed}</td>
                       <td>{res.wins}/{res.ties}/{res.losses}</td>
@@ -664,6 +673,7 @@ export default function MexicanaTournament({
                 </tbody>
               </table>
             </div>
+          </div>
             <div style={{ marginTop: '1rem' }}>
                <button onClick={markAbandoned} className="ghost-button danger">Avbryt turnering</button>
                <button onClick={completeTournament} disabled={rounds.length === 0} style={{ marginLeft: '0.5rem' }}>Slutför & synka</button>
@@ -674,21 +684,22 @@ export default function MexicanaTournament({
 
       {activeTournament?.status === 'completed' && (
         <div className="mexicana-card">
-          <h3>Results of finished tournament</h3>
+          <h3>Resultat</h3>
           <p><strong>{activeTournament.name}</strong> slutfördes {formatDate(activeTournament.completed_at)}.</p>
 
           <div className="mexicana-podium" style={{ marginBottom: '2rem' }}>
             {sortedStandings.slice(0, 3).map((res, i) => (
               <div key={res.id} className="mexicana-podium-spot">
                 <span className="mexicana-podium-rank">{i + 1}</span>
-                <strong>{profileMap[res.id] || "Okänd"}</strong>
+                <strong>{getIdDisplayName(res.id, profileMap)}</strong>
                 <span className="muted">{res.totalPoints} poäng</span>
               </div>
             ))}
           </div>
 
           <div className="table-scroll">
-            <table className="styled-table">
+            <div className="table-scroll-inner">
+              <table className="styled-table">
               <thead>
                 <tr>
                   <th>Plac.</th>
@@ -703,7 +714,7 @@ export default function MexicanaTournament({
                 {sortedStandings.map((res, i) => (
                   <tr key={res.id}>
                     <td>{i + 1}</td>
-                    <td>{profileMap[res.id] || "Okänd"}</td>
+                    <td>{getIdDisplayName(res.id, profileMap)}</td>
                     <td>{res.totalPoints}</td>
                     <td>{res.gamesPlayed}</td>
                     <td>{res.wins}/{res.ties}/{res.losses}</td>
@@ -713,6 +724,7 @@ export default function MexicanaTournament({
               </tbody>
             </table>
           </div>
+        </div>
           <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '1rem' }}>Tillbaka till alla turneringar</button>
         </div>
       )}
@@ -720,7 +732,8 @@ export default function MexicanaTournament({
       <div className="mexicana-card mexicana-history" style={{ marginTop: '2rem' }}>
         <h3>Historik</h3>
         <div className="table-scroll">
-          <table className="styled-table">
+          <div className="table-scroll-inner">
+            <table className="styled-table">
             <thead>
               <tr>
                 <th>Turnering</th>
@@ -747,8 +760,7 @@ export default function MexicanaTournament({
           </table>
         </div>
       </div>
-      </>
-      )}
+    </div>
     </section>
   );
 }

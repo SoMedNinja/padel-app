@@ -1,4 +1,5 @@
 import React from 'react';
+import { Profile } from '../types';
 import { idsToNames } from '../utils/profileMap';
 
 interface Round {
@@ -13,7 +14,7 @@ interface Round {
 
 interface TournamentBracketProps {
   rounds: Round[];
-  profileMap: Record<string, string>;
+  profileMap: Map<string, Profile>;
   activeTournament: any;
 }
 

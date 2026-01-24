@@ -3,8 +3,6 @@ import MVP from "../Components/MVP";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import Heatmap from "../Components/Heatmap";
 import FilterBar from "../Components/FilterBar";
-import { Skeleton } from "@mui/material";
-import PullToRefresh from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
 import { useMatches } from "../hooks/useMatches";
 import { useProfiles } from "../hooks/useProfiles";
