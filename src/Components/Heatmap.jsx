@@ -14,6 +14,7 @@ const normalizeServeFlag = (value) => {
 export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }) {
   const [sortKey, setSortKey] = useState("games");
   const [asc, setAsc] = useState(false);
+  const [playerFilter, setPlayerFilter] = useState("all");
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const allowedNameMap = useMemo(() => {
@@ -126,6 +127,10 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     };
   });
 
+  if (playerFilter !== "all") {
+    rows = rows.filter(r => r.players.includes(playerFilter));
+  }
+
   rows.sort((a, b) => {
     let valA = a[sortKey], valB = b[sortKey];
     if (sortKey === "winPct") {
@@ -153,9 +158,31 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     }
   };
 
+  const sortedProfileNames = useMemo(() => {
+    return profiles
+      .map(p => getProfileDisplayName(p))
+      .filter(name => name !== GUEST_NAME)
+      .sort((a, b) => a.localeCompare(b, "sv"));
+  }, [profiles]);
+
   return (
     <div className="table-card">
-      <h2>Lag-kombinationer</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "12px" }}>
+        <h2 style={{ margin: 0 }}>Lag-kombinationer</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className="muted">Filtrera spelare:</span>
+          <select
+            value={playerFilter}
+            onChange={e => setPlayerFilter(e.target.value)}
+            style={{ margin: 0, width: "auto", minWidth: "160px" }}
+          >
+            <option value="all">Alla spelare</option>
+            {sortedProfileNames.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
       <div className="table-scroll">
         <div className="table-scroll-inner">
           <table className="styled-table">
