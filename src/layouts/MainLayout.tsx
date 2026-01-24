@@ -57,7 +57,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </h1>
         <button
           ref={menuButtonRef}
-          className="menu-toggle"
+          className="menu-toggle hide-on-mobile"
           type="button"
           aria-label="Öppna meny"
           aria-expanded={isMenuOpen}
@@ -77,7 +77,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
         aria-label="Huvudmeny"
       >
         <Link to="/" onClick={closeMenu}>Hemskärm</Link>
-        {!isGuest && <Link to="/#profile" onClick={closeMenu}>Spelprofil</Link>}
         {!isGuest && <Link to="/#head-to-head" onClick={closeMenu}>Head-to-head</Link>}
         {!isGuest && <Link to="/#meriter" onClick={closeMenu}>Meriter</Link>}
         <Link to="/history" onClick={closeMenu}>Match-historik</Link>
@@ -121,13 +120,37 @@ export default function MainLayout({ children }: MainLayoutProps) {
         )}
         <button
           type="button"
-          className={`fab ${isFabOpen ? 'open' : ''}`}
+          className={`fab ${isFabOpen ? 'open' : ''} hide-on-mobile`}
           onClick={() => setIsFabOpen(!isFabOpen)}
           aria-label="Spela"
         >
           {isFabOpen ? '✕' : '+'}
         </button>
       </>
+
+      <nav className="bottom-nav" aria-label="Bottenmeny">
+        <Link to="/#profile" className="bottom-nav-item" onClick={closeMenu}>
+          <span className="bottom-nav-icon">👤</span>
+          <span className="bottom-nav-label">Spelare</span>
+        </Link>
+        <button
+          type="button"
+          className={`bottom-nav-item primary ${isFabOpen ? 'active' : ''}`}
+          onClick={() => { setIsFabOpen(!isFabOpen); setIsMenuOpen(false); }}
+          aria-label="Spela"
+        >
+          <span className="bottom-nav-icon">{isFabOpen ? '✕' : '+'}</span>
+        </button>
+        <button
+          type="button"
+          className={`bottom-nav-item ${isMenuOpen ? 'active' : ''}`}
+          onClick={() => { setIsMenuOpen(!isMenuOpen); setIsFabOpen(false); }}
+          aria-label="Meny"
+        >
+          <span className="bottom-nav-icon">☰</span>
+          <span className="bottom-nav-label">Meny</span>
+        </button>
+      </nav>
     </div>
   );
 }

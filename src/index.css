@@ -1340,7 +1340,7 @@ select:focus-visible {
   }
 
   .container {
-    padding:16px;
+    padding:16px 16px 80px;
   }
 
   form {
@@ -1351,18 +1351,36 @@ select:focus-visible {
     padding:8px 10px;
   }
 
-  .menu-toggle {
-    width:auto;
-    align-self:flex-end;
-    top:16px;
-    right:16px;
+  .menu-toggle.hide-on-mobile {
+    display: none;
   }
 
   .app-menu {
     right:12px;
     left:12px;
     min-width:auto;
-    top:84px;
+    top: auto;
+    bottom: 84px;
+    transform: translateY(10px);
+  }
+
+  .app-menu.open {
+    transform: translateY(0);
+  }
+
+  .fab-overlay {
+    padding: 100px 12px;
+    justify-content: center;
+  }
+
+  .fab-options {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: -20px;
+  }
+
+  .fab-options button {
+    width: 100%;
   }
 
   .player-header {
@@ -1815,6 +1833,81 @@ select:focus-visible {
   background: var(--color-muted);
 }
 
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    justify-content: space-around;
+    align-items: center;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+    color: var(--color-muted);
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    transition: color 0.2s;
+  }
+
+  .bottom-nav-item.active {
+    color: var(--color-brand);
+  }
+
+  .bottom-nav-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .bottom-nav-label {
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  .bottom-nav-item.primary {
+    position: relative;
+    top: -15px;
+    background: var(--color-brand);
+    color: white;
+    width: 56px;
+    height: 56px;
+    max-width: 56px;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+    flex: none;
+  }
+
+  .bottom-nav-item.primary .bottom-nav-icon {
+    font-size: 28px;
+  }
+
+  .bottom-nav-item.primary.active {
+    background: var(--color-muted);
+    transform: rotate(135deg);
+  }
+}
+
 .fab-overlay {
   position: fixed;
   inset: 0;
@@ -1851,4 +1944,121 @@ select:focus-visible {
   background: var(--color-highlight);
   color: var(--color-brand);
   transform: none;
+}
+
+/* Tournament Bracket Visualization */
+.tournament-bracket {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.bracket-scroll {
+  overflow-x: auto;
+  padding-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bracket-container {
+  display: flex;
+  gap: 24px;
+  padding: 8px 4px;
+  min-width: max-content;
+}
+
+.bracket-round {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 240px;
+}
+
+.bracket-round-header {
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--color-muted);
+  letter-spacing: 0.05em;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.bracket-match {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  transition: transform 0.2s;
+}
+
+.bracket-match.is-played {
+  border-color: var(--color-brand);
+  background: var(--color-highlight);
+}
+
+.bracket-team {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 12px;
+}
+
+.bracket-team:first-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bracket-team-name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.bracket-score {
+  font-family: monospace;
+  font-weight: 800;
+  font-size: 16px;
+  background: var(--color-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.bracket-match.is-played .bracket-score {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.bracket-divider {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--color-muted);
+  text-align: center;
+  margin: -8px 0;
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  width: 24px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.bracket-match.is-played .bracket-divider {
+  background: var(--color-highlight);
+}
+
+.bracket-resting {
+  font-size: 11px;
+  padding: 4px 8px;
+  background: var(--color-bg);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
 }
