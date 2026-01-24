@@ -33,36 +33,60 @@ export default function MVP({
 
   const allowedNames = new Set(players.map(player => player.name));
   const stats = getMvpStats(relevantMatches, allowedNames);
+  const relevantMatchIds = new Set(relevantMatches.map(m => m.id).filter(Boolean));
+
+  const minGames = mode === "evening" ? 3 : 6;
 
   const scored = Object.entries(stats).map(([name, s]) => {
-    const winPct = s.games ? s.wins / s.games : 0;
+    const winRate = s.games ? s.wins / s.games : 0;
     const player = players.find(p => p.name === name);
+
+    const periodEloGain = (player?.history || [])
+      .filter(h => relevantMatchIds.has(h.matchId))
+      .reduce((sum, h) => sum + (h.delta || 0), 0);
+
+    const eloNet = player?.elo || 1000;
 
     return {
       name,
       wins: s.wins,
       games: s.games,
-      winPct: Math.round(winPct * 100),
-      eloDelta: Math.round(
-        (player?.elo || 1000) - (player?.startElo || 1000)
-      ),
+      winRate,
+      winPct: Math.round(winRate * 100),
+      periodEloGain,
+      eloNet,
       badgeId: player?.featuredBadgeId || null,
-      score: s.wins * 3 + winPct * 5 + s.games,
+      score: periodEloGain * (0.9 + 0.2 * winRate) + 0.3 * s.games,
     };
   });
 
-  if (!scored.length) return null;
-
-  const mvp = scored.sort((a, b) => b.score - a.score)[0];
+  const eligible = scored.filter(s => s.games >= minGames);
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
+
+  if (!eligible.length) {
+    return (
+      <div className="mvp">
+        <div className="mvp-title">{titleEmoji} {title}</div>
+        <div className="mvp-meta">inte tillräckligt många spelade matcher</div>
+      </div>
+    );
+  }
+
+  const mvp = eligible.sort((a, b) => {
+    if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
+    if (b.periodEloGain !== a.periodEloGain) return b.periodEloGain - a.periodEloGain;
+    if (b.eloNet !== a.eloNet) return b.eloNet - a.eloNet;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return a.name.localeCompare(b.name);
+  })[0];
 
   return (
     <div className="mvp">
       <div className="mvp-title">{titleEmoji} {title}</div>
       <ProfileName className="mvp-name" name={mvp.name} badgeId={mvp.badgeId} />
       <div className="mvp-meta">
-        {mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {mvp.eloDelta}
+        {mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
       </div>
     </div>
   );

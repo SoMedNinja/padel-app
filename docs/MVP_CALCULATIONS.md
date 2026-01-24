@@ -8,64 +8,59 @@ The application tracks two types of MVP titles:
 
 ### 1. Kvällens MVP (Evening MVP)
 - **Timeframe:** Includes only matches played on the **most recent date** found in the match history.
+- **Eligibility:** A player must have played at least **3 matches** during the evening.
 - **Purpose:** Highlights the top performer of the latest padel session.
 
 ### 2. Månadens MVP (Month MVP)
 - **Timeframe:** Includes all matches played within the **last 30 days** relative to the latest match recorded in the system.
+- **Eligibility:** A player must have played at least **6 matches** during the 30-day period.
 - **Purpose:** Recognizes consistency, high performance, and high participation over a rolling 30-day window.
 
 ## The Scoring Formula
 
-The MVP is not necessarily the person with the most wins; it is a weighted balance of win volume, efficiency, and participation. Every eligible player receives a "MVP Score" calculated as follows:
+The MVP score is designed to reward high ELO gains while also accounting for win efficiency and participation volume.
 
-**`Score = (Wins × 3) + (Win% × 5) + (Games Played)`**
+**`MVP Score = eloGain × (0.9 + 0.2 × winRate) + 0.3 × gamesPlayed`**
 
 ### Breakdown of components:
-1.  **Wins (Weight: 3):** The primary driver. Every win is worth 3 points.
-2.  **Win% (Weight: 5):** Rewards efficiency. A 100% win rate adds 5 points, while a 50% win rate adds 2.5 points. (Calculated as `Wins / Games Played`).
-3.  **Games Played (Weight: 1):** Rewards participation. Every match played adds 1 point, regardless of the outcome.
+1.  **eloGain:** The total ELO points gained (or lost) by the player during the specific period (evening or month).
+2.  **winRate:** The percentage of matches won during the period (expressed as a decimal between 0 and 1). This factor slightly amplifies the ELO gain.
+3.  **gamesPlayed:** The total number of matches played during the period. Every match contributes a flat 0.3 points to the score.
+
+---
+
+## Tie-Breaking Logic
+If two or more players have the same MVP Score, the following tie-breakers are applied in order:
+1.  **Higher eloGain:** The player who gained more ELO during the period.
+2.  **Higher eloNet:** The player with the higher total current ELO rating.
+3.  **More wins:** The player with the higher number of wins in the period.
+4.  **Sorting:** Internal alphabetical/ID sorting.
 
 ---
 
 ## Eligibility & Rules
+- **Minimum Games:** If no player meets the minimum game requirement (3 for Evening, 6 for Month), the system will display "inte tillräckligt många spelade matcher".
 - **Approved Players Only:** Only players with an approved profile are eligible for the MVP title.
-- **Exclusion of Guests:** While "Gäst" (Guest) players can participate in matches and affect the ratings of others, they are excluded from winning MVP titles.
-- **Tie-Breaking:** If two players have the exact same mathematical score, the first player in the sorted list (based on internal processing order) is selected as the MVP.
+- **Exclusion of Guests:** "Gäst" (Guest) players are excluded from winning MVP titles.
 
 ---
 
 ## Calculation Examples
 
-### Example 1: Participation vs. Perfection
-Two players compete on the same evening:
-- **Player A:** 4 wins, 4 games (100% win rate)
-- **Player B:** 4 wins, 6 games (67% win rate)
+### Example 1: High Gain vs. High Efficiency
+Evening MVP (Min 3 games).
+- **Player A:** +30 ELO, 3 wins, 3 games (WinRate: 1.0)
+- **Player B:** +35 ELO, 3 wins, 4 games (WinRate: 0.75)
 
-| Player | Wins (x3) | Win% (x5) | Games (x1) | Total Score |
-| :--- | :--- | :--- | :--- | :--- |
-| **Player A** | 12 | 5.00 | 4 | **21.00** |
-| **Player B** | 12 | 3.35 | 6 | **21.35** |
+**Player A Score:** `30 * (0.9 + 0.2 * 1.0) + 0.3 * 3` = `30 * 1.1 + 0.9` = **33.9**
+**Player B Score:** `35 * (0.9 + 0.2 * 0.75) + 0.3 * 4` = `35 * 1.05 + 1.2` = **37.95**
 
-**Result:** **Player B** wins MVP. Even though Player A was "perfect," Player B's extra participation provided more value to the session.
+**Result:** **Player B** wins due to higher ELO gain and participation, despite a lower win percentage.
 
-### Example 2: Volume Dominance
-- **Player C:** 2 wins, 2 games (100% win rate)
-- **Player D:** 3 wins, 5 games (60% win rate)
+### Example 2: Tie-Breaker Scenario
+Evening MVP (Min 3 games). Both players gain 20 ELO and play 4 matches (WinRate 0.75).
+- **Player C:** Current Total ELO: 1250
+- **Player D:** Current Total ELO: 1100
 
-| Player | Wins (x3) | Win% (x5) | Games (x1) | Total Score |
-| :--- | :--- | :--- | :--- | :--- |
-| **Player C** | 6 | 5.00 | 2 | **13.00** |
-| **Player D** | 9 | 3.00 | 5 | **17.00** |
-
-**Result:** **Player D** wins MVP. Higher win volume and participation significantly outweigh the "perfect" but short performance of Player C.
-
-### Example 3: Marginal Differences
-- **Player E:** 5 wins, 5 games (100% win rate)
-- **Player F:** 5 wins, 7 games (71% win rate)
-
-| Player | Wins (x3) | Win% (x5) | Games (x1) | Total Score |
-| :--- | :--- | :--- | :--- | :--- |
-| **Player E** | 15 | 5.00 | 5 | **25.00** |
-| **Player F** | 15 | 3.55 | 7 | **25.55** |
-
-**Result:** **Player F** wins by a margin of 0.55 points. The extra 2 matches played more than compensated for the two losses.
+**Scores:** Both players have the same MVP Score.
+**Tie-breaker:** Player C wins due to higher **eloNet** (Total ELO).
