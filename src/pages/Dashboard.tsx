@@ -3,7 +3,11 @@ import MVP from "../Components/MVP";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import Heatmap from "../Components/Heatmap";
 import FilterBar from "../Components/FilterBar";
+import { Skeleton } from "@mui/material";
+import PTR from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
+
+const PullToRefresh = (PTR as any).default || PTR;
 import { useMatches } from "../hooks/useMatches";
 import { useProfiles } from "../hooks/useProfiles";
 import { usePadelData } from "../hooks/usePadelData";

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -30,7 +31,6 @@ export default function History({ matches = [], profiles = [], user }) {
 
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -60,12 +60,11 @@ export default function History({ matches = [], profiles = [], user }) {
       const name = names[index];
       if (!name) return "";
       const key = normalizeName(name);
-      return nameToIdMap.get(key) || "";
+      return nameToIdMap[key] || "";
     });
   };
 
   const startEdit = (match) => {
-    setErrorMessage("");
     setEditingId(match.id);
     setEdit({
       created_at: toDateTimeInput(match.created_at),
@@ -81,7 +80,6 @@ export default function History({ matches = [], profiles = [], user }) {
   const cancelEdit = () => {
     setEditingId(null);
     setEdit(null);
-    setErrorMessage("");
   };
 
   const updateTeam = (teamKey, index, value) => {
@@ -102,17 +100,17 @@ export default function History({ matches = [], profiles = [], user }) {
     if (!edit) return;
 
     if (!edit.created_at) {
-      setErrorMessage("Välj datum och tid.");
+      toast.error("Välj datum och tid.");
       return;
     }
 
     if (edit.team1_ids.some(id => !id) || edit.team2_ids.some(id => !id)) {
-      setErrorMessage("Välj spelare för alla positioner.");
+      toast.error("Välj spelare för alla positioner.");
       return;
     }
 
     if (hasDuplicatePlayers(edit.team1_ids, edit.team2_ids)) {
-      setErrorMessage("Samma spelare kan inte vara med i båda lagen.");
+      toast.error("Samma spelare kan inte vara med i båda lagen.");
       return;
     }
 
@@ -138,8 +136,9 @@ export default function History({ matches = [], profiles = [], user }) {
       .eq("id", matchId);
 
     if (error) {
-      setErrorMessage(error.message);
+      toast.error(error.message);
     } else {
+      toast.success("Matchen har uppdaterats.");
       cancelEdit();
     }
   };
@@ -148,7 +147,11 @@ export default function History({ matches = [], profiles = [], user }) {
     if (!window.confirm("Radera matchen?")) return;
 
     const { error } = await supabase.from("matches").delete().eq("id", matchId);
-    if (error) setErrorMessage(error.message);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Matchen har raderats.");
+    }
   };
 
   const startIndex = (currentPage - 1) * pageSize;
@@ -172,14 +175,6 @@ export default function History({ matches = [], profiles = [], user }) {
   return (
     <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
-      {errorMessage && (
-        <div className="notice-banner error" role="alert">
-          <div>{errorMessage}</div>
-          <button type="button" className="ghost-button" onClick={() => setErrorMessage("")}>
-            Stäng
-          </button>
-        </div>
-      )}
       <div className="pagination">
         <button
           type="button"
