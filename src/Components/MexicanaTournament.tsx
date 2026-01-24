@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
+import { useTournaments, useTournamentDetails, useTournamentResults } from "../hooks/useTournamentData";
+import { useQueryClient } from "@tanstack/react-query";
+import TournamentBracket from "./TournamentBracket";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -51,15 +54,20 @@ export default function MexicanaTournament({
   isGuest = false,
   onTournamentSync,
 }) {
-  const [tournaments, setTournaments] = useState([]);
+  const queryClient = useQueryClient();
   const [activeTournamentId, setActiveTournamentId] = useState("");
+  const { data: tournaments = [], isLoading: isLoadingTournaments } = useTournaments();
+  const { data: tournamentData, isLoading: isLoadingDetails } = useTournamentDetails(activeTournamentId);
+  const { data: resultsByTournament = {} } = useTournamentResults();
+
   const [participants, setParticipants] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [resultsByTournament, setResultsByTournament] = useState({});
+
+  const isLoading = isLoadingTournaments || (!!activeTournamentId && isLoadingDetails);
+
   const [newTournament, setNewTournament] = useState({
     name: "",
     scheduled_at: toDateInput(new Date().toISOString()),
@@ -107,81 +115,20 @@ export default function MexicanaTournament({
   }, [rounds, participants, tournamentMode]);
 
   useEffect(() => {
-    const loadTournaments = async () => {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("mexicana_tournaments")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) {
-        setErrorMessage(error.message || "Kunde inte hämta turneringar.");
-      }
-      setTournaments(data || []);
-      if (!activeTournamentId && data?.length) {
-        setActiveTournamentId(data[0].id);
-      }
-      setIsLoading(false);
-    };
-
-    loadTournaments();
-  }, []);
+    if (!activeTournamentId && tournaments.length > 0) {
+      setActiveTournamentId(tournaments[0].id);
+    }
+  }, [tournaments, activeTournamentId]);
 
   useEffect(() => {
-    const loadResults = async () => {
-      const { data, error } = await supabase.from("mexicana_results").select("*");
-      if (error) {
-        setErrorMessage(error.message || "Kunde inte hämta historiska resultat.");
-        return;
-      }
-      const grouped = (data || []).reduce((acc, row) => {
-        if (!row?.tournament_id) return acc;
-        if (!acc[row.tournament_id]) acc[row.tournament_id] = [];
-        acc[row.tournament_id].push(row);
-        return acc;
-      }, {});
-      setResultsByTournament(grouped);
-    };
-
-    loadResults();
-  }, []);
-
-  useEffect(() => {
-    if (!activeTournamentId) {
+    if (tournamentData) {
+      setParticipants(tournamentData.participants);
+      setRounds(tournamentData.rounds);
+    } else if (!activeTournamentId) {
       setParticipants([]);
       setRounds([]);
-      return;
     }
-
-    const loadTournamentDetails = async () => {
-      const [{ data: participantRows, error: participantError }, { data: roundRows, error: roundError }] =
-        await Promise.all([
-          supabase
-            .from("mexicana_participants")
-            .select("profile_id")
-            .eq("tournament_id", activeTournamentId),
-          supabase
-            .from("mexicana_rounds")
-            .select("*")
-            .eq("tournament_id", activeTournamentId)
-            .order("round_number", { ascending: true }),
-        ]);
-
-      if (participantError) setErrorMessage(participantError.message);
-      if (roundError) setErrorMessage(roundError.message);
-
-      setParticipants(participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || []);
-
-      const mappedRounds = (roundRows || []).map(round => ({
-        ...round,
-        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
-        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
-        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
-      }));
-      setRounds(mappedRounds);
-    };
-
-    loadTournamentDetails();
-  }, [activeTournamentId]);
+  }, [tournamentData, activeTournamentId]);
 
   const createTournament = async (event) => {
     event.preventDefault();
@@ -211,10 +158,8 @@ export default function MexicanaTournament({
     if (error) {
       setErrorMessage(error.message);
     } else {
-      setTournaments(prev => [data, ...prev]);
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       setActiveTournamentId(data.id);
-      setParticipants([]);
-      setRounds([]);
       setSuccessMessage("Turneringen är skapad.");
     }
     setIsSaving(false);
@@ -242,7 +187,10 @@ export default function MexicanaTournament({
       }))
     );
     if (error) setErrorMessage(error.message);
-    else setSuccessMessage("Roster sparad.");
+    else {
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      setSuccessMessage("Roster sparad.");
+    }
     setIsSaving(false);
   };
 
@@ -261,25 +209,15 @@ export default function MexicanaTournament({
         mode: 'americano',
       }));
 
-      const { data: insertedRounds, error: roundError } = await supabase
+      const { error: roundError } = await supabase
         .from("mexicana_rounds")
-        .insert(roundsPayload)
-        .select();
+        .insert(roundsPayload);
 
       if (roundError) {
         setErrorMessage(roundError.message);
         setIsSaving(false);
         return;
       }
-
-      const mappedRounds = (insertedRounds || []).map(round => ({
-        ...round,
-        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
-        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
-        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
-      })).sort((a, b) => a.round_number - b.round_number);
-
-      setRounds(mappedRounds);
     }
 
     const { error } = await supabase
@@ -290,7 +228,8 @@ export default function MexicanaTournament({
     if (error) {
       setErrorMessage(error.message);
     } else {
-      setTournaments(prev => prev.map(t => t.id === activeTournamentId ? { ...t, status: "in_progress" } : t));
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
       setSuccessMessage("Turneringen har startat.");
     }
     setIsSaving(false);
@@ -326,7 +265,7 @@ export default function MexicanaTournament({
     const t2Ids = recordingRound.team2_ids.map(id => id === GUEST_ID ? null : id);
     const rIds = restingIds.map(id => id === GUEST_ID ? null : id);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("mexicana_rounds")
       .insert({
         tournament_id: activeTournamentId,
@@ -337,13 +276,11 @@ export default function MexicanaTournament({
         team1_score: s1,
         team2_score: s2,
         mode: recordingRound.mode,
-      })
-      .select()
-      .single();
+      });
 
     if (error) setErrorMessage(error.message);
     else {
-      setRounds(prev => [...prev, data]);
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
       setRecordingRound(null);
       setSuccessMessage(`Rond ${nextRoundNumber} sparad.`);
     }
@@ -361,7 +298,7 @@ export default function MexicanaTournament({
     const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournament.id);
     if (error) setErrorMessage(error.message);
     else {
-      setTournaments(prev => prev.filter(t => t.id !== tournament.id));
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
       setSuccessMessage("Turneringen borttagen.");
     }
@@ -375,7 +312,7 @@ export default function MexicanaTournament({
     const { error } = await supabase.from("mexicana_tournaments").update({ status: "abandoned" }).eq("id", activeTournamentId);
     if (error) setErrorMessage(error.message);
     else {
-      setTournaments(prev => prev.map(t => t.id === activeTournamentId ? { ...t, status: "abandoned" } : t));
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       setSuccessMessage("Turneringen avbruten.");
     }
     setIsSaving(false);
@@ -433,7 +370,8 @@ export default function MexicanaTournament({
 
     if (tournamentError) setErrorMessage(tournamentError.message);
     else {
-      setTournaments(prev => prev.map(t => t.id === activeTournament.id ? { ...t, status: "completed", synced_to_matches: true } : t));
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      queryClient.invalidateQueries({ queryKey: ["tournamentResultsHistory"] });
       onTournamentSync?.();
       setSuccessMessage("Turneringen slutförd.");
     }
@@ -469,7 +407,7 @@ export default function MexicanaTournament({
     if (error) {
       setErrorMessage(error.message);
     } else {
-      setRounds(prev => prev.map(r => r.id === roundId ? { ...r, team1_score: Number(s1), team2_score: Number(s2) } : r));
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
       setSuccessMessage("Resultat sparat.");
     }
     setIsSaving(false);
@@ -503,6 +441,14 @@ export default function MexicanaTournament({
           </span>
         )}
       </header>
+
+      {activeTournament && (activeTournament.status === 'in_progress' || activeTournament.status === 'completed') && (
+        <TournamentBracket
+          rounds={rounds}
+          profileMap={profileMap}
+          activeTournament={activeTournament}
+        />
+      )}
 
       {successMessage && <div className="notice-banner success"><div>{successMessage}</div><button onClick={() => setSuccessMessage("")}>Stäng</button></div>}
       {errorMessage && <div className="notice-banner error"><div>{errorMessage}</div><button onClick={() => setErrorMessage("")}>Stäng</button></div>}
