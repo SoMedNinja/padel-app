@@ -39,7 +39,7 @@ export default function App() {
   const menuButtonRef = useRef(null);
   const menuRef = useRef(null);
 
-  const MATCH_PAGE_SIZE = 40;
+  const MATCH_PAGE_SIZE = 1000;
 
   // 1) Auth state
   useEffect(() => {
@@ -122,35 +122,61 @@ export default function App() {
     filter = matchFilter,
   } = {}) => {
     setIsLoadingMatches(true);
-    let query = supabase
-      .from("matches")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(MATCH_PAGE_SIZE);
-    if (cursor) {
-      query = query.lt("created_at", cursor);
-    }
-    query = applyMatchFilter(query, filter);
-    const { data, error } = await query;
-    if (error) {
-      console.error(error);
-      setDataError("Kunde inte hämta matcher. Försök igen senare.");
-      setIsLoadingMatches(false);
-      return;
-    }
-    const pageMatches = data || [];
-    setMatches(prev => {
-      if (replace) return pageMatches;
-      const seen = new Set(prev.map(match => match.id));
-      const merged = [...prev];
-      pageMatches.forEach(match => {
-        if (!seen.has(match.id)) merged.push(match);
+    let allMatches = [];
+    let currentCursor = cursor;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        let query = supabase
+          .from("matches")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(MATCH_PAGE_SIZE);
+
+        if (currentCursor) {
+          query = query.lt("created_at", currentCursor);
+        }
+
+        query = applyMatchFilter(query, filter);
+        const { data, error } = await query;
+
+        if (error) {
+          console.error(error);
+          setDataError("Kunde inte hämta matcher. Försök igen senare.");
+          setIsLoadingMatches(false);
+          return;
+        }
+
+        const pageMatches = data || [];
+        allMatches = [...allMatches, ...pageMatches];
+
+        // Only fetch multiple pages if we are replacing (initial load for a filter)
+        if (!replace || pageMatches.length < MATCH_PAGE_SIZE) {
+          hasMore = false;
+          setHasMoreMatches(pageMatches.length === MATCH_PAGE_SIZE);
+        } else {
+          currentCursor = pageMatches[pageMatches.length - 1].created_at;
+        }
+      }
+
+      setMatches(prev => {
+        if (replace) return allMatches;
+        const seen = new Set(prev.map(match => match.id));
+        const merged = [...prev];
+        allMatches.forEach(match => {
+          if (!seen.has(match.id)) merged.push(match);
+        });
+        return merged;
       });
-      return merged;
-    });
-    setMatchCursor(pageMatches.length ? pageMatches[pageMatches.length - 1].created_at : null);
-    setHasMoreMatches(pageMatches.length === MATCH_PAGE_SIZE);
-    setIsLoadingMatches(false);
+
+      setMatchCursor(allMatches.length ? allMatches[allMatches.length - 1].created_at : null);
+    } catch (err) {
+      console.error(err);
+      setDataError("Ett oväntat fel uppstod vid hämtning av matcher.");
+    } finally {
+      setIsLoadingMatches(false);
+    }
   }, [MATCH_PAGE_SIZE, matchFilter]);
 
   // 2) Load profiles + matches + realtime
