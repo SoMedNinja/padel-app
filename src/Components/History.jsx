@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import PullToRefresh from "react-simple-pull-to-refresh";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -17,7 +18,7 @@ const toDateTimeInput = (value) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-export default function History({ matches = [], profiles = [], user }) {
+export default function History({ matches = [], profiles = [], user, onRefresh }) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
   const playerOptions = useMemo(() => {
@@ -35,12 +36,7 @@ export default function History({ matches = [], profiles = [], user }) {
   const pageSize = 10;
 
   const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  const effectivePage = Math.min(currentPage, totalPages);
 
   if (!matches.length) return <div>Inga matcher ännu.</div>;
 
@@ -151,7 +147,7 @@ export default function History({ matches = [], profiles = [], user }) {
     if (error) setErrorMessage(error.message);
   };
 
-  const startIndex = (currentPage - 1) * pageSize;
+  const startIndex = (effectivePage - 1) * pageSize;
   const pagedMatches = matches.slice(startIndex, startIndex + pageSize);
 
   const renderTeam = (ids = [], names = []) => {
@@ -169,7 +165,7 @@ export default function History({ matches = [], profiles = [], user }) {
     return `${score} set`;
   };
 
-  return (
+  const content = (
     <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
       {errorMessage && (
@@ -185,18 +181,18 @@ export default function History({ matches = [], profiles = [], user }) {
           type="button"
           className="ghost-button"
           onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
-          disabled={currentPage === 1}
+          disabled={effectivePage <= 1}
         >
           Föregående
         </button>
         <span className="pagination-status">
-          Sida {currentPage} av {totalPages}
+          Sida {effectivePage} av {totalPages}
         </span>
         <button
           type="button"
           className="ghost-button"
           onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
-          disabled={currentPage === totalPages}
+          disabled={effectivePage >= totalPages}
         >
           Nästa
         </button>
@@ -399,4 +395,10 @@ export default function History({ matches = [], profiles = [], user }) {
       </p>
     </div>
   );
+
+  if (onRefresh) {
+    return <PullToRefresh onRefresh={onRefresh}>{content}</PullToRefresh>;
+  }
+
+  return content;
 }

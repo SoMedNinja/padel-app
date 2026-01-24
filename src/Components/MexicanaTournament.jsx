@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Skeleton } from "@mui/material";
+import PullToRefresh from "react-simple-pull-to-refresh";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
@@ -8,7 +10,6 @@ import {
 } from "../utils/profileMap";
 import {
   getTournamentState,
-  getRestCycle,
   getNextSuggestion,
   generateAmericanoRounds,
 } from "../utils/tournamentLogic";
@@ -47,9 +48,9 @@ const getTournamentStatusLabel = (status) => {
 export default function MexicanaTournament({
   user,
   profiles = [],
-  eloPlayers = [],
   isGuest = false,
   onTournamentSync,
+  onRefresh,
 }) {
   const [tournaments, setTournaments] = useState([]);
   const [activeTournamentId, setActiveTournamentId] = useState("");
@@ -59,7 +60,6 @@ export default function MexicanaTournament({
   const [successMessage, setSuccessMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [resultsByTournament, setResultsByTournament] = useState({});
   const [newTournament, setNewTournament] = useState({
     name: "",
     scheduled_at: toDateInput(new Date().toISOString()),
@@ -106,82 +106,95 @@ export default function MexicanaTournament({
     return getNextSuggestion(rounds, participants, tournamentMode);
   }, [rounds, participants, tournamentMode]);
 
-  useEffect(() => {
-    const loadTournaments = async () => {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("mexicana_tournaments")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) {
-        setErrorMessage(error.message || "Kunde inte hämta turneringar.");
-      }
-      setTournaments(data || []);
-      if (!activeTournamentId && data?.length) {
-        setActiveTournamentId(data[0].id);
-      }
-      setIsLoading(false);
-    };
+  const loadTournaments = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(prev => prev ? prev : true);
+    }
+    const { data, error } = await supabase
+      .from("mexicana_tournaments")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      setErrorMessage(error.message || "Kunde inte hämta turneringar.");
+    }
+    setTournaments(data || []);
+    if (!activeTournamentId && data?.length) {
+      setActiveTournamentId(data[0].id);
+    }
+    if (showLoading) setIsLoading(false);
+  }, [activeTournamentId]);
 
-    loadTournaments();
+  const loadResults = useCallback(async () => {
+    const { error } = await supabase.from("mexicana_results").select("*");
+    if (error) {
+      setErrorMessage(error.message || "Kunde inte hämta historiska resultat.");
+      return;
+    }
   }, []);
 
-  useEffect(() => {
-    const loadResults = async () => {
-      const { data, error } = await supabase.from("mexicana_results").select("*");
-      if (error) {
-        setErrorMessage(error.message || "Kunde inte hämta historiska resultat.");
-        return;
-      }
-      const grouped = (data || []).reduce((acc, row) => {
-        if (!row?.tournament_id) return acc;
-        if (!acc[row.tournament_id]) acc[row.tournament_id] = [];
-        acc[row.tournament_id].push(row);
-        return acc;
-      }, {});
-      setResultsByTournament(grouped);
-    };
-
-    loadResults();
-  }, []);
-
-  useEffect(() => {
+  const loadTournamentDetails = useCallback(async () => {
     if (!activeTournamentId) {
       setParticipants([]);
       setRounds([]);
       return;
     }
 
-    const loadTournamentDetails = async () => {
-      const [{ data: participantRows, error: participantError }, { data: roundRows, error: roundError }] =
-        await Promise.all([
-          supabase
-            .from("mexicana_participants")
-            .select("profile_id")
-            .eq("tournament_id", activeTournamentId),
-          supabase
-            .from("mexicana_rounds")
-            .select("*")
-            .eq("tournament_id", activeTournamentId)
-            .order("round_number", { ascending: true }),
-        ]);
+    const [{ data: participantRows, error: participantError }, { data: roundRows, error: roundError }] =
+      await Promise.all([
+        supabase
+          .from("mexicana_participants")
+          .select("profile_id")
+          .eq("tournament_id", activeTournamentId),
+        supabase
+          .from("mexicana_rounds")
+          .select("*")
+          .eq("tournament_id", activeTournamentId)
+          .order("round_number", { ascending: true }),
+      ]);
 
-      if (participantError) setErrorMessage(participantError.message);
-      if (roundError) setErrorMessage(roundError.message);
+    if (participantError) setErrorMessage(participantError.message);
+    if (roundError) setErrorMessage(roundError.message);
 
-      setParticipants(participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || []);
+    setParticipants(participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || []);
 
-      const mappedRounds = (roundRows || []).map(round => ({
-        ...round,
-        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
-        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
-        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
-      }));
-      setRounds(mappedRounds);
-    };
-
-    loadTournamentDetails();
+    const mappedRounds = (roundRows || []).map(round => ({
+      ...round,
+      team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
+      team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
+      resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
+    }));
+    setRounds(mappedRounds);
   }, [activeTournamentId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadTournaments();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadTournaments]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadResults();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadResults]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadTournamentDetails();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadTournamentDetails]);
+
+  const handleRefresh = async () => {
+    if (onRefresh) await onRefresh();
+    await Promise.all([
+      loadTournaments(false),
+      loadResults(),
+      loadTournamentDetails()
+    ]);
+  };
 
   const createTournament = async (event) => {
     event.preventDefault();
@@ -453,8 +466,6 @@ export default function MexicanaTournament({
     });
   };
 
-  const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
-
   const updateRoundInDb = async (roundId, s1, s2) => {
     if (isGuest || !user?.id) return;
     setIsSaving(true);
@@ -490,7 +501,7 @@ export default function MexicanaTournament({
     }));
   };
 
-  return (
+  const content = (
     <section className="page-section mexicana-page">
       <header className="mexicana-header">
         <div>
@@ -507,6 +518,16 @@ export default function MexicanaTournament({
       {successMessage && <div className="notice-banner success"><div>{successMessage}</div><button onClick={() => setSuccessMessage("")}>Stäng</button></div>}
       {errorMessage && <div className="notice-banner error"><div>{errorMessage}</div><button onClick={() => setErrorMessage("")}>Stäng</button></div>}
 
+      {isLoading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="mexicana-grid">
+            <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '16px' }} />
+            <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '16px' }} />
+          </div>
+          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: '16px' }} />
+        </div>
+      ) : (
+      <>
       <div className="mexicana-grid">
         <div className="mexicana-card">
           <h3>Välj eller skapa turnering</h3>
@@ -793,6 +814,14 @@ export default function MexicanaTournament({
           </table>
         </div>
       </div>
+      </>
+      )}
     </section>
+  );
+
+  return (
+    <PullToRefresh onRefresh={handleRefresh}>
+      {content}
+    </PullToRefresh>
   );
 }

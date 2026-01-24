@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Toaster } from "sonner";
+import { Skeleton } from "@mui/material";
+import PullToRefresh from "react-simple-pull-to-refresh";
 import { supabase } from "./supabaseClient";
 
 import Auth from "./Components/Auth";
@@ -484,6 +487,7 @@ export default function App() {
 
   return (
     <div className="container">
+      <Toaster position="top-center" richColors />
       {dataError && (
         <div className="notice-banner error" role="alert">
           <div>
@@ -622,11 +626,20 @@ export default function App() {
       )}
 
       {activePage === "dashboard" && (
+        <PullToRefresh onRefresh={retryData}>
         <section id="dashboard" className="page-section">
-          {(isLoadingProfiles || isLoadingMatches) && (
-            <p className="muted">Laddar data...</p>
+          {(isLoadingProfiles || isLoadingMatches) ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
+              <Skeleton variant="rectangular" height={40} sx={{ borderRadius: '999px' }} />
+              <div className="mvp-grid">
+                <Skeleton variant="rectangular" height={160} sx={{ borderRadius: '14px' }} />
+                <Skeleton variant="rectangular" height={160} sx={{ borderRadius: '14px' }} />
+              </div>
+              <Skeleton variant="rectangular" height={400} sx={{ borderRadius: '14px' }} />
+            </div>
+          ) : (
+            <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
           )}
-          <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
           <div className="mvp-grid">
             <MVP
               matches={filteredMatches}
@@ -680,6 +693,7 @@ export default function App() {
             </section>
           )}
         </section>
+        </PullToRefresh>
       )}
 
       {activePage === "single-game" && !isGuest && (
@@ -698,17 +712,26 @@ export default function App() {
         <section id="history" className="page-section">
           <h2>Match-historik</h2>
           <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
-          <History
-            matches={filteredMatches}
-            profiles={historyProfiles}
-            user={isGuest ? null : userWithAdmin}
-          />
-          {hasMoreMatches && (
-            <div className="load-more">
-              <button type="button" onClick={loadMoreMatches} disabled={isLoadingMatches}>
-                {isLoadingMatches ? "Laddar..." : "Visa fler matcher"}
-              </button>
+          {isLoadingMatches && matches.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Skeleton variant="rectangular" height={400} sx={{ borderRadius: '14px' }} />
             </div>
+          ) : (
+            <>
+              <History
+                matches={filteredMatches}
+                profiles={historyProfiles}
+                user={isGuest ? null : userWithAdmin}
+                onRefresh={retryData}
+              />
+              {hasMoreMatches && (
+                <div className="load-more">
+                  <button type="button" onClick={loadMoreMatches} disabled={isLoadingMatches}>
+                    {isLoadingMatches ? <Skeleton width={100} height={24} sx={{ display: 'inline-block' }} /> : "Visa fler matcher"}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
       )}
@@ -721,6 +744,7 @@ export default function App() {
             eloPlayers={allEloPlayers}
             isGuest={isGuest}
             onTournamentSync={loadTournamentResults}
+            onRefresh={retryData}
           />
         </section>
       )}
