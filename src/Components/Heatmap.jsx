@@ -41,6 +41,13 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     return new Map(eloPlayers.map(player => [player.name, player.elo]));
   }, [eloPlayers]);
 
+  const sortedProfileNames = useMemo(() => {
+    return profiles
+      .map(p => getProfileDisplayName(p))
+      .filter(name => name !== GUEST_NAME)
+      .sort((a, b) => a.localeCompare(b, "sv"));
+  }, [profiles]);
+
   if (!matches.length) return null;
 
   const combos = {};
@@ -157,13 +164,6 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
       setAsc(false);
     }
   };
-
-  const sortedProfileNames = useMemo(() => {
-    return profiles
-      .map(p => getProfileDisplayName(p))
-      .filter(name => name !== GUEST_NAME)
-      .sort((a, b) => a.localeCompare(b, "sv"));
-  }, [profiles]);
 
   return (
     <div className="table-card">
