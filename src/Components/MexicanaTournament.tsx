@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import TournamentBracket from "./TournamentBracket";
 import {
   getProfileDisplayName,
+  getIdDisplayName,
   idsToNames,
   makeProfileMap,
 } from "../utils/profileMap";
@@ -491,21 +492,19 @@ export default function MexicanaTournament({
           )}
         </div>
 
-        {activeTournament && (
+        {activeTournament && activeTournament.status === 'draft' && (
           <div className="mexicana-card">
             <h3>Roster ({participants.length})</h3>
             <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
               {selectableProfiles.map(p => (
                 <label key={p.id} className="mexicana-roster-item">
-                  <input type="checkbox" checked={participants.includes(p.id)} onChange={() => toggleParticipant(p.id)} disabled={activeTournament.status !== 'draft'} />
+                  <input type="checkbox" checked={participants.includes(p.id)} onChange={() => toggleParticipant(p.id)} />
                   <span>{getProfileDisplayName(p)}</span>
                 </label>
               ))}
             </div>
-            {activeTournament.status === 'draft' && (
-              <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
-            )}
-            {activeTournament.status === 'draft' && participants.length >= 4 && (
+            <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
+            {participants.length >= 4 && (
               <button onClick={startTournament} disabled={isSaving} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Starta turnering</button>
             )}
           </div>
@@ -646,7 +645,7 @@ export default function MexicanaTournament({
                   {sortedStandings.map((res, i) => (
                     <tr key={res.id}>
                       <td>{i + 1}</td>
-                      <td>{profileMap[res.id] || "Okänd"}</td>
+                      <td>{getIdDisplayName(res.id, profileMap)}</td>
                       <td>{res.totalPoints}</td>
                       <td>{res.gamesPlayed}</td>
                       <td>{res.wins}/{res.ties}/{res.losses}</td>
@@ -673,7 +672,7 @@ export default function MexicanaTournament({
             {sortedStandings.slice(0, 3).map((res, i) => (
               <div key={res.id} className="mexicana-podium-spot">
                 <span className="mexicana-podium-rank">{i + 1}</span>
-                <strong>{profileMap[res.id] || "Okänd"}</strong>
+                <strong>{getIdDisplayName(res.id, profileMap)}</strong>
                 <span className="muted">{res.totalPoints} poäng</span>
               </div>
             ))}
@@ -695,7 +694,7 @@ export default function MexicanaTournament({
                 {sortedStandings.map((res, i) => (
                   <tr key={res.id}>
                     <td>{i + 1}</td>
-                    <td>{profileMap[res.id] || "Okänd"}</td>
+                    <td>{getIdDisplayName(res.id, profileMap)}</td>
                     <td>{res.totalPoints}</td>
                     <td>{res.gamesPlayed}</td>
                     <td>{res.wins}/{res.ties}/{res.losses}</td>
