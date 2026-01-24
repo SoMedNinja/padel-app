@@ -25,6 +25,14 @@ export default function FilterBar({ filter,setFilter }) {
       >
         Långa matcher
       </button>
+      <button
+        type="button"
+        className={filter==="tournaments"?"active":""}
+        aria-pressed={filter==="tournaments"}
+        onClick={()=>setFilter("tournaments")}
+      >
+        Turneringar
+      </button>
     </div>
   );
 }

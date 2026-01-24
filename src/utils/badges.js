@@ -184,6 +184,24 @@ const BADGE_DEFINITIONS = [
     thresholds: [1, 3, 5],
     group: "Turneringar",
     groupOrder: 17
+  },
+  {
+    idPrefix: "americano-wins",
+    icon: "🇺🇸",
+    title: "Americano-segrar",
+    description: (target) => `Vinn ${target} Americano-turneringar`,
+    thresholds: [1, 3, 5],
+    group: "Turneringar",
+    groupOrder: 18
+  },
+  {
+    idPrefix: "mexicano-wins",
+    icon: "🇲🇽",
+    title: "Mexicano-segrar",
+    description: (target) => `Vinn ${target} Mexicano-turneringar`,
+    thresholds: [1, 3, 5],
+    group: "Turneringar",
+    groupOrder: 19
   }
 ];
 
@@ -285,7 +303,9 @@ export const buildPlayerBadgeStats = (
     uniqueOpponents: 0,
     tournamentsPlayed: 0,
     tournamentWins: 0,
-    tournamentPodiums: 0
+    tournamentPodiums: 0,
+    americanoWins: 0,
+    mexicanoWins: 0
   };
   const partnerSet = new Set();
   const opponentSet = new Set();
@@ -405,6 +425,8 @@ export const buildPlayerBadgeStats = (
   stats.tournamentsPlayed = tournamentIds.size;
   stats.tournamentWins = playerTournamentResults.filter(entry => entry.rank === 1).length;
   stats.tournamentPodiums = playerTournamentResults.filter(entry => entry.rank <= 3).length;
+  stats.americanoWins = playerTournamentResults.filter(entry => entry.rank === 1 && entry.tournament_type === 'americano').length;
+  stats.mexicanoWins = playerTournamentResults.filter(entry => entry.rank === 1 && entry.tournament_type === 'mexicano').length;
 
   return stats;
 };
@@ -441,7 +463,9 @@ export const buildPlayerBadges = (stats) => {
     rivals: stats.uniqueOpponents,
     "tournaments-played": stats.tournamentsPlayed,
     "tournaments-wins": stats.tournamentWins,
-    "tournaments-podiums": stats.tournamentPodiums
+    "tournaments-podiums": stats.tournamentPodiums,
+    "americano-wins": stats.americanoWins,
+    "mexicano-wins": stats.mexicanoWins
   };
 
   const badges = [
@@ -456,7 +480,7 @@ export const buildPlayerBadges = (stats) => {
       description: "Vinn mot ett lag med högre genomsnittlig ELO",
       earned: Boolean(stats.firstWinVsHigherEloAt),
       group: "Jättedödare",
-      groupOrder: 18,
+      groupOrder: 20,
       meta: stats.firstWinVsHigherEloAt
         ? `Första gången: ${formatDate(stats.firstWinVsHigherEloAt)}`
         : "Sikta på en seger mot högre ELO.",

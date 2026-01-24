@@ -55,6 +55,7 @@ export default function History({ matches = [], profiles = [], user }) {
     const names = Array.isArray(teamNames) ? teamNames : [];
 
     return Array.from({ length: 2 }, (_, index) => {
+      if (ids[index] === null) return GUEST_ID;
       if (ids[index]) return ids[index];
       const name = names[index];
       if (!name) return "";
@@ -210,6 +211,7 @@ export default function History({ matches = [], profiles = [], user }) {
           <thead>
             <tr>
               <th>Datum</th>
+              <th>Typ</th>
               <th>Lag A</th>
               <th>Lag B</th>
               <th>Resultat</th>
@@ -226,6 +228,9 @@ export default function History({ matches = [], profiles = [], user }) {
               const date = m.created_at?.slice(0, 10);
               const isEditing = editingId === m.id;
 
+              const tournamentType = m.source_tournament_type || "standalone";
+              const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
+
               return (
                 <tr key={m.id}>
                   <td>
@@ -241,6 +246,10 @@ export default function History({ matches = [], profiles = [], user }) {
                     ) : (
                       date
                     )}
+                  </td>
+
+                  <td>
+                    {typeLabel}
                   </td>
 
                   <td>

@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
   getProfileDisplayName,
   idsToNames,
   makeProfileMap,
 } from "../utils/profileMap";
 import {
-  buildMexicanaResults,
-  calculateMexicanaStandings,
-  generateMexicanaRounds,
-} from "../utils/mexicana";
+  getTournamentState,
+  getRestCycle,
+  getNextSuggestion,
+  generateAmericanoRounds,
+} from "../utils/tournamentLogic";
 
+const POINTS_OPTIONS = [16, 21, 24, 31];
 const SCORE_TARGET_DEFAULT = 24;
 
 const formatDate = (value) => {
@@ -30,9 +33,6 @@ const toDateInput = (value) => {
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 10);
 };
-
-const getScoreLabel = (scoreTarget) =>
-  scoreTarget ? `Först till ${scoreTarget} poäng` : "Poängrunda";
 
 const getTournamentStatusLabel = (status) => {
   const labels = {
@@ -65,31 +65,46 @@ export default function MexicanaTournament({
     scheduled_at: toDateInput(new Date().toISOString()),
     location: "",
     score_target: SCORE_TARGET_DEFAULT,
+    tournament_type: "americano",
   });
 
-  const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
-  const eloMap = useMemo(() => {
-    const map = {};
-    eloPlayers.forEach(player => {
-      map[player.id] = Math.round(player.elo ?? 1000);
-    });
-    return map;
-  }, [eloPlayers]);
+  const [recordingRound, setRecordingRound] = useState(null);
+  const [showPreviousGames, setShowPreviousGames] = useState(false);
+
+  // Add Guest to selectable profiles
+  const selectableProfiles = useMemo(() => {
+    const hasGuest = profiles.some(p => p.id === GUEST_ID);
+    if (hasGuest) return profiles;
+    return [...profiles, { id: GUEST_ID, name: GUEST_NAME }];
+  }, [profiles]);
+
+  const profileMap = useMemo(() => makeProfileMap(selectableProfiles), [selectableProfiles]);
 
   const activeTournament = useMemo(
-    () => tournaments.find(tournament => tournament.id === activeTournamentId) || null,
+    () => tournaments.find(t => t.id === activeTournamentId) || null,
     [tournaments, activeTournamentId]
   );
 
-  const standings = useMemo(() => {
-    if (!participants.length) return [];
-    return calculateMexicanaStandings(rounds, participants);
+  const tournamentMode = activeTournament?.tournament_type || "americano";
+
+  const { standings } = useMemo(() => {
+    return getTournamentState(rounds, participants);
   }, [rounds, participants]);
 
-  const results = useMemo(() => buildMexicanaResults(standings), [standings]);
+  const sortedStandings = useMemo(() => {
+    return Object.values(standings).sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      const diffA = a.pointsFor - a.pointsAgainst;
+      const diffB = b.pointsFor - b.pointsAgainst;
+      if (diffB !== diffA) return diffB - diffA;
+      return b.wins - a.wins;
+    });
+  }, [standings]);
 
-  const rosterTooSmall = participants.length < 4;
-  const rosterTooLarge = participants.length > 6;
+  const currentSuggestion = useMemo(() => {
+    if (participants.length < 4) return null;
+    return getNextSuggestion(rounds, participants, tournamentMode);
+  }, [rounds, participants, tournamentMode]);
 
   useEffect(() => {
     const loadTournaments = async () => {
@@ -151,15 +166,18 @@ export default function MexicanaTournament({
             .order("round_number", { ascending: true }),
         ]);
 
-      if (participantError) {
-        setErrorMessage(participantError.message || "Kunde inte hämta deltagare.");
-      }
-      if (roundError) {
-        setErrorMessage(roundError.message || "Kunde inte hämta rondinformation.");
-      }
+      if (participantError) setErrorMessage(participantError.message);
+      if (roundError) setErrorMessage(roundError.message);
 
-      setParticipants(participantRows?.map(row => row.profile_id) || []);
-      setRounds(roundRows || []);
+      setParticipants(participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || []);
+
+      const mappedRounds = (roundRows || []).map(round => ({
+        ...round,
+        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
+        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
+        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
+      }));
+      setRounds(mappedRounds);
     };
 
     loadTournamentDetails();
@@ -169,18 +187,13 @@ export default function MexicanaTournament({
     event.preventDefault();
     if (!newTournament.name.trim()) {
       setErrorMessage("Ange ett namn för turneringen.");
-      setSuccessMessage("");
       return;
     }
     if (isGuest || !user?.id) {
       setErrorMessage("Logga in för att skapa en turnering.");
-      setSuccessMessage("");
       return;
     }
     setIsSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
     const { data, error } = await supabase
       .from("mexicana_tournaments")
       .insert({
@@ -188,6 +201,7 @@ export default function MexicanaTournament({
         scheduled_at: newTournament.scheduled_at || null,
         location: newTournament.location || null,
         score_target: Number(newTournament.score_target) || SCORE_TARGET_DEFAULT,
+        tournament_type: newTournament.tournament_type,
         status: "draft",
         created_by: user.id,
       })
@@ -195,918 +209,589 @@ export default function MexicanaTournament({
       .single();
 
     if (error) {
-      setErrorMessage(error.message || "Kunde inte skapa turneringen.");
-      setSuccessMessage("");
-      setIsSaving(false);
-      return;
+      setErrorMessage(error.message);
+    } else {
+      setTournaments(prev => [data, ...prev]);
+      setActiveTournamentId(data.id);
+      setParticipants([]);
+      setRounds([]);
+      setSuccessMessage("Turneringen är skapad.");
     }
-
-    setTournaments(prev => [data, ...prev]);
-    setActiveTournamentId(data.id);
-    setParticipants([]);
-    setRounds([]);
-    setNewTournament({
-      name: "",
-      scheduled_at: toDateInput(new Date().toISOString()),
-      location: "",
-      score_target: SCORE_TARGET_DEFAULT,
-    });
     setIsSaving(false);
-    setSuccessMessage("Turneringen är skapad.");
   };
 
   const toggleParticipant = (profileId) => {
-    if (isGuest) return;
-    setParticipants(prev => {
-      if (prev.includes(profileId)) {
-        return prev.filter(id => id !== profileId);
-      }
-      return [...prev, profileId];
-    });
+    if (isGuest || activeTournament?.status === "completed") return;
+    setParticipants(prev =>
+      prev.includes(profileId) ? prev.filter(id => id !== profileId) : [...prev, profileId]
+    );
   };
 
   const saveRoster = async () => {
-    if (!activeTournamentId) return;
-    if (isGuest || !user?.id) {
-      setErrorMessage("Logga in för att spara roster.");
-      setSuccessMessage("");
-      return;
-    }
-    if (participants.length < 4 || participants.length > 6) {
-      setErrorMessage("Mexicana kräver 4, 5 eller 6 spelare.");
-      setSuccessMessage("");
+    if (!activeTournamentId || isGuest || !user?.id) return;
+    if (participants.length < 4 || participants.length > 8) {
+      setErrorMessage("Välj 4 till 8 spelare.");
       return;
     }
     setIsSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
     await supabase.from("mexicana_participants").delete().eq("tournament_id", activeTournamentId);
-
     const { error } = await supabase.from("mexicana_participants").insert(
       participants.map(profileId => ({
         tournament_id: activeTournamentId,
-        profile_id: profileId,
+        profile_id: profileId === GUEST_ID ? null : profileId,
       }))
     );
-
-    if (error) {
-      setErrorMessage(error.message || "Kunde inte spara roster.");
-      setSuccessMessage("");
-    } else {
-      setSuccessMessage("Roster sparad.");
-    }
+    if (error) setErrorMessage(error.message);
+    else setSuccessMessage("Roster sparad.");
     setIsSaving(false);
   };
 
-  const generateRounds = async () => {
-    if (!activeTournamentId) return;
-    if (isGuest || !user?.id) {
-      setErrorMessage("Logga in för att skapa rondschema.");
-      setSuccessMessage("");
-      return;
-    }
-    if (participants.length < 4 || participants.length > 6) {
-      setErrorMessage("Välj 4, 5 eller 6 spelare innan du skapar rondschema.");
-      setSuccessMessage("");
-      return;
-    }
-
-    const { rounds: generatedRounds } = generateMexicanaRounds(participants, eloMap);
-    if (!generatedRounds.length) {
-      setErrorMessage("Kunde inte skapa rondschema.");
-      setSuccessMessage("");
-      return;
-    }
-
+  const startTournament = async () => {
+    if (!activeTournamentId || isGuest) return;
     setIsSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
 
-    await supabase.from("mexicana_rounds").delete().eq("tournament_id", activeTournamentId);
-
-    const { data, error } = await supabase.from("mexicana_rounds").insert(
-      generatedRounds.map(round => ({
+    if (tournamentMode === 'americano') {
+      const generatedRounds = generateAmericanoRounds(participants);
+      const roundsPayload = generatedRounds.map(r => ({
         tournament_id: activeTournamentId,
-        round_number: round.roundNumber,
-        team1_ids: round.team1Ids,
-        team2_ids: round.team2Ids,
-        resting_ids: round.restingIds,
-      }))
-    ).select("*");
+        round_number: r.round_number,
+        team1_ids: r.team1_ids.map(id => id === GUEST_ID ? null : id),
+        team2_ids: r.team2_ids.map(id => id === GUEST_ID ? null : id),
+        resting_ids: r.resting_ids.map(id => id === GUEST_ID ? null : id),
+        mode: 'americano',
+      }));
 
-    if (error) {
-      setErrorMessage(error.message || "Kunde inte spara rondschema.");
-      setSuccessMessage("");
-      setIsSaving(false);
-      return;
+      const { data: insertedRounds, error: roundError } = await supabase
+        .from("mexicana_rounds")
+        .insert(roundsPayload)
+        .select();
+
+      if (roundError) {
+        setErrorMessage(roundError.message);
+        setIsSaving(false);
+        return;
+      }
+
+      const mappedRounds = (insertedRounds || []).map(round => ({
+        ...round,
+        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
+        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
+        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
+      })).sort((a, b) => a.round_number - b.round_number);
+
+      setRounds(mappedRounds);
     }
 
-    await supabase
+    const { error } = await supabase
       .from("mexicana_tournaments")
       .update({ status: "in_progress" })
       .eq("id", activeTournamentId);
 
-    const sortedRounds = (data || []).sort(
-      (a, b) => (a.round_number || 0) - (b.round_number || 0)
-    );
-    setRounds(sortedRounds);
-    setTournaments(prev =>
-      prev.map(tournament =>
-        tournament.id === activeTournamentId
-          ? { ...tournament, status: "in_progress" }
-          : tournament
-      )
-    );
-    setIsSaving(false);
-    setSuccessMessage("Rondschema skapat.");
-  };
-
-  const updateRoundScore = (roundId, key, value) => {
-    setRounds(prev =>
-      prev.map(round =>
-        round.id === roundId ? { ...round, [key]: value === "" ? "" : Number(value) } : round
-      )
-    );
-  };
-
-  const saveRoundScore = async (round) => {
-    if (!round?.id) return;
-    if (isGuest || !user?.id) {
-      setErrorMessage("Logga in för att spara resultat.");
-      setSuccessMessage("");
-      return;
-    }
-    if (!Number.isFinite(round.team1_score) || !Number.isFinite(round.team2_score)) {
-      setErrorMessage("Fyll i poäng för båda lagen innan du sparar.");
-      setSuccessMessage("");
-      return;
-    }
-    setIsSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const { error } = await supabase
-      .from("mexicana_rounds")
-      .update({
-        team1_score: Number(round.team1_score),
-        team2_score: Number(round.team2_score),
-      })
-      .eq("id", round.id);
-
     if (error) {
-      setErrorMessage(error.message || "Kunde inte uppdatera ronden.");
-      setSuccessMessage("");
+      setErrorMessage(error.message);
     } else {
-      setSuccessMessage(`Rond ${round.round_number} sparad.`);
+      setTournaments(prev => prev.map(t => t.id === activeTournamentId ? { ...t, status: "in_progress" } : t));
+      setSuccessMessage("Turneringen har startat.");
     }
     setIsSaving(false);
   };
 
-  const resetForNewTournament = () => {
-    setActiveTournamentId("");
-    setParticipants([]);
-    setRounds([]);
-    setErrorMessage("");
-    setSuccessMessage("Redo att skapa en ny turnering.");
+  const handleRecordRound = () => {
+    if (!currentSuggestion) return;
+    setRecordingRound({
+      ...currentSuggestion,
+      team1_score: "",
+      team2_score: "",
+      mode: tournamentMode,
+    });
+  };
+
+  const saveRound = async () => {
+    if (!recordingRound || isGuest || !user?.id) return;
+    const s1 = Number(recordingRound.team1_score);
+    const s2 = Number(recordingRound.team2_score);
+    if (!Number.isFinite(s1) || !Number.isFinite(s2)) {
+      setErrorMessage("Fyll i poäng för båda lagen.");
+      return;
+    }
+
+    setIsSaving(true);
+    const nextRoundNumber = rounds.length + 1;
+
+    const activeIds = new Set([...recordingRound.team1_ids, ...recordingRound.team2_ids]);
+    const restingIds = participants.filter(id => !activeIds.has(id));
+
+    // Map GUEST_ID to null for database
+    const t1Ids = recordingRound.team1_ids.map(id => id === GUEST_ID ? null : id);
+    const t2Ids = recordingRound.team2_ids.map(id => id === GUEST_ID ? null : id);
+    const rIds = restingIds.map(id => id === GUEST_ID ? null : id);
+
+    const { data, error } = await supabase
+      .from("mexicana_rounds")
+      .insert({
+        tournament_id: activeTournamentId,
+        round_number: nextRoundNumber,
+        team1_ids: t1Ids,
+        team2_ids: t2Ids,
+        resting_ids: rIds,
+        team1_score: s1,
+        team2_score: s2,
+        mode: recordingRound.mode,
+      })
+      .select()
+      .single();
+
+    if (error) setErrorMessage(error.message);
+    else {
+      setRounds(prev => [...prev, data]);
+      setRecordingRound(null);
+      setSuccessMessage(`Rond ${nextRoundNumber} sparad.`);
+    }
+    setIsSaving(false);
   };
 
   const deleteTournament = async (tournament) => {
-    if (!tournament?.id) return;
-    if (isGuest || !user?.id) {
-      setErrorMessage("Logga in för att ta bort turneringen.");
-      setSuccessMessage("");
-      return;
-    }
-    if (!window.confirm(`Ta bort turneringen "${tournament.name}" och all tillhörande data?`)) {
-      return;
-    }
+    if (!tournament?.id || isGuest || !user?.id) return;
+    if (!window.confirm(`Ta bort turneringen "${tournament.name}"?`)) return;
     setIsSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
 
-    const tournamentId = tournament.id;
-    const { error: matchError } = await supabase
-      .from("matches")
-      .delete()
-      .eq("source_tournament_id", tournamentId);
-    if (matchError) {
-      setErrorMessage(matchError.message || "Kunde inte ta bort matcher.");
-      setIsSaving(false);
-      return;
-    }
+    // Explicitly delete matches first to handle FK constraint if migration hasn't run yet
+    await supabase.from("matches").delete().eq("source_tournament_id", tournament.id);
 
-    const { error: resultError } = await supabase
-      .from("mexicana_results")
-      .delete()
-      .eq("tournament_id", tournamentId);
-    if (resultError) {
-      setErrorMessage(resultError.message || "Kunde inte ta bort resultat.");
-      setIsSaving(false);
-      return;
+    const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournament.id);
+    if (error) setErrorMessage(error.message);
+    else {
+      setTournaments(prev => prev.filter(t => t.id !== tournament.id));
+      if (activeTournamentId === tournament.id) setActiveTournamentId("");
+      setSuccessMessage("Turneringen borttagen.");
     }
-
-    const { error: roundError } = await supabase
-      .from("mexicana_rounds")
-      .delete()
-      .eq("tournament_id", tournamentId);
-    if (roundError) {
-      setErrorMessage(roundError.message || "Kunde inte ta bort ronder.");
-      setIsSaving(false);
-      return;
-    }
-
-    const { error: participantError } = await supabase
-      .from("mexicana_participants")
-      .delete()
-      .eq("tournament_id", tournamentId);
-    if (participantError) {
-      setErrorMessage(participantError.message || "Kunde inte ta bort deltagare.");
-      setIsSaving(false);
-      return;
-    }
-
-    const { error: tournamentError } = await supabase
-      .from("mexicana_tournaments")
-      .delete()
-      .eq("id", tournamentId);
-    if (tournamentError) {
-      setErrorMessage(tournamentError.message || "Kunde inte ta bort turneringen.");
-      setIsSaving(false);
-      return;
-    }
-
-    setTournaments(prev => prev.filter(item => item.id !== tournamentId));
-    setResultsByTournament(prev => {
-      const next = { ...prev };
-      delete next[tournamentId];
-      return next;
-    });
-    if (activeTournamentId === tournamentId) {
-      const nextTournament = tournaments.find(item => item.id !== tournamentId);
-      setActiveTournamentId(nextTournament?.id || "");
-      setParticipants([]);
-      setRounds([]);
-    }
-    onTournamentSync?.();
-    setSuccessMessage("Turneringen är borttagen.");
     setIsSaving(false);
   };
 
   const markAbandoned = async () => {
-    if (!activeTournamentId) return;
-    if (isGuest || !user?.id) {
-      setErrorMessage("Logga in för att uppdatera turneringen.");
-      setSuccessMessage("");
-      return;
-    }
+    if (!activeTournamentId || isGuest) return;
     if (!window.confirm("Markera turneringen som avbruten?")) return;
     setIsSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const { error } = await supabase
-      .from("mexicana_tournaments")
-      .update({ status: "abandoned" })
-      .eq("id", activeTournamentId);
-
-    if (error) {
-      setErrorMessage(error.message || "Kunde inte markera som avbruten.");
-      setSuccessMessage("");
-    } else {
-      setTournaments(prev =>
-        prev.map(tournament =>
-          tournament.id === activeTournamentId
-            ? { ...tournament, status: "abandoned" }
-            : tournament
-        )
-      );
-      setSuccessMessage("Turneringen markerad som avbruten.");
+    const { error } = await supabase.from("mexicana_tournaments").update({ status: "abandoned" }).eq("id", activeTournamentId);
+    if (error) setErrorMessage(error.message);
+    else {
+      setTournaments(prev => prev.map(t => t.id === activeTournamentId ? { ...t, status: "abandoned" } : t));
+      setSuccessMessage("Turneringen avbruten.");
     }
     setIsSaving(false);
   };
 
-  const canComplete =
-    rounds.length > 0 &&
-    rounds.every(round => Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score));
-
   const completeTournament = async () => {
-    if (!activeTournament || !canComplete) return;
-    if (activeTournament.synced_to_matches) return;
-    if (!user?.id) {
-      setErrorMessage("Logga in för att slutföra turneringen.");
-      setSuccessMessage("");
-      return;
-    }
-
+    if (!activeTournament || isGuest) return;
     setIsSaving(true);
-    setErrorMessage("");
-    setSuccessMessage("");
 
+    // Sync to matches
     const matchPayload = rounds.map(round => ({
       team1: idsToNames(round.team1_ids, profileMap),
       team2: idsToNames(round.team2_ids, profileMap),
-      team1_ids: round.team1_ids,
-      team2_ids: round.team2_ids,
+      team1_ids: round.team1_ids.map(id => id === GUEST_ID ? null : id),
+      team2_ids: round.team2_ids.map(id => id === GUEST_ID ? null : id),
       team1_sets: Number(round.team1_score),
       team2_sets: Number(round.team2_score),
       score_type: "points",
-      score_target: activeTournament.score_target || SCORE_TARGET_DEFAULT,
+      score_target: activeTournament.score_target,
       source_tournament_id: activeTournament.id,
-      source_tournament_type: "mexicana",
+      source_tournament_type: activeTournament.tournament_type || "mexicana",
       team1_serves_first: true,
       created_by: user.id,
     }));
 
     const { error: matchError } = await supabase.from("matches").insert(matchPayload);
     if (matchError) {
-      setErrorMessage(matchError.message || "Kunde inte synka matcher.");
-      setSuccessMessage("");
+      setErrorMessage(matchError.message);
       setIsSaving(false);
       return;
     }
 
-    const resultsPayload = results.map(result => ({
+    const resultsPayload = sortedStandings.map((res, index) => ({
       tournament_id: activeTournament.id,
-      profile_id: result.id,
-      rank: result.rank,
-      points_for: result.pointsFor,
-      points_against: result.pointsAgainst,
-      matches_played: result.matchesPlayed,
-      wins: result.wins,
-      losses: result.losses,
+      profile_id: res.id === GUEST_ID ? null : res.id,
+      rank: index + 1,
+      points_for: res.pointsFor,
+      points_against: res.pointsAgainst,
+      matches_played: res.gamesPlayed,
+      wins: res.wins,
+      losses: res.losses,
     }));
 
     const { error: resultError } = await supabase.from("mexicana_results").insert(resultsPayload);
     if (resultError) {
-      setErrorMessage(resultError.message || "Kunde inte spara resultat.");
-      setSuccessMessage("");
+      setErrorMessage(resultError.message);
       setIsSaving(false);
       return;
     }
 
-    const completedAt = new Date().toISOString();
     const { error: tournamentError } = await supabase
       .from("mexicana_tournaments")
-      .update({
-        status: "completed",
-        completed_at: completedAt,
-        synced_to_matches: true,
-      })
+      .update({ status: "completed", completed_at: new Date().toISOString(), synced_to_matches: true })
       .eq("id", activeTournament.id);
 
-    if (tournamentError) {
-      setErrorMessage(tournamentError.message || "Kunde inte avsluta turneringen.");
-      setSuccessMessage("");
-    } else {
-      setTournaments(prev =>
-        prev.map(tournament =>
-          tournament.id === activeTournament.id
-            ? {
-                ...tournament,
-                status: "completed",
-                completed_at: completedAt,
-                synced_to_matches: true,
-              }
-            : tournament
-        )
-      );
-      setResultsByTournament(prev => ({
-        ...prev,
-        [activeTournament.id]: resultsPayload,
-      }));
+    if (tournamentError) setErrorMessage(tournamentError.message);
+    else {
+      setTournaments(prev => prev.map(t => t.id === activeTournament.id ? { ...t, status: "completed", synced_to_matches: true } : t));
       onTournamentSync?.();
-      setSuccessMessage("Turneringen är slutförd och synkad.");
+      setSuccessMessage("Turneringen slutförd.");
     }
     setIsSaving(false);
   };
 
-  const rosterHint = participants.length === 4
-    ? "4 spelare: alla spelar varje rond."
-    : participants.length === 5
-      ? "5 spelare: 1 spelare vilar varje rond."
-      : participants.length === 6
-        ? "6 spelare: 2 spelare vilar varje rond."
-        : "Välj 4, 5 eller 6 spelare för Mexicana.";
+  const handleScoreChange = (team, val) => {
+    const score = val === "" ? "" : parseInt(val, 10);
+    const target = activeTournament?.score_target || SCORE_TARGET_DEFAULT;
+    setRecordingRound(prev => {
+      const next = { ...prev, [team]: score };
+      if (typeof score === 'number' && score >= 0 && score <= target) {
+        const otherTeam = team === 'team1_score' ? 'team2_score' : 'team1_score';
+        next[otherTeam] = target - score;
+      }
+      return next;
+    });
+  };
 
-  const tournamentOptions = tournaments.map(tournament => ({
-    value: tournament.id,
-    label: `${tournament.name} (${getTournamentStatusLabel(tournament.status)})`,
-  }));
+  const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
 
-  const rules = [
-    "Välj 4, 5 eller 6 spelare och skapa rondschema med roterande partners.",
-    "Varje rond spelas till 24 poäng (kan justeras vid start).",
-    "Poängen summeras per spelare. Flest poäng vinner.",
-    "Om turneringen pausas kan ni återuppta senare – ingen statistik synkas förrän allt är klart.",
-    "När sista ronden är ifylld kan du slutföra och synka till historiken/ELO.",
-  ];
+  const updateRoundInDb = async (roundId, s1, s2) => {
+    if (isGuest || !user?.id) return;
+    setIsSaving(true);
+    const { error } = await supabase
+      .from("mexicana_rounds")
+      .update({
+        team1_score: Number(s1),
+        team2_score: Number(s2),
+      })
+      .eq("id", roundId);
 
-  const historicalTournaments = tournaments.filter(
-    tournament => tournament.status === "completed" || tournament.status === "abandoned"
-  );
+    if (error) {
+      setErrorMessage(error.message);
+    } else {
+      setRounds(prev => prev.map(r => r.id === roundId ? { ...r, team1_score: Number(s1), team2_score: Number(s2) } : r));
+      setSuccessMessage("Resultat sparat.");
+    }
+    setIsSaving(false);
+  };
 
-  const hasSyncedResults =
-    activeTournament?.status === "completed" && activeTournament?.synced_to_matches;
-  const podium = results.slice(0, 3);
+  const handleScoreChangeInList = (roundId, team, val) => {
+    const score = val === "" ? "" : parseInt(val, 10);
+    const target = activeTournament?.score_target || SCORE_TARGET_DEFAULT;
 
-  if (isLoading) {
-    return <p className="muted">Laddar Mexicana...</p>;
-  }
+    setRounds(prev => prev.map(r => {
+      if (r.id !== roundId) return r;
+      const next = { ...r, [team]: score };
+      if (typeof score === 'number' && score >= 0 && score <= target) {
+        const otherTeam = team === 'team1_score' ? 'team2_score' : 'team1_score';
+        next[otherTeam] = target - score;
+      }
+      return next;
+    }));
+  };
 
   return (
     <section className="page-section mexicana-page">
       <header className="mexicana-header">
         <div>
-          <h2>Mexicana-turnering</h2>
-          <p className="muted">
-            Skapa roterande rondschema, följ poängställningen och synka först när turneringen är klar.
-          </p>
+          <h2>Turnering</h2>
+          <p className="muted">Stöd för Americano (fairness) och Mexicano (merit-baserad).</p>
         </div>
-        <div className="mexicana-header-meta">
-          {activeTournament && (
-            <span className={`mexicana-status status-${activeTournament.status}`}>
-              {getTournamentStatusLabel(activeTournament.status)}
-            </span>
-          )}
-        </div>
+        {activeTournament && (
+          <span className={`mexicana-status status-${activeTournament.status}`}>
+            {getTournamentStatusLabel(activeTournament.status)}
+          </span>
+        )}
       </header>
 
-      <div className="mexicana-card mexicana-rules">
-        <h3>Regler & process</h3>
-        <ul>
-          {rules.map(rule => (
-            <li key={rule}>{rule}</li>
-          ))}
-        </ul>
-        <p className="muted">
-          Om turneringen inte blir klar stannar den som "Pågår" eller "Avbruten" och påverkar
-          inte leaderboard, badges eller ELO förrän den slutförs.
-        </p>
-      </div>
-
-      {successMessage && (
-        <div className="notice-banner success" role="status">
-          <div>{successMessage}</div>
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => setSuccessMessage("")}
-            disabled={isSaving}
-          >
-            Stäng
-          </button>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="notice-banner error" role="alert">
-          <div>{errorMessage}</div>
-          <button type="button" className="ghost-button" onClick={() => setErrorMessage("")}
-            disabled={isSaving}
-          >
-            Stäng
-          </button>
-        </div>
-      )}
-
-      <div className="mexicana-action-bar">
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={resetForNewTournament}
-          disabled={isSaving || !activeTournament}
-        >
-          Starta ny turnering
-        </button>
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={markAbandoned}
-          disabled={
-            isSaving ||
-            isGuest ||
-            !activeTournament ||
-            activeTournament.status === "completed" ||
-            activeTournament.status === "abandoned"
-          }
-        >
-          Avbryt turnering
-        </button>
-        <button
-          type="button"
-          onClick={completeTournament}
-          disabled={isSaving || isGuest || !activeTournament || !canComplete || activeTournament?.status === "completed"}
-        >
-          Slutför & synka
-        </button>
-      </div>
+      {successMessage && <div className="notice-banner success"><div>{successMessage}</div><button onClick={() => setSuccessMessage("")}>Stäng</button></div>}
+      {errorMessage && <div className="notice-banner error"><div>{errorMessage}</div><button onClick={() => setErrorMessage("")}>Stäng</button></div>}
 
       <div className="mexicana-grid">
         <div className="mexicana-card">
-          <h3>Välj turnering</h3>
-          {tournaments.length ? (
-            <select
-              value={activeTournamentId}
-              onChange={(event) => setActiveTournamentId(event.target.value)}
-            >
-              {tournamentOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <p className="muted">Inga turneringar än. Skapa en ny nedan.</p>
+          <h3>Välj eller skapa turnering</h3>
+          <select value={activeTournamentId} onChange={e => setActiveTournamentId(e.target.value)}>
+            <option value="">-- Ny turnering --</option>
+            {tournaments.map(t => (
+              <option key={t.id} value={t.id}>{t.name} ({getTournamentStatusLabel(t.status)})</option>
+            ))}
+          </select>
+
+          {!activeTournamentId && (
+            <form className="mexicana-form" onSubmit={createTournament} style={{ marginTop: '1rem' }}>
+              <input type="text" placeholder="Namn" value={newTournament.name} onChange={e => setNewTournament({ ...newTournament, name: e.target.value })} disabled={isSaving} />
+              <input type="text" placeholder="Plats (valfritt)" value={newTournament.location} onChange={e => setNewTournament({ ...newTournament, location: e.target.value })} disabled={isSaving} />
+              <input type="date" value={newTournament.scheduled_at} onChange={e => setNewTournament({ ...newTournament, scheduled_at: e.target.value })} disabled={isSaving} />
+              <select value={newTournament.tournament_type} onChange={e => setNewTournament({ ...newTournament, tournament_type: e.target.value })} disabled={isSaving}>
+                <option value="americano">Americano</option>
+                <option value="mexicano">Mexicano</option>
+              </select>
+              <div className="muted" style={{ fontSize: '0.8rem', padding: '0 4px' }}>
+                {newTournament.tournament_type === 'americano' ? (
+                  <>
+                    <strong>Americano:</strong> Fokus på rättvisa. Alla spelar med och mot alla så mycket som möjligt. Lagen är förutbestämda. Vinnare är den med flest totalpoäng.
+                  </>
+                ) : (
+                  <>
+                    <strong>Mexicano:</strong> Fokus på jämna matcher. Laguppställningar baseras på poäng för att skapa utmanande möten. Vinnare är den med flest totalpoäng.
+                  </>
+                )}
+              </div>
+              <select value={newTournament.score_target} onChange={e => setNewTournament({ ...newTournament, score_target: e.target.value })} disabled={isSaving}>
+                {POINTS_OPTIONS.map(p => <option key={p} value={p}>{p} poäng</option>)}
+              </select>
+              <button type="submit" disabled={isSaving}>Skapa</button>
+            </form>
           )}
-
-          <div className="mexicana-divider" />
-
-          <h3>Skapa ny turnering</h3>
-          <form className="mexicana-form" onSubmit={createTournament}>
-            <label>
-              Namn
-              <input
-                type="text"
-                value={newTournament.name}
-                onChange={(event) =>
-                  setNewTournament(prev => ({ ...prev, name: event.target.value }))
-                }
-                placeholder="Mexicana onsdag"
-                disabled={isSaving || isGuest}
-              />
-            </label>
-            <label>
-              Datum
-              <input
-                type="date"
-                value={newTournament.scheduled_at}
-                onChange={(event) =>
-                  setNewTournament(prev => ({ ...prev, scheduled_at: event.target.value }))
-                }
-                disabled={isSaving || isGuest}
-              />
-            </label>
-            <label>
-              Plats (valfritt)
-              <input
-                type="text"
-                value={newTournament.location}
-                onChange={(event) =>
-                  setNewTournament(prev => ({ ...prev, location: event.target.value }))
-                }
-                placeholder="Padelbanan"
-                disabled={isSaving || isGuest}
-              />
-            </label>
-            <label>
-              Poäng per rond
-              <input
-                type="number"
-                min="1"
-                value={newTournament.score_target}
-                onChange={(event) =>
-                  setNewTournament(prev => ({ ...prev, score_target: event.target.value }))
-                }
-                disabled={isSaving || isGuest}
-              />
-            </label>
-            <button type="submit" disabled={isSaving || isGuest}>
-              Skapa turnering
-            </button>
-            {isGuest && (
-              <p className="muted" style={{ marginTop: 8 }}>
-                Gästläge: logga in för att skapa turneringar.
-              </p>
-            )}
-          </form>
         </div>
 
-        <div className="mexicana-card">
-          <h3>Turneringsinfo</h3>
-          {activeTournament ? (
-            <div className="mexicana-info">
-              <p>
-                <strong>{activeTournament.name}</strong>
-              </p>
-              <p className="muted">
-                {activeTournament.location || "Plats saknas"} • {formatDate(activeTournament.scheduled_at)}
-              </p>
-              <p className="muted">{getScoreLabel(activeTournament.score_target)}</p>
-              {activeTournament.completed_at && (
-                <p className="muted">
-                  Avslutad: {formatDate(activeTournament.completed_at)}
-                </p>
-              )}
-              {activeTournament.status !== "completed" && (
-                <div className="mexicana-actions">
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={markAbandoned}
-                    disabled={isSaving || isGuest}
-                  >
-                    Markera som avbruten
+        {activeTournament && (
+          <div className="mexicana-card">
+            <h3>Roster ({participants.length})</h3>
+            <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {selectableProfiles.map(p => (
+                <label key={p.id} className="mexicana-roster-item">
+                  <input type="checkbox" checked={participants.includes(p.id)} onChange={() => toggleParticipant(p.id)} disabled={activeTournament.status !== 'draft'} />
+                  <span>{getProfileDisplayName(p)}</span>
+                </label>
+              ))}
+            </div>
+            {activeTournament.status === 'draft' && (
+              <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
+            )}
+            {activeTournament.status === 'draft' && participants.length >= 4 && (
+              <button onClick={startTournament} disabled={isSaving} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Starta turnering</button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {activeTournament?.status === 'in_progress' && (
+        <div className="mexicana-grid two-columns">
+          <div className="mexicana-card">
+            <h3>Spela ronder</h3>
+            <p className="muted">Läge: <strong>{tournamentMode === 'americano' ? 'Americano' : 'Mexicano'}</strong></p>
+
+            {tournamentMode === 'mexicano' && (
+              <div className="mexicano-flow" style={{ marginBottom: '2rem' }}>
+                {!recordingRound ? (
+                  <div className="next-suggestion">
+                    <p><strong>Föreslagen nästa match:</strong></p>
+                    {currentSuggestion ? (
+                      <>
+                        <p>{idsToNames(currentSuggestion.team1_ids, profileMap).join(" & ")} vs {idsToNames(currentSuggestion.team2_ids, profileMap).join(" & ")}</p>
+                        {currentSuggestion.resting_ids.length > 0 && <p className="muted">Vilar: {idsToNames(currentSuggestion.resting_ids, profileMap).join(", ")}</p>}
+                        <button onClick={handleRecordRound}>Starta rond {rounds.length + 1}</button>
+                      </>
+                    ) : <p className="muted">Välj minst 4 spelare.</p>}
+                  </div>
+                ) : (
+                  <div className="recording-form">
+                    <h4>Registrera resultat (Rond {rounds.length + 1})</h4>
+                    <p className="muted" style={{ marginBottom: '1rem' }}>Lag A (vänster) börjar serva.</p>
+                    <div className="mexicana-round-match">
+                      <div className="mexicana-team">
+                        <div className="mexicana-team-name">{idsToNames(recordingRound.team1_ids, profileMap).join(" & ")}</div>
+                        <input type="number" value={recordingRound.team1_score} onChange={e => handleScoreChange('team1_score', e.target.value)} placeholder="Poäng" />
+                      </div>
+                      <span className="vs">vs</span>
+                      <div className="mexicana-team">
+                        <div className="mexicana-team-name">{idsToNames(recordingRound.team2_ids, profileMap).join(" & ")}</div>
+                        <input type="number" value={recordingRound.team2_score} onChange={e => handleScoreChange('team2_score', e.target.value)} placeholder="Poäng" />
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '1rem' }}>
+                      <button onClick={saveRound} disabled={isSaving}>Spara rond</button>
+                      <button onClick={() => setRecordingRound(null)} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Avbryt</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tournamentMode === 'americano' && (
+              <div className="americano-flow" style={{ marginBottom: '2rem' }}>
+                <p>Alla ronder är förutbestämda. Fyll i poäng allt eftersom ni spelar.</p>
+                <div className="mexicana-rounds">
+                  {rounds.map(round => {
+                    const isPlayed = Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score);
+                    return (
+                      <div key={round.id} className={`mexicana-round-card ${isPlayed ? 'is-played' : ''}`}>
+                         <div className="mexicana-round-header">
+                            <strong>Rond {round.round_number}</strong>
+                            {round.resting_ids?.length > 0 && <span className="muted">Vilar: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
+                         </div>
+                         <div className="mexicana-round-match">
+                            <div className="mexicana-team">
+                              <div className="mexicana-team-name">{idsToNames(round.team1_ids, profileMap).join(" & ")}</div>
+                              <input
+                                type="number"
+                                value={round.team1_score ?? ""}
+                                onChange={e => handleScoreChangeInList(round.id, 'team1_score', e.target.value)}
+                                placeholder="Poäng"
+                              />
+                            </div>
+                            <span className="vs">vs</span>
+                            <div className="mexicana-team">
+                              <div className="mexicana-team-name">{idsToNames(round.team2_ids, profileMap).join(" & ")}</div>
+                              <input
+                                type="number"
+                                value={round.team2_score ?? ""}
+                                onChange={e => handleScoreChangeInList(round.id, 'team2_score', e.target.value)}
+                                placeholder="Poäng"
+                              />
+                            </div>
+                         </div>
+                         <button
+                            className="ghost-button"
+                            onClick={() => updateRoundInDb(round.id, round.team1_score, round.team2_score)}
+                            disabled={isSaving || !Number.isFinite(round.team1_score) || !Number.isFinite(round.team2_score)}
+                          >
+                           {isPlayed ? "Uppdatera" : "Spara"}
+                         </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {tournamentMode === 'mexicano' && rounds.length > 0 && (
+              <div style={{ marginTop: '2rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4>Tidigare matcher ({rounds.length})</h4>
+                  <button className="ghost-button" onClick={() => setShowPreviousGames(!showPreviousGames)}>
+                    {showPreviousGames ? "Dölj" : "Visa"}
                   </button>
                 </div>
-              )}
-            </div>
-          ) : (
-            <p className="muted">Välj eller skapa en turnering för att se detaljer.</p>
-          )}
-        </div>
 
-        <div className="mexicana-card">
-          <h3>Roster</h3>
-          {activeTournament ? (
-            <>
-              <p className="muted">Välj 4 till 6 spelare.</p>
-              <div className="mexicana-roster">
-                {profiles.map(profile => (
-                  <label key={profile.id} className="mexicana-roster-item">
-                    <input
-                      type="checkbox"
-                      checked={participants.includes(profile.id)}
-                      onChange={() => toggleParticipant(profile.id)}
-                      disabled={isSaving || isGuest || activeTournament.status === "completed"}
-                    />
-                    <span>{getProfileDisplayName(profile)}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="mexicana-roster-actions">
-                <span className={rosterTooSmall || rosterTooLarge ? "text-error" : "muted"}>
-                  {participants.length} spelare valda. {rosterHint}
-                </span>
-                <button
-                  type="button"
-                  onClick={saveRoster}
-                  disabled={isSaving || isGuest || activeTournament.status === "completed"}
-                >
-                  Spara roster
-                </button>
-              </div>
-            </>
-          ) : (
-            <p className="muted">Skapa en turnering först.</p>
-          )}
-        </div>
-
-        <div className="mexicana-card">
-          <h3>Rondschema</h3>
-          {activeTournament ? (
-            <>
-              <p className="muted">Skapa rondschema baserat på roster.</p>
-              <button
-                type="button"
-                onClick={generateRounds}
-                disabled={
-                  isSaving ||
-                  isGuest ||
-                  rosterTooSmall ||
-                  rosterTooLarge ||
-                  activeTournament.status === "completed"
-                }
-              >
-                Skapa rondschema
-              </button>
-              {rounds.length > 0 && (
-                <p className="muted" style={{ marginTop: 8 }}>
-                  {rounds.length} ronder • {rosterHint}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="muted">Välj en turnering för att skapa rondschema.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="mexicana-grid two-columns">
-        <div className="mexicana-card">
-          <h3>Rondresultat</h3>
-          {rounds.length === 0 ? (
-            <p className="muted">Inget rondschema ännu.</p>
-          ) : (
-            <div className="mexicana-rounds">
-              {rounds.map(round => {
-                const team1Names = idsToNames(round.team1_ids || [], profileMap).join(" & ");
-                const team2Names = idsToNames(round.team2_ids || [], profileMap).join(" & ");
-                const restNames = idsToNames(round.resting_ids || [], profileMap).join(", ");
-                return (
-                  <div key={round.id} className="mexicana-round-card">
-                    <div className="mexicana-round-header">
-                      <strong>Rond {round.round_number}</strong>
-                      {restNames && <span className="muted">Vilar: {restNames}</span>}
-                    </div>
-                    <div className="mexicana-round-match">
-                      <div>
-                        <div className="mexicana-team-name">{team1Names}</div>
-                        <div className="mexicana-score-inputs">
-                          <input
-                            type="number"
-                            min="0"
-                            value={round.team1_score ?? ""}
-                            onChange={(event) =>
-                              updateRoundScore(round.id, "team1_score", event.target.value)
-                            }
-                            disabled={activeTournament?.status === "completed" || isGuest}
-                          />
-                          <span>–</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={round.team2_score ?? ""}
-                            onChange={(event) =>
-                              updateRoundScore(round.id, "team2_score", event.target.value)
-                            }
-                            disabled={activeTournament?.status === "completed" || isGuest}
-                          />
+                {showPreviousGames && (
+                  <div className="mexicana-rounds" style={{ marginTop: '1rem' }}>
+                    {[...rounds].reverse().map(round => (
+                      <div key={round.id} className="mexicana-round-card">
+                        <div className="mexicana-round-header">
+                          <strong>Rond {round.round_number}</strong>
+                          {round.resting_ids?.length > 0 && <span className="muted">Vilade: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
                         </div>
+                        <p>{idsToNames(round.team1_ids, profileMap).join(" & ")} ({round.team1_score}) - ({round.team2_score}) {idsToNames(round.team2_ids, profileMap).join(" & ")}</p>
                       </div>
-                      <div className="mexicana-team-name">{team2Names}</div>
-                    </div>
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      onClick={() => saveRoundScore(round)}
-                      disabled={isSaving || isGuest || activeTournament?.status === "completed"}
-                    >
-                      Spara resultat
-                    </button>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="mexicana-card">
-          <h3>Poängställning</h3>
-          {standings.length === 0 ? (
-            <p className="muted">Inga resultat ännu.</p>
-          ) : (
-            <div className="table-scroll">
-              <div className="table-scroll-inner">
-                <table className="styled-table">
-                  <thead>
-                    <tr>
-                      <th>Plac.</th>
-                      <th>Spelare</th>
-                      <th>Spelade</th>
-                      <th>Vinster</th>
-                      <th>Poäng</th>
-                      <th>Poäng diff</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map(result => (
-                      <tr key={result.id}>
-                        <td>{result.rank}</td>
-                        <td>{profileMap[result.id] || "Okänd"}</td>
-                        <td>{result.matchesPlayed}</td>
-                        <td>{result.wins}</td>
-                        <td>{result.pointsFor}</td>
-                        <td>{result.pointsDiff}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                )}
               </div>
-            </div>
-          )}
-
-          <div className="mexicana-complete">
-            <button
-              type="button"
-              onClick={completeTournament}
-              disabled={isSaving || isGuest || !canComplete || activeTournament?.status === "completed"}
-            >
-              Slutför & synka till historiken
-            </button>
-            <p className="muted">
-              Synkar endast när alla ronder har poäng och turneringen avslutas.
-            </p>
+            )}
           </div>
-        </div>
-      </div>
 
-      {hasSyncedResults && (
-        <div className="mexicana-card mexicana-results">
-          <h3>Resultat</h3>
-          {podium.length > 0 ? (
-            <div className="mexicana-podium">
-              {podium.map((entry, index) => (
-                <div key={entry.id} className="mexicana-podium-spot">
-                  <span className="mexicana-podium-rank">{index + 1}</span>
-                  <strong>{profileMap[entry.id] || "Okänd"}</strong>
-                  <span className="muted">{entry.pointsFor} poäng</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="muted">Inga resultat att visa ännu.</p>
-          )}
-          {results.length > 0 && (
+          <div className="mexicana-card">
+            <h3>Poängställning</h3>
             <div className="table-scroll">
-              <div className="table-scroll-inner">
-                <table className="styled-table">
-                  <thead>
-                    <tr>
-                      <th>Plac.</th>
-                      <th>Spelare</th>
-                      <th>Spelade</th>
-                      <th>Vinster</th>
-                      <th>Poäng</th>
-                      <th>Poäng diff</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map(result => (
-                      <tr key={result.id}>
-                        <td>{result.rank}</td>
-                        <td>{profileMap[result.id] || "Okänd"}</td>
-                        <td>{result.matchesPlayed}</td>
-                        <td>{result.wins}</td>
-                        <td>{result.pointsFor}</td>
-                        <td>{result.pointsDiff}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="mexicana-card mexicana-history">
-        <h3>Historik</h3>
-        {historicalTournaments.length === 0 ? (
-          <p className="muted">Inga avslutade eller avbrutna turneringar än.</p>
-        ) : (
-          <div className="table-scroll">
-            <div className="table-scroll-inner">
               <table className="styled-table">
                 <thead>
                   <tr>
-                    <th>Turnering</th>
-                    <th>Datum</th>
-                    <th>Status</th>
-                    <th>Spelare</th>
-                    <th>Topp 3</th>
-                    <th></th>
+                    <th>Plac.</th>
+                    <th>Namn</th>
+                    <th>Poäng</th>
+                    <th>Matcher</th>
+                    <th>V/O/F</th>
+                    <th>Diff</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {historicalTournaments.map(tournament => {
-                    const tournamentResults = resultsByTournament[tournament.id] || [];
-                    const topThree = [...tournamentResults]
-                      .sort((a, b) => (a.rank || 0) - (b.rank || 0))
-                      .slice(0, 3)
-                      .map(result => profileMap[result.profile_id] || "Okänd")
-                      .join(", ");
-                    return (
-                      <tr key={tournament.id}>
-                        <td>{tournament.name}</td>
-                        <td>{formatDate(tournament.completed_at || tournament.scheduled_at)}</td>
-                        <td>
-                          <span className={`mexicana-status status-${tournament.status} inline`}>
-                            {getTournamentStatusLabel(tournament.status)}
-                          </span>
-                        </td>
-                        <td>{tournamentResults.length || "—"}</td>
-                        <td>{topThree || "—"}</td>
-                        <td>
-                          <div className="mexicana-history-actions">
-                            <button
-                              type="button"
-                              className="ghost-button"
-                              onClick={() => setActiveTournamentId(tournament.id)}
-                            >
-                              Visa
-                            </button>
-                            <button
-                              type="button"
-                              className="ghost-button danger"
-                              onClick={() => deleteTournament(tournament)}
-                              disabled={isSaving || isGuest}
-                            >
-                              Ta bort
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {sortedStandings.map((res, i) => (
+                    <tr key={res.id}>
+                      <td>{i + 1}</td>
+                      <td>{profileMap[res.id] || "Okänd"}</td>
+                      <td>{res.totalPoints}</td>
+                      <td>{res.gamesPlayed}</td>
+                      <td>{res.wins}/{res.ties}/{res.losses}</td>
+                      <td>{res.pointsFor - res.pointsAgainst}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
+            <div style={{ marginTop: '1rem' }}>
+               <button onClick={markAbandoned} className="ghost-button danger">Avbryt turnering</button>
+               <button onClick={completeTournament} disabled={rounds.length === 0} style={{ marginLeft: '0.5rem' }}>Slutför & synka</button>
+            </div>
           </div>
-        )}
-        <p className="muted">
-          Välj en avslutad eller avbruten turnering för att se den låsta vyn med resultat och ronder.
-        </p>
+        </div>
+      )}
+
+      {activeTournament?.status === 'completed' && (
+        <div className="mexicana-card">
+          <h3>Results of finished tournament</h3>
+          <p><strong>{activeTournament.name}</strong> slutfördes {formatDate(activeTournament.completed_at)}.</p>
+
+          <div className="mexicana-podium" style={{ marginBottom: '2rem' }}>
+            {sortedStandings.slice(0, 3).map((res, i) => (
+              <div key={res.id} className="mexicana-podium-spot">
+                <span className="mexicana-podium-rank">{i + 1}</span>
+                <strong>{profileMap[res.id] || "Okänd"}</strong>
+                <span className="muted">{res.totalPoints} poäng</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="table-scroll">
+            <table className="styled-table">
+              <thead>
+                <tr>
+                  <th>Plac.</th>
+                  <th>Namn</th>
+                  <th>Poäng</th>
+                  <th>Matcher</th>
+                  <th>V/O/F</th>
+                  <th>Diff</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedStandings.map((res, i) => (
+                  <tr key={res.id}>
+                    <td>{i + 1}</td>
+                    <td>{profileMap[res.id] || "Okänd"}</td>
+                    <td>{res.totalPoints}</td>
+                    <td>{res.gamesPlayed}</td>
+                    <td>{res.wins}/{res.ties}/{res.losses}</td>
+                    <td>{res.pointsFor - res.pointsAgainst}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '1rem' }}>Tillbaka till alla turneringar</button>
+        </div>
+      )}
+
+      <div className="mexicana-card mexicana-history" style={{ marginTop: '2rem' }}>
+        <h3>Historik</h3>
+        <div className="table-scroll">
+          <table className="styled-table">
+            <thead>
+              <tr>
+                <th>Turnering</th>
+                <th>Typ</th>
+                <th>Status</th>
+                <th>Datum</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {tournaments.map(t => (
+                <tr key={t.id}>
+                  <td>{t.name}</td>
+                  <td>{t.tournament_type === 'americano' ? 'Americano' : 'Mexicano'}</td>
+                  <td><span className={`mexicana-status status-${t.status} inline`}>{getTournamentStatusLabel(t.status)}</span></td>
+                  <td>{formatDate(t.scheduled_at)}</td>
+                  <td>
+                    <button className="ghost-button" onClick={() => setActiveTournamentId(t.id)}>Visa</button>
+                    <button className="ghost-button danger" onClick={() => deleteTournament(t)}>Ta bort</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
