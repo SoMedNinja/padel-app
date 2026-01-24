@@ -7,17 +7,23 @@ import {
 } from "./elo";
 import { GUEST_ID } from "./guest";
 import { resolveTeamIds } from "./profileMap";
+import { Match, Profile } from "../types";
 
-const normalizeTeam = (team) =>
-  Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
+const normalizeTeam = (team: (string | null)[] | undefined) =>
+  Array.isArray(team) ? team.filter((id): id is string => !!id && id !== GUEST_ID) : [];
 
-const ensurePlayer = (map, id) => {
+interface EloMapEntry {
+  elo: number;
+  games: number;
+}
+
+const ensurePlayer = (map: Record<string, EloMapEntry>, id: string) => {
   if (!map[id]) {
     map[id] = { elo: ELO_BASELINE, games: 0 };
   }
 };
 
-const formatDate = (value) => {
+const formatDate = (value: string | null | undefined) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -29,9 +35,19 @@ const formatDate = (value) => {
 };
 
 const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-const toRoman = (index) => romanNumerals[index] || `${index + 1}`;
+const toRoman = (index: number) => romanNumerals[index] || `${index + 1}`;
 
-const BADGE_DEFINITIONS = [
+interface BadgeDefinition {
+  idPrefix: string;
+  icon: string;
+  title: string;
+  description: (target: number) => string;
+  thresholds: number[];
+  group: string;
+  groupOrder: number;
+}
+
+const BADGE_DEFINITIONS: BadgeDefinition[] = [
   {
     idPrefix: "matches",
     icon: "🏟️",
@@ -208,12 +224,25 @@ const BADGE_DEFINITIONS = [
 const BADGE_ICON_MAP = BADGE_DEFINITIONS.reduce((acc, def) => {
   acc[def.idPrefix] = def.icon;
   return acc;
-}, { "giant-slayer": "⚔️" });
+}, { "giant-slayer": "⚔️" } as Record<string, string>);
 
 const BADGE_THRESHOLD_MAP = BADGE_DEFINITIONS.reduce((acc, def) => {
   acc[def.idPrefix] = def.thresholds;
   return acc;
-}, {});
+}, {} as Record<string, number[]>);
+
+export interface Badge {
+  id: string;
+  icon: string;
+  tier: string;
+  title: string;
+  description: string;
+  earned: boolean;
+  group: string;
+  groupOrder: number;
+  progress: { current: number; target: number } | null;
+  meta?: string;
+}
 
 const buildThresholdBadges = ({
   idPrefix,
@@ -224,7 +253,16 @@ const buildThresholdBadges = ({
   value,
   group,
   groupOrder = 0
-}) =>
+}: {
+  idPrefix: string;
+  icon: string;
+  title: string;
+  description: (target: number) => string;
+  thresholds: number[];
+  value: number;
+  group: string;
+  groupOrder?: number;
+}): Badge[] =>
   thresholds.map((target, index) => ({
     id: `${idPrefix}-${target}`,
     icon,
@@ -240,7 +278,7 @@ const buildThresholdBadges = ({
     }
   }));
 
-export const getBadgeIconById = (badgeId) => {
+export const getBadgeIconById = (badgeId: string | null | undefined) => {
   if (!badgeId) return null;
   if (badgeId === "giant-slayer") return BADGE_ICON_MAP["giant-slayer"];
   const lastDash = badgeId.lastIndexOf("-");
@@ -248,7 +286,7 @@ export const getBadgeIconById = (badgeId) => {
   return BADGE_ICON_MAP[prefix] || null;
 };
 
-export const getBadgeTierLabelById = (badgeId) => {
+export const getBadgeTierLabelById = (badgeId: string | null | undefined) => {
   if (!badgeId) return null;
   if (badgeId === "giant-slayer") return "I";
   const lastDash = badgeId.lastIndexOf("-");
@@ -262,31 +300,54 @@ export const getBadgeTierLabelById = (badgeId) => {
   return toRoman(index);
 };
 
-export const getBadgeLabelById = (badgeId) => {
+export const getBadgeLabelById = (badgeId: string | null | undefined) => {
   const icon = getBadgeIconById(badgeId);
   if (!icon) return "";
   const tier = getBadgeTierLabelById(badgeId);
   return tier ? `${icon} ${tier}` : icon;
 };
 
+export interface PlayerBadgeStats {
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  currentWinStreak: number;
+  bestWinStreak: number;
+  firstWinVsHigherEloAt: string | null;
+  biggestUpsetEloGap: number;
+  currentElo: number;
+  matchesLast30Days: number;
+  marathonMatches: number;
+  quickWins: number;
+  closeWins: number;
+  uniquePartners: number;
+  uniqueOpponents: number;
+  tournamentsPlayed: number;
+  tournamentWins: number;
+  tournamentPodiums: number;
+  americanoWins: number;
+  mexicanoWins: number;
+}
+
 export const buildPlayerBadgeStats = (
-  matches = [],
-  profiles = [],
-  playerId,
-  nameToIdMap = {},
-  tournamentResults = []
-) => {
+  matches: Match[] = [],
+  profiles: Profile[] = [],
+  playerId: string | null,
+  nameToIdMap: Map<string, string> | Record<string, string> = {},
+  tournamentResults: any[] = []
+): PlayerBadgeStats | null => {
   if (!playerId) return null;
 
   const safeMatches = Array.isArray(matches) ? matches : [];
   const safeProfiles = Array.isArray(profiles) ? profiles : [];
+  const mapObj = nameToIdMap instanceof Map ? nameToIdMap : new Map(Object.entries(nameToIdMap));
 
-  const eloMap = {};
+  const eloMap: Record<string, EloMapEntry> = {};
   safeProfiles.forEach(profile => {
     eloMap[profile.id] = { elo: ELO_BASELINE, games: 0 };
   });
 
-  const stats = {
+  const stats: PlayerBadgeStats = {
     matchesPlayed: 0,
     wins: 0,
     losses: 0,
@@ -307,17 +368,17 @@ export const buildPlayerBadgeStats = (
     americanoWins: 0,
     mexicanoWins: 0
   };
-  const partnerSet = new Set();
-  const opponentSet = new Set();
+  const partnerSet = new Set<string>();
+  const opponentSet = new Set<string>();
 
   const sortedMatches = [...safeMatches].sort(
-    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
   const now = Date.now();
 
   sortedMatches.forEach(match => {
-    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
-    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
+    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, mapObj));
+    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, mapObj));
 
     if (!team1.length || !team2.length) return;
     if (match.team1_sets == null || match.team2_sets == null) return;
@@ -325,7 +386,7 @@ export const buildPlayerBadgeStats = (
     team1.forEach(id => ensurePlayer(eloMap, id));
     team2.forEach(id => ensurePlayer(eloMap, id));
 
-    const avg = team => {
+    const avg = (team: string[]) => {
       if (!team.length) return ELO_BASELINE;
       return (
         team.reduce((sum, id) => {
@@ -358,7 +419,7 @@ export const buildPlayerBadgeStats = (
       const playerTeam = isTeam1 ? team1 : team2;
       const opponentTeam = isTeam1 ? team2 : team1;
       playerTeam.filter(id => id && id !== playerId).forEach(id => partnerSet.add(id));
-      opponentTeam.filter(Boolean).forEach(id => opponentSet.add(id));
+      opponentTeam.forEach(id => opponentSet.add(id));
 
       if (scoreType === "sets") {
         if (maxSets >= 6) stats.marathonMatches += 1;
@@ -419,19 +480,19 @@ export const buildPlayerBadgeStats = (
 
   const tournamentEntries = Array.isArray(tournamentResults) ? tournamentResults : [];
   const playerTournamentResults = tournamentEntries.filter(
-    entry => entry?.profile_id === playerId
+    (entry: any) => entry?.profile_id === playerId
   );
-  const tournamentIds = new Set(playerTournamentResults.map(entry => entry.tournament_id));
+  const tournamentIds = new Set(playerTournamentResults.map((entry: any) => entry.tournament_id));
   stats.tournamentsPlayed = tournamentIds.size;
-  stats.tournamentWins = playerTournamentResults.filter(entry => entry.rank === 1).length;
-  stats.tournamentPodiums = playerTournamentResults.filter(entry => entry.rank <= 3).length;
-  stats.americanoWins = playerTournamentResults.filter(entry => entry.rank === 1 && entry.tournament_type === 'americano').length;
-  stats.mexicanoWins = playerTournamentResults.filter(entry => entry.rank === 1 && entry.tournament_type === 'mexicano').length;
+  stats.tournamentWins = playerTournamentResults.filter((entry: any) => entry.rank === 1).length;
+  stats.tournamentPodiums = playerTournamentResults.filter((entry: any) => entry.rank <= 3).length;
+  stats.americanoWins = playerTournamentResults.filter((entry: any) => entry.rank === 1 && entry.tournament_type === 'americano').length;
+  stats.mexicanoWins = playerTournamentResults.filter((entry: any) => entry.rank === 1 && entry.tournament_type === 'mexicano').length;
 
   return stats;
 };
 
-export const buildPlayerBadges = (stats) => {
+export const buildPlayerBadges = (stats: PlayerBadgeStats | null) => {
   if (!stats) {
     return {
       earnedBadges: [],
@@ -446,7 +507,7 @@ export const buildPlayerBadges = (stats) => {
     : 0;
   const eloLift = Math.max(0, stats.currentElo - ELO_BASELINE);
 
-  const badgeValues = {
+  const badgeValues: Record<string, number> = {
     matches: stats.matchesPlayed,
     wins: stats.wins,
     losses: stats.losses,
@@ -468,7 +529,7 @@ export const buildPlayerBadges = (stats) => {
     "mexicano-wins": stats.mexicanoWins
   };
 
-  const badges = [
+  const badges: Badge[] = [
     ...BADGE_DEFINITIONS.flatMap(def =>
       buildThresholdBadges({ ...def, value: badgeValues[def.idPrefix] ?? 0 })
     ),

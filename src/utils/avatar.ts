@@ -1,4 +1,4 @@
-export const getInitial = (name = "") => {
+export const getInitial = (name: string = "") => {
   const trimmed = name.trim();
   if (!trimmed) return "?";
   return trimmed[0].toUpperCase();
@@ -16,7 +16,7 @@ const canUseStorage = () => {
   }
 };
 
-export const getStoredAvatar = (id) => {
+export const getStoredAvatar = (id: string | null | undefined) => {
   if (!id || !canUseStorage()) return null;
   try {
     return localStorage.getItem(`padel-avatar:${id}`);
@@ -25,7 +25,7 @@ export const getStoredAvatar = (id) => {
   }
 };
 
-export const setStoredAvatar = (id, value) => {
+export const setStoredAvatar = (id: string | null | undefined, value: string) => {
   if (!id || !canUseStorage()) return false;
   try {
     localStorage.setItem(`padel-avatar:${id}`, value);
@@ -35,7 +35,7 @@ export const setStoredAvatar = (id, value) => {
   }
 };
 
-export const removeStoredAvatar = (id) => {
+export const removeStoredAvatar = (id: string | null | undefined) => {
   if (!id || !canUseStorage()) return false;
   try {
     localStorage.removeItem(`padel-avatar:${id}`);
@@ -45,7 +45,7 @@ export const removeStoredAvatar = (id) => {
   }
 };
 
-export const cropAvatarImage = (source, zoom = 1, outputSize = 300) =>
+export const cropAvatarImage = (source: string, zoom = 1, outputSize = 300): Promise<string> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
