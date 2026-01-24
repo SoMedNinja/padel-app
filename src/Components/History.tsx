@@ -60,7 +60,7 @@ export default function History({ matches = [], profiles = [], user }) {
       const name = names[index];
       if (!name) return "";
       const key = normalizeName(name);
-      return nameToIdMap[key] || "";
+      return nameToIdMap.get(key) || "";
     });
   };
 
