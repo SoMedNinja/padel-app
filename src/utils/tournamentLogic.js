@@ -1,3 +1,5 @@
+import { GUEST_ID } from "./guest.js";
+
 /**
  * Shared Tournament Logic
  */
@@ -13,17 +15,22 @@ export const INITIAL_PLAYER_STATS = {
   pointsAgainst: 0,
 };
 
+const ELO_BASELINE = 1000;
+
 // Get the complete state of the tournament from rounds and participants
 export const getTournamentState = (rounds, participants) => {
   const standings = {};
   const teammatesFaced = {};
   const opponentsFaced = {};
 
-  participants.forEach((id) => {
+  // Sort participants for determinism
+  const sortedParticipants = [...participants].sort();
+
+  sortedParticipants.forEach((id) => {
     standings[id] = { ...INITIAL_PLAYER_STATS, id };
     teammatesFaced[id] = {};
     opponentsFaced[id] = {};
-    participants.forEach((otherId) => {
+    sortedParticipants.forEach((otherId) => {
       if (id !== otherId) {
         teammatesFaced[id][otherId] = 0;
         opponentsFaced[id][otherId] = 0;
@@ -44,6 +51,7 @@ export const getTournamentState = (rounds, participants) => {
 
     if (s1 !== null && s2 !== null && Number.isFinite(s1) && Number.isFinite(s2)) {
       team1_ids.forEach(id => {
+        if (!standings[id]) return;
         standings[id].totalPoints += s1;
         standings[id].pointsFor += s1;
         standings[id].pointsAgainst += s2;
@@ -53,6 +61,7 @@ export const getTournamentState = (rounds, participants) => {
         else standings[id].losses += 1;
       });
       team2_ids.forEach(id => {
+        if (!standings[id]) return;
         standings[id].totalPoints += s2;
         standings[id].pointsFor += s2;
         standings[id].pointsAgainst += s1;
@@ -65,20 +74,26 @@ export const getTournamentState = (rounds, participants) => {
       // Teammates
       if (team1_ids.length === 2) {
         const [a, b] = team1_ids;
-        teammatesFaced[a][b] += 1;
-        teammatesFaced[b][a] += 1;
+        if (teammatesFaced[a] && teammatesFaced[b]) {
+          teammatesFaced[a][b] = (teammatesFaced[a][b] || 0) + 1;
+          teammatesFaced[b][a] = (teammatesFaced[b][a] || 0) + 1;
+        }
       }
       if (team2_ids.length === 2) {
         const [a, b] = team2_ids;
-        teammatesFaced[a][b] += 1;
-        teammatesFaced[b][a] += 1;
+        if (teammatesFaced[a] && teammatesFaced[b]) {
+          teammatesFaced[a][b] = (teammatesFaced[a][b] || 0) + 1;
+          teammatesFaced[b][a] = (teammatesFaced[b][a] || 0) + 1;
+        }
       }
 
       // Opponents
       team1_ids.forEach(p1 => {
         team2_ids.forEach(p2 => {
-          opponentsFaced[p1][p2] += 1;
-          opponentsFaced[p2][p1] += 1;
+          if (opponentsFaced[p1] && opponentsFaced[p2]) {
+            opponentsFaced[p1][p2] = (opponentsFaced[p1][p2] || 0) + 1;
+            opponentsFaced[p2][p1] = (opponentsFaced[p2][p1] || 0) + 1;
+          }
         });
       });
     }
@@ -91,9 +106,7 @@ export const getRestCycle = (rounds, participants, mode) => {
   const restCounts = {};
   participants.forEach(p => restCounts[p] = 0);
 
-  // Only consider rounds that match the mode?
-  // Actually, the rules say "Track americanoRestCycle" and "Track mexicanoRestCycle" separately.
-  // But they are computed from the rounds history.
+  // Track rests for the specific mode
   rounds.filter(r => r.mode === mode).forEach(r => {
     r.resting_ids?.forEach(id => {
       if (restCounts[id] !== undefined) restCounts[id]++;
@@ -112,19 +125,24 @@ export const getRestCycle = (rounds, participants, mode) => {
 
 export const pickAmericanoRestingPlayers = (standings, restCycle, participants, count) => {
   // A1: Lowest "rests in current cycle" (not in set), tie-break by fewest total gamesPlayed
+  // We use stable sort with ID as final tie-breaker for determinism
   const sorted = [...participants].sort((a, b) => {
     const aRested = restCycle.has(a) ? 1 : 0;
     const bRested = restCycle.has(b) ? 1 : 0;
     if (aRested !== bRested) return aRested - bRested; // 0 (not rested) comes first
-    return (standings[a]?.gamesPlayed || 0) - (standings[b]?.gamesPlayed || 0);
+
+    const gamesA = standings[a]?.gamesPlayed || 0;
+    const gamesB = standings[b]?.gamesPlayed || 0;
+    if (gamesA !== gamesB) return gamesA - gamesB;
+
+    return a.localeCompare(b);
   });
   return sorted.slice(0, count);
 };
 
 export const pickAmericanoTeams = (activePlayers, standings, teammatesFaced) => {
   // A2: Minimize repeatTeammateCount, tie-break by minimize imbalance
-  // Possible 2v2 splits for 4 players: [0,1] vs [2,3], [0,2] vs [1,3], [0,3] vs [1,2]
-  const [p1, p2, p3, p4] = activePlayers;
+  const [p1, p2, p3, p4] = [...activePlayers].sort(); // Sort for determinism
   const splits = [
     { t1: [p1, p2], t2: [p3, p4] },
     { t1: [p1, p3], t2: [p2, p4] },
@@ -132,8 +150,8 @@ export const pickAmericanoTeams = (activePlayers, standings, teammatesFaced) => 
   ];
 
   const getRepeatCount = (split) => {
-    const c1 = teammatesFaced[split.t1[0]][split.t1[1]] || 0;
-    const c2 = teammatesFaced[split.t2[0]][split.t2[1]] || 0;
+    const c1 = teammatesFaced[split.t1[0]]?.[split.t1[1]] || 0;
+    const c2 = teammatesFaced[split.t2[0]]?.[split.t2[1]] || 0;
     return c1 + c2;
   };
 
@@ -169,14 +187,18 @@ export const pickMexicanoRestingPlayers = (standings, restCycle, participants, c
     const pB = standings[b]?.totalPoints || 0;
     if (pA !== pB) return pA - pB;
 
-    return (standings[b]?.gamesPlayed || 0) - (standings[a]?.gamesPlayed || 0); // MOST gamesPlayed
+    const gamesA = standings[a]?.gamesPlayed || 0;
+    const gamesB = standings[b]?.gamesPlayed || 0;
+    if (gamesA !== gamesB) return gamesB - gamesA; // MOST gamesPlayed
+
+    return a.localeCompare(b);
   });
   return sorted.slice(0, count);
 };
 
 export const pickMexicanoTeams = (activePlayers, standings) => {
   // Smallest diff = abs(teamStrength1 - teamStrength2)
-  const [p1, p2, p3, p4] = activePlayers;
+  const [p1, p2, p3, p4] = [...activePlayers].sort(); // Sort for determinism
   const splits = [
     { t1: [p1, p2], t2: [p3, p4] },
     { t1: [p1, p3], t2: [p2, p4] },

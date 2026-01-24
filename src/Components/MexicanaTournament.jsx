@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -9,8 +10,6 @@ import {
   getTournamentState,
   getRestCycle,
   getNextSuggestion,
-  pickAmericanoRestingPlayers,
-  pickMexicanoRestingPlayers,
 } from "../utils/tournamentLogic";
 
 const POINTS_OPTIONS = [16, 21, 24, 31];
@@ -68,26 +67,25 @@ export default function MexicanaTournament({
     tournament_type: "americano",
   });
 
-  // Mode for the NEXT round suggestion
-  const [nextRoundMode, setNextRoundMode] = useState("americano");
   const [recordingRound, setRecordingRound] = useState(null);
-  const [showOverrideWarning, setShowOverrideWarning] = useState(false);
-  const [overrideConfirmed, setOverrideConfirmed] = useState(false);
 
-  const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
+  // Add Guest to selectable profiles
+  const selectableProfiles = useMemo(() => {
+    const hasGuest = profiles.some(p => p.id === GUEST_ID);
+    if (hasGuest) return profiles;
+    return [...profiles, { id: GUEST_ID, name: GUEST_NAME }];
+  }, [profiles]);
+
+  const profileMap = useMemo(() => makeProfileMap(selectableProfiles), [selectableProfiles]);
 
   const activeTournament = useMemo(
     () => tournaments.find(t => t.id === activeTournamentId) || null,
     [tournaments, activeTournamentId]
   );
 
-  useEffect(() => {
-    if (activeTournament) {
-      setNextRoundMode(activeTournament.tournament_type || "americano");
-    }
-  }, [activeTournament]);
+  const tournamentMode = activeTournament?.tournament_type || "americano";
 
-  const { standings, teammatesFaced } = useMemo(() => {
+  const { standings } = useMemo(() => {
     return getTournamentState(rounds, participants);
   }, [rounds, participants]);
 
@@ -103,8 +101,8 @@ export default function MexicanaTournament({
 
   const currentSuggestion = useMemo(() => {
     if (participants.length < 4) return null;
-    return getNextSuggestion(rounds, participants, nextRoundMode);
-  }, [rounds, participants, nextRoundMode]);
+    return getNextSuggestion(rounds, participants, tournamentMode);
+  }, [rounds, participants, tournamentMode]);
 
   useEffect(() => {
     const loadTournaments = async () => {
@@ -260,28 +258,8 @@ export default function MexicanaTournament({
       ...currentSuggestion,
       team1_score: "",
       team2_score: "",
-      mode: nextRoundMode,
+      mode: tournamentMode,
     });
-    setShowOverrideWarning(false);
-    setOverrideConfirmed(false);
-  };
-
-  const validateRestingRules = (round) => {
-    const restCycle = getRestCycle(rounds, participants, round.mode);
-    const restingCount = participants.length - 4;
-
-    const activeIds = new Set([...round.team1_ids, ...round.team2_ids]);
-    const actualResting = participants.filter(id => !activeIds.has(id));
-
-    let expectedResting;
-    if (round.mode === "americano") {
-      expectedResting = pickAmericanoRestingPlayers(standings, restCycle, participants, restingCount);
-    } else {
-      expectedResting = pickMexicanoRestingPlayers(standings, restCycle, participants, restingCount);
-    }
-
-    const actualRestingSet = new Set(actualResting);
-    return expectedResting.every(id => actualRestingSet.has(id));
   };
 
   const saveRound = async () => {
@@ -290,11 +268,6 @@ export default function MexicanaTournament({
     const s2 = Number(recordingRound.team2_score);
     if (!Number.isFinite(s1) || !Number.isFinite(s2)) {
       setErrorMessage("Fyll i poäng för båda lagen.");
-      return;
-    }
-
-    if (!overrideConfirmed && !validateRestingRules(recordingRound)) {
-      setShowOverrideWarning(true);
       return;
     }
 
@@ -332,6 +305,10 @@ export default function MexicanaTournament({
     if (!tournament?.id || isGuest || !user?.id) return;
     if (!window.confirm(`Ta bort turneringen "${tournament.name}"?`)) return;
     setIsSaving(true);
+
+    // Explicitly delete matches first to handle FK constraint if migration hasn't run yet
+    await supabase.from("matches").delete().eq("source_tournament_id", tournament.id);
+
     const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournament.id);
     if (error) setErrorMessage(error.message);
     else {
@@ -429,22 +406,11 @@ export default function MexicanaTournament({
 
   const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
 
-  const handleTeamPlayerChange = (team, index, val) => {
-    setRecordingRound(prev => {
-      const next = { ...prev };
-      const teamKey = team === 1 ? 'team1_ids' : 'team2_ids';
-      const newTeamIds = [...next[teamKey]];
-      newTeamIds[index] = val;
-      next[teamKey] = newTeamIds;
-      return next;
-    });
-  };
-
   return (
     <section className="page-section mexicana-page">
       <header className="mexicana-header">
         <div>
-          <h2>Turneringsläge</h2>
+          <h2>Turnering</h2>
           <p className="muted">Stöd för Americano (fairness) och Mexicano (merit-baserad).</p>
         </div>
         {activeTournament && (
@@ -488,7 +454,7 @@ export default function MexicanaTournament({
           <div className="mexicana-card">
             <h3>Roster ({participants.length})</h3>
             <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {profiles.map(p => (
+              {selectableProfiles.map(p => (
                 <label key={p.id} className="mexicana-roster-item">
                   <input type="checkbox" checked={participants.includes(p.id)} onChange={() => toggleParticipant(p.id)} disabled={activeTournament.status !== 'draft'} />
                   <span>{getProfileDisplayName(p)}</span>
@@ -509,10 +475,7 @@ export default function MexicanaTournament({
         <div className="mexicana-grid two-columns">
           <div className="mexicana-card">
             <h3>Spela nästa rond</h3>
-            <div className="mode-toggle" style={{ marginBottom: '1rem' }}>
-              <button className={nextRoundMode === 'americano' ? 'active' : ''} onClick={() => setNextRoundMode('americano')}>Americano</button>
-              <button className={nextRoundMode === 'mexicano' ? 'active' : ''} onClick={() => setNextRoundMode('mexicano')}>Mexicano</button>
-            </div>
+            <p className="muted">Läge: <strong>{tournamentMode === 'americano' ? 'Americano' : 'Mexicano'}</strong></p>
 
             {!recordingRound ? (
               <div className="next-suggestion">
@@ -528,29 +491,15 @@ export default function MexicanaTournament({
             ) : (
               <div className="recording-form">
                 <h4>Registrera resultat (Rond {rounds.length + 1})</h4>
-                <p className="muted" style={{ marginBottom: '1rem' }}>Team 1 (vänster) börjar serva.</p>
+                <p className="muted" style={{ marginBottom: '1rem' }}>Lag A (vänster) börjar serva.</p>
                 <div className="mexicana-round-match">
                   <div className="mexicana-team">
-                    <div className="mexicana-team-selector">
-                      <select value={recordingRound.team1_ids[0]} onChange={e => handleTeamPlayerChange(1, 0, e.target.value)}>
-                        {participants.map(id => <option key={id} value={id}>{profileMap[id]}</option>)}
-                      </select>
-                      <select value={recordingRound.team1_ids[1]} onChange={e => handleTeamPlayerChange(1, 1, e.target.value)}>
-                        {participants.map(id => <option key={id} value={id}>{profileMap[id]}</option>)}
-                      </select>
-                    </div>
+                    <div className="mexicana-team-name">{idsToNames(recordingRound.team1_ids, profileMap).join(" & ")}</div>
                     <input type="number" value={recordingRound.team1_score} onChange={e => handleScoreChange('team1_score', e.target.value)} placeholder="Poäng" />
                   </div>
                   <span className="vs">vs</span>
                   <div className="mexicana-team">
-                    <div className="mexicana-team-selector">
-                      <select value={recordingRound.team2_ids[0]} onChange={e => handleTeamPlayerChange(2, 0, e.target.value)}>
-                        {participants.map(id => <option key={id} value={id}>{profileMap[id]}</option>)}
-                      </select>
-                      <select value={recordingRound.team2_ids[1]} onChange={e => handleTeamPlayerChange(2, 1, e.target.value)}>
-                        {participants.map(id => <option key={id} value={id}>{profileMap[id]}</option>)}
-                      </select>
-                    </div>
+                    <div className="mexicana-team-name">{idsToNames(recordingRound.team2_ids, profileMap).join(" & ")}</div>
                     <input type="number" value={recordingRound.team2_score} onChange={e => handleScoreChange('team2_score', e.target.value)} placeholder="Poäng" />
                   </div>
                 </div>
@@ -564,20 +513,10 @@ export default function MexicanaTournament({
                   </div>
                 </div>
 
-                {showOverrideWarning && (
-                  <div className="notice-banner warning" style={{ marginTop: '1rem' }}>
-                    <p>Varning: Valda spelare/vila följer inte reglerna för {recordingRound.mode}. Vill du fortsätta ändå?</p>
-                    <button onClick={() => { setOverrideConfirmed(true); setShowOverrideWarning(false); }}>Ja, bekräfta</button>
-                    <button className="ghost-button" onClick={() => setRecordingRound(null)}>Avbryt</button>
-                  </div>
-                )}
-
-                {!showOverrideWarning && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <button onClick={saveRound} disabled={isSaving}>Spara rond</button>
-                    <button onClick={() => setRecordingRound(null)} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Avbryt</button>
-                  </div>
-                )}
+                <div style={{ marginTop: '1rem' }}>
+                  <button onClick={saveRound} disabled={isSaving}>Spara rond</button>
+                  <button onClick={() => setRecordingRound(null)} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Avbryt</button>
+                </div>
               </div>
             )}
 

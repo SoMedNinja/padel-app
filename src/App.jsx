@@ -195,7 +195,7 @@ export default function App() {
     if (hash === "history") {
       return { page: "history", scrollId: null };
     }
-    if (hash === "mexicana") {
+    if (hash === "mexicana" || hash === "tournament") {
       return { page: "mexicana", scrollId: null };
     }
     if (hash === "admin") {
@@ -528,7 +528,7 @@ export default function App() {
             navigateTo("mexicana");
           }}
         >
-          Mexicana-turnering
+          Turnering
         </a>
         {userWithAdmin?.is_admin && (
           <a
