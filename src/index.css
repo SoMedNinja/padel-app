@@ -1729,3 +1729,50 @@ select:focus-visible {
   color:#b91c1c;
   font-weight:600;
 }
+
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-toggle button {
+  flex: 1;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  margin-top: 0;
+}
+
+.mode-toggle button.active {
+  background: var(--color-brand);
+  color: #fff;
+  border-color: var(--color-brand);
+}
+
+.mexicana-team-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mexicana-team-selector select {
+  margin: 0;
+}
+
+.vs {
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.recording-form h4 {
+  margin: 0 0 1rem;
+}
+
+.resting-badge {
+  background: var(--color-bg);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+}
