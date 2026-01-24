@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@mui/material";
-import PullToRefresh from "react-simple-pull-to-refresh";
+import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
+import { useTournaments, useTournamentDetails, useTournamentResults } from "../hooks/useTournamentData";
+import { useQueryClient } from "@tanstack/react-query";
+import TournamentBracket from "./TournamentBracket";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -10,6 +13,7 @@ import {
 } from "../utils/profileMap";
 import {
   getTournamentState,
+  getRestCycle,
   getNextSuggestion,
   generateAmericanoRounds,
 } from "../utils/tournamentLogic";
@@ -48,18 +52,22 @@ const getTournamentStatusLabel = (status) => {
 export default function MexicanaTournament({
   user,
   profiles = [],
+  eloPlayers = [],
   isGuest = false,
   onTournamentSync,
-  onRefresh,
 }) {
-  const [tournaments, setTournaments] = useState([]);
+  const queryClient = useQueryClient();
   const [activeTournamentId, setActiveTournamentId] = useState("");
+  const { data: tournaments = [], isLoading: isLoadingTournaments } = useTournaments();
+  const { data: tournamentData, isLoading: isLoadingDetails } = useTournamentDetails(activeTournamentId);
+  const { data: resultsByTournament = {} } = useTournamentResults();
+
   const [participants, setParticipants] = useState([]);
   const [rounds, setRounds] = useState([]);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const isLoading = isLoadingTournaments || (!!activeTournamentId && isLoadingDetails);
+
   const [newTournament, setNewTournament] = useState({
     name: "",
     scheduled_at: toDateInput(new Date().toISOString()),
@@ -106,102 +114,30 @@ export default function MexicanaTournament({
     return getNextSuggestion(rounds, participants, tournamentMode);
   }, [rounds, participants, tournamentMode]);
 
-  const loadTournaments = useCallback(async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
-    const { data, error } = await supabase
-      .from("mexicana_tournaments")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) {
-      setErrorMessage(error.message || "Kunde inte hämta turneringar.");
+  useEffect(() => {
+    if (!activeTournamentId && tournaments.length > 0) {
+      setActiveTournamentId(tournaments[0].id);
     }
-    setTournaments(data || []);
-    if (!activeTournamentId && data?.length) {
-      setActiveTournamentId(data[0].id);
-    }
-    if (showLoading) setIsLoading(false);
-  }, [activeTournamentId]);
+  }, [tournaments, activeTournamentId]);
 
-  const loadResults = useCallback(async () => {
-    const { error } = await supabase.from("mexicana_results").select("*");
-    if (error) {
-      setErrorMessage(error.message || "Kunde inte hämta historiska resultat.");
-      return;
-    }
-  }, []);
-
-  const loadTournamentDetails = useCallback(async () => {
-    if (!activeTournamentId) {
+  useEffect(() => {
+    if (tournamentData) {
+      setParticipants(tournamentData.participants);
+      setRounds(tournamentData.rounds);
+    } else if (!activeTournamentId) {
       setParticipants([]);
       setRounds([]);
-      return;
     }
-
-    const [{ data: participantRows, error: participantError }, { data: roundRows, error: roundError }] =
-      await Promise.all([
-        supabase
-          .from("mexicana_participants")
-          .select("profile_id")
-          .eq("tournament_id", activeTournamentId),
-        supabase
-          .from("mexicana_rounds")
-          .select("*")
-          .eq("tournament_id", activeTournamentId)
-          .order("round_number", { ascending: true }),
-      ]);
-
-    if (participantError) setErrorMessage(participantError.message);
-    if (roundError) setErrorMessage(roundError.message);
-
-    setParticipants(participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || []);
-
-    const mappedRounds = (roundRows || []).map(round => ({
-      ...round,
-      team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
-      team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
-      resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
-    }));
-    setRounds(mappedRounds);
-  }, [activeTournamentId]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadTournaments();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [loadTournaments]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadResults();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [loadResults]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadTournamentDetails();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [loadTournamentDetails]);
-
-  const handleRefresh = async () => {
-    if (onRefresh) await onRefresh();
-    await Promise.all([
-      loadTournaments(false),
-      loadResults(),
-      loadTournamentDetails()
-    ]);
-  };
+  }, [tournamentData, activeTournamentId]);
 
   const createTournament = async (event) => {
     event.preventDefault();
     if (!newTournament.name.trim()) {
-      setErrorMessage("Ange ett namn för turneringen.");
+      toast.error("Ange ett namn för turneringen.");
       return;
     }
     if (isGuest || !user?.id) {
-      setErrorMessage("Logga in för att skapa en turnering.");
+      toast.error("Logga in för att skapa en turnering.");
       return;
     }
     setIsSaving(true);
@@ -220,13 +156,11 @@ export default function MexicanaTournament({
       .single();
 
     if (error) {
-      setErrorMessage(error.message);
+      toast.error(error.message);
     } else {
-      setTournaments(prev => [data, ...prev]);
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       setActiveTournamentId(data.id);
-      setParticipants([]);
-      setRounds([]);
-      setSuccessMessage("Turneringen är skapad.");
+      toast.success("Turneringen är skapad.");
     }
     setIsSaving(false);
   };
@@ -241,7 +175,7 @@ export default function MexicanaTournament({
   const saveRoster = async () => {
     if (!activeTournamentId || isGuest || !user?.id) return;
     if (participants.length < 4 || participants.length > 8) {
-      setErrorMessage("Välj 4 till 8 spelare.");
+      toast.error("Välj 4 till 8 spelare.");
       return;
     }
     setIsSaving(true);
@@ -252,8 +186,11 @@ export default function MexicanaTournament({
         profile_id: profileId === GUEST_ID ? null : profileId,
       }))
     );
-    if (error) setErrorMessage(error.message);
-    else setSuccessMessage("Roster sparad.");
+    if (error) toast.error(error.message);
+    else {
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      toast.success("Roster sparad.");
+    }
     setIsSaving(false);
   };
 
@@ -272,25 +209,15 @@ export default function MexicanaTournament({
         mode: 'americano',
       }));
 
-      const { data: insertedRounds, error: roundError } = await supabase
+      const { error: roundError } = await supabase
         .from("mexicana_rounds")
-        .insert(roundsPayload)
-        .select();
+        .insert(roundsPayload);
 
       if (roundError) {
-        setErrorMessage(roundError.message);
+        toast.error(roundError.message);
         setIsSaving(false);
         return;
       }
-
-      const mappedRounds = (insertedRounds || []).map(round => ({
-        ...round,
-        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
-        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
-        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
-      })).sort((a, b) => a.round_number - b.round_number);
-
-      setRounds(mappedRounds);
     }
 
     const { error } = await supabase
@@ -299,10 +226,11 @@ export default function MexicanaTournament({
       .eq("id", activeTournamentId);
 
     if (error) {
-      setErrorMessage(error.message);
+      toast.error(error.message);
     } else {
-      setTournaments(prev => prev.map(t => t.id === activeTournamentId ? { ...t, status: "in_progress" } : t));
-      setSuccessMessage("Turneringen har startat.");
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      toast.success("Turneringen har startat.");
     }
     setIsSaving(false);
   };
@@ -322,7 +250,7 @@ export default function MexicanaTournament({
     const s1 = Number(recordingRound.team1_score);
     const s2 = Number(recordingRound.team2_score);
     if (!Number.isFinite(s1) || !Number.isFinite(s2)) {
-      setErrorMessage("Fyll i poäng för båda lagen.");
+      toast.error("Fyll i poäng för båda lagen.");
       return;
     }
 
@@ -337,7 +265,7 @@ export default function MexicanaTournament({
     const t2Ids = recordingRound.team2_ids.map(id => id === GUEST_ID ? null : id);
     const rIds = restingIds.map(id => id === GUEST_ID ? null : id);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("mexicana_rounds")
       .insert({
         tournament_id: activeTournamentId,
@@ -348,15 +276,13 @@ export default function MexicanaTournament({
         team1_score: s1,
         team2_score: s2,
         mode: recordingRound.mode,
-      })
-      .select()
-      .single();
+      });
 
-    if (error) setErrorMessage(error.message);
+    if (error) toast.error(error.message);
     else {
-      setRounds(prev => [...prev, data]);
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
       setRecordingRound(null);
-      setSuccessMessage(`Rond ${nextRoundNumber} sparad.`);
+      toast.success(`Rond ${nextRoundNumber} sparad.`);
     }
     setIsSaving(false);
   };
@@ -370,11 +296,11 @@ export default function MexicanaTournament({
     await supabase.from("matches").delete().eq("source_tournament_id", tournament.id);
 
     const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournament.id);
-    if (error) setErrorMessage(error.message);
+    if (error) toast.error(error.message);
     else {
-      setTournaments(prev => prev.filter(t => t.id !== tournament.id));
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
-      setSuccessMessage("Turneringen borttagen.");
+      toast.success("Turneringen borttagen.");
     }
     setIsSaving(false);
   };
@@ -384,10 +310,10 @@ export default function MexicanaTournament({
     if (!window.confirm("Markera turneringen som avbruten?")) return;
     setIsSaving(true);
     const { error } = await supabase.from("mexicana_tournaments").update({ status: "abandoned" }).eq("id", activeTournamentId);
-    if (error) setErrorMessage(error.message);
+    if (error) toast.error(error.message);
     else {
-      setTournaments(prev => prev.map(t => t.id === activeTournamentId ? { ...t, status: "abandoned" } : t));
-      setSuccessMessage("Turneringen avbruten.");
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      toast.success("Turneringen avbruten.");
     }
     setIsSaving(false);
   };
@@ -414,7 +340,7 @@ export default function MexicanaTournament({
 
     const { error: matchError } = await supabase.from("matches").insert(matchPayload);
     if (matchError) {
-      setErrorMessage(matchError.message);
+      toast.error(matchError.message);
       setIsSaving(false);
       return;
     }
@@ -432,7 +358,7 @@ export default function MexicanaTournament({
 
     const { error: resultError } = await supabase.from("mexicana_results").insert(resultsPayload);
     if (resultError) {
-      setErrorMessage(resultError.message);
+      toast.error(resultError.message);
       setIsSaving(false);
       return;
     }
@@ -442,11 +368,12 @@ export default function MexicanaTournament({
       .update({ status: "completed", completed_at: new Date().toISOString(), synced_to_matches: true })
       .eq("id", activeTournament.id);
 
-    if (tournamentError) setErrorMessage(tournamentError.message);
+    if (tournamentError) toast.error(tournamentError.message);
     else {
-      setTournaments(prev => prev.map(t => t.id === activeTournament.id ? { ...t, status: "completed", synced_to_matches: true } : t));
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      queryClient.invalidateQueries({ queryKey: ["tournamentResultsHistory"] });
       onTournamentSync?.();
-      setSuccessMessage("Turneringen slutförd.");
+      toast.success("Turneringen slutförd.");
     }
     setIsSaving(false);
   };
@@ -464,6 +391,8 @@ export default function MexicanaTournament({
     });
   };
 
+  const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
+
   const updateRoundInDb = async (roundId, s1, s2) => {
     if (isGuest || !user?.id) return;
     setIsSaving(true);
@@ -476,10 +405,10 @@ export default function MexicanaTournament({
       .eq("id", roundId);
 
     if (error) {
-      setErrorMessage(error.message);
+      toast.error(error.message);
     } else {
-      setRounds(prev => prev.map(r => r.id === roundId ? { ...r, team1_score: Number(s1), team2_score: Number(s2) } : r));
-      setSuccessMessage("Resultat sparat.");
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      toast.success("Resultat sparat.");
     }
     setIsSaving(false);
   };
@@ -499,7 +428,7 @@ export default function MexicanaTournament({
     }));
   };
 
-  const content = (
+  return (
     <section className="page-section mexicana-page">
       <header className="mexicana-header">
         <div>
@@ -513,8 +442,14 @@ export default function MexicanaTournament({
         )}
       </header>
 
-      {successMessage && <div className="notice-banner success"><div>{successMessage}</div><button onClick={() => setSuccessMessage("")}>Stäng</button></div>}
-      {errorMessage && <div className="notice-banner error"><div>{errorMessage}</div><button onClick={() => setErrorMessage("")}>Stäng</button></div>}
+      {activeTournament && (activeTournament.status === 'in_progress' || activeTournament.status === 'completed') && (
+        <TournamentBracket
+          rounds={rounds}
+          profileMap={profileMap}
+          activeTournament={activeTournament}
+        />
+      )}
+
 
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -815,11 +750,5 @@ export default function MexicanaTournament({
       </>
       )}
     </section>
-  );
-
-  return (
-    <PullToRefresh onRefresh={handleRefresh}>
-      {content}
-    </PullToRefresh>
   );
 }

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import PullToRefresh from "react-simple-pull-to-refresh";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   getProfileDisplayName,
   idsToNames,
@@ -18,7 +18,7 @@ const toDateTimeInput = (value) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-export default function History({ matches = [], profiles = [], user, onRefresh }) {
+export default function History({ matches = [], profiles = [], user }) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
   const playerOptions = useMemo(() => {
@@ -31,12 +31,16 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
 
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
   const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
-  const effectivePage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   if (!matches.length) return <div>Inga matcher ännu.</div>;
 
@@ -61,7 +65,6 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
   };
 
   const startEdit = (match) => {
-    setErrorMessage("");
     setEditingId(match.id);
     setEdit({
       created_at: toDateTimeInput(match.created_at),
@@ -77,7 +80,6 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
   const cancelEdit = () => {
     setEditingId(null);
     setEdit(null);
-    setErrorMessage("");
   };
 
   const updateTeam = (teamKey, index, value) => {
@@ -98,17 +100,17 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
     if (!edit) return;
 
     if (!edit.created_at) {
-      setErrorMessage("Välj datum och tid.");
+      toast.error("Välj datum och tid.");
       return;
     }
 
     if (edit.team1_ids.some(id => !id) || edit.team2_ids.some(id => !id)) {
-      setErrorMessage("Välj spelare för alla positioner.");
+      toast.error("Välj spelare för alla positioner.");
       return;
     }
 
     if (hasDuplicatePlayers(edit.team1_ids, edit.team2_ids)) {
-      setErrorMessage("Samma spelare kan inte vara med i båda lagen.");
+      toast.error("Samma spelare kan inte vara med i båda lagen.");
       return;
     }
 
@@ -134,8 +136,9 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
       .eq("id", matchId);
 
     if (error) {
-      setErrorMessage(error.message);
+      toast.error(error.message);
     } else {
+      toast.success("Matchen har uppdaterats.");
       cancelEdit();
     }
   };
@@ -144,10 +147,14 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
     if (!window.confirm("Radera matchen?")) return;
 
     const { error } = await supabase.from("matches").delete().eq("id", matchId);
-    if (error) setErrorMessage(error.message);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Matchen har raderats.");
+    }
   };
 
-  const startIndex = (effectivePage - 1) * pageSize;
+  const startIndex = (currentPage - 1) * pageSize;
   const pagedMatches = matches.slice(startIndex, startIndex + pageSize);
 
   const renderTeam = (ids = [], names = []) => {
@@ -165,34 +172,26 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
     return `${score} set`;
   };
 
-  const content = (
+  return (
     <div className="history-section table-card">
       <h2>Tidigare matcher</h2>
-      {errorMessage && (
-        <div className="notice-banner error" role="alert">
-          <div>{errorMessage}</div>
-          <button type="button" className="ghost-button" onClick={() => setErrorMessage("")}>
-            Stäng
-          </button>
-        </div>
-      )}
       <div className="pagination">
         <button
           type="button"
           className="ghost-button"
           onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
-          disabled={effectivePage <= 1}
+          disabled={currentPage === 1}
         >
           Föregående
         </button>
         <span className="pagination-status">
-          Sida {effectivePage} av {totalPages}
+          Sida {currentPage} av {totalPages}
         </span>
         <button
           type="button"
           className="ghost-button"
           onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
-          disabled={effectivePage >= totalPages}
+          disabled={currentPage === totalPages}
         >
           Nästa
         </button>
@@ -395,10 +394,4 @@ export default function History({ matches = [], profiles = [], user, onRefresh }
       </p>
     </div>
   );
-
-  if (onRefresh) {
-    return <PullToRefresh onRefresh={onRefresh}>{content}</PullToRefresh>;
-  }
-
-  return content;
 }

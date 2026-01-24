@@ -6,6 +6,7 @@ import {
   makeProfileMap,
   resolveTeamIds,
 } from "./profileMap";
+import { Match, Profile, PlayerStats } from "../types";
 
 const BASE_K = 20;
 const HIGH_K = 40;
@@ -17,7 +18,7 @@ const EXPECTED_SCORE_DIVISOR = 300;
 const PLAYER_WEIGHT_DIVISOR = 800;
 const ELO_BASELINE = 1000;
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export const getKFactor = (games = 0) => {
   if (games < 10) return HIGH_K;
@@ -25,16 +26,16 @@ export const getKFactor = (games = 0) => {
   return BASE_K;
 };
 
-export const getExpectedScore = (rating, opponentRating) =>
+export const getExpectedScore = (rating: number, opponentRating: number) =>
   1 / (1 + Math.pow(10, (opponentRating - rating) / EXPECTED_SCORE_DIVISOR));
 
-export const getMarginMultiplier = (team1Sets, team2Sets) => {
+export const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
   if (!Number.isFinite(team1Sets) || !Number.isFinite(team2Sets)) return 1;
   const margin = Math.min(2, Math.abs(team1Sets - team2Sets));
   return 1 + Math.min(MAX_MARGIN_MULTIPLIER - 1, margin * 0.1);
 };
 
-export const getPlayerWeight = (playerElo, teamAverageElo) => {
+export const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
   if (!Number.isFinite(playerElo) || !Number.isFinite(teamAverageElo)) return 1;
   const adjustment = 1 + (teamAverageElo - playerElo) / PLAYER_WEIGHT_DIVISOR;
   return clamp(adjustment, MIN_PLAYER_WEIGHT, MAX_PLAYER_WEIGHT);
@@ -42,20 +43,20 @@ export const getPlayerWeight = (playerElo, teamAverageElo) => {
 
 export { ELO_BASELINE };
 
-export function calculateElo(matches, profiles = []) {
-  const players = {};
+export function calculateElo(matches: Match[], profiles: Profile[] = []): PlayerStats[] {
+  const players: Record<string, PlayerStats> = {};
   const profileMap = makeProfileMap(profiles);
   const nameToIdMap = makeNameToIdMap(profiles);
   const avatarMap = profiles.reduce((acc, profile) => {
     acc[profile.id] = profile.avatar_url || null;
     return acc;
-  }, {});
+  }, {} as Record<string, string | null>);
   const badgeMap = profiles.reduce((acc, profile) => {
     acc[profile.id] = profile.featured_badge_id || null;
     return acc;
-  }, {});
+  }, {} as Record<string, string | null>);
 
-  const ensurePlayer = (id, name = "Okänd", avatarUrl = null, featuredBadgeId = null) => {
+  const ensurePlayer = (id: string, name = "Okänd", avatarUrl: string | null = null, featuredBadgeId: string | null = null) => {
     if (id === GUEST_ID) return;
     if (!players[id]) {
       players[id] = {
@@ -70,6 +71,7 @@ export function calculateElo(matches, profiles = []) {
         partners: {},
         avatarUrl,
         featuredBadgeId,
+        recentResults: [],
       };
     } else {
       if (name && players[id].name === "Okänd") {
@@ -88,12 +90,12 @@ export function calculateElo(matches, profiles = []) {
     ensurePlayer(p.id, getProfileDisplayName(p), avatarMap[p.id], badgeMap[p.id]);
   });
 
-  const normalizeTeam = (team) => (Array.isArray(team) ? team.filter(Boolean) : []);
-  const hasPlayer = (id) => Boolean(players[id]);
-  const activeTeam = (team) => team.filter(id => id !== GUEST_ID && hasPlayer(id));
-  const avg = (team) =>
+  const normalizeTeam = (team: any): string[] => (Array.isArray(team) ? team.filter(Boolean) : []);
+  const hasPlayer = (id: string) => Boolean(players[id]);
+  const activeTeam = (team: string[]) => team.filter(id => id !== GUEST_ID && hasPlayer(id));
+  const avg = (team: string[]) =>
     team.reduce((s, id) => s + (players[id]?.elo ?? ELO_BASELINE), 0) / team.length;
-  const recordPartners = (team, didWin) => {
+  const recordPartners = (team: string[], didWin: boolean) => {
     team.forEach((playerId) => {
       team.forEach((partnerId) => {
         if (playerId === partnerId) return;
@@ -105,10 +107,10 @@ export function calculateElo(matches, profiles = []) {
     });
   };
 
-  const resolveName = (id) => getIdDisplayName(id, profileMap);
+  const resolveName = (id: string) => getIdDisplayName(id, profileMap);
 
   const sortedMatches = [...matches].sort(
-    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
   sortedMatches.forEach(m => {
@@ -136,9 +138,9 @@ export function calculateElo(matches, profiles = []) {
       const weight = getPlayerWeight(player.elo, e1);
       const delta = Math.round(playerK * marginMultiplier * weight * ((team1Won ? 1 : 0) - exp1));
       player.elo += delta;
-      team1Won ? players[id].wins++ : players[id].losses++;
-      players[id].games++;
-      players[id].history.push({
+      team1Won ? player.wins++ : player.losses++;
+      player.games++;
+      player.history.push({
         result: team1Won ? "W" : "L",
         timestamp: historyStamp,
         delta,
@@ -154,9 +156,9 @@ export function calculateElo(matches, profiles = []) {
         playerK * marginMultiplier * weight * ((team1Won ? 0 : 1) - (1 - exp1))
       );
       player.elo += delta;
-      team1Won ? players[id].losses++ : players[id].wins++;
-      players[id].games++;
-      players[id].history.push({
+      team1Won ? player.losses++ : player.wins++;
+      player.games++;
+      player.history.push({
         result: team1Won ? "L" : "W",
         timestamp: historyStamp,
         delta,
