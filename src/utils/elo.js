@@ -138,7 +138,12 @@ export function calculateElo(matches, profiles = []) {
       player.elo += delta;
       team1Won ? players[id].wins++ : players[id].losses++;
       players[id].games++;
-      players[id].history.push({ result: team1Won ? "W" : "L", timestamp: historyStamp });
+      players[id].history.push({
+        result: team1Won ? "W" : "L",
+        timestamp: historyStamp,
+        delta,
+        matchId: m.id,
+      });
     });
 
     t2Active.forEach(id => {
@@ -151,7 +156,12 @@ export function calculateElo(matches, profiles = []) {
       player.elo += delta;
       team1Won ? players[id].losses++ : players[id].wins++;
       players[id].games++;
-      players[id].history.push({ result: team1Won ? "L" : "W", timestamp: historyStamp });
+      players[id].history.push({
+        result: team1Won ? "L" : "W",
+        timestamp: historyStamp,
+        delta,
+        matchId: m.id,
+      });
     });
 
     recordPartners(t1Active, team1Won);
