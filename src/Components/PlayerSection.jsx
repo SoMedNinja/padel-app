@@ -26,7 +26,7 @@ import {
 import { GUEST_ID } from "../utils/guest";
 import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
 import { getMvpStats } from "../utils/stats";
-import { buildPlayerBadgeStats, buildPlayerBadges, getBadgeLabelById } from "../utils/badges";
+import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
 
@@ -69,19 +69,6 @@ const getPlayerOptionLabel = (profile) => {
   const badgeLabel = getBadgeLabelById(profile.featured_badge_id);
   const baseName = getProfileDisplayName(profile);
   return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
-};
-
-const groupBadgesByType = (badges = []) => {
-  const grouped = new Map();
-  badges.forEach((badge) => {
-    const group = badge.group || "Övrigt";
-    if (!grouped.has(group)) {
-      grouped.set(group, { label: group, order: badge.groupOrder ?? 999, items: [] });
-    }
-    grouped.get(group).items.push(badge);
-  });
-
-  return [...grouped.values()].sort((a, b) => a.order - b.order);
 };
 
 const normalizeTeam = (team) =>
@@ -525,6 +512,34 @@ const buildHeadToHead = (matches, playerId, opponentId, mode, nameToIdMap) => {
   return { wins, losses, matches: total };
 };
 
+const buildHeadToHeadTournaments = (tournamentResults, playerId, opponentId, mode) => {
+  if (!playerId || !opponentId) return { wins: 0, matches: 0 };
+
+  const playerResults = tournamentResults.filter(r => r.profile_id === playerId);
+  const opponentResults = tournamentResults.filter(r => r.profile_id === opponentId);
+
+  // Find tournaments where both played
+  const playerTournamentIds = new Set(playerResults.map(r => r.tournament_id));
+  const sharedTournaments = opponentResults.filter(r => playerTournamentIds.has(r.tournament_id));
+
+  let wins = 0;
+  let matches = 0;
+
+  sharedTournaments.forEach(oppRes => {
+    const playRes = playerResults.find(r => r.tournament_id === oppRes.tournament_id);
+    if (!playRes) return;
+
+    // In a tournament, everyone is technically "against" everyone else (it's individual total points)
+    // but they might also be teammates in some rounds.
+    // Given the request, we just show how many tournaments they both participated in.
+
+    matches++;
+    if (playRes.rank === 1) wins++;
+  });
+
+  return { wins, matches };
+};
+
 const buildHeadToHeadRecentResults = (
   matches,
   playerId,
@@ -642,14 +657,9 @@ export default function PlayerSection({
   );
 
   const [compareTarget, setCompareTarget] = useState("none");
-  const [isBadgesExpanded, setIsBadgesExpanded] = useState(true);
-  const [isEarnedExpanded, setIsEarnedExpanded] = useState(true);
-  const [isLockedExpanded, setIsLockedExpanded] = useState(true);
   const [selectedBadgeId, setSelectedBadgeId] = useState(
     playerProfile?.featured_badge_id || null
   );
-  const [savingBadgeId, setSavingBadgeId] = useState(null);
-  const badgeUpdateRequestId = useRef(0);
   const comparisonIds = useMemo(() => {
     if (!user?.id) return [];
     if (compareTarget === "all") {
@@ -722,57 +732,6 @@ export default function PlayerSection({
   useEffect(() => {
     setSelectedBadgeId(playerProfile?.featured_badge_id || null);
   }, [playerProfile?.featured_badge_id]);
-
-  const handleBadgeSelection = async (badgeId) => {
-    if (!user?.id) return;
-    const nextBadgeId = badgeId === selectedBadgeId ? null : badgeId;
-    const requestId = (badgeUpdateRequestId.current += 1);
-    setSavingBadgeId(badgeId);
-    setSelectedBadgeId(nextBadgeId);
-
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({ featured_badge_id: nextBadgeId })
-        .eq("id", user.id)
-        .select();
-
-      if (requestId !== badgeUpdateRequestId.current) {
-        return;
-      }
-
-      if (error) {
-        alert(error.message || "Kunde inte uppdatera visad merit.");
-        setSelectedBadgeId(playerProfile?.featured_badge_id || null);
-      } else if (data?.length) {
-        onProfileUpdate?.(data[0]);
-      }
-    } catch (error) {
-      if (requestId !== badgeUpdateRequestId.current) {
-        return;
-      }
-      alert(error?.message || "Kunde inte uppdatera visad merit.");
-      setSelectedBadgeId(playerProfile?.featured_badge_id || null);
-    } finally {
-      if (requestId === badgeUpdateRequestId.current) {
-        setSavingBadgeId(null);
-      }
-    }
-  };
-
-  const badgeStats = useMemo(
-    () => buildPlayerBadgeStats(matches, profiles, user?.id, nameToIdMap, tournamentResults),
-    [matches, profiles, user, nameToIdMap, tournamentResults]
-  );
-  const badgeSummary = useMemo(() => buildPlayerBadges(badgeStats), [badgeStats]);
-  const earnedBadgeGroups = useMemo(
-    () => groupBadgesByType(badgeSummary.earnedBadges),
-    [badgeSummary.earnedBadges]
-  );
-  const lockedBadgeGroups = useMemo(
-    () => groupBadgesByType(badgeSummary.lockedBadges),
-    [badgeSummary.lockedBadges]
-  );
 
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
@@ -980,154 +939,6 @@ export default function PlayerSection({
         </div>
       </div>
 
-      <div className="badges-section">
-        <div className="badges-header">
-          <div>
-            <h3>Meriter</h3>
-            <p className="muted">
-              {badgeSummary.totalEarned} av {badgeSummary.totalBadges} meriter upplåsta
-            </p>
-          </div>
-          <div className="badges-header-actions">
-            <button
-              type="button"
-              className="badge-toggle"
-              onClick={() => setIsBadgesExpanded(prev => !prev)}
-            >
-              <span>{isBadgesExpanded ? "Minimera" : "Visa meriter"}</span>
-              <span aria-hidden="true">{isBadgesExpanded ? "▴" : "▾"}</span>
-            </button>
-          </div>
-        </div>
-
-        {isBadgesExpanded && (
-          <>
-            {badgeSummary.totalBadges === 0 ? (
-              <p className="muted">Spela några matcher för att låsa upp badges.</p>
-            ) : (
-              <>
-                <div className="badge-group">
-                  <div className="badge-group-header">
-                    <div className="badge-group-title">Upplåsta</div>
-                    <button
-                      type="button"
-                      className="badge-toggle badge-group-toggle"
-                      onClick={() => setIsEarnedExpanded(prev => !prev)}
-                    >
-                      <span>{isEarnedExpanded ? "Minimera" : "Visa"}</span>
-                      <span aria-hidden="true">{isEarnedExpanded ? "▴" : "▾"}</span>
-                    </button>
-                  </div>
-                  {isEarnedExpanded && (
-                    <>
-                      {earnedBadgeGroups.length ? (
-                        earnedBadgeGroups.map(group => (
-                          <div key={`earned-${group.label}`} className="badge-type-group">
-                            <div className="badge-type-title">{group.label}</div>
-                            <div className="badges-grid">
-                              {group.items.map(badge => (
-                                <div
-                                  key={badge.id}
-                                  className={`badge-card badge-earned ${
-                                    selectedBadgeId === badge.id ? "badge-selected" : ""
-                                  }`}
-                                >
-                                  <div className="badge-icon">
-                                    <span>{badge.icon}</span>
-                                    {badge.tier && <span className="badge-tier">{badge.tier}</span>}
-                                  </div>
-                                  <div className="badge-title">{badge.title}</div>
-                                  <div className="badge-description">{badge.description}</div>
-                                  {badge.meta && <div className="badge-meta">{badge.meta}</div>}
-                                  <div className="badge-actions">
-                                    <button
-                                      type="button"
-                                      className="badge-select"
-                                      onClick={() => handleBadgeSelection(badge.id)}
-                                      disabled={savingBadgeId === badge.id}
-                                    >
-                                      {selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn"}
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="badges-grid">
-                          <div className="badge-card badge-empty">
-                            <div className="badge-title">Inga upplåsta ännu</div>
-                            <div className="badge-description">
-                              Fortsätt spela för att låsa upp dina första badges.
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="badge-group">
-                  <div className="badge-group-header">
-                    <div className="badge-group-title">På väg</div>
-                    <button
-                      type="button"
-                      className="badge-toggle badge-group-toggle"
-                      onClick={() => setIsLockedExpanded(prev => !prev)}
-                    >
-                      <span>{isLockedExpanded ? "Minimera" : "Visa"}</span>
-                      <span aria-hidden="true">{isLockedExpanded ? "▴" : "▾"}</span>
-                    </button>
-                  </div>
-                  {isLockedExpanded && (
-                    <>
-                      {lockedBadgeGroups.map(group => (
-                        <div key={`locked-${group.label}`} className="badge-type-group">
-                          <div className="badge-type-title">{group.label}</div>
-                          <div className="badges-grid">
-                            {group.items.map(badge => {
-                              const progress = badge.progress;
-                              const progressPercent = progress
-                                ? Math.round((progress.current / progress.target) * 100)
-                                : 0;
-                              return (
-                                <div key={badge.id} className="badge-card">
-                                  <div className="badge-icon">
-                                    <span>{badge.icon}</span>
-                                    {badge.tier && <span className="badge-tier">{badge.tier}</span>}
-                                  </div>
-                                  <div className="badge-title">{badge.title}</div>
-                                  <div className="badge-description">{badge.description}</div>
-                                  {badge.meta && <div className="badge-meta">{badge.meta}</div>}
-                                  {progress && (
-                                    <div className="badge-progress">
-                                      <div className="badge-progress-bar">
-                                        <div
-                                          className="badge-progress-fill"
-                                          style={{ width: `${progressPercent}%` }}
-                                        />
-                                      </div>
-                                      <span className="badge-progress-text">
-                                        {progress.current}/{progress.target}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </div>
-
       <div className="player-chart">
         <div className="player-chart-header">
           <h3>ELO-utveckling (senaste året)</h3>
@@ -1177,7 +988,7 @@ export default function PlayerSection({
   );
 }
 
-export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
+export function HeadToHeadSection({ user, profiles = [], matches = [], tournamentResults = [] }) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
@@ -1217,6 +1028,11 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
         nameToIdMap
       ),
     [matches, user, resolvedOpponentId, mode, nameToIdMap]
+  );
+
+  const tournamentH2H = useMemo(
+    () => buildHeadToHeadTournaments(tournamentResults, user?.id, resolvedOpponentId, mode),
+    [tournamentResults, user?.id, resolvedOpponentId, mode]
   );
 
   const eloHistoryMap = useMemo(
@@ -1359,6 +1175,19 @@ export function HeadToHeadSection({ user, profiles = [], matches = [] }) {
                   <span className="stat-compare-value">
                     {formatMvpDays(opponentMvpDays)}
                   </span>
+                </div>
+              </div>
+            </div>
+            <div className="stat-card stat-card-compare">
+              <span className="stat-label">Turneringar</span>
+              <div className="stat-compare">
+                <div className="stat-compare-item">
+                  <span className="stat-compare-name">Gemensamma</span>
+                  <span className="stat-compare-value">{tournamentH2H.matches}</span>
+                </div>
+                <div className="stat-compare-item">
+                  <span className="stat-compare-name">Dina vinster</span>
+                  <span className="stat-compare-value">{tournamentH2H.wins}</span>
                 </div>
               </div>
             </div>

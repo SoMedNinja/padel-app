@@ -12,6 +12,7 @@ import MVP from "./Components/MVP";
 import Heatmap from "./Components/Heatmap";
 import FilterBar from "./Components/FilterBar";
 import MexicanaTournament from "./Components/MexicanaTournament";
+import MeritsSection from "./Components/MeritsSection";
 
 import { calculateElo } from "./utils/elo";
 import { usePadelData } from "./hooks/usePadelData";
@@ -91,10 +92,16 @@ export default function App() {
     if (filter === "long") {
       return query.or("team1_sets.gte.6,team2_sets.gte.6");
     }
+    if (filter === "tournaments") {
+      return query.not("source_tournament_id", "is", null);
+    }
     return query;
   };
 
   const matchPassesFilter = (match, filter) => {
+    if (filter === "tournaments") {
+      return match.source_tournament_id !== null;
+    }
     if ((match?.score_type || "sets") === "points" && filter !== "all") {
       return false;
     }
@@ -208,6 +215,9 @@ export default function App() {
     }
     if (hash === "mexicana" || hash === "tournament") {
       return { page: "mexicana", scrollId: null };
+    }
+    if (hash === "meriter") {
+      return { page: "dashboard", scrollId: "meriter" };
     }
     if (hash === "admin") {
       return { page: "admin", scrollId: null };
@@ -503,17 +513,6 @@ export default function App() {
         </a>
         {!isGuest && (
           <a
-            href="#single-game"
-            onClick={(event) => {
-              event.preventDefault();
-              navigateTo("single-game");
-            }}
-          >
-            Enkel match
-          </a>
-        )}
-        {!isGuest && (
-          <a
             href="#profile"
             onClick={(event) => {
               event.preventDefault();
@@ -534,6 +533,17 @@ export default function App() {
             Head-to-head
           </a>
         )}
+        {!isGuest && (
+          <a
+            href="#meriter"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("dashboard", "meriter");
+            }}
+          >
+            Meriter
+          </a>
+        )}
         <a
           href="#history"
           onClick={(event) => {
@@ -542,15 +552,6 @@ export default function App() {
           }}
         >
           Match-historik
-        </a>
-        <a
-          href="#mexicana"
-          onClick={(event) => {
-            event.preventDefault();
-            navigateTo("mexicana");
-          }}
-        >
-          Turnering
         </a>
         {userWithAdmin?.is_admin && (
           <a
@@ -636,6 +637,19 @@ export default function App() {
                 user={userWithAdmin}
                 profiles={profiles}
                 matches={filteredMatches}
+                tournamentResults={tournamentResults}
+              />
+            </section>
+          )}
+
+          {!isGuest && (
+            <section id="meriter" className="page-section">
+              <MeritsSection
+                user={userWithAdmin}
+                profiles={profiles}
+                matches={filteredMatches}
+                tournamentResults={tournamentResults}
+                onProfileUpdate={handleProfileUpdate}
               />
             </section>
           )}

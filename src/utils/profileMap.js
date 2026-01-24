@@ -28,7 +28,10 @@ export function makeNameToIdMap(profiles = []) {
 }
 
 export function idsToNames(ids = [], profileMap = {}) {
-  return ids.map(id => profileMap[id] || (id === GUEST_ID ? GUEST_NAME : "Okänd"));
+  return ids.map(id => {
+    if (id === null || id === GUEST_ID) return GUEST_NAME;
+    return profileMap[id] || "Okänd";
+  });
 }
 
 export function namesToIds(names = [], nameToIdMap = {}) {
@@ -67,8 +70,8 @@ export function resolveTeamNames(teamIds = [], teamNames = [], profileMap = {}) 
 }
 
 export function getIdDisplayName(id, profileMap = {}) {
+  if (id === null || id === GUEST_ID) return GUEST_NAME;
   if (profileMap[id]) return profileMap[id];
-  if (id === GUEST_ID) return GUEST_NAME;
   if (typeof id === "string" && id.startsWith("name:")) return id.slice(5);
   return "Okänd";
 }

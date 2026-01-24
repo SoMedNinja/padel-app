@@ -55,6 +55,7 @@ export default function History({ matches = [], profiles = [], user }) {
     const names = Array.isArray(teamNames) ? teamNames : [];
 
     return Array.from({ length: 2 }, (_, index) => {
+      if (ids[index] === null) return GUEST_ID;
       if (ids[index]) return ids[index];
       const name = names[index];
       if (!name) return "";

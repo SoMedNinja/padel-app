@@ -410,7 +410,7 @@ export default function MexicanaTournament({
 
     const resultsPayload = sortedStandings.map((res, index) => ({
       tournament_id: activeTournament.id,
-      profile_id: res.id,
+      profile_id: res.id === GUEST_ID ? null : res.id,
       rank: index + 1,
       points_for: res.pointsFor,
       points_against: res.pointsAgainst,
