@@ -12,31 +12,45 @@ import {
   resolveTeamIds,
 } from "../utils/profileMap";
 import ProfileName from "./ProfileName";
+import {
+  buildRotationSchedule,
+  getTeamAverageElo,
+  getWinProbability,
+  getFairnessScore,
+} from "../utils/rotation";
+import { Match, PlayerStats, Profile } from "../types";
 
 const ELO_BASELINE = 1000;
 const K = 20;
+
+interface MatchFormProps {
+  user: any;
+  profiles: Profile[];
+  matches: Match[];
+  eloPlayers: PlayerStats[];
+}
 
 export default function MatchForm({
   user,
   profiles = [],
   matches = [],
   eloPlayers = [],
-}) {
-  const [team1, setTeam1] = useState(["", ""]);
-  const [team2, setTeam2] = useState(["", ""]);
+}: MatchFormProps) {
+  const [team1, setTeam1] = useState<string[]>(["", ""]);
+  const [team2, setTeam2] = useState<string[]>(["", ""]);
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [toastMessage, setToastMessage] = useState("");
-  const [matchSuggestion, setMatchSuggestion] = useState(null);
-  const [matchRecap, setMatchRecap] = useState(null);
-  const [eveningRecap, setEveningRecap] = useState(null);
+  const [matchSuggestion, setMatchSuggestion] = useState<any>(null);
+  const [matchRecap, setMatchRecap] = useState<any>(null);
+  const [eveningRecap, setEveningRecap] = useState<any>(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
-  const toastTimeoutRef = useRef(null);
+  const toastTimeoutRef = useRef<any>(null);
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
-    return hasGuest ? profiles : [...profiles, { id: GUEST_ID, name: GUEST_NAME }];
+    return hasGuest ? profiles : [...profiles, { id: GUEST_ID, name: GUEST_NAME } as Profile];
   }, [profiles]);
   const profileMap = useMemo(() => makeProfileMap(selectablePlayers), [selectablePlayers]);
   const nameToIdMap = useMemo(
@@ -44,14 +58,14 @@ export default function MatchForm({
     [selectablePlayers]
   );
   const badgeNameMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, string | null>();
     profiles.forEach(profile => {
       map.set(getProfileDisplayName(profile), profile.featured_badge_id || null);
     });
     return map;
   }, [profiles]);
   const eloMap = useMemo(() => {
-    const map = { [GUEST_ID]: ELO_BASELINE };
+    const map: Record<string, number> = { [GUEST_ID]: ELO_BASELINE };
     eloPlayers.forEach(player => {
       map[player.id] = Math.round(player.elo ?? ELO_BASELINE);
     });
@@ -70,7 +84,7 @@ export default function MatchForm({
     };
   }, []);
 
-  const showToast = (message) => {
+  const showToast = (message: string) => {
     setToastMessage(message);
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
@@ -80,181 +94,21 @@ export default function MatchForm({
     }, 2500);
   };
 
-  const getPlayerOptionLabel = (player) => {
+  const getPlayerOptionLabel = (player: Profile) => {
     if (player.id === GUEST_ID) return GUEST_NAME;
     const baseName = getProfileDisplayName(player);
     const badgeLabel = getBadgeLabelById(player.featured_badge_id);
     return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
   };
 
-  const getBadgeIdForName = (name) => badgeNameMap.get(name) || null;
+  const getBadgeIdForName = (name: string) => badgeNameMap.get(name) || null;
 
-  const getTeamAverageElo = (team) => {
-    const active = team.filter(id => id && id !== GUEST_ID);
-    if (!active.length) return ELO_BASELINE;
-    const total = active.reduce((sum, id) => sum + (eloMap[id] ?? ELO_BASELINE), 0);
-    return total / active.length;
-  };
-
-  const getWinProbability = (teamAElo, teamBElo) =>
-    1 / (1 + Math.pow(10, (teamBElo - teamAElo) / 400));
-
-  const getFairnessScore = (winProbability) =>
-    Math.max(0, Math.min(100, Math.round((1 - Math.abs(0.5 - winProbability) * 2) * 100)));
-
-  const getRotationRounds = (playerCount) => {
-    const roundMap = {
-      5: 5,
-      6: 3,
-      7: 7,
-      8: 4,
-    };
-    return roundMap[playerCount] || Math.ceil(playerCount / 2);
-  };
-
-  const buildRotationSchedule = (pool) => {
-    const players = [...pool];
-    const roundCount = getRotationRounds(players.length);
-    const targetGames = (4 * roundCount) / players.length;
-    const games = Object.fromEntries(players.map(id => [id, 0]));
-    const teammateCounts = new Map();
-    const opponentCounts = new Map();
-
-    const pairKey = (a, b) => [a, b].sort().join("|");
-    const getPairCount = (map, a, b) => map.get(pairKey(a, b)) || 0;
-    const addPairCount = (map, a, b) => {
-      const key = pairKey(a, b);
-      map.set(key, (map.get(key) || 0) + 1);
-    };
-
-    const buildCombos = (arr, size) => {
-      const result = [];
-      const helper = (start, combo) => {
-        if (combo.length === size) {
-          result.push([...combo]);
-          return;
-        }
-        for (let i = start; i <= arr.length - (size - combo.length); i += 1) {
-          combo.push(arr[i]);
-          helper(i + 1, combo);
-          combo.pop();
-        }
-      };
-      helper(0, []);
-      return result;
-    };
-
-    const teamSplits = (fourPlayers) => {
-      const [p1, p2, p3, p4] = fourPlayers;
-      return [
-        { teamA: [p1, p2], teamB: [p3, p4] },
-        { teamA: [p1, p3], teamB: [p2, p4] },
-        { teamA: [p1, p4], teamB: [p2, p3] },
-      ];
-    };
-
-    const rounds = [];
-    const combos = buildCombos(players, 4);
-
-    const pickCandidate = (strictGames) => {
-      let best = null;
-      combos.forEach(combo => {
-        const restPlayers = players.filter(id => !combo.includes(id));
-        const teams = teamSplits(combo);
-        teams.forEach(teamsOption => {
-          if (
-            strictGames &&
-            [...teamsOption.teamA, ...teamsOption.teamB].some(id => games[id] >= targetGames)
-          ) {
-            return;
-          }
-
-          const teamAElo = getTeamAverageElo(teamsOption.teamA);
-          const teamBElo = getTeamAverageElo(teamsOption.teamB);
-          const winProbability = getWinProbability(teamAElo, teamBElo);
-          const fairness = getFairnessScore(winProbability);
-
-          const teammatePenalty =
-            getPairCount(teammateCounts, teamsOption.teamA[0], teamsOption.teamA[1]) +
-            getPairCount(teammateCounts, teamsOption.teamB[0], teamsOption.teamB[1]);
-          const opponentPenalty = teamsOption.teamA.reduce(
-            (sum, aId) =>
-              sum +
-              teamsOption.teamB.reduce(
-                (innerSum, bId) => innerSum + getPairCount(opponentCounts, aId, bId),
-                0
-              ),
-            0
-          );
-          const gamePenalty = [...teamsOption.teamA, ...teamsOption.teamB].reduce(
-            (sum, id) => sum + games[id],
-            0
-          );
-          const restPenalty = restPlayers.reduce(
-            (sum, id) => sum + Math.max(0, targetGames - games[id]),
-            0
-          );
-          const score =
-            fairness * 2 -
-            teammatePenalty * 15 -
-            opponentPenalty * 6 -
-            gamePenalty * 4 -
-            restPenalty * 2;
-
-          if (!best || score > best.score) {
-            best = {
-              score,
-              fairness,
-              winProbability,
-              teamA: teamsOption.teamA,
-              teamB: teamsOption.teamB,
-              rest: restPlayers,
-            };
-          }
-        });
-      });
-      return best;
-    };
-
-    for (let round = 0; round < roundCount; round += 1) {
-      const candidate = pickCandidate(true) || pickCandidate(false);
-      if (!candidate) {
-        break;
-      }
-      rounds.push({
-        round: round + 1,
-        teamA: candidate.teamA,
-        teamB: candidate.teamB,
-        rest: candidate.rest,
-        fairness: candidate.fairness,
-        winProbability: candidate.winProbability,
-      });
-
-      [...candidate.teamA, ...candidate.teamB].forEach(id => {
-        games[id] += 1;
-      });
-      addPairCount(teammateCounts, candidate.teamA[0], candidate.teamA[1]);
-      addPairCount(teammateCounts, candidate.teamB[0], candidate.teamB[1]);
-      candidate.teamA.forEach(aId => {
-        candidate.teamB.forEach(bId => {
-          addPairCount(opponentCounts, aId, bId);
-        });
-      });
-    }
-
-    const averageFairness = rounds.length
-      ? Math.round(rounds.reduce((sum, round) => sum + round.fairness, 0) / rounds.length)
-      : 0;
-
-    return { rounds, averageFairness, targetGames };
-  };
-
-  const isSameDay = (aDate, bDate) =>
+  const isSameDay = (aDate: Date, bDate: Date) =>
     aDate.getFullYear() === bDate.getFullYear() &&
     aDate.getMonth() === bDate.getMonth() &&
     aDate.getDate() === bDate.getDate();
 
-  const buildEveningRecap = (allMatches, latestMatch) => {
+  const buildEveningRecap = (allMatches: Match[], latestMatch: Match) => {
     const now = new Date();
     const normalizedMatches = [...allMatches, latestMatch].map(match => {
       const team1Ids = resolveTeamIds(match.team1_ids, match.team1, nameToIdMap);
@@ -276,18 +130,18 @@ export default function MatchForm({
       return;
     }
 
-    const stats = {};
+    const stats: Record<string, any> = {};
     let totalSets = 0;
 
     eveningMatches.forEach(match => {
-      const team1Ids = match.team1_ids || [];
-      const team2Ids = match.team2_ids || [];
+      const team1Ids = (match.team1_ids || []) as (string | null)[];
+      const team2Ids = (match.team2_ids || []) as (string | null)[];
       const team1Sets = Number(match.team1_sets || 0);
       const team2Sets = Number(match.team2_sets || 0);
       const team1Won = team1Sets > team2Sets;
       totalSets += team1Sets + team2Sets;
 
-      const recordTeam = (teamIds, didWin, setsFor, setsAgainst) => {
+      const recordTeam = (teamIds: (string | null)[], didWin: boolean, setsFor: number, setsAgainst: number) => {
         teamIds.forEach(id => {
           if (!id || id === GUEST_ID) return;
           if (!stats[id]) {
@@ -342,16 +196,16 @@ export default function MatchForm({
     });
   };
 
-  const createRecap = (teamAIds, teamBIds, scoreA, scoreB) => {
-    const teamAElo = getTeamAverageElo(teamAIds);
-    const teamBElo = getTeamAverageElo(teamBIds);
+  const createRecap = (teamAIds: string[], teamBIds: string[], scoreA: number, scoreB: number) => {
+    const teamAElo = getTeamAverageElo(teamAIds, eloMap);
+    const teamBElo = getTeamAverageElo(teamBIds, eloMap);
     const winProbability = getWinProbability(teamAElo, teamBElo);
     const teamAWon = scoreA > scoreB;
 
     const teamADelta = Math.round(K * ((teamAWon ? 1 : 0) - winProbability));
     const teamBDelta = Math.round(K * ((teamAWon ? 0 : 1) - (1 - winProbability)));
 
-    const mapPlayers = (ids, delta, teamAverageElo) =>
+    const mapPlayers = (ids: string[], delta: number, teamAverageElo: number) =>
       ids
         .filter(Boolean)
         .map(id => ({
@@ -390,7 +244,7 @@ export default function MatchForm({
     setShowRecap(true);
   };
 
-  const submit = async e => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -430,14 +284,17 @@ export default function MatchForm({
         showToast(error.message);
         return;
       }
-    } catch (error) {
+    } catch (error: any) {
       showToast(error.message || "Kunde inte spara matchen.");
       return;
     }
 
-    const newMatch = {
-      team1_ids: team1,
-      team2_ids: team2,
+    const newMatch: Match = {
+      id: "temp",
+      team1: idsToNames(team1, profileMap),
+      team2: idsToNames(team2, profileMap),
+      team1_ids: team1IdsForDb,
+      team2_ids: team2IdsForDb,
       team1_sets: scoreA,
       team2_sets: scoreB,
       created_at: new Date().toISOString(),
@@ -464,7 +321,7 @@ export default function MatchForm({
     }
 
     if (uniquePool.length > 4) {
-      const rotation = buildRotationSchedule(uniquePool);
+      const rotation = buildRotationSchedule(uniquePool, eloMap);
       if (!rotation.rounds.length) {
         showToast("Kunde inte skapa rotation. Prova med färre spelare.");
         return;
@@ -491,8 +348,8 @@ export default function MatchForm({
 
     const scored = options
       .map(option => {
-        const teamAElo = getTeamAverageElo(option.teamA);
-        const teamBElo = getTeamAverageElo(option.teamB);
+        const teamAElo = getTeamAverageElo(option.teamA, eloMap);
+        const teamBElo = getTeamAverageElo(option.teamB, eloMap);
         const winProbability = getWinProbability(teamAElo, teamBElo);
         const fairness = getFairnessScore(winProbability);
         return { ...option, teamAElo, teamBElo, winProbability, fairness };
@@ -519,13 +376,13 @@ export default function MatchForm({
       return `🌙 Kvällsrecap (${eveningRecap.dateLabel}): ${eveningRecap.matches} matcher, ${eveningRecap.totalSets} sets. MVP: ${mvpName}.`;
     }
     if (!matchRecap) return "";
-    const teamA = matchRecap.teamA.players.map(player => player.name).join(" & ");
-    const teamB = matchRecap.teamB.players.map(player => player.name).join(" & ");
+    const teamA = matchRecap.teamA.players.map((player: any) => player.name).join(" & ");
+    const teamB = matchRecap.teamB.players.map((player: any) => player.name).join(" & ");
     const winner = matchRecap.teamAWon ? teamA : teamB;
     return `🎾 Matchen: ${teamA} vs ${teamB} (${matchRecap.scoreline}). Vinnare: ${winner}.`;
   }, [eveningRecap, matchRecap, recapMode]);
 
-  const renderPlayerSelect = (team, setTeam, index, teamLabel) => (
+  const renderPlayerSelect = (team: string[], setTeam: (t: string[]) => void, index: number, teamLabel: string) => (
     <select
       aria-label={`${teamLabel} spelare ${index + 1}`}
       value={team[index]}
@@ -624,20 +481,20 @@ export default function MatchForm({
           <div className="matchmaker-body">
             {matchSuggestion.mode === "rotation" ? (
               <div className="matchmaker-rotation">
-                {matchSuggestion.rounds.map(round => (
+                {matchSuggestion.rounds.map((round: any) => (
                   <div key={round.round} className="matchmaker-round">
                     <div className="matchmaker-round-title">Runda {round.round}</div>
                     <div className="matchmaker-round-teams">
                       <div>
                         <span className="muted">Lag A</span>
                         <div className="matchmaker-team">
-                          {round.teamA.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                          {round.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
                         </div>
                       </div>
                       <div>
                         <span className="muted">Lag B</span>
                         <div className="matchmaker-team">
-                          {round.teamB.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                          {round.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
                         </div>
                       </div>
                     </div>
@@ -646,7 +503,7 @@ export default function MatchForm({
                       {Math.round(round.winProbability * 100)}%
                     </div>
                     <div className="matchmaker-round-meta muted">
-                      Vilar: {round.rest.map(id => getIdDisplayName(id, profileMap)).join(", ")}
+                      Vilar: {round.rest.map((id: string) => getIdDisplayName(id, profileMap)).join(", ")}
                     </div>
                   </div>
                 ))}
@@ -656,13 +513,13 @@ export default function MatchForm({
                 <div>
                   <span className="muted">Lag A</span>
                   <div className="matchmaker-team">
-                    {matchSuggestion.teamA.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                    {matchSuggestion.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
                   </div>
                 </div>
                 <div>
                   <span className="muted">Lag B</span>
                   <div className="matchmaker-team">
-                    {matchSuggestion.teamB.map(id => getIdDisplayName(id, profileMap)).join(" & ")}
+                    {matchSuggestion.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
                   </div>
                 </div>
               </>
@@ -734,7 +591,7 @@ export default function MatchForm({
                     <span>Topp vinster</span>
                   </div>
                   <div className="recap-team-players">
-                    {eveningRecap.leaders.map(player => (
+                    {eveningRecap.leaders.map((player: any) => (
                       <div key={player.id} className="recap-player">
                         <ProfileName
                           name={player.name}
@@ -759,7 +616,7 @@ export default function MatchForm({
                     </span>
                   </div>
                   <div className="recap-team-players">
-                    {matchRecap.teamA.players.map(player => (
+                    {matchRecap.teamA.players.map((player: any) => (
                       <div key={player.id} className="recap-player">
                         <ProfileName
                           name={player.name}
@@ -780,7 +637,7 @@ export default function MatchForm({
                     </span>
                   </div>
                   <div className="recap-team-players">
-                    {matchRecap.teamB.players.map(player => (
+                    {matchRecap.teamB.players.map((player: any) => (
                       <div key={player.id} className="recap-player">
                         <ProfileName
                           name={player.name}

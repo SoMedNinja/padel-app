@@ -1,6 +1,7 @@
 // All match- och statistiklogik samlad här
+import { Match } from "../types";
 
-const normalizeTeam = (team) => {
+const normalizeTeam = (team: any): string[] => {
   if (Array.isArray(team)) return team.filter(Boolean);
   if (typeof team === "string") {
     const trimmed = team.trim();
@@ -16,7 +17,7 @@ const normalizeTeam = (team) => {
   return [];
 };
 
-export function getWinnersAndLosers(match) {
+export function getWinnersAndLosers(match: Match) {
   const team1 = normalizeTeam(match.team1);
   const team2 = normalizeTeam(match.team2);
   const team1Won = match.team1_sets > match.team2_sets;
@@ -26,7 +27,7 @@ export function getWinnersAndLosers(match) {
   };
 }
 
-export function getLatestMatchDate(matches) {
+export function getLatestMatchDate(matches: Match[]) {
   return matches
     .map(m => m.created_at?.slice(0, 10))
     .filter(Boolean)
@@ -34,14 +35,14 @@ export function getLatestMatchDate(matches) {
     .pop();
 }
 
-export function getRecentResults(matches, playerName, limit = 5) {
+export function getRecentResults(matches: Match[], playerName: string, limit = 5): ("W" | "L")[] {
   return matches
     .filter(
       m =>
         normalizeTeam(m.team1).includes(playerName) ||
         normalizeTeam(m.team2).includes(playerName)
     )
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .slice(-limit)
     .map(m => {
       const team1 = normalizeTeam(m.team1);
@@ -53,8 +54,13 @@ export function getRecentResults(matches, playerName, limit = 5) {
     });
 }
 
-export function getMvpStats(matches, allowedNames = null) {
-  const stats = {};
+export interface MvpStat {
+  wins: number;
+  games: number;
+}
+
+export function getMvpStats(matches: Match[], allowedNames: string[] | Set<string> | null = null): Record<string, MvpStat> {
+  const stats: Record<string, MvpStat> = {};
   const allowList =
     allowedNames instanceof Set ? allowedNames : allowedNames ? new Set(allowedNames) : null;
 
@@ -79,3 +85,30 @@ export function getMvpStats(matches, allowedNames = null) {
 
   return stats;
 }
+
+export const calculateWinPct = (wins: number, losses: number) =>
+  wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
+
+export const getStreak = (recentResults: ("W" | "L")[]) => {
+  if (!recentResults.length) return "—";
+  const reversed = [...recentResults].reverse();
+  const first = reversed[0];
+  let count = 0;
+  for (const result of reversed) {
+    if (result !== first) break;
+    count += 1;
+  }
+  return `${first}${count}`;
+};
+
+export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
+  const last5 = recentResults.slice(-5);
+  if (last5.length < 3) return "—";
+  const wins = last5.filter(r => r === "W").length;
+  const total = last5.length || 1;
+  const winRate = wins / total;
+
+  if (winRate >= 0.8) return "⬆️";
+  if (winRate <= 0.2) return "⬇️";
+  return "➖";
+};

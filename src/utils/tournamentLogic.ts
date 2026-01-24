@@ -1,4 +1,4 @@
-import { GUEST_ID } from "./guest.js";
+import { GUEST_ID } from "./guest";
 
 /**
  * Shared Tournament Logic
@@ -15,13 +15,23 @@ export const INITIAL_PLAYER_STATS = {
   pointsAgainst: 0,
 };
 
-const ELO_BASELINE = 1000;
+export type TournamentPlayerStats = typeof INITIAL_PLAYER_STATS & { id: string };
+
+export interface Round {
+  team1_ids: string[];
+  team2_ids: string[];
+  resting_ids?: string[];
+  team1_score?: number | null;
+  team2_score?: number | null;
+  mode?: "americano" | "mexicano";
+  round_number?: number;
+}
 
 // Get the complete state of the tournament from rounds and participants
-export const getTournamentState = (rounds, participants) => {
-  const standings = {};
-  const teammatesFaced = {};
-  const opponentsFaced = {};
+export const getTournamentState = (rounds: Round[], participants: string[]) => {
+  const standings: Record<string, TournamentPlayerStats> = {};
+  const teammatesFaced: Record<string, Record<string, number>> = {};
+  const opponentsFaced: Record<string, Record<string, number>> = {};
 
   // Sort participants for determinism
   const sortedParticipants = [...participants].sort();
@@ -102,8 +112,8 @@ export const getTournamentState = (rounds, participants) => {
   return { standings, teammatesFaced, opponentsFaced };
 };
 
-export const getRestCycle = (rounds, participants, mode) => {
-  const restCounts = {};
+export const getRestCycle = (rounds: Round[], participants: string[], mode: "americano" | "mexicano") => {
+  const restCounts: Record<string, number> = {};
   participants.forEach(p => restCounts[p] = 0);
 
   // Track rests for the specific mode
@@ -113,7 +123,8 @@ export const getRestCycle = (rounds, participants, mode) => {
     });
   });
 
-  const minRests = Math.min(...Object.values(restCounts));
+  const counts = Object.values(restCounts);
+  const minRests = counts.length ? Math.min(...counts) : 0;
   const restedInCycle = Object.keys(restCounts).filter(id => restCounts[id] > minRests);
 
   return new Set(restedInCycle);
@@ -123,7 +134,7 @@ export const getRestCycle = (rounds, participants, mode) => {
  * Americano Logic
  */
 
-export const pickAmericanoRestingPlayers = (standings, restCycle, participants, count) => {
+export const pickAmericanoRestingPlayers = (standings: Record<string, TournamentPlayerStats>, restCycle: Set<string>, participants: string[], count: number) => {
   // A1: Lowest "rests in current cycle" (not in set), tie-break by fewest total gamesPlayed
   // We use stable sort with ID as final tie-breaker for determinism
   const sorted = [...participants].sort((a, b) => {
@@ -140,7 +151,7 @@ export const pickAmericanoRestingPlayers = (standings, restCycle, participants, 
   return sorted.slice(0, count);
 };
 
-export const pickAmericanoTeams = (activePlayers, standings, teammatesFaced) => {
+export const pickAmericanoTeams = (activePlayers: string[], standings: Record<string, TournamentPlayerStats>, teammatesFaced: Record<string, Record<string, number>>) => {
   // A2: Minimize repeatTeammateCount, tie-break by minimize imbalance
   const [p1, p2, p3, p4] = [...activePlayers].sort(); // Sort for determinism
   const splits = [
@@ -149,13 +160,13 @@ export const pickAmericanoTeams = (activePlayers, standings, teammatesFaced) => 
     { t1: [p1, p4], t2: [p2, p3] },
   ];
 
-  const getRepeatCount = (split) => {
+  const getRepeatCount = (split: { t1: string[], t2: string[] }) => {
     const c1 = teammatesFaced[split.t1[0]]?.[split.t1[1]] || 0;
     const c2 = teammatesFaced[split.t2[0]]?.[split.t2[1]] || 0;
     return c1 + c2;
   };
 
-  const getImbalance = (split) => {
+  const getImbalance = (split: { t1: string[], t2: string[] }) => {
     const s1 = (standings[split.t1[0]]?.totalPoints || 0) + (standings[split.t1[1]]?.totalPoints || 0);
     const s2 = (standings[split.t2[0]]?.totalPoints || 0) + (standings[split.t2[1]]?.totalPoints || 0);
     return Math.abs(s1 - s2);
@@ -175,7 +186,7 @@ export const pickAmericanoTeams = (activePlayers, standings, teammatesFaced) => 
  * Mexicano Logic
  */
 
-export const pickMexicanoRestingPlayers = (standings, restCycle, participants, count) => {
+export const pickMexicanoRestingPlayers = (standings: Record<string, TournamentPlayerStats>, restCycle: Set<string>, participants: string[], count: number) => {
   // M1: Lowest totalPoints, tie-break by MOST gamesPlayed
   // M2: Override: prefer those NOT in restCycle
   const sorted = [...participants].sort((a, b) => {
@@ -196,7 +207,7 @@ export const pickMexicanoRestingPlayers = (standings, restCycle, participants, c
   return sorted.slice(0, count);
 };
 
-export const pickMexicanoTeams = (activePlayers, standings) => {
+export const pickMexicanoTeams = (activePlayers: string[], standings: Record<string, TournamentPlayerStats>) => {
   // Smallest diff = abs(teamStrength1 - teamStrength2)
   const [p1, p2, p3, p4] = [...activePlayers].sort(); // Sort for determinism
   const splits = [
@@ -205,7 +216,7 @@ export const pickMexicanoTeams = (activePlayers, standings) => {
     { t1: [p1, p4], t2: [p2, p3] },
   ];
 
-  const getImbalance = (split) => {
+  const getImbalance = (split: { t1: string[], t2: string[] }) => {
     const s1 = (standings[split.t1[0]]?.totalPoints || 0) + (standings[split.t1[1]]?.totalPoints || 0);
     const s2 = (standings[split.t2[0]]?.totalPoints || 0) + (standings[split.t2[1]]?.totalPoints || 0);
     return Math.abs(s1 - s2);
@@ -219,12 +230,12 @@ export const pickMexicanoTeams = (activePlayers, standings) => {
  * Orchestrator
  */
 
-export const generateAmericanoRounds = (participants) => {
-  const rounds = [];
+export const generateAmericanoRounds = (participants: string[]) => {
+  const rounds: Round[] = [];
   const playerCount = participants.length;
 
   // Deterministic round count
-  const roundMap = {
+  const roundMap: Record<number, number> = {
     4: 3,
     5: 5,
     6: 15, // Standard Americano for 6 players is usually more, but let's stick to some logic
@@ -233,10 +244,10 @@ export const generateAmericanoRounds = (participants) => {
   };
   const roundCount = roundMap[playerCount] || playerCount;
 
-  let currentRounds = [];
+  let currentRounds: Round[] = [];
   for (let i = 0; i < roundCount; i++) {
     const suggestion = getNextSuggestion(currentRounds, participants, 'americano');
-    const newRound = {
+    const newRound: Round = {
       ...suggestion,
       round_number: i + 1,
       mode: 'americano'
@@ -248,12 +259,12 @@ export const generateAmericanoRounds = (participants) => {
   return rounds;
 };
 
-export const getNextSuggestion = (rounds, participants, mode) => {
+export const getNextSuggestion = (rounds: Round[], participants: string[], mode: "americano" | "mexicano"): { team1_ids: string[], team2_ids: string[], resting_ids: string[] } => {
   const { standings, teammatesFaced } = getTournamentState(rounds, participants);
   const restCycle = getRestCycle(rounds, participants, mode);
   const restingCount = participants.length - 4;
 
-  let resting_ids;
+  let resting_ids: string[];
   if (mode === 'americano') {
     resting_ids = pickAmericanoRestingPlayers(standings, restCycle, participants, restingCount);
   } else {
@@ -261,7 +272,7 @@ export const getNextSuggestion = (rounds, participants, mode) => {
   }
 
   const activePlayers = participants.filter(id => !resting_ids.includes(id));
-  let teams;
+  let teams: { t1: string[], t2: string[] };
   if (mode === 'americano') {
     teams = pickAmericanoTeams(activePlayers, standings, teammatesFaced);
   } else {

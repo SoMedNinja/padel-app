@@ -1,4 +1,6 @@
-export function filterMatches(matches, filter) {
+import { Match } from "../types";
+
+export function filterMatches(matches: Match[], filter: string): Match[] {
   if (!matches) return [];
   if (filter === "short") {
     return matches.filter(
@@ -11,7 +13,7 @@ export function filterMatches(matches, filter) {
     );
   }
   if (filter === "tournaments") {
-    return matches.filter(m => m.source_tournament_id !== null);
+    return matches.filter(m => !!m.source_tournament_id);
   }
   return matches;
 }
