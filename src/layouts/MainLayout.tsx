@@ -77,8 +77,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         aria-label="Huvudmeny"
       >
         <Link to="/" onClick={closeMenu}>Hemskärm</Link>
-        {!isGuest && <Link to="/#head-to-head" onClick={closeMenu}>Head-to-head</Link>}
-        {!isGuest && <Link to="/#meriter" onClick={closeMenu}>Meriter</Link>}
+        <Link to="/profile" onClick={closeMenu}>Spelarprofil</Link>
         <Link to="/history" onClick={closeMenu}>Match-historik</Link>
         {user?.is_admin && <Link to="/admin" onClick={closeMenu}>Admin</Link>}
         <button type="button" className="ghost-button" onClick={handleAuthAction}>
@@ -129,7 +128,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       </>
 
       <nav className="bottom-nav" aria-label="Bottenmeny">
-        <Link to="/#profile" className="bottom-nav-item" onClick={closeMenu}>
+        <Link to="/profile" className="bottom-nav-item" onClick={closeMenu}>
           <span className="bottom-nav-icon">👤</span>
           <span className="bottom-nav-label">Spelare</span>
         </Link>

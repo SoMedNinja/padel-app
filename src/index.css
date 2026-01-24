@@ -1351,7 +1351,8 @@ select:focus-visible {
     padding:8px 10px;
   }
 
-  .menu-toggle.hide-on-mobile {
+  .menu-toggle.hide-on-mobile,
+  .fab.hide-on-mobile {
     display: none;
   }
 
