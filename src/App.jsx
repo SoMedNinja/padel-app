@@ -34,6 +34,7 @@ export default function App() {
   const [hasMoreMatches, setHasMoreMatches] = useState(true);
   const [activePage, setActivePage] = useState("dashboard");
   const [pendingScrollId, setPendingScrollId] = useState(null);
+  const [isFabOpen, setIsFabOpen] = useState(false);
   const menuButtonRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -68,12 +69,19 @@ export default function App() {
   }, []);
 
   const loadTournamentResults = useCallback(async () => {
-    const { data, error } = await supabase.from("mexicana_results").select("*");
+    const { data, error } = await supabase
+      .from("mexicana_results")
+      .select("*, mexicana_tournaments(tournament_type)");
     if (error) {
       console.error(error);
       return;
     }
-    setTournamentResults(data || []);
+    // Flatten the joined data
+    const flattened = (data || []).map(row => ({
+      ...row,
+      tournament_type: row.mexicana_tournaments?.tournament_type || 'mexicano'
+    }));
+    setTournamentResults(flattened);
   }, []);
 
   const applyMatchFilter = (query, filter) => {
@@ -194,6 +202,9 @@ export default function App() {
     }
     if (hash === "history") {
       return { page: "history", scrollId: null };
+    }
+    if (hash === "single-game") {
+      return { page: "single-game", scrollId: null };
     }
     if (hash === "mexicana" || hash === "tournament") {
       return { page: "mexicana", scrollId: null };
@@ -492,6 +503,17 @@ export default function App() {
         </a>
         {!isGuest && (
           <a
+            href="#single-game"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo("single-game");
+            }}
+          >
+            Enkel match
+          </a>
+        )}
+        {!isGuest && (
+          <a
             href="#profile"
             onClick={(event) => {
               event.preventDefault();
@@ -574,17 +596,6 @@ export default function App() {
 
       {activePage === "dashboard" && (
         <section id="dashboard" className="page-section">
-          {!isGuest && (
-            <div className="dashboard-match-form">
-              <MatchForm
-                user={user}
-                profiles={profiles}
-                matches={matches}
-                eloPlayers={allEloPlayers}
-              />
-            </div>
-          )}
-
           {(isLoadingProfiles || isLoadingMatches) && (
             <p className="muted">Laddar data...</p>
           )}
@@ -631,6 +642,18 @@ export default function App() {
         </section>
       )}
 
+      {activePage === "single-game" && !isGuest && (
+        <section id="single-game" className="page-section">
+          <h2>Enkel match</h2>
+          <MatchForm
+            user={user}
+            profiles={profiles}
+            matches={matches}
+            eloPlayers={allEloPlayers}
+          />
+        </section>
+      )}
+
       {activePage === "history" && (
         <section id="history" className="page-section">
           <h2>Match-historik</h2>
@@ -672,6 +695,37 @@ export default function App() {
           />
         </section>
       )}
+
+      <>
+        {isFabOpen && (
+          <div className="fab-overlay" onClick={() => setIsFabOpen(false)}>
+            <div className="fab-options">
+              {!isGuest && (
+                <button
+                  type="button"
+                  onClick={() => { navigateTo("single-game"); setIsFabOpen(false); }}
+                >
+                  🎾 Enkel match
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => { navigateTo("mexicana"); setIsFabOpen(false); }}
+              >
+                🏆 Turnering
+              </button>
+            </div>
+          </div>
+        )}
+        <button
+          type="button"
+          className={`fab ${isFabOpen ? 'open' : ''}`}
+          onClick={() => setIsFabOpen(!isFabOpen)}
+          aria-label="Spela"
+        >
+          {isFabOpen ? '✕' : '+'}
+        </button>
+      </>
     </div>
   );
 }

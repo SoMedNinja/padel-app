@@ -1651,6 +1651,12 @@ select:focus-visible {
   display:flex;
   flex-direction:column;
   gap:10px;
+  transition: background-color 0.2s;
+}
+
+.mexicana-round-card.is-played {
+  background-color: var(--color-highlight);
+  border-color: var(--color-border-strong);
 }
 
 .mexicana-round-header {
@@ -1775,4 +1781,74 @@ select:focus-visible {
   font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--color-border);
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: white;
+  border: none;
+  font-size: 32px;
+  display: flex;
+  align-items:center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+  z-index: 100;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
+  padding: 0;
+  margin: 0;
+}
+
+.fab:hover {
+  background: var(--color-brand-dark);
+  transform: scale(1.05);
+}
+
+.fab.open {
+  background: var(--color-muted);
+}
+
+.fab-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(2px);
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 100px 24px;
+}
+
+.fab-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fab-options button {
+  background: white;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin: 0;
+  width: auto;
+}
+
+.fab-options button:hover {
+  background: var(--color-highlight);
+  color: var(--color-brand);
+  transform: none;
 }

@@ -10,6 +10,7 @@ import {
   getTournamentState,
   getRestCycle,
   getNextSuggestion,
+  generateAmericanoRounds,
 } from "../utils/tournamentLogic";
 
 const POINTS_OPTIONS = [16, 21, 24, 31];
@@ -68,6 +69,7 @@ export default function MexicanaTournament({
   });
 
   const [recordingRound, setRecordingRound] = useState(null);
+  const [showPreviousGames, setShowPreviousGames] = useState(false);
 
   // Add Guest to selectable profiles
   const selectableProfiles = useMemo(() => {
@@ -167,8 +169,15 @@ export default function MexicanaTournament({
       if (participantError) setErrorMessage(participantError.message);
       if (roundError) setErrorMessage(roundError.message);
 
-      setParticipants(participantRows?.map(row => row.profile_id) || []);
-      setRounds(roundRows || []);
+      setParticipants(participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || []);
+
+      const mappedRounds = (roundRows || []).map(round => ({
+        ...round,
+        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
+        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
+        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
+      }));
+      setRounds(mappedRounds);
     };
 
     loadTournamentDetails();
@@ -229,7 +238,7 @@ export default function MexicanaTournament({
     const { error } = await supabase.from("mexicana_participants").insert(
       participants.map(profileId => ({
         tournament_id: activeTournamentId,
-        profile_id: profileId,
+        profile_id: profileId === GUEST_ID ? null : profileId,
       }))
     );
     if (error) setErrorMessage(error.message);
@@ -240,12 +249,47 @@ export default function MexicanaTournament({
   const startTournament = async () => {
     if (!activeTournamentId || isGuest) return;
     setIsSaving(true);
+
+    if (tournamentMode === 'americano') {
+      const generatedRounds = generateAmericanoRounds(participants);
+      const roundsPayload = generatedRounds.map(r => ({
+        tournament_id: activeTournamentId,
+        round_number: r.round_number,
+        team1_ids: r.team1_ids.map(id => id === GUEST_ID ? null : id),
+        team2_ids: r.team2_ids.map(id => id === GUEST_ID ? null : id),
+        resting_ids: r.resting_ids.map(id => id === GUEST_ID ? null : id),
+        mode: 'americano',
+      }));
+
+      const { data: insertedRounds, error: roundError } = await supabase
+        .from("mexicana_rounds")
+        .insert(roundsPayload)
+        .select();
+
+      if (roundError) {
+        setErrorMessage(roundError.message);
+        setIsSaving(false);
+        return;
+      }
+
+      const mappedRounds = (insertedRounds || []).map(round => ({
+        ...round,
+        team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
+        team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
+        resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
+      })).sort((a, b) => a.round_number - b.round_number);
+
+      setRounds(mappedRounds);
+    }
+
     const { error } = await supabase
       .from("mexicana_tournaments")
       .update({ status: "in_progress" })
       .eq("id", activeTournamentId);
-    if (error) setErrorMessage(error.message);
-    else {
+
+    if (error) {
+      setErrorMessage(error.message);
+    } else {
       setTournaments(prev => prev.map(t => t.id === activeTournamentId ? { ...t, status: "in_progress" } : t));
       setSuccessMessage("Turneringen har startat.");
     }
@@ -277,14 +321,19 @@ export default function MexicanaTournament({
     const activeIds = new Set([...recordingRound.team1_ids, ...recordingRound.team2_ids]);
     const restingIds = participants.filter(id => !activeIds.has(id));
 
+    // Map GUEST_ID to null for database
+    const t1Ids = recordingRound.team1_ids.map(id => id === GUEST_ID ? null : id);
+    const t2Ids = recordingRound.team2_ids.map(id => id === GUEST_ID ? null : id);
+    const rIds = restingIds.map(id => id === GUEST_ID ? null : id);
+
     const { data, error } = await supabase
       .from("mexicana_rounds")
       .insert({
         tournament_id: activeTournamentId,
         round_number: nextRoundNumber,
-        team1_ids: recordingRound.team1_ids,
-        team2_ids: recordingRound.team2_ids,
-        resting_ids: restingIds,
+        team1_ids: t1Ids,
+        team2_ids: t2Ids,
+        resting_ids: rIds,
         team1_score: s1,
         team2_score: s2,
         mode: recordingRound.mode,
@@ -340,8 +389,8 @@ export default function MexicanaTournament({
     const matchPayload = rounds.map(round => ({
       team1: idsToNames(round.team1_ids, profileMap),
       team2: idsToNames(round.team2_ids, profileMap),
-      team1_ids: round.team1_ids,
-      team2_ids: round.team2_ids,
+      team1_ids: round.team1_ids.map(id => id === GUEST_ID ? null : id),
+      team2_ids: round.team2_ids.map(id => id === GUEST_ID ? null : id),
       team1_sets: Number(round.team1_score),
       team2_sets: Number(round.team2_score),
       score_type: "points",
@@ -406,6 +455,41 @@ export default function MexicanaTournament({
 
   const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
 
+  const updateRoundInDb = async (roundId, s1, s2) => {
+    if (isGuest || !user?.id) return;
+    setIsSaving(true);
+    const { error } = await supabase
+      .from("mexicana_rounds")
+      .update({
+        team1_score: Number(s1),
+        team2_score: Number(s2),
+      })
+      .eq("id", roundId);
+
+    if (error) {
+      setErrorMessage(error.message);
+    } else {
+      setRounds(prev => prev.map(r => r.id === roundId ? { ...r, team1_score: Number(s1), team2_score: Number(s2) } : r));
+      setSuccessMessage("Resultat sparat.");
+    }
+    setIsSaving(false);
+  };
+
+  const handleScoreChangeInList = (roundId, team, val) => {
+    const score = val === "" ? "" : parseInt(val, 10);
+    const target = activeTournament?.score_target || SCORE_TARGET_DEFAULT;
+
+    setRounds(prev => prev.map(r => {
+      if (r.id !== roundId) return r;
+      const next = { ...r, [team]: score };
+      if (typeof score === 'number' && score >= 0 && score <= target) {
+        const otherTeam = team === 'team1_score' ? 'team2_score' : 'team1_score';
+        next[otherTeam] = target - score;
+      }
+      return next;
+    }));
+  };
+
   return (
     <section className="page-section mexicana-page">
       <header className="mexicana-header">
@@ -442,6 +526,17 @@ export default function MexicanaTournament({
                 <option value="americano">Americano</option>
                 <option value="mexicano">Mexicano</option>
               </select>
+              <div className="muted" style={{ fontSize: '0.8rem', padding: '0 4px' }}>
+                {newTournament.tournament_type === 'americano' ? (
+                  <>
+                    <strong>Americano:</strong> Fokus på rättvisa. Alla spelar med och mot alla så mycket som möjligt. Lagen är förutbestämda. Vinnare är den med flest totalpoäng.
+                  </>
+                ) : (
+                  <>
+                    <strong>Mexicano:</strong> Fokus på jämna matcher. Laguppställningar baseras på poäng för att skapa utmanande möten. Vinnare är den med flest totalpoäng.
+                  </>
+                )}
+              </div>
               <select value={newTournament.score_target} onChange={e => setNewTournament({ ...newTournament, score_target: e.target.value })} disabled={isSaving}>
                 {POINTS_OPTIONS.map(p => <option key={p} value={p}>{p} poäng</option>)}
               </select>
@@ -474,57 +569,115 @@ export default function MexicanaTournament({
       {activeTournament?.status === 'in_progress' && (
         <div className="mexicana-grid two-columns">
           <div className="mexicana-card">
-            <h3>Spela nästa rond</h3>
+            <h3>Spela ronder</h3>
             <p className="muted">Läge: <strong>{tournamentMode === 'americano' ? 'Americano' : 'Mexicano'}</strong></p>
 
-            {!recordingRound ? (
-              <div className="next-suggestion">
-                <p><strong>Föreslagen match:</strong></p>
-                {currentSuggestion ? (
-                  <>
-                    <p>{idsToNames(currentSuggestion.team1_ids, profileMap).join(" & ")} vs {idsToNames(currentSuggestion.team2_ids, profileMap).join(" & ")}</p>
-                    {currentSuggestion.resting_ids.length > 0 && <p className="muted">Vilar: {idsToNames(currentSuggestion.resting_ids, profileMap).join(", ")}</p>}
-                    <button onClick={handleRecordRound}>Starta rond</button>
-                  </>
-                ) : <p className="muted">Välj minst 4 spelare.</p>}
+            {tournamentMode === 'mexicano' && (
+              <div className="mexicano-flow" style={{ marginBottom: '2rem' }}>
+                {!recordingRound ? (
+                  <div className="next-suggestion">
+                    <p><strong>Föreslagen nästa match:</strong></p>
+                    {currentSuggestion ? (
+                      <>
+                        <p>{idsToNames(currentSuggestion.team1_ids, profileMap).join(" & ")} vs {idsToNames(currentSuggestion.team2_ids, profileMap).join(" & ")}</p>
+                        {currentSuggestion.resting_ids.length > 0 && <p className="muted">Vilar: {idsToNames(currentSuggestion.resting_ids, profileMap).join(", ")}</p>}
+                        <button onClick={handleRecordRound}>Starta rond {rounds.length + 1}</button>
+                      </>
+                    ) : <p className="muted">Välj minst 4 spelare.</p>}
+                  </div>
+                ) : (
+                  <div className="recording-form">
+                    <h4>Registrera resultat (Rond {rounds.length + 1})</h4>
+                    <p className="muted" style={{ marginBottom: '1rem' }}>Lag A (vänster) börjar serva.</p>
+                    <div className="mexicana-round-match">
+                      <div className="mexicana-team">
+                        <div className="mexicana-team-name">{idsToNames(recordingRound.team1_ids, profileMap).join(" & ")}</div>
+                        <input type="number" value={recordingRound.team1_score} onChange={e => handleScoreChange('team1_score', e.target.value)} placeholder="Poäng" />
+                      </div>
+                      <span className="vs">vs</span>
+                      <div className="mexicana-team">
+                        <div className="mexicana-team-name">{idsToNames(recordingRound.team2_ids, profileMap).join(" & ")}</div>
+                        <input type="number" value={recordingRound.team2_score} onChange={e => handleScoreChange('team2_score', e.target.value)} placeholder="Poäng" />
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '1rem' }}>
+                      <button onClick={saveRound} disabled={isSaving}>Spara rond</button>
+                      <button onClick={() => setRecordingRound(null)} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Avbryt</button>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="recording-form">
-                <h4>Registrera resultat (Rond {rounds.length + 1})</h4>
-                <p className="muted" style={{ marginBottom: '1rem' }}>Lag A (vänster) börjar serva.</p>
-                <div className="mexicana-round-match">
-                  <div className="mexicana-team">
-                    <div className="mexicana-team-name">{idsToNames(recordingRound.team1_ids, profileMap).join(" & ")}</div>
-                    <input type="number" value={recordingRound.team1_score} onChange={e => handleScoreChange('team1_score', e.target.value)} placeholder="Poäng" />
-                  </div>
-                  <span className="vs">vs</span>
-                  <div className="mexicana-team">
-                    <div className="mexicana-team-name">{idsToNames(recordingRound.team2_ids, profileMap).join(" & ")}</div>
-                    <input type="number" value={recordingRound.team2_score} onChange={e => handleScoreChange('team2_score', e.target.value)} placeholder="Poäng" />
-                  </div>
-                </div>
+            )}
 
-                <div className="resting-info" style={{ marginTop: '1rem' }}>
-                  <p><strong>Vilar:</strong></p>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {participants.filter(id => !recordingRound.team1_ids.includes(id) && !recordingRound.team2_ids.includes(id)).map(id => (
-                      <span key={id} className="resting-badge" style={{ background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: '4px' }}>{profileMap[id]}</span>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '1rem' }}>
-                  <button onClick={saveRound} disabled={isSaving}>Spara rond</button>
-                  <button onClick={() => setRecordingRound(null)} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Avbryt</button>
+            {tournamentMode === 'americano' && (
+              <div className="americano-flow" style={{ marginBottom: '2rem' }}>
+                <p>Alla ronder är förutbestämda. Fyll i poäng allt eftersom ni spelar.</p>
+                <div className="mexicana-rounds">
+                  {rounds.map(round => {
+                    const isPlayed = Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score);
+                    return (
+                      <div key={round.id} className={`mexicana-round-card ${isPlayed ? 'is-played' : ''}`}>
+                         <div className="mexicana-round-header">
+                            <strong>Rond {round.round_number}</strong>
+                            {round.resting_ids?.length > 0 && <span className="muted">Vilar: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
+                         </div>
+                         <div className="mexicana-round-match">
+                            <div className="mexicana-team">
+                              <div className="mexicana-team-name">{idsToNames(round.team1_ids, profileMap).join(" & ")}</div>
+                              <input
+                                type="number"
+                                value={round.team1_score ?? ""}
+                                onChange={e => handleScoreChangeInList(round.id, 'team1_score', e.target.value)}
+                                placeholder="Poäng"
+                              />
+                            </div>
+                            <span className="vs">vs</span>
+                            <div className="mexicana-team">
+                              <div className="mexicana-team-name">{idsToNames(round.team2_ids, profileMap).join(" & ")}</div>
+                              <input
+                                type="number"
+                                value={round.team2_score ?? ""}
+                                onChange={e => handleScoreChangeInList(round.id, 'team2_score', e.target.value)}
+                                placeholder="Poäng"
+                              />
+                            </div>
+                         </div>
+                         <button
+                            className="ghost-button"
+                            onClick={() => updateRoundInDb(round.id, round.team1_score, round.team2_score)}
+                            disabled={isSaving || !Number.isFinite(round.team1_score) || !Number.isFinite(round.team2_score)}
+                          >
+                           {isPlayed ? "Uppdatera" : "Spara"}
+                         </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {lastRound && (
-              <div style={{ marginTop: '2rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                <h4>Senaste rond (Rond {lastRound.round_number})</h4>
-                <p>{idsToNames(lastRound.team1_ids, profileMap).join(" & ")} ({lastRound.team1_score}) - ({lastRound.team2_score}) {idsToNames(lastRound.team2_ids, profileMap).join(" & ")}</p>
-                {lastRound.resting_ids?.length > 0 && <p className="muted">Vilade: {idsToNames(lastRound.resting_ids, profileMap).join(", ")}</p>}
+            {tournamentMode === 'mexicano' && rounds.length > 0 && (
+              <div style={{ marginTop: '2rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4>Tidigare matcher ({rounds.length})</h4>
+                  <button className="ghost-button" onClick={() => setShowPreviousGames(!showPreviousGames)}>
+                    {showPreviousGames ? "Dölj" : "Visa"}
+                  </button>
+                </div>
+
+                {showPreviousGames && (
+                  <div className="mexicana-rounds" style={{ marginTop: '1rem' }}>
+                    {[...rounds].reverse().map(round => (
+                      <div key={round.id} className="mexicana-round-card">
+                        <div className="mexicana-round-header">
+                          <strong>Rond {round.round_number}</strong>
+                          {round.resting_ids?.length > 0 && <span className="muted">Vilade: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
+                        </div>
+                        <p>{idsToNames(round.team1_ids, profileMap).join(" & ")} ({round.team1_score}) - ({round.team2_score}) {idsToNames(round.team2_ids, profileMap).join(" & ")}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -567,8 +720,19 @@ export default function MexicanaTournament({
 
       {activeTournament?.status === 'completed' && (
         <div className="mexicana-card">
-          <h3>Turneringen avslutad</h3>
+          <h3>Results of finished tournament</h3>
           <p><strong>{activeTournament.name}</strong> slutfördes {formatDate(activeTournament.completed_at)}.</p>
+
+          <div className="mexicana-podium" style={{ marginBottom: '2rem' }}>
+            {sortedStandings.slice(0, 3).map((res, i) => (
+              <div key={res.id} className="mexicana-podium-spot">
+                <span className="mexicana-podium-rank">{i + 1}</span>
+                <strong>{profileMap[res.id] || "Okänd"}</strong>
+                <span className="muted">{res.totalPoints} poäng</span>
+              </div>
+            ))}
+          </div>
+
           <div className="table-scroll">
             <table className="styled-table">
               <thead>
@@ -577,6 +741,7 @@ export default function MexicanaTournament({
                   <th>Namn</th>
                   <th>Poäng</th>
                   <th>Matcher</th>
+                  <th>V/O/F</th>
                   <th>Diff</th>
                 </tr>
               </thead>
@@ -587,13 +752,14 @@ export default function MexicanaTournament({
                     <td>{profileMap[res.id] || "Okänd"}</td>
                     <td>{res.totalPoints}</td>
                     <td>{res.gamesPlayed}</td>
+                    <td>{res.wins}/{res.ties}/{res.losses}</td>
                     <td>{res.pointsFor - res.pointsAgainst}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '1rem' }}>Tillbaka</button>
+          <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '1rem' }}>Tillbaka till alla turneringar</button>
         </div>
       )}
 

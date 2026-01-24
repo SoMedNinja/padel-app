@@ -218,6 +218,36 @@ export const pickMexicanoTeams = (activePlayers, standings) => {
 /**
  * Orchestrator
  */
+
+export const generateAmericanoRounds = (participants) => {
+  const rounds = [];
+  const playerCount = participants.length;
+
+  // Deterministic round count
+  const roundMap = {
+    4: 3,
+    5: 5,
+    6: 15, // Standard Americano for 6 players is usually more, but let's stick to some logic
+    7: 7,
+    8: 7,
+  };
+  const roundCount = roundMap[playerCount] || playerCount;
+
+  let currentRounds = [];
+  for (let i = 0; i < roundCount; i++) {
+    const suggestion = getNextSuggestion(currentRounds, participants, 'americano');
+    const newRound = {
+      ...suggestion,
+      round_number: i + 1,
+      mode: 'americano'
+    };
+    currentRounds.push(newRound);
+    rounds.push(newRound);
+  }
+
+  return rounds;
+};
+
 export const getNextSuggestion = (rounds, participants, mode) => {
   const { standings, teammatesFaced } = getTournamentState(rounds, participants);
   const restCycle = getRestCycle(rounds, participants, mode);

@@ -616,6 +616,21 @@ export default function PlayerSection({
     return (slice[slice.length - 1]?.elo ?? 0) - (slice[0]?.elo ?? 0);
   }, [summary]);
 
+  const tournamentMerits = useMemo(() => {
+    if (!user?.id) return [];
+    const myResults = tournamentResults.filter(r => r.profile_id === user.id);
+    const counts = myResults.reduce((acc, r) => {
+      const type = r.tournament_type === 'americano' ? 'Americano' : 'Mexicano';
+      acc[type] = (acc[type] || 0) + 1;
+      if (r.rank === 1) {
+        acc[`${type}-vinster`] = (acc[`${type}-vinster`] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    return Object.entries(counts).map(([label, count]) => ({ label, count }));
+  }, [tournamentResults, user]);
+
   const eloHistoryMap = useMemo(
     () => buildEloHistoryMap(matches, profiles, nameToIdMap),
     [matches, profiles, nameToIdMap]
@@ -925,6 +940,12 @@ export default function PlayerSection({
       </div>
 
       <div className="player-stats">
+        {tournamentMerits.map(merit => (
+          <div key={merit.label} className="stat-card">
+            <span className="stat-label">{merit.label}</span>
+            <span className="stat-value">{merit.count}</span>
+          </div>
+        ))}
         <div className="stat-card">
           <span className="stat-label">Matcher</span>
           <span className="stat-value">{summary ? summary.wins + summary.losses : 0}</span>
