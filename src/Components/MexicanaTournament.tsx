@@ -647,7 +647,8 @@ export default function MexicanaTournament({
           <div className="mexicana-card">
             <h3>Poängställning</h3>
             <div className="table-scroll">
-              <table className="styled-table">
+              <div className="table-scroll-inner">
+                <table className="styled-table">
                 <thead>
                   <tr>
                     <th>Plac.</th>
@@ -672,6 +673,7 @@ export default function MexicanaTournament({
                 </tbody>
               </table>
             </div>
+          </div>
             <div style={{ marginTop: '1rem' }}>
                <button onClick={markAbandoned} className="ghost-button danger">Avbryt turnering</button>
                <button onClick={completeTournament} disabled={rounds.length === 0} style={{ marginLeft: '0.5rem' }}>Slutför & synka</button>
@@ -696,7 +698,8 @@ export default function MexicanaTournament({
           </div>
 
           <div className="table-scroll">
-            <table className="styled-table">
+            <div className="table-scroll-inner">
+              <table className="styled-table">
               <thead>
                 <tr>
                   <th>Plac.</th>
@@ -721,6 +724,7 @@ export default function MexicanaTournament({
               </tbody>
             </table>
           </div>
+        </div>
           <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '1rem' }}>Tillbaka till alla turneringar</button>
         </div>
       )}
@@ -728,7 +732,8 @@ export default function MexicanaTournament({
       <div className="mexicana-card mexicana-history" style={{ marginTop: '2rem' }}>
         <h3>Historik</h3>
         <div className="table-scroll">
-          <table className="styled-table">
+          <div className="table-scroll-inner">
+            <table className="styled-table">
             <thead>
               <tr>
                 <th>Turnering</th>
@@ -755,6 +760,7 @@ export default function MexicanaTournament({
           </table>
         </div>
       </div>
+    </div>
     </section>
   );
 }
