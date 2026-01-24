@@ -107,9 +107,7 @@ export default function MexicanaTournament({
   }, [rounds, participants, tournamentMode]);
 
   const loadTournaments = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setIsLoading(prev => prev ? prev : true);
-    }
+    if (showLoading) setIsLoading(true);
     const { data, error } = await supabase
       .from("mexicana_tournaments")
       .select("*")

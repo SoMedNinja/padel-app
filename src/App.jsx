@@ -741,7 +741,6 @@ export default function App() {
           <MexicanaTournament
             user={isGuest ? null : userWithAdmin}
             profiles={profiles}
-            eloPlayers={allEloPlayers}
             isGuest={isGuest}
             onTournamentSync={loadTournamentResults}
             onRefresh={retryData}
