@@ -18,6 +18,7 @@ import {
   generateAmericanoRounds,
 } from "../utils/tournamentLogic";
 import { Profile, PlayerStats, TournamentRound } from "../types";
+import { queryKeys } from "../utils/queryKeys";
 
 const POINTS_OPTIONS = [16, 21, 24, 31];
 const SCORE_TARGET_DEFAULT = 24;
@@ -165,7 +166,7 @@ export default function MexicanaTournament({
     if (error) {
       toast.error(error.message);
     } else {
-      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       setActiveTournamentId(data.id);
       toast.success("Turneringen är skapad.");
     }
@@ -199,7 +200,7 @@ export default function MexicanaTournament({
         return false;
     }
     else {
-      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       toast.success("Roster sparad.");
       setIsSaving(false);
       return true;
@@ -245,8 +246,8 @@ export default function MexicanaTournament({
     if (error) {
       toast.error(error.message);
     } else {
-      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
-      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       toast.success("Turneringen har startat.");
     }
     setIsSaving(false);
@@ -297,7 +298,7 @@ export default function MexicanaTournament({
 
     if (error) toast.error(error.message);
     else {
-      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       setRecordingRound(null);
       toast.success(`Rond ${nextRoundNumber} sparad.`);
     }
@@ -315,7 +316,7 @@ export default function MexicanaTournament({
     const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournament.id);
     if (error) toast.error(error.message);
     else {
-      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
       toast.success("Turneringen borttagen.");
     }
@@ -329,7 +330,7 @@ export default function MexicanaTournament({
     const { error } = await supabase.from("mexicana_tournaments").update({ status: "abandoned" }).eq("id", activeTournamentId);
     if (error) toast.error(error.message);
     else {
-      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       toast.success("Turneringen avbruten.");
     }
     setIsSaving(false);
@@ -387,8 +388,8 @@ export default function MexicanaTournament({
 
     if (tournamentError) toast.error(tournamentError.message);
     else {
-      queryClient.invalidateQueries({ queryKey: ["tournaments"] });
-      queryClient.invalidateQueries({ queryKey: ["tournamentResultsHistory"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResultsHistory() });
       onTournamentSync?.();
       toast.success("Turneringen slutförd.");
     }
@@ -422,7 +423,7 @@ export default function MexicanaTournament({
     if (error) {
       toast.error(error.message);
     } else {
-      queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       toast.success("Resultat sparat.");
     }
     setIsSaving(false);

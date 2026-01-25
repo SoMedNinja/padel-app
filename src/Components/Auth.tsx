@@ -1,8 +1,14 @@
 import { useState } from "react";
+import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 
-export default function Auth({ onAuth, onGuest }) {
+interface AuthProps {
+  onAuth: (user: User) => void;
+  onGuest: () => void;
+}
+
+export default function Auth({ onAuth, onGuest }: AuthProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false);

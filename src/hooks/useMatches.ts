@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter } from "../types";
+import { queryKeys } from "../utils/queryKeys";
 
 const getDateRange = (filter: MatchFilter) => {
   if (filter.type === "last7") {
@@ -25,7 +26,7 @@ const getDateRange = (filter: MatchFilter) => {
 
 export const useMatches = (filter: MatchFilter) => {
   return useQuery({
-    queryKey: ["matches", filter],
+    queryKey: queryKeys.matches(filter),
     queryFn: async () => {
       let query = supabase
         .from("matches")

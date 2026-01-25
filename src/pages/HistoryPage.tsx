@@ -2,13 +2,13 @@ import React from "react";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
 import { Box, Button, Skeleton, Stack } from "@mui/material";
-import PTR from "react-simple-pull-to-refresh";
+import PullToRefresh from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
 
-const PullToRefresh = (PTR as any).default || PTR;
 import { useInfiniteMatches } from "../hooks/useInfiniteMatches";
 import { useProfiles } from "../hooks/useProfiles";
 import { Match, Profile } from "../types";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 
 export default function HistoryPage() {
   const { matchFilter, setMatchFilter, user, isGuest } = useStore();
@@ -31,9 +31,7 @@ export default function HistoryPage() {
 
   const allMatches = data?.pages.flat() || [];
 
-  const handleRefresh = async () => {
-    await Promise.all([refetchMatches(), refetchProfiles()]);
-  };
+  const handleRefresh = usePullToRefresh([refetchMatches, refetchProfiles]);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
