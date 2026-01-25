@@ -664,6 +664,8 @@ export default function PlayerSection({
   );
 
   const [compareTarget, setCompareTarget] = useState<string>("none");
+  // This flag lets the chart switch into a full-screen overlay for easier viewing.
+  const [isEloChartFullscreen, setIsEloChartFullscreen] = useState(false);
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
@@ -708,6 +710,13 @@ export default function PlayerSection({
     return map;
   }, [comparisonData]);
 
+  useEffect(() => {
+    // Lock the page scroll while the full-screen chart is open so it feels like a modal.
+    document.body.classList.toggle("chart-fullscreen-active", isEloChartFullscreen);
+    return () => {
+      document.body.classList.remove("chart-fullscreen-active");
+    };
+  }, [isEloChartFullscreen]);
 
   useEffect(() => {
     if (!avatarStorageId || !user?.id) return;
@@ -946,46 +955,58 @@ export default function PlayerSection({
         </div>
       </div>
 
-      <div className="player-chart">
+      <div className={`player-chart${isEloChartFullscreen ? " is-fullscreen" : ""}`}>
         <div className="player-chart-header">
           <h3>ELO-utveckling (senaste året)</h3>
-          <label className="chart-compare">
-            Jämför med
-            <select value={compareTarget} onChange={(event) => setCompareTarget(event.target.value)}>
-              <option value="none">Ingen</option>
-              <option value="all">Alla</option>
-              {selectablePlayers.map(player => (
-                <option key={player.id} value={player.id}>
-                  {getPlayerOptionLabel(player)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="player-chart-controls">
+            <label className="chart-compare">
+              Jämför med
+              <select value={compareTarget} onChange={(event) => setCompareTarget(event.target.value)}>
+                <option value="none">Ingen</option>
+                <option value="all">Alla</option>
+                {selectablePlayers.map(player => (
+                  <option key={player.id} value={player.id}>
+                    {getPlayerOptionLabel(player)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="ghost-button chart-expand-button"
+              onClick={() => setIsEloChartFullscreen((prev) => !prev)}
+            >
+              <span aria-hidden="true">{isEloChartFullscreen ? "🗗" : "⛶"}</span>
+              {isEloChartFullscreen ? "Minimera" : "Maximera"}
+            </button>
+          </div>
         </div>
         {comparisonData.length ? (
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
-              />
-              <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
-              <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
-              <Legend />
-              {comparisonNames.map((name, index) => (
-                <Line
-                  key={name}
-                  type="monotone"
-                  dataKey={(row) => row[name]}
-                  name={name}
-                  stroke={chartPalette[index % chartPalette.length]}
-                  strokeWidth={3}
-                  dot={false}
+          <div className="player-chart-body">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
                 />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+                <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
+                <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
+                <Legend />
+                {comparisonNames.map((name, index) => (
+                  <Line
+                    key={name}
+                    type="monotone"
+                    dataKey={(row) => row[name]}
+                    name={name}
+                    stroke={chartPalette[index % chartPalette.length]}
+                    strokeWidth={3}
+                    dot={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
           <p className="muted">Spela matcher senaste året för att se ELO-utvecklingen.</p>
         )}
