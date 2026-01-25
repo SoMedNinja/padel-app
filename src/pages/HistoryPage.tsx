@@ -7,6 +7,7 @@ import { useStore } from "../store/useStore";
 
 import { useInfiniteMatches } from "../hooks/useInfiniteMatches";
 import { useProfiles } from "../hooks/useProfiles";
+import { useMatches } from "../hooks/useMatches";
 import { Match, Profile } from "../types";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 
@@ -28,10 +29,15 @@ export default function HistoryPage() {
     error: profilesError,
     refetch: refetchProfiles
   } = useProfiles();
+  const {
+    data: globalMatches = [] as Match[],
+    refetch: refetchAllMatches
+  } = useMatches({ type: "all" });
+  // Note for non-coders: we fetch the full match list here so Elo calculations stay global even if the view is filtered.
 
-  const allMatches = data?.pages.flat() || [];
+  const filteredMatches = data?.pages.flat() || [];
 
-  const handleRefresh = usePullToRefresh([refetchMatches, refetchProfiles]);
+  const handleRefresh = usePullToRefresh([refetchMatches, refetchProfiles, refetchAllMatches]);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
@@ -58,7 +64,8 @@ export default function HistoryPage() {
       ) : (
         <>
           <History
-            matches={allMatches}
+            matches={filteredMatches}
+            globalMatches={globalMatches}
             profiles={profiles}
             user={isGuest ? null : user}
           />
