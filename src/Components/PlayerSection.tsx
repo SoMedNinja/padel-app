@@ -603,6 +603,8 @@ interface PlayerSectionProps {
   user: any;
   profiles?: Profile[];
   matches?: Match[];
+  globalMatches?: Match[];
+  globalEloMap?: Map<string, number>;
   tournamentResults?: TournamentResult[];
   onProfileUpdate?: (profile: Profile) => void;
 }
@@ -611,6 +613,8 @@ export default function PlayerSection({
   user,
   profiles = [],
   matches = [],
+  globalMatches = [],
+  globalEloMap,
   tournamentResults = [],
   onProfileUpdate,
 }: PlayerSectionProps) {
@@ -636,6 +640,9 @@ export default function PlayerSection({
     () => buildPlayerSummary(matches, profiles, user?.id, nameToIdMap),
     [matches, profiles, user, nameToIdMap]
   );
+  // Note for non-coders: this picks a stable "current ELO" from all matches if available,
+  // so it doesn't jump around when the profile filter is narrowed.
+  const currentEloDisplay = globalEloMap?.get(user?.id) ?? summary?.currentElo ?? ELO_BASELINE;
   const recentForm = useMemo(() => {
     const results = summary?.results ?? [];
     return results.slice(-10);
@@ -667,9 +674,10 @@ export default function PlayerSection({
     return Object.entries(counts).map(([label, count]) => ({ label, count }));
   }, [tournamentResults, user]);
 
+  // Note for non-coders: the ELO history chart should reflect full history, not the filtered view.
   const eloHistoryMap = useMemo(
-    () => buildEloHistoryMap(matches, profiles, nameToIdMap),
-    [matches, profiles, nameToIdMap]
+    () => buildEloHistoryMap(globalMatches, profiles, nameToIdMap),
+    [globalMatches, profiles, nameToIdMap]
   );
 
   const selectablePlayers = useMemo(
@@ -953,7 +961,7 @@ export default function PlayerSection({
         </div>
         <div className="stat-card">
           <span className="stat-label">ELO</span>
-          <span className="stat-value">{summary ? summary.currentElo : ELO_BASELINE}</span>
+          <span className="stat-value">{currentEloDisplay}</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">ELO ändring (senaste match)</span>
@@ -1034,10 +1042,17 @@ interface HeadToHeadSectionProps {
   user: any;
   profiles?: Profile[];
   matches?: Match[];
+  globalEloMap?: Map<string, number>;
   tournamentResults?: TournamentResult[];
 }
 
-export function HeadToHeadSection({ user, profiles = [], matches = [], tournamentResults = [] }: HeadToHeadSectionProps) {
+export function HeadToHeadSection({
+  user,
+  profiles = [],
+  matches = [],
+  globalEloMap,
+  tournamentResults = []
+}: HeadToHeadSectionProps) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
@@ -1098,8 +1113,14 @@ export function HeadToHeadSection({ user, profiles = [], matches = [], tournamen
   const opponentAvatarUrl = opponentProfile?.avatar_url || getStoredAvatar(opponentProfile?.id);
   const opponentName = opponentProfile ? getProfileDisplayName(opponentProfile) : "Motståndare";
   const opponentBadgeId = opponentProfile?.featured_badge_id || null;
-  const currentPlayerElo = eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
-  const opponentElo = eloHistoryMap[resolvedOpponentId]?.currentElo ?? ELO_BASELINE;
+  // Note for non-coders: we show "current ELO" using the all-matches map when available so it
+  // stays consistent even if the head-to-head filter changes the match list.
+  const currentPlayerElo =
+    globalEloMap?.get(user?.id) ?? eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
+  const opponentElo =
+    globalEloMap?.get(resolvedOpponentId) ??
+    eloHistoryMap[resolvedOpponentId]?.currentElo ??
+    ELO_BASELINE;
   const playerHighestElo = useMemo(
     () => getHighestEloRating(eloHistoryMap[user?.id]),
     [eloHistoryMap, user?.id]

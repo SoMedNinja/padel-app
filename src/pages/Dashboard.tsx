@@ -42,11 +42,15 @@ export default function Dashboard() {
 
   const { filteredMatches, playersWithTrend } = usePadelData(matches, matchFilter, profiles);
   // Note for non-coders: we build a "global" ELO list from all matches so the leaderboard rating
-  // stays steady even when the filter shows a smaller slice of games.
-  const allEloMap = useMemo(() => {
-    const allEloPlayers = calculateElo(allMatches, profiles);
-    return new Map(allEloPlayers.map(player => [player.id, player.elo]));
-  }, [allMatches, profiles]);
+  // and other "current ELO" labels stay steady even when the filter shows a smaller slice of games.
+  const allEloPlayers = useMemo(
+    () => calculateElo(allMatches, profiles),
+    [allMatches, profiles]
+  );
+  const allEloMap = useMemo(
+    () => new Map(allEloPlayers.map(player => [player.id, player.elo])),
+    [allEloPlayers]
+  );
   const leaderboardPlayers = useMemo(
     () =>
       playersWithTrend.map(player => ({
@@ -106,7 +110,7 @@ export default function Dashboard() {
                 />
               </div>
               <EloLeaderboard players={leaderboardPlayers} />
-              <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
+              <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={allEloPlayers} />
             </>
           )}
         </>

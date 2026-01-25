@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import PlayerSection, { HeadToHeadSection } from "../Components/PlayerSection";
 import MeritsSection from "../Components/MeritsSection";
 import FilterBar from "../Components/FilterBar";
@@ -15,6 +15,7 @@ import PullToRefresh from "react-simple-pull-to-refresh";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { PostgrestError } from "@supabase/supabase-js";
 import { queryKeys } from "../utils/queryKeys";
+import { calculateElo } from "../utils/elo";
 
 type TournamentResultRow = TournamentResult & {
   mexicana_tournaments?: { tournament_type?: string | null } | null;
@@ -36,6 +37,11 @@ export default function PlayerProfilePage() {
     error: matchesError,
     refetch: refetchMatches,
   } = useMatches(matchFilter);
+  const {
+    data: allMatches = [] as Match[],
+    isLoading: isLoadingAllMatches,
+    refetch: refetchAllMatches,
+  } = useMatches({ type: "all" });
 
   useScrollToFragment();
 
@@ -63,6 +69,12 @@ export default function PlayerProfilePage() {
   });
 
   const { filteredMatches } = usePadelData(matches, matchFilter, profiles);
+  // Note for non-coders: this map stores each player's latest ELO from all matches, so
+  // "current ELO" stays steady even when the filter shows a shorter time window.
+  const globalEloMap = useMemo(
+    () => new Map(calculateElo(allMatches, profiles).map(player => [player.id, player.elo])),
+    [allMatches, profiles]
+  );
 
   // Simplified handling for admin and approval state for now
   const userWithAdmin = user ? { ...user, is_admin: user.is_admin } : null;
@@ -74,10 +86,15 @@ export default function PlayerProfilePage() {
   const handleRefresh = usePullToRefresh([
     refetchProfiles,
     refetchMatches,
+    refetchAllMatches,
     refetchTournamentResults,
   ]);
 
-  const isLoading = isLoadingProfiles || isLoadingMatches || isLoadingTournamentResults;
+  const isLoading =
+    isLoadingProfiles ||
+    isLoadingMatches ||
+    isLoadingAllMatches ||
+    isLoadingTournamentResults;
   const hasError = isProfilesError || isMatchesError || isTournamentResultsError;
   const errorMessage =
     (profilesError as Error | undefined)?.message ||
@@ -126,6 +143,8 @@ export default function PlayerProfilePage() {
                 user={userWithAdmin}
                 profiles={profiles}
                 matches={filteredMatches}
+                globalMatches={allMatches}
+                globalEloMap={globalEloMap}
                 tournamentResults={tournamentResults}
                 onProfileUpdate={handleProfileUpdate}
               />
@@ -136,6 +155,7 @@ export default function PlayerProfilePage() {
                 user={userWithAdmin}
                 profiles={profiles}
                 matches={filteredMatches}
+                globalEloMap={globalEloMap}
                 tournamentResults={tournamentResults}
               />
             </section>
