@@ -1,19 +1,10 @@
 import React from 'react';
 import { idsToNames } from '../utils/profileMap';
-
-interface Round {
-  id: string;
-  round_number: number;
-  team1_ids: string[];
-  team2_ids: string[];
-  team1_score?: number | null;
-  team2_score?: number | null;
-  resting_ids?: string[];
-}
+import { Profile, TournamentRound } from '../types';
 
 interface TournamentBracketProps {
-  rounds: Round[];
-  profileMap: Record<string, string>;
+  rounds: TournamentRound[];
+  profileMap: Map<string, Profile>;
   activeTournament: any;
 }
 
@@ -30,7 +21,7 @@ export default function TournamentBracket({ rounds, profileMap, activeTournament
       <div className="bracket-scroll">
         <div className="bracket-container">
           {sortedRounds.map((round) => {
-            const isPlayed = round.team1_score !== null && round.team2_score !== null;
+            const isPlayed = round.team1_score !== null && round.team2_score !== null && round.team1_score !== undefined && round.team2_score !== undefined;
             const t1Names = idsToNames(round.team1_ids, profileMap).join(" & ");
             const t2Names = idsToNames(round.team2_ids, profileMap).join(" & ");
 
