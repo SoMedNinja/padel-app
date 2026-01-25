@@ -96,15 +96,17 @@ export default function Dashboard() {
           ) : (
             <>
               <div className="mvp-grid">
+                {/* Note for non-coders: MVP should use the full match history so its ELO gain totals
+                    match the global ELO calculation, even when the filter is showing fewer games. */}
                 <MVP
-                  matches={filteredMatches}
-                  players={playersWithTrend}
+                  matches={allMatches}
+                  players={allEloPlayers}
                   mode="evening"
                   title="Kvällens MVP"
                 />
                 <MVP
-                  matches={filteredMatches}
-                  players={playersWithTrend}
+                  matches={allMatches}
+                  players={allEloPlayers}
                   mode="30days"
                   title="Månadens MVP"
                 />
