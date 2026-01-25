@@ -234,9 +234,12 @@ export default function History({ matches = [], globalMatches = [], profiles = [
   const buildTeamEntries = (match: Match, teamKey: "team1" | "team2", idKey: "team1_ids" | "team2_ids"): TeamEntry[] => {
     const ids = resolveTeamIds(match[idKey], match[teamKey], nameToIdMap);
     const names = resolveTeamNames(match[idKey], match[teamKey], profileMap);
-    return ids.map((id, index) => ({
+    // Note for non-coders: we only keep the first two players per team to avoid displaying extra "unknown" slots.
+    const trimmedIds = ids.slice(0, 2);
+    const trimmedNames = names.slice(0, 2);
+    return trimmedIds.map((id, index) => ({
       id,
-      name: names[index] || getIdDisplayName(id, profileMap),
+      name: trimmedNames[index] || getIdDisplayName(id, profileMap),
     }));
   };
 
