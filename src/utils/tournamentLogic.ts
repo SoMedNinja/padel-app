@@ -56,6 +56,31 @@ export const getTournamentState = (rounds: Round[], participants: string[]) => {
       if (standings[id]) standings[id].rests += 1;
     });
 
+    // Teammates and Opponents should be tracked even if the round has no score yet
+    // to ensure diversity in pre-generated rounds or suggestions.
+    if (team1_ids.length === 2) {
+      const [a, b] = team1_ids;
+      if (teammatesFaced[a] && teammatesFaced[b]) {
+        teammatesFaced[a][b] = (teammatesFaced[a][b] || 0) + 1;
+        teammatesFaced[b][a] = (teammatesFaced[b][a] || 0) + 1;
+      }
+    }
+    if (team2_ids.length === 2) {
+      const [a, b] = team2_ids;
+      if (teammatesFaced[a] && teammatesFaced[b]) {
+        teammatesFaced[a][b] = (teammatesFaced[a][b] || 0) + 1;
+        teammatesFaced[b][a] = (teammatesFaced[b][a] || 0) + 1;
+      }
+    }
+    team1_ids.forEach(p1 => {
+      team2_ids.forEach(p2 => {
+        if (opponentsFaced[p1] && opponentsFaced[p2]) {
+          opponentsFaced[p1][p2] = (opponentsFaced[p1][p2] || 0) + 1;
+          opponentsFaced[p2][p1] = (opponentsFaced[p2][p1] || 0) + 1;
+        }
+      });
+    });
+
     const s1 = (team1_score !== null && team1_score !== undefined) ? Number(team1_score) : null;
     const s2 = (team2_score !== null && team2_score !== undefined) ? Number(team2_score) : null;
 
@@ -79,32 +104,6 @@ export const getTournamentState = (rounds: Round[], participants: string[]) => {
         if (s2 > s1) standings[id].wins += 1;
         else if (s1 === s2) standings[id].ties += 1;
         else standings[id].losses += 1;
-      });
-
-      // Teammates
-      if (team1_ids.length === 2) {
-        const [a, b] = team1_ids;
-        if (teammatesFaced[a] && teammatesFaced[b]) {
-          teammatesFaced[a][b] = (teammatesFaced[a][b] || 0) + 1;
-          teammatesFaced[b][a] = (teammatesFaced[b][a] || 0) + 1;
-        }
-      }
-      if (team2_ids.length === 2) {
-        const [a, b] = team2_ids;
-        if (teammatesFaced[a] && teammatesFaced[b]) {
-          teammatesFaced[a][b] = (teammatesFaced[a][b] || 0) + 1;
-          teammatesFaced[b][a] = (teammatesFaced[b][a] || 0) + 1;
-        }
-      }
-
-      // Opponents
-      team1_ids.forEach(p1 => {
-        team2_ids.forEach(p2 => {
-          if (opponentsFaced[p1] && opponentsFaced[p2]) {
-            opponentsFaced[p1][p2] = (opponentsFaced[p1][p2] || 0) + 1;
-            opponentsFaced[p2][p1] = (opponentsFaced[p2][p1] || 0) + 1;
-          }
-        });
       });
     }
   });
@@ -151,8 +150,13 @@ export const pickAmericanoRestingPlayers = (standings: Record<string, Tournament
   return sorted.slice(0, count);
 };
 
-export const pickAmericanoTeams = (activePlayers: string[], standings: Record<string, TournamentPlayerStats>, teammatesFaced: Record<string, Record<string, number>>) => {
-  // A2: Minimize repeatTeammateCount, tie-break by minimize imbalance
+export const pickAmericanoTeams = (
+  activePlayers: string[],
+  standings: Record<string, TournamentPlayerStats>,
+  teammatesFaced: Record<string, Record<string, number>>,
+  opponentsFaced: Record<string, Record<string, number>>
+) => {
+  // A2: Minimize repeatTeammateCount, tie-break by minimize repeatOpponentCount, then by minimize imbalance
   const [p1, p2, p3, p4] = [...activePlayers].sort(); // Sort for determinism
   const splits = [
     { t1: [p1, p2], t2: [p3, p4] },
@@ -160,10 +164,20 @@ export const pickAmericanoTeams = (activePlayers: string[], standings: Record<st
     { t1: [p1, p4], t2: [p2, p3] },
   ];
 
-  const getRepeatCount = (split: { t1: string[], t2: string[] }) => {
+  const getTeammateRepeatCount = (split: { t1: string[], t2: string[] }) => {
     const c1 = teammatesFaced[split.t1[0]]?.[split.t1[1]] || 0;
     const c2 = teammatesFaced[split.t2[0]]?.[split.t2[1]] || 0;
     return c1 + c2;
+  };
+
+  const getOpponentRepeatCount = (split: { t1: string[], t2: string[] }) => {
+    let count = 0;
+    split.t1.forEach(a => {
+      split.t2.forEach(b => {
+        count += opponentsFaced[a]?.[b] || 0;
+      });
+    });
+    return count;
   };
 
   const getImbalance = (split: { t1: string[], t2: string[] }) => {
@@ -173,9 +187,14 @@ export const pickAmericanoTeams = (activePlayers: string[], standings: Record<st
   };
 
   splits.sort((a, b) => {
-    const rA = getRepeatCount(a);
-    const rB = getRepeatCount(b);
-    if (rA !== rB) return rA - rB;
+    const tA = getTeammateRepeatCount(a);
+    const tB = getTeammateRepeatCount(b);
+    if (tA !== tB) return tA - tB;
+
+    const oA = getOpponentRepeatCount(a);
+    const oB = getOpponentRepeatCount(b);
+    if (oA !== oB) return oA - oB;
+
     return getImbalance(a) - getImbalance(b);
   });
 
@@ -260,7 +279,7 @@ export const generateAmericanoRounds = (participants: string[]) => {
 };
 
 export const getNextSuggestion = (rounds: Round[], participants: string[], mode: "americano" | "mexicano"): { team1_ids: string[], team2_ids: string[], resting_ids: string[] } => {
-  const { standings, teammatesFaced } = getTournamentState(rounds, participants);
+  const { standings, teammatesFaced, opponentsFaced } = getTournamentState(rounds, participants);
   const restCycle = getRestCycle(rounds, participants, mode);
   const restingCount = participants.length - 4;
 
@@ -274,7 +293,7 @@ export const getNextSuggestion = (rounds: Round[], participants: string[], mode:
   const activePlayers = participants.filter(id => !resting_ids.includes(id));
   let teams: { t1: string[], t2: string[] };
   if (mode === 'americano') {
-    teams = pickAmericanoTeams(activePlayers, standings, teammatesFaced);
+    teams = pickAmericanoTeams(activePlayers, standings, teammatesFaced, opponentsFaced);
   } else {
     teams = pickMexicanoTeams(activePlayers, standings);
   }

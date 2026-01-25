@@ -32,7 +32,7 @@ export default function Dashboard() {
     <section id="dashboard" className="page-section">
       {(isLoadingProfiles || isLoadingMatches) ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
-          <Skeleton variant="rectangular" height={40} sx={{ borderRadius: '999px' }} />
+          <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: '12px' }} />
           <div className="mvp-grid">
             <Skeleton variant="rectangular" height={160} sx={{ borderRadius: '14px' }} />
             <Skeleton variant="rectangular" height={160} sx={{ borderRadius: '14px' }} />

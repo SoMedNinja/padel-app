@@ -461,28 +461,7 @@ select:focus-visible {
 }
 
 .filter-bar {
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
   margin-bottom:16px;
-}
-
-.filter-bar button {
-  border:1px solid #dcdcdc;
-  background:#f7f7f7;
-  padding:7px 14px;
-  border-radius:999px;
-  font-weight:600;
-  color:#555;
-  box-shadow:none;
-  transition:all 0.2s ease;
-}
-
-.filter-bar button.active {
-  background:#fff;
-  color:#b71c1c;
-  border-color:#d32f2f;
-  box-shadow:inset 0 0 0 1px rgba(211, 47, 47, 0.4);
 }
 
 .player-stats {

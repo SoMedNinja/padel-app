@@ -1,27 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@mui/material";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { useTournaments, useTournamentDetails, useTournamentResults } from "../hooks/useTournamentData";
+import { useTournaments, useTournamentDetails } from "../hooks/useTournamentData";
 import { useQueryClient } from "@tanstack/react-query";
 import TournamentBracket from "./TournamentBracket";
 import {
   getProfileDisplayName,
+  getIdDisplayName,
   idsToNames,
   makeProfileMap,
 } from "../utils/profileMap";
 import {
   getTournamentState,
-  getRestCycle,
   getNextSuggestion,
   generateAmericanoRounds,
 } from "../utils/tournamentLogic";
+import { Profile, PlayerStats, TournamentRound } from "../types";
 
 const POINTS_OPTIONS = [16, 21, 24, 31];
 const SCORE_TARGET_DEFAULT = 24;
 
-const formatDate = (value) => {
+const formatDate = (value: string | undefined) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -32,15 +33,15 @@ const formatDate = (value) => {
   }).format(date);
 };
 
-const toDateInput = (value) => {
+const toDateInput = (value: string) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 10);
 };
 
-const getTournamentStatusLabel = (status) => {
-  const labels = {
+const getTournamentStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
     draft: "Utkast",
     in_progress: "Pågår",
     completed: "Avslutad",
@@ -49,21 +50,27 @@ const getTournamentStatusLabel = (status) => {
   return labels[status] || "Okänd";
 };
 
+interface MexicanaTournamentProps {
+  user: any;
+  profiles?: Profile[];
+  eloPlayers?: PlayerStats[];
+  isGuest?: boolean;
+  onTournamentSync?: () => void;
+}
+
 export default function MexicanaTournament({
   user,
   profiles = [],
-  eloPlayers = [],
   isGuest = false,
   onTournamentSync,
-}) {
+}: MexicanaTournamentProps) {
   const queryClient = useQueryClient();
   const [activeTournamentId, setActiveTournamentId] = useState("");
   const { data: tournaments = [], isLoading: isLoadingTournaments } = useTournaments();
   const { data: tournamentData, isLoading: isLoadingDetails } = useTournamentDetails(activeTournamentId);
-  const { data: resultsByTournament = {} } = useTournamentResults();
 
-  const [participants, setParticipants] = useState([]);
-  const [rounds, setRounds] = useState([]);
+  const [participants, setParticipants] = useState<string[]>([]);
+  const [rounds, setRounds] = useState<TournamentRound[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const isLoading = isLoadingTournaments || (!!activeTournamentId && isLoadingDetails);
@@ -76,14 +83,14 @@ export default function MexicanaTournament({
     tournament_type: "americano",
   });
 
-  const [recordingRound, setRecordingRound] = useState(null);
+  const [recordingRound, setRecordingRound] = useState<any>(null);
   const [showPreviousGames, setShowPreviousGames] = useState(false);
 
   // Add Guest to selectable profiles
   const selectableProfiles = useMemo(() => {
     const hasGuest = profiles.some(p => p.id === GUEST_ID);
     if (hasGuest) return profiles;
-    return [...profiles, { id: GUEST_ID, name: GUEST_NAME }];
+    return [...profiles, { id: GUEST_ID, name: GUEST_NAME } as Profile];
   }, [profiles]);
 
   const profileMap = useMemo(() => makeProfileMap(selectableProfiles), [selectableProfiles]);
@@ -111,7 +118,7 @@ export default function MexicanaTournament({
 
   const currentSuggestion = useMemo(() => {
     if (participants.length < 4) return null;
-    return getNextSuggestion(rounds, participants, tournamentMode);
+    return getNextSuggestion(rounds, participants, tournamentMode as any);
   }, [rounds, participants, tournamentMode]);
 
   useEffect(() => {
@@ -130,7 +137,7 @@ export default function MexicanaTournament({
     }
   }, [tournamentData, activeTournamentId]);
 
-  const createTournament = async (event) => {
+  const createTournament = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!newTournament.name.trim()) {
       toast.error("Ange ett namn för turneringen.");
@@ -165,7 +172,7 @@ export default function MexicanaTournament({
     setIsSaving(false);
   };
 
-  const toggleParticipant = (profileId) => {
+  const toggleParticipant = (profileId: string) => {
     if (isGuest || activeTournament?.status === "completed") return;
     setParticipants(prev =>
       prev.includes(profileId) ? prev.filter(id => id !== profileId) : [...prev, profileId]
@@ -186,16 +193,26 @@ export default function MexicanaTournament({
         profile_id: profileId === GUEST_ID ? null : profileId,
       }))
     );
-    if (error) toast.error(error.message);
+    if (error) {
+        toast.error(error.message);
+        setIsSaving(false);
+        return false;
+    }
     else {
       queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
       toast.success("Roster sparad.");
+      setIsSaving(false);
+      return true;
     }
-    setIsSaving(false);
   };
 
   const startTournament = async () => {
     if (!activeTournamentId || isGuest) return;
+
+    // Auto-save roster before starting
+    const saved = await saveRoster();
+    if (!saved) return;
+
     setIsSaving(true);
 
     if (tournamentMode === 'americano') {
@@ -261,8 +278,8 @@ export default function MexicanaTournament({
     const restingIds = participants.filter(id => !activeIds.has(id));
 
     // Map GUEST_ID to null for database
-    const t1Ids = recordingRound.team1_ids.map(id => id === GUEST_ID ? null : id);
-    const t2Ids = recordingRound.team2_ids.map(id => id === GUEST_ID ? null : id);
+    const t1Ids = recordingRound.team1_ids.map((id: string) => id === GUEST_ID ? null : id);
+    const t2Ids = recordingRound.team2_ids.map((id: string) => id === GUEST_ID ? null : id);
     const rIds = restingIds.map(id => id === GUEST_ID ? null : id);
 
     const { error } = await supabase
@@ -287,7 +304,7 @@ export default function MexicanaTournament({
     setIsSaving(false);
   };
 
-  const deleteTournament = async (tournament) => {
+  const deleteTournament = async (tournament: any) => {
     if (!tournament?.id || isGuest || !user?.id) return;
     if (!window.confirm(`Ta bort turneringen "${tournament.name}"?`)) return;
     setIsSaving(true);
@@ -326,8 +343,8 @@ export default function MexicanaTournament({
     const matchPayload = rounds.map(round => ({
       team1: idsToNames(round.team1_ids, profileMap),
       team2: idsToNames(round.team2_ids, profileMap),
-      team1_ids: round.team1_ids.map(id => id === GUEST_ID ? null : id),
-      team2_ids: round.team2_ids.map(id => id === GUEST_ID ? null : id),
+      team1_ids: round.team1_ids.map((id: string) => id === GUEST_ID ? null : id),
+      team2_ids: round.team2_ids.map((id: string) => id === GUEST_ID ? null : id),
       team1_sets: Number(round.team1_score),
       team2_sets: Number(round.team2_score),
       score_type: "points",
@@ -378,10 +395,10 @@ export default function MexicanaTournament({
     setIsSaving(false);
   };
 
-  const handleScoreChange = (team, val) => {
+  const handleScoreChange = (team: "team1_score" | "team2_score", val: string) => {
     const score = val === "" ? "" : parseInt(val, 10);
     const target = activeTournament?.score_target || SCORE_TARGET_DEFAULT;
-    setRecordingRound(prev => {
+    setRecordingRound((prev: any) => {
       const next = { ...prev, [team]: score };
       if (typeof score === 'number' && score >= 0 && score <= target) {
         const otherTeam = team === 'team1_score' ? 'team2_score' : 'team1_score';
@@ -391,9 +408,7 @@ export default function MexicanaTournament({
     });
   };
 
-  const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
-
-  const updateRoundInDb = async (roundId, s1, s2) => {
+  const updateRoundInDb = async (roundId: string, s1: any, s2: any) => {
     if (isGuest || !user?.id) return;
     setIsSaving(true);
     const { error } = await supabase
@@ -413,7 +428,7 @@ export default function MexicanaTournament({
     setIsSaving(false);
   };
 
-  const handleScoreChangeInList = (roundId, team, val) => {
+  const handleScoreChangeInList = (roundId: string, team: "team1_score" | "team2_score", val: string) => {
     const score = val === "" ? "" : parseInt(val, 10);
     const target = activeTournament?.score_target || SCORE_TARGET_DEFAULT;
 
@@ -427,6 +442,26 @@ export default function MexicanaTournament({
       return next;
     }));
   };
+
+  const rosterCard = activeTournament && activeTournament.status === 'draft' && (
+    <div className="mexicana-card">
+      <h3>Roster ({participants.length})</h3>
+      <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+        {selectableProfiles.map(p => (
+          <label key={p.id} className="mexicana-roster-item">
+            <input type="checkbox" checked={participants.includes(p.id)} onChange={() => toggleParticipant(p.id)} disabled={activeTournament.status !== 'draft'} />
+            <span>{getProfileDisplayName(p)}</span>
+          </label>
+        ))}
+      </div>
+      {activeTournament.status === 'draft' && (
+        <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
+      )}
+      {activeTournament.status === 'draft' && participants.length >= 4 && (
+        <button onClick={startTournament} disabled={isSaving} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Starta turnering</button>
+      )}
+    </div>
+  );
 
   return (
     <section className="page-section mexicana-page">
@@ -499,25 +534,7 @@ export default function MexicanaTournament({
           )}
         </div>
 
-        {activeTournament && (
-          <div className="mexicana-card">
-            <h3>Roster ({participants.length})</h3>
-            <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {selectableProfiles.map(p => (
-                <label key={p.id} className="mexicana-roster-item">
-                  <input type="checkbox" checked={participants.includes(p.id)} onChange={() => toggleParticipant(p.id)} disabled={activeTournament.status !== 'draft'} />
-                  <span>{getProfileDisplayName(p)}</span>
-                </label>
-              ))}
-            </div>
-            {activeTournament.status === 'draft' && (
-              <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
-            )}
-            {activeTournament.status === 'draft' && participants.length >= 4 && (
-              <button onClick={startTournament} disabled={isSaving} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Starta turnering</button>
-            )}
-          </div>
-        )}
+        {activeTournament?.status === 'draft' && rosterCard}
       </div>
 
       {activeTournament?.status === 'in_progress' && (
@@ -573,7 +590,7 @@ export default function MexicanaTournament({
                       <div key={round.id} className={`mexicana-round-card ${isPlayed ? 'is-played' : ''}`}>
                          <div className="mexicana-round-header">
                             <strong>Rond {round.round_number}</strong>
-                            {round.resting_ids?.length > 0 && <span className="muted">Vilar: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
+                            {round.resting_ids && round.resting_ids.length > 0 && <span className="muted">Vilar: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
                          </div>
                          <div className="mexicana-round-match">
                             <div className="mexicana-team">
@@ -625,7 +642,7 @@ export default function MexicanaTournament({
                       <div key={round.id} className="mexicana-round-card">
                         <div className="mexicana-round-header">
                           <strong>Rond {round.round_number}</strong>
-                          {round.resting_ids?.length > 0 && <span className="muted">Vilade: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
+                          {round.resting_ids && round.resting_ids.length > 0 && <span className="muted">Vilade: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
                         </div>
                         <p>{idsToNames(round.team1_ids, profileMap).join(" & ")} ({round.team1_score}) - ({round.team2_score}) {idsToNames(round.team2_ids, profileMap).join(" & ")}</p>
                       </div>
@@ -654,7 +671,7 @@ export default function MexicanaTournament({
                   {sortedStandings.map((res, i) => (
                     <tr key={res.id}>
                       <td>{i + 1}</td>
-                      <td>{profileMap[res.id] || "Okänd"}</td>
+                      <td>{getIdDisplayName(res.id, profileMap)}</td>
                       <td>{res.totalPoints}</td>
                       <td>{res.gamesPlayed}</td>
                       <td>{res.wins}/{res.ties}/{res.losses}</td>
@@ -681,7 +698,7 @@ export default function MexicanaTournament({
             {sortedStandings.slice(0, 3).map((res, i) => (
               <div key={res.id} className="mexicana-podium-spot">
                 <span className="mexicana-podium-rank">{i + 1}</span>
-                <strong>{profileMap[res.id] || "Okänd"}</strong>
+                <strong>{getIdDisplayName(res.id, profileMap)}</strong>
                 <span className="muted">{res.totalPoints} poäng</span>
               </div>
             ))}
@@ -703,7 +720,7 @@ export default function MexicanaTournament({
                 {sortedStandings.map((res, i) => (
                   <tr key={res.id}>
                     <td>{i + 1}</td>
-                    <td>{profileMap[res.id] || "Okänd"}</td>
+                    <td>{getIdDisplayName(res.id, profileMap)}</td>
                     <td>{res.totalPoints}</td>
                     <td>{res.gamesPlayed}</td>
                     <td>{res.wins}/{res.ties}/{res.losses}</td>

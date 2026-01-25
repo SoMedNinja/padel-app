@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
+import SideMenu from "../Components/SideMenu";
+import BottomNav from "../Components/BottomNav";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -18,6 +20,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
     requestAnimationFrame(() => menuButtonRef.current?.focus());
+  }, []);
+
+  const toggleMenu = useCallback(() => {
+    setIsMenuOpen(prev => !prev);
+    setIsFabOpen(false);
+  }, []);
+
+  const toggleFab = useCallback(() => {
+    setIsFabOpen(prev => !prev);
+    setIsMenuOpen(false);
   }, []);
 
   const handleAuthAction = () => {
@@ -62,7 +74,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           aria-label="Öppna meny"
           aria-expanded={isMenuOpen}
           aria-controls="app-menu"
-          onClick={() => setIsMenuOpen(open => !open)}
+          onClick={toggleMenu}
         >
           ☰
         </button>
@@ -70,20 +82,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       {isMenuOpen && <div className="app-menu-backdrop" onClick={closeMenu} />}
 
-      <nav
-        id="app-menu"
+      <SideMenu
         ref={menuRef}
-        className={`app-menu ${isMenuOpen ? "open" : ""}`}
-        aria-label="Huvudmeny"
-      >
-        <Link to="/" onClick={closeMenu}>Hemskärm</Link>
-        <Link to="/profile" onClick={closeMenu}>Spelarprofil</Link>
-        <Link to="/history" onClick={closeMenu}>Match-historik</Link>
-        {user?.is_admin && <Link to="/admin" onClick={closeMenu}>Admin</Link>}
-        <button type="button" className="ghost-button" onClick={handleAuthAction}>
-          {isGuest ? "Logga in / skapa konto" : "Logga ut"}
-        </button>
-      </nav>
+        isMenuOpen={isMenuOpen}
+        closeMenu={closeMenu}
+        user={user}
+        isGuest={isGuest}
+        handleAuthAction={handleAuthAction}
+      />
 
       {isGuest && (
         <div className="guest-banner">
@@ -120,36 +126,20 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <button
           type="button"
           className={`fab ${isFabOpen ? 'open' : ''} hide-on-mobile`}
-          onClick={() => setIsFabOpen(!isFabOpen)}
+          onClick={toggleFab}
           aria-label="Spela"
         >
           {isFabOpen ? '✕' : '+'}
         </button>
       </>
 
-      <nav className="bottom-nav" aria-label="Bottenmeny">
-        <Link to="/profile" className="bottom-nav-item" onClick={closeMenu}>
-          <span className="bottom-nav-icon">👤</span>
-          <span className="bottom-nav-label">Spelare</span>
-        </Link>
-        <button
-          type="button"
-          className={`bottom-nav-item primary ${isFabOpen ? 'active' : ''}`}
-          onClick={() => { setIsFabOpen(!isFabOpen); setIsMenuOpen(false); }}
-          aria-label="Spela"
-        >
-          <span className="bottom-nav-icon">{isFabOpen ? '✕' : '+'}</span>
-        </button>
-        <button
-          type="button"
-          className={`bottom-nav-item ${isMenuOpen ? 'active' : ''}`}
-          onClick={() => { setIsMenuOpen(!isMenuOpen); setIsFabOpen(false); }}
-          aria-label="Meny"
-        >
-          <span className="bottom-nav-icon">☰</span>
-          <span className="bottom-nav-label">Meny</span>
-        </button>
-      </nav>
+      <BottomNav
+        isMenuOpen={isMenuOpen}
+        isFabOpen={isFabOpen}
+        toggleMenu={toggleMenu}
+        toggleFab={toggleFab}
+        closeMenu={closeMenu}
+      />
     </div>
   );
 }

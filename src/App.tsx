@@ -8,6 +8,7 @@ import ProfileSetup from "./Components/ProfileSetup";
 import MainLayout from "./layouts/MainLayout";
 import AppRoutes from "./AppRoutes";
 import { useRealtime } from "./hooks/useRealtime";
+import ScrollToTop from "./Components/ScrollToTop";
 
 export default function App() {
   const { user, setUser, isGuest, setIsGuest } = useStore();
@@ -95,6 +96,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Toaster position="top-center" richColors />
       <MainLayout>
         <AppRoutes />

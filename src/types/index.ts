@@ -74,3 +74,16 @@ export interface TournamentResult {
   created_at: string;
   tournament_type?: string;
 }
+
+export interface TournamentRound {
+  id: string;
+  tournament_id: string;
+  round_number: number;
+  team1_ids: string[];
+  team2_ids: string[];
+  resting_ids?: string[];
+  team1_score?: number | null;
+  team2_score?: number | null;
+  mode?: "americano" | "mexicano";
+  created_at?: string;
+}

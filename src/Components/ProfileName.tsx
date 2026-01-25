@@ -1,8 +1,15 @@
+import React from "react";
 import { getBadgeIconById, getBadgeTierLabelById } from "../utils/badges";
 
-export default function ProfileName({ name, badgeId, className = "" }) {
-  const icon = getBadgeIconById(badgeId);
-  const tier = getBadgeTierLabelById(badgeId);
+interface ProfileNameProps {
+  name: string;
+  badgeId?: string | null;
+  className?: string;
+}
+
+export default function ProfileName({ name, badgeId, className = "" }: ProfileNameProps) {
+  const icon = getBadgeIconById(badgeId || null);
+  const tier = getBadgeTierLabelById(badgeId || null);
   if (!icon) {
     return <span className={className}>{name}</span>;
   }
