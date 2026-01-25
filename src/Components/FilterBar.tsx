@@ -20,8 +20,20 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
 
   return (
     <Box className="filter-bar" sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
-      <FormControl size="small" sx={{ minWidth: 160 }}>
-        <InputLabel id="filter-select-label">Visa matcher</InputLabel>
+      <FormControl size="small" sx={{ minWidth: 160, mt: 1 }}>
+        <InputLabel
+          id="filter-select-label"
+          sx={{
+            backgroundColor: 'var(--color-surface)',
+            px: 0.5,
+            ml: -0.5,
+            '&.Mui-focused, &.MuiInputLabel-shrink': {
+              ml: 0,
+            }
+          }}
+        >
+          Visa matcher
+        </InputLabel>
         <Select
           labelId="filter-select-label"
           id="filter-select"
