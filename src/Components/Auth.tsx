@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 
 export default function Auth({ onAuth, onGuest }) {
@@ -48,7 +49,7 @@ export default function Auth({ onAuth, onGuest }) {
       });
 
       if (error) {
-        alert(error.message);
+        toast.error(error.message);
         setIsSubmitting(false);
         return;
       }
@@ -65,7 +66,7 @@ export default function Auth({ onAuth, onGuest }) {
       });
 
       if (error) {
-        alert(error.message);
+        toast.error(error.message);
         setIsSubmitting(false);
         return;
       }
@@ -89,7 +90,7 @@ export default function Auth({ onAuth, onGuest }) {
     });
     setIsSubmitting(false);
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
     setNotice("Återställningslänk skickad! Kolla din e-post.");

@@ -13,7 +13,7 @@ const PullToRefresh = (PTR as any).default || PTR;
 export default function TournamentPage() {
   const { user, isGuest } = useStore();
   const { data: profiles = [] as Profile[], refetch: refetchProfiles } = useProfiles();
-  const { data: matches = [] as Match[], refetch: refetchMatches } = useMatches("all");
+  const { data: matches = [] as Match[], refetch: refetchMatches } = useMatches({ type: "all" });
   const queryClient = useQueryClient();
 
   const allEloPlayers = calculateElo(matches, profiles);

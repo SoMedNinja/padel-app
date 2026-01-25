@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { filterMatches } from "../utils/filters";
 import { calculateElo } from "../utils/elo";
 import { getRecentResults } from "../utils/stats";
-import { Match, Profile, PlayerStats } from "../types";
+import { Match, MatchFilter, Profile, PlayerStats } from "../types";
 
-export function usePadelData(matches: Match[], filter: string, profiles: Profile[] = []) {
+export function usePadelData(matches: Match[], filter: MatchFilter, profiles: Profile[] = []) {
   return useMemo(() => {
     const filteredMatches = filterMatches(matches, filter);
     const eloPlayers = calculateElo(filteredMatches, profiles);

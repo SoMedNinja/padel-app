@@ -46,6 +46,7 @@ export default function MatchForm({
   const [eveningRecap, setEveningRecap] = useState<any>(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
@@ -364,6 +365,311 @@ export default function MatchForm({
     return `🎾 Matchen: ${teamA} vs ${teamB} (${matchRecap.scoreline}). Vinnare: ${winner}.`;
   }, [eveningRecap, matchRecap, recapMode]);
 
+  const buildRecapLines = () => {
+    if (recapMode === "evening" && eveningRecap) {
+      const mvpName = eveningRecap.mvp?.name || "Ingen MVP";
+      return [
+        "Kvällsrecap",
+        eveningRecap.dateLabel,
+        `${eveningRecap.matches} matcher · ${eveningRecap.totalSets} sets`,
+        `MVP: ${mvpName}`,
+        "Topp vinster:",
+        ...eveningRecap.leaders.map(
+          (player: any) => `${player.name} · ${player.wins} vinster`
+        ),
+      ];
+    }
+    if (recapMode === "match" && matchRecap) {
+      const teamALabel = matchRecap.teamAWon ? "Vinst" : "Förlust";
+      const teamBLabel = matchRecap.teamAWon ? "Förlust" : "Vinst";
+      return [
+        "Match‑recap",
+        `Resultat: ${matchRecap.scoreline}`,
+        `Lag A (${teamALabel})`,
+        ...matchRecap.teamA.players.map(
+          (player: any) =>
+            `${player.name} · ELO ${player.elo} ${player.delta >= 0 ? "+" : ""}${player.delta}`
+        ),
+        `Lag B (${teamBLabel})`,
+        ...matchRecap.teamB.players.map(
+          (player: any) =>
+            `${player.name} · ELO ${player.elo} ${player.delta >= 0 ? "+" : ""}${player.delta}`
+        ),
+        `Fairness ${matchRecap.fairness}% · Vinstchans Lag A ${Math.round(matchRecap.winProbability * 100)}%`,
+      ];
+    }
+    return [];
+  };
+
+  const exportRecapImage = async () => {
+    const lines = buildRecapLines();
+    if (!lines.length) {
+      toast.error("Ingen recap att exportera ännu.");
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      const canvas = document.createElement("canvas");
+      const width = 1080;
+      const height = 1080;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        toast.error("Kunde inte skapa bild.");
+        return;
+      }
+
+      const palette = {
+        bg: "#f6f7fb",
+        surface: "#ffffff",
+        text: "#1f1f1f",
+        muted: "#6d6d6d",
+        brand: "#d32f2f",
+        brandDark: "#b71c1c",
+        border: "#ececec",
+        highlight: "#fff5f5",
+        success: "#ecfdf3",
+        warning: "#fff7ed",
+      };
+
+      const drawRoundedRect = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        r: number,
+        fill: string,
+        stroke?: string
+      ) => {
+        const radius = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        if (stroke) {
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      };
+
+      const drawWrappedText = (
+        text: string,
+        x: number,
+        y: number,
+        maxWidth: number,
+        lineHeight: number,
+        color: string
+      ) => {
+        ctx.fillStyle = color;
+        const words = text.split(" ");
+        let line = "";
+        let currentY = y;
+        words.forEach((word, index) => {
+          const testLine = line ? `${line} ${word}` : word;
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && index > 0) {
+            ctx.fillText(line, x, currentY);
+            line = word;
+            currentY += lineHeight;
+          } else {
+            line = testLine;
+          }
+        });
+        ctx.fillText(line, x, currentY);
+        return currentY + lineHeight;
+      };
+
+      const drawChip = (label: string, x: number, y: number, bg: string, color: string) => {
+        ctx.font = "bold 26px Inter, system-ui, sans-serif";
+        const paddingX = 18;
+        const paddingY = 10;
+        const textWidth = ctx.measureText(label).width;
+        const chipWidth = textWidth + paddingX * 2;
+        const chipHeight = 40;
+        drawRoundedRect(x, y, chipWidth, chipHeight, 20, bg);
+        ctx.fillStyle = color;
+        ctx.fillText(label, x + paddingX, y + chipHeight - paddingY);
+        return chipWidth;
+      };
+
+      ctx.fillStyle = palette.bg;
+      ctx.fillRect(0, 0, width, height);
+
+      const cardPadding = 70;
+      const cardX = cardPadding;
+      const cardY = 140;
+      const cardW = width - cardPadding * 2;
+      const cardH = height - cardPadding * 2 - 40;
+
+      ctx.save();
+      ctx.shadowColor = "rgba(17, 24, 39, 0.12)";
+      ctx.shadowBlur = 28;
+      ctx.shadowOffsetY = 16;
+      drawRoundedRect(cardX, cardY, cardW, cardH, 32, palette.surface, palette.border);
+      ctx.restore();
+
+      const headerY = cardY + 60;
+      const logoSize = 64;
+      drawRoundedRect(cardX + 50, headerY - 36, logoSize, logoSize, 18, palette.brand);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 30px Inter, system-ui, sans-serif";
+      ctx.fillText("GS", cardX + 68, headerY + 6);
+
+      ctx.fillStyle = palette.text;
+      ctx.font = "bold 44px Inter, system-ui, sans-serif";
+      ctx.fillText("Grabbarnas serie", cardX + 130, headerY + 10);
+      ctx.fillStyle = palette.muted;
+      ctx.font = "normal 24px Inter, system-ui, sans-serif";
+      ctx.fillText("Padel, prestige & bragging rights", cardX + 130, headerY + 44);
+
+      const contentX = cardX + 60;
+      let contentY = headerY + 90;
+      const contentWidth = cardW - 120;
+
+      if (recapMode === "evening" && eveningRecap) {
+        ctx.font = "bold 38px Inter, system-ui, sans-serif";
+        ctx.fillStyle = palette.text;
+        ctx.fillText("Kvällsrecap", contentX, contentY);
+
+        ctx.font = "normal 28px Inter, system-ui, sans-serif";
+        ctx.fillStyle = palette.muted;
+        ctx.fillText(eveningRecap.dateLabel, contentX, contentY + 40);
+
+        drawRoundedRect(contentX, contentY + 70, contentWidth, 120, 24, palette.highlight);
+        ctx.fillStyle = palette.text;
+        ctx.font = "bold 30px Inter, system-ui, sans-serif";
+        ctx.fillText(
+          `${eveningRecap.matches} matcher · ${eveningRecap.totalSets} sets`,
+          contentX + 24,
+          contentY + 120
+        );
+
+        const mvpName = eveningRecap.mvp?.name || "Ingen MVP";
+        contentY += 230;
+        drawChip("MVP", contentX, contentY - 24, palette.success, "#166534");
+        ctx.fillStyle = palette.text;
+        ctx.font = "bold 34px Inter, system-ui, sans-serif";
+        ctx.fillText(mvpName, contentX + 120, contentY + 5);
+
+        contentY += 70;
+        ctx.fillStyle = palette.text;
+        ctx.font = "bold 30px Inter, system-ui, sans-serif";
+        ctx.fillText("Topp vinster", contentX, contentY + 8);
+        contentY += 40;
+
+        ctx.font = "normal 26px Inter, system-ui, sans-serif";
+        eveningRecap.leaders.forEach((player: any) => {
+          contentY = drawWrappedText(
+            `${player.name} · ${player.wins} vinster`,
+            contentX,
+            contentY + 16,
+            contentWidth,
+            38,
+            palette.text
+          );
+        });
+      } else if (recapMode === "match" && matchRecap) {
+        ctx.font = "bold 38px Inter, system-ui, sans-serif";
+        ctx.fillStyle = palette.text;
+        ctx.fillText("Match‑recap", contentX, contentY);
+
+        const scoreLabel = matchRecap.scoreline;
+        const winnerLabel = matchRecap.teamAWon ? "Vinst Lag A" : "Vinst Lag B";
+        ctx.font = "bold 26px Inter, system-ui, sans-serif";
+        const scoreWidth = ctx.measureText(scoreLabel).width + 36;
+        const winnerWidth = ctx.measureText(winnerLabel).width + 36;
+        const totalChipWidth = scoreWidth + winnerWidth + 16;
+        const chipStartX = contentX + Math.max(0, contentWidth - totalChipWidth);
+        const winnerX = chipStartX;
+        const scoreX = chipStartX + winnerWidth + 16;
+        drawChip(
+          winnerLabel,
+          winnerX,
+          contentY - 24,
+          matchRecap.teamAWon ? palette.success : palette.warning,
+          matchRecap.teamAWon ? "#166534" : "#9a3412"
+        );
+        drawChip(scoreLabel, scoreX, contentY - 24, palette.brand, "#ffffff");
+
+        contentY += 60;
+        const columnGap = 40;
+        const columnWidth = (contentWidth - columnGap) / 2;
+
+        const drawTeamColumn = (title: string, players: any[], x: number, y: number) => {
+          drawRoundedRect(x, y, columnWidth, 360, 24, palette.bg, palette.border);
+          ctx.fillStyle = palette.text;
+          ctx.font = "bold 28px Inter, system-ui, sans-serif";
+          ctx.fillText(title, x + 24, y + 50);
+          ctx.font = "normal 24px Inter, system-ui, sans-serif";
+          let rowY = y + 90;
+          players.forEach((player) => {
+            rowY = drawWrappedText(
+              `${player.name}`,
+              x + 24,
+              rowY,
+              columnWidth - 48,
+              32,
+              palette.text
+            );
+            ctx.fillStyle = palette.muted;
+            ctx.fillText(
+              `ELO ${player.elo} · ${player.delta >= 0 ? "+" : ""}${player.delta}`,
+              x + 24,
+              rowY
+            );
+            rowY += 32;
+            ctx.fillStyle = palette.text;
+          });
+        };
+
+        drawTeamColumn("Lag A", matchRecap.teamA.players, contentX, contentY);
+        drawTeamColumn(
+          "Lag B",
+          matchRecap.teamB.players,
+          contentX + columnWidth + columnGap,
+          contentY
+        );
+
+        contentY += 400;
+        ctx.font = "normal 26px Inter, system-ui, sans-serif";
+        drawWrappedText(
+          `Fairness ${matchRecap.fairness}% · Vinstchans Lag A ${Math.round(
+            matchRecap.winProbability * 100
+          )}%`,
+          contentX,
+          contentY,
+          contentWidth,
+          36,
+          palette.muted
+        );
+      } else {
+        ctx.font = "normal 30px Inter, system-ui, sans-serif";
+        lines.forEach((line) => {
+          contentY = drawWrappedText(line, contentX, contentY + 12, contentWidth, 40, palette.text);
+        });
+      }
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `recap-${new Date().toISOString().slice(0, 10)}.png`;
+      link.click();
+      toast.success("Recap-bild nedladdad!");
+    } catch (error: any) {
+      toast.error(error?.message || "Kunde inte exportera bild.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const renderPlayerSelect = (team: string[], setTeam: (t: string[]) => void, index: number, teamLabel: string) => (
     <select
       aria-label={`${teamLabel} spelare ${index + 1}`}
@@ -643,6 +949,14 @@ export default function MatchForm({
             ) : (
               <div className="muted">Dela kvällens höjdpunkter med laget.</div>
             )}
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={exportRecapImage}
+              disabled={isExporting}
+            >
+              {isExporting ? "Exporterar..." : "Ladda ner som bild"}
+            </button>
             <button
               type="button"
               className="ghost-button"

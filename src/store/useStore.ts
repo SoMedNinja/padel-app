@@ -1,13 +1,13 @@
 import { create } from "zustand";
-import { Profile, Match } from "../types";
+import { AppUser, Profile, Match, MatchFilter } from "../types";
 
 interface AppState {
-  user: any | null;
-  setUser: (user: any | null) => void;
+  user: AppUser | null;
+  setUser: (user: AppUser | null) => void;
   isGuest: boolean;
   setIsGuest: (isGuest: boolean) => void;
-  matchFilter: string;
-  setMatchFilter: (filter: string) => void;
+  matchFilter: MatchFilter;
+  setMatchFilter: (filter: MatchFilter) => void;
   profiles: Profile[];
   setProfiles: (profiles: Profile[]) => void;
   matches: Match[];
@@ -19,7 +19,7 @@ export const useStore = create<AppState>((set) => ({
   setUser: (user) => set({ user }),
   isGuest: false,
   setIsGuest: (isGuest) => set({ isGuest }),
-  matchFilter: "all",
+  matchFilter: { type: "all" },
   setMatchFilter: (matchFilter) => set({ matchFilter }),
   profiles: [],
   setProfiles: (profiles) => set({ profiles }),
