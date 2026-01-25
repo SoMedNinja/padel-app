@@ -193,16 +193,26 @@ export default function MexicanaTournament({
         profile_id: profileId === GUEST_ID ? null : profileId,
       }))
     );
-    if (error) toast.error(error.message);
+    if (error) {
+        toast.error(error.message);
+        setIsSaving(false);
+        return false;
+    }
     else {
       queryClient.invalidateQueries({ queryKey: ["tournamentDetails", activeTournamentId] });
       toast.success("Roster sparad.");
+      setIsSaving(false);
+      return true;
     }
-    setIsSaving(false);
   };
 
   const startTournament = async () => {
     if (!activeTournamentId || isGuest) return;
+
+    // Auto-save roster before starting
+    const saved = await saveRoster();
+    if (!saved) return;
+
     setIsSaving(true);
 
     if (tournamentMode === 'americano') {
@@ -433,7 +443,7 @@ export default function MexicanaTournament({
     }));
   };
 
-  const rosterCard = activeTournament && (
+  const rosterCard = activeTournament && activeTournament.status === 'draft' && (
     <div className="mexicana-card">
       <h3>Roster ({participants.length})</h3>
       <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -529,7 +539,6 @@ export default function MexicanaTournament({
 
       {activeTournament?.status === 'in_progress' && (
         <div className="mexicana-grid two-columns">
-          {rosterCard}
           <div className="mexicana-card">
             <h3>Spela ronder</h3>
             <p className="muted">Läge: <strong>{tournamentMode === 'americano' ? 'Americano' : 'Mexicano'}</strong></p>
