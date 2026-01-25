@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  getIdDisplayName,
   getProfileDisplayName,
   idsToNames,
   makeNameToIdMap,
   makeProfileMap,
+  resolveTeamIds,
+  resolveTeamNames,
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { supabase } from "../supabaseClient";
 import { Match, Profile } from "../types";
+import { calculateElo } from "../utils/elo";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -35,6 +39,11 @@ interface EditState {
   score_target: number | string;
 }
 
+interface TeamEntry {
+  id: string | null;
+  name: string;
+}
+
 export default function History({ matches = [], profiles = [], user }: HistoryProps) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
@@ -48,16 +57,12 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 10;
-
-  const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
+  const [visibleCount, setVisibleCount] = useState<number>(10);
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+    // Note for non-coders: when the match list changes, we reset to the first 10 cards.
+    setVisibleCount(10);
+  }, [matches.length]);
 
   if (!matches.length) return <div>Inga matcher ännu.</div>;
 
@@ -171,13 +176,27 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
     }
   };
 
-  const startIndex = (currentPage - 1) * pageSize;
-  const pagedMatches = matches.slice(startIndex, startIndex + pageSize);
+  const sortedMatches = useMemo(
+    () => [...matches].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [matches]
+  );
 
-  const renderTeam = (ids: (string | null)[] = [], names: string | string[] = []) => {
-    const resolvedNames = Array.isArray(names) && names.length ? names : idsToNames(ids as string[], profileMap);
-    return resolvedNames.join(" & ");
-  };
+  const eloDeltaByMatch = useMemo(() => {
+    // Note for non-coders: we calculate Elo once and store each player's change per match for quick lookup.
+    const players = calculateElo(matches, profiles);
+    return players.reduce((acc, player) => {
+      player.history.forEach(entry => {
+        if (!acc[entry.matchId]) {
+          acc[entry.matchId] = {};
+        }
+        acc[entry.matchId][player.id] = entry.delta;
+      });
+      return acc;
+    }, {} as Record<string, Record<string, number>>);
+  }, [matches, profiles]);
+
+  const visibleMatches = sortedMatches.slice(0, visibleCount);
+  const canLoadMore = visibleCount < sortedMatches.length;
 
   const formatScore = (match: Match) => {
     const scoreType = match.score_type || "sets";
@@ -189,63 +208,56 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
     return `${score} set`;
   };
 
+  const buildTeamEntries = (match: Match, teamKey: "team1" | "team2", idKey: "team1_ids" | "team2_ids"): TeamEntry[] => {
+    const ids = resolveTeamIds(match[idKey], match[teamKey], nameToIdMap);
+    const names = resolveTeamNames(match[idKey], match[teamKey], profileMap);
+    return ids.map((id, index) => ({
+      id,
+      name: names[index] || getIdDisplayName(id, profileMap),
+    }));
+  };
+
+  const formatDelta = (delta?: number) => {
+    if (typeof delta !== "number") return "—";
+    return delta > 0 ? `+${delta}` : `${delta}`;
+  };
+
+  const getDeltaClass = (delta?: number) => {
+    if (typeof delta !== "number") return "neutral";
+    if (delta > 0) return "positive";
+    if (delta < 0) return "negative";
+    return "neutral";
+  };
+
   return (
-    <div className="history-section table-card">
-      <h2>Tidigare matcher</h2>
-      <div className="pagination">
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
-          disabled={currentPage === 1}
-        >
-          Föregående
-        </button>
-        <span className="pagination-status">
-          Sida {currentPage} av {totalPages}
-        </span>
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
-          disabled={currentPage === totalPages}
-        >
-          Nästa
-        </button>
+    <div className="history-section">
+      <div className="history-header">
+        <div>
+          <h2>Tidigare matcher</h2>
+          <div className="muted">Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher</div>
+        </div>
+        <div className="history-header-note">
+          <span className="muted">Senaste matchen visas överst. Scrolla för att se äldre matcher.</span>
+        </div>
       </div>
-      <div className="muted" style={{ marginBottom: 12 }}>
-        Visar {startIndex + 1}–{Math.min(startIndex + pageSize, matches.length)} av{" "}
-        {matches.length} matcher
-      </div>
-      <div className="table-scroll">
-        <div className="table-scroll-inner">
-          <table className="styled-table">
-          <thead>
-            <tr>
-              <th>Datum</th>
-              <th>Typ</th>
-              <th>Lag A</th>
-              <th>Lag B</th>
-              <th>Resultat</th>
-              <th>Åtgärder</th>
-            </tr>
-          </thead>
+      <div className="history-card-list">
+        {visibleMatches.map(m => {
+          const teamAEntries = buildTeamEntries(m, "team1", "team1_ids");
+          const teamBEntries = buildTeamEntries(m, "team2", "team2_ids");
+          const date = m.created_at?.slice(0, 10);
+          const isEditing = editingId === m.id;
 
-          <tbody>
-            {pagedMatches.map(m => {
-              const teamAList =
-                m.team1_ids?.length ? idsToNames(m.team1_ids as string[], profileMap) : (Array.isArray(m.team1) ? m.team1 : [m.team1]) || [];
-              const teamBList =
-                m.team2_ids?.length ? idsToNames(m.team2_ids as string[], profileMap) : (Array.isArray(m.team2) ? m.team2 : [m.team2]) || [];
-              const date = m.created_at?.slice(0, 10);
-              const isEditing = editingId === m.id;
+          const tournamentType = m.source_tournament_type || "standalone";
+          const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
 
-              const tournamentType = m.source_tournament_type || "standalone";
-              const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
+          const matchDeltas = eloDeltaByMatch[m.id] || {};
 
-              return (
-                <tr key={m.id}>
-                  <td>
+          return (
+            <article className="history-card" key={m.id}>
+              <div className="history-card-header">
+                <div>
+                  <div className="history-card-title">{typeLabel}</div>
+                  <div className="history-card-meta">
                     {isEditing ? (
                       <input
                         type="datetime-local"
@@ -256,95 +268,118 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
                         }
                       />
                     ) : (
-                      date
+                      <span>Datum: {date}</span>
                     )}
-                  </td>
+                  </div>
+                </div>
+                <span className="chip chip-neutral">{typeLabel}</span>
+              </div>
 
-                  <td>
-                    {typeLabel}
-                  </td>
+              <div className="history-card-body">
+                <div className="history-card-team">
+                  <div className="history-card-label">Lag A</div>
+                  {isEditing ? (
+                    <div className="history-edit-team">
+                      {edit?.team1_ids.map((value, index) => (
+                        <select
+                          key={`team1-${index}`}
+                          aria-label={`Lag A spelare ${index + 1}`}
+                          value={value || ""}
+                          onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
+                        >
+                          <option value="">Välj spelare</option>
+                          {playerOptions.map(option => (
+                            <option key={option.id} value={option.id}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </select>
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="history-team-list">
+                      {teamAEntries.map(entry => {
+                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                        return (
+                          <li key={`${m.id}-team1-${entry.name}`}>
+                            <span>{entry.name}</span>
+                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
 
-                  <td>
-                    {isEditing ? (
-                      <div className="history-edit-team">
-                        {edit?.team1_ids.map((value, index) => (
+                <div className="history-card-team">
+                  <div className="history-card-label">Lag B</div>
+                  {isEditing ? (
+                    <div className="history-edit-team">
+                      {edit?.team2_ids.map((value, index) => (
+                        <select
+                          key={`team2-${index}`}
+                          aria-label={`Lag B spelare ${index + 1}`}
+                          value={value || ""}
+                          onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
+                        >
+                          <option value="">Välj spelare</option>
+                          {playerOptions.map(option => (
+                            <option key={option.id} value={option.id}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </select>
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="history-team-list">
+                      {teamBEntries.map(entry => {
+                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                        return (
+                          <li key={`${m.id}-team2-${entry.name}`}>
+                            <span>{entry.name}</span>
+                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="history-card-score">
+                  <div className="history-card-label">Resultat</div>
+                  {isEditing ? (
+                    <div className="history-edit-score">
+                      <div className="history-score-type">
+                        <label>
+                          Typ
                           <select
-                            key={`team1-${index}`}
-                            aria-label={`Lag A spelare ${index + 1}`}
-                            value={value || ""}
-                            onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
+                            value={edit?.score_type || "sets"}
+                            onChange={(event) =>
+                              setEdit(prev => (prev ? { ...prev, score_type: event.target.value } : prev))
+                            }
                           >
-                            <option value="">Välj spelare</option>
-                            {playerOptions.map(option => (
-                              <option key={option.id} value={option.id}>
-                                {option.name}
-                              </option>
-                            ))}
+                            <option value="sets">Set</option>
+                            <option value="points">Poäng</option>
                           </select>
-                        ))}
-                      </div>
-                    ) : (
-                      renderTeam(m.team1_ids || [], teamAList)
-                    )}
-                  </td>
-
-                  <td>
-                    {isEditing ? (
-                      <div className="history-edit-team">
-                        {edit?.team2_ids.map((value, index) => (
-                          <select
-                            key={`team2-${index}`}
-                            aria-label={`Lag B spelare ${index + 1}`}
-                            value={value || ""}
-                            onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
-                          >
-                            <option value="">Välj spelare</option>
-                            {playerOptions.map(option => (
-                              <option key={option.id} value={option.id}>
-                                {option.name}
-                              </option>
-                            ))}
-                          </select>
-                        ))}
-                      </div>
-                    ) : (
-                      renderTeam(m.team2_ids || [], teamBList)
-                    )}
-                  </td>
-
-                  <td>
-                    {isEditing ? (
-                      <div className="history-edit-score">
-                        <div className="history-score-type">
+                        </label>
+                        {edit?.score_type === "points" && (
                           <label>
-                            Typ
-                            <select
-                              value={edit?.score_type || "sets"}
+                            Mål
+                            <input
+                              type="number"
+                              min="1"
+                              value={edit?.score_target ?? ""}
                               onChange={(event) =>
-                                setEdit(prev => (prev ? { ...prev, score_type: event.target.value } : prev))
+                                setEdit(prev =>
+                                  prev ? { ...prev, score_target: event.target.value } : prev
+                                )
                               }
-                            >
-                              <option value="sets">Set</option>
-                              <option value="points">Poäng</option>
-                            </select>
+                            />
                           </label>
-                          {edit?.score_type === "points" && (
-                            <label>
-                              Mål
-                              <input
-                                type="number"
-                                min="1"
-                                value={edit?.score_target ?? ""}
-                                onChange={(event) =>
-                                  setEdit(prev =>
-                                    prev ? { ...prev, score_target: event.target.value } : prev
-                                  )
-                                }
-                              />
-                            </label>
-                          )}
-                        </div>
-                        <div className="history-score-values">
+                        )}
+                      </div>
+                      <div className="history-score-values">
                         <input
                           type="number"
                           min="0"
@@ -364,47 +399,70 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
                             setEdit(prev => (prev ? { ...prev, team2_sets: event.target.value } : prev))
                           }
                         />
-                        </div>
                       </div>
-                    ) : (
-                      formatScore(m)
-                    )}
-                  </td>
+                    </div>
+                  ) : (
+                    <div className="history-card-score-value">{formatScore(m)}</div>
+                  )}
+                </div>
+              </div>
 
-                  <td>
-                    {isEditing ? (
-                      <div className="history-edit-actions">
-                        <button type="button" onClick={() => saveEdit(m.id)}>
-                          Spara
-                        </button>
-                        <button type="button" className="ghost-button" onClick={cancelEdit}>
-                          Avbryt
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="history-actions">
-                        {canEdit ? (
-                          <button type="button" onClick={() => startEdit(m)}>
-                            Redigera
-                          </button>
-                        ) : null}
-                        {canDelete(m) ? (
-                          <button type="button" onClick={() => deleteMatch(m.id)}>
-                            Radera
-                          </button>
-                        ) : !canEdit ? (
-                          <span style={{ opacity: 0.6 }}>—</span>
-                        ) : null}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          </table>
-        </div>
+              <div className="history-card-actions">
+                {isEditing ? (
+                  <div className="history-edit-actions">
+                    <button type="button" onClick={() => saveEdit(m.id)}>
+                      Spara
+                    </button>
+                    <button type="button" className="ghost-button" onClick={cancelEdit}>
+                      Avbryt
+                    </button>
+                  </div>
+                ) : (
+                  <div className="history-actions">
+                    {canEdit ? (
+                      <button type="button" onClick={() => startEdit(m)}>
+                        Redigera
+                      </button>
+                    ) : null}
+                    {canDelete(m) ? (
+                      <button type="button" onClick={() => deleteMatch(m.id)}>
+                        Radera
+                      </button>
+                    ) : !canEdit ? (
+                      <span style={{ opacity: 0.6 }}>—</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
+              {!isEditing && (
+                <div className="history-card-footer">
+                  <div className="history-card-label">Elo-förändring per spelare</div>
+                  <div className="history-card-footer-note muted">
+                    {teamAEntries.concat(teamBEntries).map(entry => {
+                      const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                      return (
+                        <span key={`${m.id}-delta-${entry.name}`}>
+                          {entry.name}: <strong className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</strong>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
       </div>
+
+      {canLoadMore ? (
+        <div className="history-load-more">
+          {/* Note for non-coders: pressing this button reveals 10 more cards below. */}
+          <button type="button" onClick={() => setVisibleCount(count => count + 10)}>
+            Ladda fler matcher
+          </button>
+        </div>
+      ) : null}
 
       <p style={{ fontSize: 12, opacity: 0.7 }}>
         * Rättigheter styrs av databasen (RLS). Endast admin kan redigera matcher.
