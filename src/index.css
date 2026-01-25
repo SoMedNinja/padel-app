@@ -629,9 +629,7 @@ select:focus-visible {
   -webkit-tap-highlight-color: transparent;
 }
 
-.badge-toggle:hover {
-  text-decoration:underline;
-}
+/* Note for non-coders: We removed the hover underline so the merits toggle doesn't look "stuck." */
 
 .badge-toggle:active,
 .badge-toggle:focus-visible {
@@ -1930,6 +1928,8 @@ select:focus-visible {
     padding: 0;
     margin: 0;
     transition: color 0.2s;
+    /* Note for non-coders: Disables the mobile tap highlight so the menu doesn't stay tinted. */
+    -webkit-tap-highlight-color: transparent;
   }
 
   .bottom-nav-item:not(.primary).active {
@@ -1938,6 +1938,16 @@ select:focus-visible {
     border-radius: 14px;
     margin: 8px 10px;
     box-shadow: 0 6px 14px rgba(211, 47, 47, 0.25);
+  }
+
+  .bottom-nav-item:not(.primary):active {
+    background: transparent;
+    color: var(--color-muted);
+  }
+
+  .bottom-nav-item:not(.primary):focus:not(.active) {
+    color: var(--color-muted);
+    background: transparent;
   }
 
   .bottom-nav-item:focus-visible {
