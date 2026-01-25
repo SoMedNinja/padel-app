@@ -657,30 +657,33 @@ export default function MexicanaTournament({
           <div className="mexicana-card">
             <h3>Poängställning</h3>
             <div className="table-scroll">
-              <table className="styled-table">
-                <thead>
-                  <tr>
-                    <th>Plac.</th>
-                    <th>Namn</th>
-                    <th>Poäng</th>
-                    <th>Matcher</th>
-                    <th>V/O/F</th>
-                    <th>Diff</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedStandings.map((res, i) => (
-                    <tr key={res.id}>
-                      <td>{i + 1}</td>
-                      <td>{getIdDisplayName(res.id, profileMap)}</td>
-                      <td>{res.totalPoints}</td>
-                      <td>{res.gamesPlayed}</td>
-                      <td>{res.wins}/{res.ties}/{res.losses}</td>
-                      <td>{res.pointsFor - res.pointsAgainst}</td>
+              {/* Note for non-coders: this inner wrapper enables horizontal scrolling on small screens without shrinking the table columns. */}
+              <div className="table-scroll-inner">
+                <table className="styled-table">
+                  <thead>
+                    <tr>
+                      <th>Plac.</th>
+                      <th>Namn</th>
+                      <th>Poäng</th>
+                      <th>Matcher</th>
+                      <th>V/O/F</th>
+                      <th>Diff</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sortedStandings.map((res, i) => (
+                      <tr key={res.id}>
+                        <td>{i + 1}</td>
+                        <td>{getIdDisplayName(res.id, profileMap)}</td>
+                        <td>{res.totalPoints}</td>
+                        <td>{res.gamesPlayed}</td>
+                        <td>{res.wins}/{res.ties}/{res.losses}</td>
+                        <td>{res.pointsFor - res.pointsAgainst}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
             <div style={{ marginTop: '1rem' }}>
                <button onClick={markAbandoned} className="ghost-button danger">Avbryt turnering</button>
@@ -706,30 +709,33 @@ export default function MexicanaTournament({
           </div>
 
           <div className="table-scroll">
-            <table className="styled-table">
-              <thead>
-                <tr>
-                  <th>Plac.</th>
-                  <th>Namn</th>
-                  <th>Poäng</th>
-                  <th>Matcher</th>
-                  <th>V/O/F</th>
-                  <th>Diff</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedStandings.map((res, i) => (
-                  <tr key={res.id}>
-                    <td>{i + 1}</td>
-                    <td>{getIdDisplayName(res.id, profileMap)}</td>
-                    <td>{res.totalPoints}</td>
-                    <td>{res.gamesPlayed}</td>
-                    <td>{res.wins}/{res.ties}/{res.losses}</td>
-                    <td>{res.pointsFor - res.pointsAgainst}</td>
+            {/* Note for non-coders: this wrapper lets the results table scroll sideways instead of squishing columns. */}
+            <div className="table-scroll-inner">
+              <table className="styled-table">
+                <thead>
+                  <tr>
+                    <th>Plac.</th>
+                    <th>Namn</th>
+                    <th>Poäng</th>
+                    <th>Matcher</th>
+                    <th>V/O/F</th>
+                    <th>Diff</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sortedStandings.map((res, i) => (
+                    <tr key={res.id}>
+                      <td>{i + 1}</td>
+                      <td>{getIdDisplayName(res.id, profileMap)}</td>
+                      <td>{res.totalPoints}</td>
+                      <td>{res.gamesPlayed}</td>
+                      <td>{res.wins}/{res.ties}/{res.losses}</td>
+                      <td>{res.pointsFor - res.pointsAgainst}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
           <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '1rem' }}>Tillbaka till alla turneringar</button>
         </div>
@@ -738,31 +744,34 @@ export default function MexicanaTournament({
       <div className="mexicana-card mexicana-history" style={{ marginTop: '2rem' }}>
         <h3>Historik</h3>
         <div className="table-scroll">
-          <table className="styled-table">
-            <thead>
-              <tr>
-                <th>Turnering</th>
-                <th>Typ</th>
-                <th>Status</th>
-                <th>Datum</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {tournaments.map(t => (
-                <tr key={t.id}>
-                  <td>{t.name}</td>
-                  <td>{t.tournament_type === 'americano' ? 'Americano' : 'Mexicano'}</td>
-                  <td><span className={`mexicana-status status-${t.status} inline`}>{getTournamentStatusLabel(t.status)}</span></td>
-                  <td>{formatDate(t.scheduled_at)}</td>
-                  <td>
-                    <button className="ghost-button" onClick={() => setActiveTournamentId(t.id)}>Visa</button>
-                    <button className="ghost-button danger" onClick={() => deleteTournament(t)}>Ta bort</button>
-                  </td>
+          {/* Note for non-coders: adding this inner div keeps the history table readable by enabling side-to-side scrolling. */}
+          <div className="table-scroll-inner">
+            <table className="styled-table">
+              <thead>
+                <tr>
+                  <th>Turnering</th>
+                  <th>Typ</th>
+                  <th>Status</th>
+                  <th>Datum</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {tournaments.map(t => (
+                  <tr key={t.id}>
+                    <td>{t.name}</td>
+                    <td>{t.tournament_type === 'americano' ? 'Americano' : 'Mexicano'}</td>
+                    <td><span className={`mexicana-status status-${t.status} inline`}>{getTournamentStatusLabel(t.status)}</span></td>
+                    <td>{formatDate(t.scheduled_at)}</td>
+                    <td>
+                      <button className="ghost-button" onClick={() => setActiveTournamentId(t.id)}>Visa</button>
+                      <button className="ghost-button danger" onClick={() => deleteTournament(t)}>Ta bort</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
       </>
