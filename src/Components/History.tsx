@@ -393,8 +393,8 @@ export default function History({ matches = [], globalMatches = [], profiles = [
                           <li key={`${m.id}-team1-${entry.name}`}>
                             <div className="history-player-info">
                               <span>{entry.name}</span>
-                              {/* Note for non-coders: "Elo nu" shows the player's rating after this match. */}
-                              <span className="history-player-elo muted">Elo nu {formatElo(currentElo)}</span>
+                              {/* Note for non-coders: this label shows the player's rating after this match. */}
+                              <span className="history-player-elo muted">ELO efter denna match {formatElo(currentElo)}</span>
                             </div>
                             <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
                           </li>
@@ -433,8 +433,8 @@ export default function History({ matches = [], globalMatches = [], profiles = [
                           <li key={`${m.id}-team2-${entry.name}`}>
                             <div className="history-player-info">
                               <span>{entry.name}</span>
-                              {/* Note for non-coders: "Elo nu" is the updated rating; the delta on the right is the change from before. */}
-                              <span className="history-player-elo muted">Elo nu {formatElo(currentElo)}</span>
+                              {/* Note for non-coders: this is the updated rating; the delta on the right is the change from before. */}
+                              <span className="history-player-elo muted">ELO efter denna match {formatElo(currentElo)}</span>
                             </div>
                             <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
                           </li>

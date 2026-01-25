@@ -44,6 +44,7 @@ export const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
 
 export const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
   if (!Number.isFinite(playerElo) || !Number.isFinite(teamAverageElo)) return 1;
+  // Note for non-coders: lower-rated players get a bigger boost (gain more, lose less) vs their team average.
   const adjustment = 1 + (teamAverageElo - playerElo) / PLAYER_WEIGHT_DIVISOR;
   return clamp(adjustment, MIN_PLAYER_WEIGHT, MAX_PLAYER_WEIGHT);
 };
