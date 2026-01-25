@@ -47,19 +47,17 @@ Shorter matches count for half the ELO change, while long/tournament matches cou
 
 > **Note for non-coders:** This is how the app makes short games less impactful than long matches.
 
-### 6. Individual Player Weight (Team Split)
-Within a team, players split the team's ELO change based on their individual rating relative to the team's average. This helps "pull" players toward their true skill level faster when playing with partners of different skill levels.
+### 6. Individual Player Weight
+Within a team, players gain or lose ELO differently based on their individual rating relative to the team's average. This helps "pull" players toward their true skill level faster when playing with partners of different skill levels.
 
 **Formula:**
 `Weight = 1 + (Team Avg ELO - Player ELO) / 800` (Clamped between 0.75 and 1.25)
 
 **How it's applied:**
-* We first compute a **team delta** (one number for the whole team).
-* We then **split that team delta** across the players using weights:
-  * **Wins:** use `Weight` directly (lower-rated players gain more, higher-rated players gain less).
-  * **Losses:** use the inverse `1 / Weight` (higher-rated players lose more, lower-rated players lose less).
+* **Wins:** use `Weight` directly (lower-rated players gain more, higher-rated players gain less).
+* **Losses:** use the inverse `1 / Weight` (higher-rated players lose more, lower-rated players lose less).
 
-> **Note for non-coders:** The total team change stays the same, but the app spreads it across teammates based on who was stronger/weaker on that team.
+> **Note for non-coders:** This is how the app protects newer/lower-rated players from big drops while still holding higher-rated partners more accountable for losses.
 
 ### 7. Match Eligibility
 Matches only affect ELO when:
@@ -77,15 +75,14 @@ For each match (sorted by date):
 2. Determine the **Expected Score** for Team 1.
 3. Determine the **Margin Multiplier** based on the scoreline.
 4. Determine the **Match Length Weight** based on format and target.
-5. Compute a **shared match K** (the average K across all four players).
-6. Compute a **team delta** for each team:
-   - **Team Delta** = `matchK * MarginMultiplier * MatchWeight * (Actual Result - Expected Score)`
-7. Split the team delta across players using weights:
-   - **Player Delta** = `round(TeamDelta * PlayerWeight / TeamWeightSum)`
-   - Losses use inverse weights (`1 / PlayerWeight`) before the split.
-   - A small rounding adjustment is applied so the team totals stay exact.
+5. For each player:
+   - Identify their **K-Factor** based on games played.
+   - Calculate their **Individual Weight** based on team average.
+   - **ELO Change (Delta)** = `round(K * MarginMultiplier * MatchWeight * EffectiveWeight * (Actual Result - Expected Score))`
+     - *Actual Result is 1 for a win, 0 for a loss.*
+     - *EffectiveWeight = PlayerWeight on wins, or (1 / PlayerWeight) on losses.*
 
-> **Note for non-coders:** The match stays balanced because the winners’ total gain matches the losers’ total loss, even though teammates can get different shares.
+> **Note for non-coders:** The app rounds the final change to a whole number so the ELO stays easy to read.
 
 ---
 
@@ -99,21 +96,21 @@ The ELO history chart in the player profile uses the same base formula but does 
 ### Example 1: New Players, Even Match (Short Match)
 Two teams of new players (0 games, 1000 ELO) play a 2-0 match.
 - **Expected Score:** 0.5
-- **Match K:** 40 (average of all four players)
+- **K-Factor:** 40
 - **Margin Multiplier:** 1.2 (for 2-0)
 - **Match Weight:** 0.5 (short match)
 - **Individual Weight:** 1.0
-- **Team 1 Delta:** `round(40 * 1.2 * 0.5 * (1 - 0.5))` = `+12`
-- **Team 2 Delta:** `round(40 * 1.2 * 0.5 * (0 - 0.5))` = `-12`
+- **Team 1 Delta:** `round(40 * 1.2 * 0.5 * 1.0 * (1 - 0.5))` = `+12`
+- **Team 2 Delta:** `round(40 * 1.2 * 0.5 * 1.0 * (0 - 0.5))` = `-12`
 
 ### Example 2: Experienced Players, Mismatched Ratings (Short Match)
 Team A (Avg 1200) vs Team B (Avg 1000). Both players have 50+ games. Match ends 2-0.
 - **Expected Score (Team A):** `1 / (1 + 10^((1000-1200)/300))` ≈ **0.82**
-- **Match K:** 20 (average of all four players)
+- **K-Factor:** 20
 - **Margin Multiplier:** 1.2
 - **Match Weight:** 0.5
-- **Team A Delta:** `round(20 * 1.2 * 0.5 * (1 - 0.82))` = `round(12 * 0.18)` = **+2**
-- **Team B Delta:** `round(20 * 1.2 * 0.5 * (0 - 0.18))` = `round(12 * -0.18)` = **-2**
+- **Team A Delta:** `round(20 * 1.2 * 0.5 * 1.0 * (1 - 0.82))` = `round(12 * 0.18)` = **+2**
+- **Team B Delta:** `round(20 * 1.2 * 0.5 * 1.0 * (0 - 0.18))` = `round(12 * -0.18)` = **-2**
 *(If Team B had won, the gain would be `round(12 * (1 - 0.18))` = **+10**)*
 
 ### Example 3: Mixed Team Ratings (Short Match)
@@ -125,10 +122,8 @@ Match ends 2-0 for Team 1. Players have 30+ games.
 - **Match Weight:** 0.5
 - **Player A Weight:** `1 + (1000 - 1200) / 800` = **0.75**
 - **Player B Weight:** `1 + (1000 - 800) / 800` = **1.25**
-- **Team 1 Delta:** `round(20 * 1.2 * 0.5 * (1 - 0.5))` = **+6**
-- **Team 1 Weight Sum:** `0.75 + 1.25 = 2.0`
-- **Player A Delta:** `round(6 * 0.75 / 2.0)` = **+2**
-- **Player B Delta:** `round(6 * 1.25 / 2.0)` = **+4**
+- **Player A Delta:** `round(20 * 1.2 * 0.5 * 0.75 * (1 - 0.5))` = `round(9 * 0.5)` = **+5**
+- **Player B Delta:** `round(20 * 1.2 * 0.5 * 1.25 * (1 - 0.5))` = `round(15 * 0.5)` = **+8**
 *(If Team 1 lost instead, Player A would lose more than Player B because the loss uses inverse weights.)*
 
 ---
@@ -138,10 +133,10 @@ Match ends 2-0 for Team 1. Players have 30+ games.
 | Input name | Small description | Reason for inclusion | Weight / impact |
 | :--- | :--- | :--- | :--- |
 | Baseline ELO | Starting rating for new players. | Gives everyone the same starting point. | Fixed at **1000**. |
-| Games played | Number of matches played so far. | Sets rating volatility for newer vs. experienced players. | Used to compute **Match K** (average K across players). |
+| Games played | Number of matches played so far. | Sets rating volatility for newer vs. experienced players. | **K = 40 / 30 / 20** based on games. |
 | Team average ELO | Average rating of each team. | Used to calculate expected win probability. | Divisor **300** in expected-score formula. |
 | Match result | Win (1) or loss (0). | Drives whether ELO goes up or down. | Multiplies `(Actual - Expected)`. |
 | Set difference | Absolute set gap between teams. | Rewards more decisive wins. | **1.0–1.2x** margin multiplier. |
 | Match length / format | Sets or points target (or tournament flag). | Scales short vs. long match impact. | **0.5x** for short, **1.0x** for long/tournament. |
-| Player vs. team ELO | Player rating compared to team average. | Splits the team delta across teammates. | **Wins:** 0.75–1.25x weight, **Losses:** inverse weight. |
+| Player vs. team ELO | Player rating compared to team average. | Adjusts gains for mismatched partners. | **Wins:** 0.75–1.25x weight, **Losses:** inverse weight. |
 | Rounding | Final rounding to whole numbers. | Keeps ELO values readable. | `round(...)` on the final delta. |
