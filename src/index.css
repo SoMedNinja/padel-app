@@ -1358,6 +1358,139 @@ body.chart-fullscreen-active {
   text-align:left;
 }
 
+.history-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+
+.history-header-note {
+  max-width:280px;
+}
+
+.history-card-list {
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.history-card {
+  background:var(--color-surface);
+  border-radius:var(--radius-lg);
+  border:1px solid rgba(0, 0, 0, 0.06);
+  box-shadow:var(--shadow-card);
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.history-card-header {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+
+.history-card-title {
+  font-size:16px;
+  font-weight:700;
+  margin-bottom:4px;
+}
+
+.history-card-meta {
+  font-size:13px;
+  color:#666;
+}
+
+.history-card-body {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+  gap:16px;
+}
+
+.history-card-team,
+.history-card-score {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.history-card-label {
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  color:#666;
+  font-weight:600;
+}
+
+.history-team-list {
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.history-team-list li {
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  align-items:center;
+}
+
+.history-card-score-value {
+  font-size:16px;
+  font-weight:700;
+}
+
+.elo-delta {
+  font-size:12px;
+  font-weight:600;
+}
+
+.elo-delta.positive {
+  color:#2e7d32;
+}
+
+.elo-delta.negative {
+  color:#c62828;
+}
+
+.elo-delta.neutral {
+  color:#666;
+}
+
+.history-card-actions {
+  display:flex;
+  justify-content:flex-end;
+}
+
+.history-card-footer {
+  border-top:1px solid rgba(0, 0, 0, 0.06);
+  padding-top:12px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.history-card-footer-note {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 16px;
+}
+
+.history-load-more {
+  margin:24px 0;
+  display:flex;
+  justify-content:center;
+}
+
 .approval-gate {
   text-align:center;
   max-width:560px;
