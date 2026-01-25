@@ -1,6 +1,7 @@
 import React from "react";
 import PlayerSection, { HeadToHeadSection } from "../Components/PlayerSection";
 import MeritsSection from "../Components/MeritsSection";
+import FilterBar from "../Components/FilterBar";
 import { useStore } from "../store/useStore";
 import { useMatches } from "../hooks/useMatches";
 import { useProfiles } from "../hooks/useProfiles";
@@ -20,7 +21,7 @@ type TournamentResultRow = TournamentResult & {
 };
 
 export default function PlayerProfilePage() {
-  const { matchFilter, user, isGuest } = useStore();
+  const { matchFilter, setMatchFilter, user, isGuest } = useStore();
   const {
     data: profiles = [] as Profile[],
     isLoading: isLoadingProfiles,
@@ -98,6 +99,8 @@ export default function PlayerProfilePage() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="page-section">
+        {/* Note for non-coders: this filter controls which matches feed the profile stats. */}
+        <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
         {hasError && (
           <div className="notice-banner error" role="alert">
             <span>{errorMessage}</span>
