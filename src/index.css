@@ -1973,8 +1973,11 @@ body.chart-fullscreen-active {
     text-decoration: none;
     background: none;
     border: none;
-    padding: 0;
+    /* Note for non-coders: Padding lives on every button so hover/active styles don't nudge layout. */
+    padding: 8px 10px;
     margin: 0;
+    /* Note for non-coders: Keep padding inside the fixed height so the bar doesn't grow. */
+    box-sizing: border-box;
     transition: color 0.2s;
     /* Note for non-coders: Disables the mobile tap highlight so the menu doesn't stay tinted. */
     -webkit-tap-highlight-color: transparent;
@@ -1984,7 +1987,6 @@ body.chart-fullscreen-active {
     color: #fff;
     background: var(--color-brand);
     border-radius: 14px;
-    margin: 8px 10px;
     box-shadow: 0 6px 14px rgba(211, 47, 47, 0.25);
   }
 
@@ -1993,13 +1995,15 @@ body.chart-fullscreen-active {
     color: #fff;
     background: var(--color-brand);
     border-radius: 14px;
-    margin: 8px 10px;
     box-shadow: 0 6px 14px rgba(211, 47, 47, 0.25);
   }
 
   .bottom-nav-item:not(.primary):active {
-    background: transparent;
-    color: var(--color-muted);
+    /* Note for non-coders: Taps use the same red/white styling as active. */
+    background: var(--color-brand);
+    color: #fff;
+    border-radius: 14px;
+    box-shadow: 0 6px 14px rgba(211, 47, 47, 0.25);
   }
 
   .bottom-nav-item:not(.primary):focus:not(.active) {
