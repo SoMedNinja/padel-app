@@ -70,31 +70,50 @@ export const getMatchWeight = (match: Match) => {
 
 export { ELO_BASELINE };
 
-const buildPlayerDelta = ({
-  playerElo,
-  playerGames,
-  teamAverageElo,
+const buildTeamDelta = ({
+  matchK,
   expectedScore,
   didWin,
   marginMultiplier,
   matchWeight,
 }: {
-  playerElo: number;
-  playerGames: number;
-  teamAverageElo: number;
+  matchK: number;
   expectedScore: number;
   didWin: boolean;
   marginMultiplier: number;
   matchWeight: number;
 }) => {
-  // Note for non-coders: we start from a base "K" value, then scale it by match length and player weight.
-  // Note for non-coders: low-rated players get bigger boosts on wins and smaller penalties on losses (inverse weight).
-  const playerK = getKFactor(playerGames);
-  const weight = getPlayerWeight(playerElo, teamAverageElo);
-  const effectiveWeight = didWin ? weight : 1 / weight;
-  return Math.round(
-    playerK * marginMultiplier * matchWeight * effectiveWeight * ((didWin ? 1 : 0) - expectedScore)
-  );
+  // Note for non-coders: we compute one "team delta" first so the match stays balanced overall.
+  return matchK * marginMultiplier * matchWeight * ((didWin ? 1 : 0) - expectedScore);
+};
+
+const distributeTeamDelta = (team: string[], teamDelta: number, weights: number[]) => {
+  // Note for non-coders: we split the team delta across players, keeping the team total unchanged.
+  if (!team.length) return new Map<string, number>();
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+  const rawDeltas = team.map((id, index) => ({
+    id,
+    raw: (teamDelta * weights[index]) / totalWeight,
+  }));
+  const rounded = rawDeltas.map(entry => ({
+    ...entry,
+    delta: Math.round(entry.raw),
+    fractional: entry.raw - Math.round(entry.raw),
+  }));
+  const roundedTotal = rounded.reduce((sum, entry) => sum + entry.delta, 0);
+  const targetTotal = Math.round(teamDelta);
+  let difference = targetTotal - roundedTotal;
+  const adjustOrder = [...rounded].sort((a, b) => b.fractional - a.fractional);
+
+  while (difference !== 0) {
+    const entry = adjustOrder.shift();
+    if (!entry) break;
+    entry.delta += difference > 0 ? 1 : -1;
+    difference += difference > 0 ? -1 : 1;
+    adjustOrder.push(entry);
+  }
+
+  return new Map(rounded.map(entry => [entry.id, entry.delta]));
 };
 
 export function calculateElo(matches: Match[], profiles: Profile[] = []): PlayerStats[] {
@@ -187,17 +206,45 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
     const timestamp = new Date(m.created_at).getTime();
     const historyStamp = Number.isNaN(timestamp) ? 0 : timestamp;
 
+    const matchK =
+      [...t1Active, ...t2Active]
+        .map(id => getKFactor(players[id].games))
+        .reduce((sum, k) => sum + k, 0) /
+      (t1Active.length + t2Active.length);
+    // Note for non-coders: using one shared K keeps the match zero-sum (winners gain what losers lose).
+    const team1Delta = buildTeamDelta({
+      matchK,
+      expectedScore: exp1,
+      didWin: team1Won,
+      marginMultiplier,
+      matchWeight,
+    });
+    const team2Delta = buildTeamDelta({
+      matchK,
+      expectedScore: 1 - exp1,
+      didWin: !team1Won,
+      marginMultiplier,
+      matchWeight,
+    });
+    const team1Weights = t1Active.map(id => getPlayerWeight(players[id].elo, e1));
+    const team2Weights = t2Active.map(id => getPlayerWeight(players[id].elo, e2));
+    const team1LossWeights = team1Weights.map(weight => 1 / weight);
+    const team2LossWeights = team2Weights.map(weight => 1 / weight);
+    // Note for non-coders: winners use their regular weights; losers use inverse weights to soften penalties for lower-rated players.
+    const team1DeltaMap = distributeTeamDelta(
+      t1Active,
+      team1Delta,
+      team1Won ? team1Weights : team1LossWeights
+    );
+    const team2DeltaMap = distributeTeamDelta(
+      t2Active,
+      team2Delta,
+      team1Won ? team2LossWeights : team2Weights
+    );
+
     t1Active.forEach(id => {
       const player = players[id];
-      const delta = buildPlayerDelta({
-        playerElo: player.elo,
-        playerGames: player.games,
-        teamAverageElo: e1,
-        expectedScore: exp1,
-        didWin: team1Won,
-        marginMultiplier,
-        matchWeight,
-      });
+      const delta = team1DeltaMap.get(id) ?? 0;
       player.elo += delta;
       team1Won ? player.wins++ : player.losses++;
       player.games++;
@@ -211,15 +258,7 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
 
     t2Active.forEach(id => {
       const player = players[id];
-      const delta = buildPlayerDelta({
-        playerElo: player.elo,
-        playerGames: player.games,
-        teamAverageElo: e2,
-        expectedScore: 1 - exp1,
-        didWin: !team1Won,
-        marginMultiplier,
-        matchWeight,
-      });
+      const delta = team2DeltaMap.get(id) ?? 0;
       player.elo += delta;
       team1Won ? player.losses++ : player.wins++;
       player.games++;

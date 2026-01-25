@@ -86,4 +86,32 @@ describe("ELO Logic", () => {
     expect(p1!.wins).toBe(1);
     expect(p3!.losses).toBe(1);
   });
+
+  it("should keep match deltas zero-sum across both teams", () => {
+    const profiles: any[] = [
+      { id: "p1", name: "Player 1" },
+      { id: "p2", name: "Player 2" },
+      { id: "p3", name: "Player 3" },
+      { id: "p4", name: "Player 4" },
+    ];
+    const matches: any[] = [
+      {
+        id: "m2",
+        created_at: new Date().toISOString(),
+        team1_ids: ["p1", "p2"],
+        team2_ids: ["p3", "p4"],
+        team1_sets: 6,
+        team2_sets: 3,
+      },
+    ];
+
+    const results = calculateElo(matches, profiles);
+    const matchDeltaTotal = results.reduce((sum, player) => {
+      const entry = player.history.find(h => h.matchId === "m2");
+      return sum + (entry?.delta ?? 0);
+    }, 0);
+
+    // Note for non-coders: the winners' gains should exactly match the losers' losses.
+    expect(matchDeltaTotal).toBe(0);
+  });
 });
