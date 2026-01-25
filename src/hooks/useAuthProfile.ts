@@ -43,14 +43,32 @@ export const useAuthProfile = () => {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
-    const { data, error } = await supabase.auth.getUser();
-    if (error) {
-      setErrorMessage(error.message);
+    const timeoutMs = 8000;
+    // Note for non-coders: we use a timeout so the loading screen doesn't get stuck forever.
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    });
+
+    try {
+      const result = await Promise.race([
+        supabase.auth.getUser(),
+        timeoutPromise,
+      ]);
+
+      if (!result) {
+        setErrorMessage("Inloggningen tog för lång tid. Försök igen.");
+        return;
+      }
+
+      if ("error" in result && result.error) {
+        setErrorMessage(result.error.message);
+        return;
+      }
+
+      await syncProfile(result.data.user ?? null);
+    } finally {
       setIsLoading(false);
-      return;
     }
-    await syncProfile(data.user ?? null);
-    setIsLoading(false);
   }, [syncProfile]);
 
   useEffect(() => {
@@ -61,6 +79,7 @@ export const useAuthProfile = () => {
       if (!isMounted) return;
       setErrorMessage(null);
       await syncProfile(session?.user ?? null);
+      setIsLoading(false);
     });
 
     return () => {
