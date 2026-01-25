@@ -464,6 +464,10 @@ select:focus-visible {
   margin-bottom:16px;
 }
 
+body.chart-fullscreen-active {
+  overflow:hidden;
+}
+
 .player-stats {
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
@@ -587,6 +591,44 @@ select:focus-visible {
   gap:16px;
   flex-wrap:wrap;
   margin-bottom:8px;
+}
+
+.player-chart-controls {
+  display:flex;
+  align-items:flex-end;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.chart-expand-button {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  font-size:13px;
+}
+
+.player-chart-body {
+  height:240px;
+}
+
+.player-chart.is-fullscreen {
+  position:fixed;
+  inset:0;
+  background:#fff;
+  padding:24px;
+  z-index:1200;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.player-chart.is-fullscreen .player-chart-body {
+  height:70vh;
+}
+
+.player-chart.is-fullscreen .player-chart-header {
+  margin-bottom:16px;
 }
 
 .chart-compare {

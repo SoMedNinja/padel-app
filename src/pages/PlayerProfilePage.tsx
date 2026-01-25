@@ -1,6 +1,7 @@
 import React from "react";
 import PlayerSection, { HeadToHeadSection } from "../Components/PlayerSection";
 import MeritsSection from "../Components/MeritsSection";
+import FilterBar from "../Components/FilterBar";
 import { useStore } from "../store/useStore";
 import { useMatches } from "../hooks/useMatches";
 import { useProfiles } from "../hooks/useProfiles";
@@ -11,7 +12,7 @@ import { Match, Profile, TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 
 export default function PlayerProfilePage() {
-  const { matchFilter, user, isGuest } = useStore();
+  const { matchFilter, setMatchFilter, user, isGuest } = useStore();
   const { data: profiles = [] as Profile[] } = useProfiles();
   const { data: matches = [] as Match[] } = useMatches(matchFilter);
 
@@ -53,6 +54,8 @@ export default function PlayerProfilePage() {
 
   return (
     <div className="page-section">
+      {/* The filter bar lets you narrow which matches the profile sections use below. */}
+      <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
       <section id="profile" className="page-section">
         <PlayerSection
           user={userWithAdmin}
