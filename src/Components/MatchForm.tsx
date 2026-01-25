@@ -46,6 +46,7 @@ export default function MatchForm({
   const [eveningRecap, setEveningRecap] = useState<any>(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
@@ -364,6 +365,107 @@ export default function MatchForm({
     return `🎾 Matchen: ${teamA} vs ${teamB} (${matchRecap.scoreline}). Vinnare: ${winner}.`;
   }, [eveningRecap, matchRecap, recapMode]);
 
+  const buildRecapLines = () => {
+    if (recapMode === "evening" && eveningRecap) {
+      const mvpName = eveningRecap.mvp?.name || "Ingen MVP";
+      return [
+        "Kvällsrecap",
+        eveningRecap.dateLabel,
+        `${eveningRecap.matches} matcher · ${eveningRecap.totalSets} sets`,
+        `MVP: ${mvpName}`,
+        "Topp vinster:",
+        ...eveningRecap.leaders.map(
+          (player: any) => `${player.name} · ${player.wins} vinster`
+        ),
+      ];
+    }
+    if (recapMode === "match" && matchRecap) {
+      const teamALabel = matchRecap.teamAWon ? "Vinst" : "Förlust";
+      const teamBLabel = matchRecap.teamAWon ? "Förlust" : "Vinst";
+      return [
+        "Match‑recap",
+        `Resultat: ${matchRecap.scoreline}`,
+        `Lag A (${teamALabel})`,
+        ...matchRecap.teamA.players.map(
+          (player: any) =>
+            `${player.name} · ELO ${player.elo} ${player.delta >= 0 ? "+" : ""}${player.delta}`
+        ),
+        `Lag B (${teamBLabel})`,
+        ...matchRecap.teamB.players.map(
+          (player: any) =>
+            `${player.name} · ELO ${player.elo} ${player.delta >= 0 ? "+" : ""}${player.delta}`
+        ),
+        `Fairness ${matchRecap.fairness}% · Vinstchans Lag A ${Math.round(matchRecap.winProbability * 100)}%`,
+      ];
+    }
+    return [];
+  };
+
+  const exportRecapImage = async () => {
+    const lines = buildRecapLines();
+    if (!lines.length) {
+      toast.error("Ingen recap att exportera ännu.");
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      const canvas = document.createElement("canvas");
+      const width = 1080;
+      const height = 1080;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        toast.error("Kunde inte skapa bild.");
+        return;
+      }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "#1f1f1f";
+      ctx.font = "bold 52px Inter, system-ui, sans-serif";
+      ctx.fillText("Grabbarnas serie", 80, 120);
+
+      ctx.font = "normal 36px Inter, system-ui, sans-serif";
+      const maxWidth = width - 160;
+      let y = 200;
+      const lineHeight = 52;
+      lines.forEach((line) => {
+        const words = line.split(" ");
+        let currentLine = "";
+        words.forEach((word, index) => {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && index > 0) {
+            ctx.fillText(currentLine, 80, y);
+            currentLine = word;
+            y += lineHeight;
+          } else {
+            currentLine = testLine;
+          }
+        });
+        ctx.fillText(currentLine, 80, y);
+        y += lineHeight;
+      });
+
+      ctx.fillStyle = "#b71c1c";
+      ctx.font = "bold 30px Inter, system-ui, sans-serif";
+      ctx.fillText("Padel, prestige & bragging rights", 80, height - 80);
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `recap-${new Date().toISOString().slice(0, 10)}.png`;
+      link.click();
+      toast.success("Recap-bild nedladdad!");
+    } catch (error: any) {
+      toast.error(error?.message || "Kunde inte exportera bild.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const renderPlayerSelect = (team: string[], setTeam: (t: string[]) => void, index: number, teamLabel: string) => (
     <select
       aria-label={`${teamLabel} spelare ${index + 1}`}
@@ -643,6 +745,14 @@ export default function MatchForm({
             ) : (
               <div className="muted">Dela kvällens höjdpunkter med laget.</div>
             )}
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={exportRecapImage}
+              disabled={isExporting}
+            >
+              {isExporting ? "Exporterar..." : "Ladda ner som bild"}
+            </button>
             <button
               type="button"
               className="ghost-button"

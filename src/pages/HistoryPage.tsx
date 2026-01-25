@@ -18,9 +18,16 @@ export default function HistoryPage() {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isError,
+    error,
     refetch: refetchMatches
   } = useInfiniteMatches(matchFilter);
-  const { data: profiles = [] as Profile[], refetch: refetchProfiles } = useProfiles();
+  const {
+    data: profiles = [] as Profile[],
+    isError: isProfilesError,
+    error: profilesError,
+    refetch: refetchProfiles
+  } = useProfiles();
 
   const allMatches = data?.pages.flat() || [];
 
@@ -32,6 +39,18 @@ export default function HistoryPage() {
     <PullToRefresh onRefresh={handleRefresh}>
     <section id="history" className="page-section">
       <h2>Match-historik</h2>
+      {(isError || isProfilesError) && (
+        <div className="notice-banner error" role="alert">
+          <span>
+            {(error as Error | undefined)?.message ||
+              (profilesError as Error | undefined)?.message ||
+              "Något gick fel när historiken laddades."}
+          </span>
+          <button type="button" className="ghost-button" onClick={handleRefresh}>
+            Försök igen
+          </button>
+        </div>
+      )}
       <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

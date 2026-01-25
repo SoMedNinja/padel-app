@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   buildPlayerBadgeStats,
   buildPlayerBadges,
@@ -53,13 +54,13 @@ export default function MeritsSection({
         .select();
 
       if (error) {
-        alert(error.message || "Kunde inte uppdatera visad merit.");
+        toast.error(error.message || "Kunde inte uppdatera visad merit.");
         setSelectedBadgeId(playerProfile?.featured_badge_id || null);
       } else if (data?.length) {
         onProfileUpdate?.(data[0]);
       }
     } catch (error) {
-      alert(error?.message || "Kunde inte uppdatera visad merit.");
+      toast.error(error?.message || "Kunde inte uppdatera visad merit.");
       setSelectedBadgeId(playerProfile?.featured_badge_id || null);
     } finally {
       setSavingBadgeId(null);

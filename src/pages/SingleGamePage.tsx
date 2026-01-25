@@ -9,7 +9,7 @@ import { Match, Profile } from "../types";
 export default function SingleGamePage() {
   const { user, isGuest } = useStore();
   const { data: profiles = [] as Profile[] } = useProfiles();
-  const { data: matches = [] as Match[] } = useMatches("all");
+  const { data: matches = [] as Match[] } = useMatches({ type: "all" });
 
   const allEloPlayers = calculateElo(matches, profiles);
 

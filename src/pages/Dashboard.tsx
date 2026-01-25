@@ -16,8 +16,20 @@ import { useScrollToFragment } from "../hooks/useScrollToFragment";
 
 export default function Dashboard() {
   const { matchFilter, setMatchFilter } = useStore();
-  const { data: profiles = [] as Profile[], isLoading: isLoadingProfiles, refetch: refetchProfiles } = useProfiles();
-  const { data: matches = [] as Match[], isLoading: isLoadingMatches, refetch: refetchMatches } = useMatches(matchFilter);
+  const {
+    data: profiles = [] as Profile[],
+    isLoading: isLoadingProfiles,
+    isError: isProfilesError,
+    error: profilesError,
+    refetch: refetchProfiles
+  } = useProfiles();
+  const {
+    data: matches = [] as Match[],
+    isLoading: isLoadingMatches,
+    isError: isMatchesError,
+    error: matchesError,
+    refetch: refetchMatches
+  } = useMatches(matchFilter);
 
   useScrollToFragment();
 
@@ -26,10 +38,23 @@ export default function Dashboard() {
   };
 
   const { filteredMatches, playersWithTrend } = usePadelData(matches, matchFilter, profiles);
+  const hasError = isProfilesError || isMatchesError;
+  const errorMessage =
+    (profilesError as Error | undefined)?.message ||
+    (matchesError as Error | undefined)?.message ||
+    "Något gick fel när data hämtades.";
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <section id="dashboard" className="page-section">
+      {hasError && (
+        <div className="notice-banner error" role="alert">
+          <span>{errorMessage}</span>
+          <button type="button" className="ghost-button" onClick={handleRefresh}>
+            Försök igen
+          </button>
+        </div>
+      )}
       {(isLoadingProfiles || isLoadingMatches) ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
           <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: '12px' }} />
@@ -42,22 +67,30 @@ export default function Dashboard() {
       ) : (
         <>
           <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
-          <div className="mvp-grid">
-            <MVP
-              matches={filteredMatches}
-              players={playersWithTrend}
-              mode="evening"
-              title="Kvällens MVP"
-            />
-            <MVP
-              matches={filteredMatches}
-              players={playersWithTrend}
-              mode="30days"
-              title="Månadens MVP"
-            />
-          </div>
-          <EloLeaderboard players={playersWithTrend} />
-          <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
+          {!filteredMatches.length ? (
+            <div className="notice-banner" role="status">
+              <span>Inga matcher ännu. Lägg in din första match för att se statistik.</span>
+            </div>
+          ) : (
+            <>
+              <div className="mvp-grid">
+                <MVP
+                  matches={filteredMatches}
+                  players={playersWithTrend}
+                  mode="evening"
+                  title="Kvällens MVP"
+                />
+                <MVP
+                  matches={filteredMatches}
+                  players={playersWithTrend}
+                  mode="30days"
+                  title="Månadens MVP"
+                />
+              </div>
+              <EloLeaderboard players={playersWithTrend} />
+              <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
+            </>
+          )}
         </>
       )}
     </section>

@@ -9,6 +9,21 @@ export interface Profile {
   created_at?: string;
 }
 
+export type MatchFilterType =
+  | "all"
+  | "short"
+  | "long"
+  | "tournaments"
+  | "last7"
+  | "last30"
+  | "range";
+
+export interface MatchFilter {
+  type: MatchFilterType;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export type ScoreType = "sets" | "points";
 
 export interface Match {
@@ -86,4 +101,10 @@ export interface TournamentRound {
   team2_score?: number | null;
   mode?: "americano" | "mexicano";
   created_at?: string;
+}
+
+export interface AppUser extends Profile {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, any>;
 }
