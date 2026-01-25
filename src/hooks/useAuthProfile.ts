@@ -50,10 +50,18 @@ export const useAuthProfile = () => {
     });
 
     try {
-      const result = await Promise.race([
-        supabase.auth.getUser(),
-        timeoutPromise,
-      ]);
+      // Note for non-coders: getSession is a fast local check, so we avoid waiting on the network.
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        setErrorMessage(sessionError.message);
+        return;
+      }
+      if (sessionData.session?.user) {
+        await syncProfile(sessionData.session.user);
+        return;
+      }
+
+      const result = await Promise.race([supabase.auth.getUser(), timeoutPromise]);
 
       if (!result) {
         // Note for non-coders: if login is slow, we show the normal login screen instead of an error loop.
