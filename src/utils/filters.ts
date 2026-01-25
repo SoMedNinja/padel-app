@@ -11,9 +11,11 @@ const getDateRange = (filter: MatchFilter) => {
     start.setDate(start.getDate() - 30);
     return { start, end: new Date() };
   }
-  if (filter.type === "range" && (filter.startDate || filter.endDate)) {
-    const start = filter.startDate ? new Date(filter.startDate) : null;
-    const end = filter.endDate ? new Date(filter.endDate) : null;
+  if (filter.type === "range") {
+    // Note for non-coders: We only filter once a "från" date exists so the list stays empty until then.
+    if (!filter.startDate) return null;
+    const start = new Date(filter.startDate);
+    const end = filter.endDate ? new Date(filter.endDate) : new Date();
     if (start) start.setHours(0, 0, 0, 0);
     if (end) end.setHours(23, 59, 59, 999);
     return { start, end };

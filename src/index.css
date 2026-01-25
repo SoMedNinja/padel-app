@@ -625,10 +625,19 @@ select:focus-visible {
   align-items:center;
   gap:6px;
   padding:4px 2px;
+  /* Note for non-coders: This disables the mobile "tap highlight" so buttons don't look stuck. */
+  -webkit-tap-highlight-color: transparent;
 }
 
-.badge-toggle:hover {
-  text-decoration:underline;
+/* Note for non-coders: We removed the hover underline so the merits toggle doesn't look "stuck." */
+
+.badge-toggle:active,
+.badge-toggle:focus-visible {
+  background:transparent;
+  color:#b71c1c;
+  outline:2px solid rgba(211, 47, 47, 0.2);
+  outline-offset:2px;
+  border-radius:6px;
 }
 
 .badge-group {
@@ -887,7 +896,7 @@ select:focus-visible {
 
 .matchmaker-card,
 .recap-card {
-  background:var(--color-surface);
+  background:linear-gradient(135deg, #fff7f7 0%, #ffffff 60%);
   border-radius:var(--radius-lg);
   border:1px solid #f0d1d1;
   box-shadow:var(--shadow-card);
@@ -905,6 +914,33 @@ select:focus-visible {
   justify-content:space-between;
   gap:8px;
   flex-wrap:wrap;
+}
+
+.recap-brand {
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.recap-logo {
+  width:48px;
+  height:48px;
+  border-radius:14px;
+  border:1px solid #f0d1d1;
+  background:#fff;
+  object-fit:cover;
+}
+
+.recap-subtitle {
+  font-size:12px;
+}
+
+.recap-header-actions {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
 }
 
 .matchmaker-body {
@@ -956,11 +992,71 @@ select:focus-visible {
   gap:12px;
 }
 
+.recap-hero {
+  border:1px solid #f0d1d1;
+  border-radius:var(--radius-md);
+  padding:16px;
+  background:#ffffff;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  text-align:center;
+}
+
+.recap-hero-date {
+  font-weight:700;
+  font-size:18px;
+}
+
+.recap-hero-stats {
+  font-size:14px;
+  color:#666;
+}
+
+.recap-hero-mvp {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.recap-hero-score {
+  font-size:28px;
+  font-weight:700;
+  letter-spacing:0.02em;
+}
+
+.recap-hero-result {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 14px;
+  border-radius:999px;
+  font-weight:700;
+  font-size:14px;
+  margin:0 auto;
+}
+
+.recap-hero-result.is-win {
+  background:#e6f7ec;
+  color:#166534;
+}
+
+.recap-hero-result.is-loss {
+  background:#fff0e6;
+  color:#9a3412;
+}
+
+.recap-hero-subtitle {
+  font-size:12px;
+}
+
 .recap-team {
   border:1px solid var(--color-border);
   border-radius:var(--radius-md);
   padding:12px;
-  background:#fafafa;
+  background:#fff;
 }
 
 .recap-team-header {
@@ -1832,10 +1928,32 @@ select:focus-visible {
     padding: 0;
     margin: 0;
     transition: color 0.2s;
+    /* Note for non-coders: Disables the mobile tap highlight so the menu doesn't stay tinted. */
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .bottom-nav-item.active {
-    color: var(--color-brand);
+  .bottom-nav-item:not(.primary).active {
+    color: #fff;
+    background: var(--color-brand);
+    border-radius: 14px;
+    margin: 8px 10px;
+    box-shadow: 0 6px 14px rgba(211, 47, 47, 0.25);
+  }
+
+  .bottom-nav-item:not(.primary):active {
+    background: transparent;
+    color: var(--color-muted);
+  }
+
+  .bottom-nav-item:not(.primary):focus:not(.active) {
+    color: var(--color-muted);
+    background: transparent;
+  }
+
+  .bottom-nav-item:focus-visible {
+    outline: 2px solid rgba(211, 47, 47, 0.35);
+    outline-offset: 2px;
+    border-radius: 14px;
   }
 
   .bottom-nav-icon {

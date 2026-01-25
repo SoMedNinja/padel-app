@@ -15,6 +15,9 @@ interface FilterBarProps {
 }
 
 export default function FilterBar({ filter, setFilter }: FilterBarProps) {
+  // Note for non-coders: We pre-fill the "till" date with today so it's ready once a "från" date is chosen.
+  const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+
   const handleChange = (event: SelectChangeEvent) => {
     const type = event.target.value as MatchFilterType;
     if (type !== "range") {
@@ -24,15 +27,16 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
     setFilter({
       type,
       startDate: filter.startDate || "",
-      endDate: filter.endDate || "",
+      endDate: filter.endDate || getTodayDateString(),
     });
   };
 
   const handleDateChange = (key: "startDate" | "endDate", value: string) => {
+    const nextEndDate = key === "startDate" && !filter.endDate ? getTodayDateString() : filter.endDate || "";
     setFilter({
       type: "range",
       startDate: key === "startDate" ? value : filter.startDate || "",
-      endDate: key === "endDate" ? value : filter.endDate || "",
+      endDate: key === "endDate" ? value : nextEndDate,
     });
   };
 
@@ -51,13 +55,14 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
             }
           }}
         >
-          Visa matcher
+          {/* Note for non-coders: This text is the heading users see above the filter dropdown. */}
+          globalt filter
         </InputLabel>
         <Select
           labelId="filter-select-label"
           id="filter-select"
           value={filter.type}
-          label="Visa matcher"
+          label="globalt filter"
           onChange={handleChange}
           sx={{
             borderRadius: "12px",

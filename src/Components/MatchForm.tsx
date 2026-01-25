@@ -518,10 +518,34 @@ export default function MatchForm({
 
       const headerY = cardY + 60;
       const logoSize = 64;
-      drawRoundedRect(cardX + 50, headerY - 36, logoSize, logoSize, 18, palette.brand);
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 30px Inter, system-ui, sans-serif";
-      ctx.fillText("GS", cardX + 68, headerY + 6);
+      const logoX = cardX + 50;
+      const logoY = headerY - 36;
+      // Note for non-coders: We load the app icon so the exported recap looks branded and shareable.
+      const logoImage = new Image();
+      logoImage.src = "/icon-192.png";
+      await new Promise<void>((resolve) => {
+        logoImage.onload = () => resolve();
+        logoImage.onerror = () => resolve();
+      });
+      if (logoImage.complete && logoImage.naturalWidth > 0) {
+        ctx.save();
+        const radius = 18;
+        ctx.beginPath();
+        ctx.moveTo(logoX + radius, logoY);
+        ctx.arcTo(logoX + logoSize, logoY, logoX + logoSize, logoY + logoSize, radius);
+        ctx.arcTo(logoX + logoSize, logoY + logoSize, logoX, logoY + logoSize, radius);
+        ctx.arcTo(logoX, logoY + logoSize, logoX, logoY, radius);
+        ctx.arcTo(logoX, logoY, logoX + logoSize, logoY, radius);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
+        ctx.restore();
+      } else {
+        drawRoundedRect(logoX, logoY, logoSize, logoSize, 18, palette.brand);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 30px Inter, system-ui, sans-serif";
+        ctx.fillText("GS", logoX + 18, headerY + 6);
+      }
 
       ctx.fillStyle = palette.text;
       ctx.font = "bold 44px Inter, system-ui, sans-serif";
@@ -825,45 +849,52 @@ export default function MatchForm({
       {showRecap && (matchRecap || eveningRecap) && (
         <div className="recap-card">
           <div className="recap-header">
-            <strong>{recapMode === "evening" ? "Kvällsrecap" : "Match‑recap"}</strong>
-            <div className="recap-toggle">
-              <button
-                type="button"
-                className={`ghost-button ${recapMode === "evening" ? "is-active" : ""}`}
-                onClick={() => setRecapMode("evening")}
-                disabled={!eveningRecap}
-              >
-                Kväll
-              </button>
-              <button
-                type="button"
-                className={`ghost-button ${recapMode === "match" ? "is-active" : ""}`}
-                onClick={() => setRecapMode("match")}
-                disabled={!matchRecap}
-              >
-                Match
-              </button>
+            <div className="recap-brand">
+              {/* Note for non-coders: Using a public image path keeps the logo easy to reuse in the UI. */}
+              <img src="/icon-192.png" alt="App-logga" className="recap-logo" />
+              <div>
+                <strong>{recapMode === "evening" ? "Kvällsrecap" : "Match‑recap"}</strong>
+                <div className="recap-subtitle muted">Redo att dela kvällens highlights.</div>
+              </div>
             </div>
-            {recapMode === "evening" && (
-              <button type="button" className="ghost-button" onClick={() => setShowRecap(false)}>
-                Stäng
-              </button>
-            )}
-            {recapMode === "match" && matchRecap && (
-              <span className="chip chip-neutral">{matchRecap.scoreline}</span>
-            )}
+            <div className="recap-header-actions">
+              <div className="recap-toggle">
+                <button
+                  type="button"
+                  className={`ghost-button ${recapMode === "evening" ? "is-active" : ""}`}
+                  onClick={() => setRecapMode("evening")}
+                  disabled={!eveningRecap}
+                >
+                  Kväll
+                </button>
+                <button
+                  type="button"
+                  className={`ghost-button ${recapMode === "match" ? "is-active" : ""}`}
+                  onClick={() => setRecapMode("match")}
+                  disabled={!matchRecap}
+                >
+                  Match
+                </button>
+              </div>
+              {recapMode === "evening" && (
+                <button type="button" className="ghost-button" onClick={() => setShowRecap(false)}>
+                  Stäng
+                </button>
+              )}
+              {recapMode === "match" && matchRecap && (
+                <span className="chip chip-neutral">{matchRecap.scoreline}</span>
+              )}
+            </div>
           </div>
           <div className="recap-body">
             {recapMode === "evening" && eveningRecap ? (
               <>
-                <div className="recap-team recap-summary">
-                  <div>
-                    <div className="recap-summary-title">{eveningRecap.dateLabel}</div>
-                    <div className="muted">
-                      {eveningRecap.matches} matcher · {eveningRecap.totalSets} sets
-                    </div>
+                <div className="recap-hero recap-hero-evening">
+                  <div className="recap-hero-date">{eveningRecap.dateLabel}</div>
+                  <div className="recap-hero-stats">
+                    {eveningRecap.matches} matcher · {eveningRecap.totalSets} sets
                   </div>
-                  <div className="recap-summary-mvp">
+                  <div className="recap-hero-mvp">
                     <span className="chip chip-success">MVP</span>
                     <strong>
                       <ProfileName
@@ -895,6 +926,17 @@ export default function MatchForm({
             ) : null}
             {recapMode === "match" && matchRecap ? (
               <>
+                <div className="recap-hero recap-hero-match">
+                  <div className="recap-hero-score">{matchRecap.scoreline}</div>
+                  <div
+                    className={`recap-hero-result ${
+                      matchRecap.teamAWon ? "is-win" : "is-loss"
+                    }`}
+                  >
+                    {matchRecap.teamAWon ? "Vinst Lag A" : "Vinst Lag B"}
+                  </div>
+                  <div className="recap-hero-subtitle muted">Matchens resultat i fokus.</div>
+                </div>
                 <div className="recap-team">
                   <div className="recap-team-header">
                     <span>Lag A</span>
