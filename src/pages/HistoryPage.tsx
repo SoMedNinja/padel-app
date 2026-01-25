@@ -1,7 +1,7 @@
 import React from "react";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
-import { Skeleton } from "@mui/material";
+import { Box, Button, Skeleton, Stack } from "@mui/material";
 import PTR from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
 
@@ -34,9 +34,10 @@ export default function HistoryPage() {
       <h2>Match-historik</h2>
       <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
       {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: '14px' }} />
-        </div>
+        <Stack spacing={1.5}>
+          {/* Note for non-coders: Stack keeps consistent spacing between loading placeholders. */}
+          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: "14px" }} />
+        </Stack>
       ) : (
         <>
           <History
@@ -46,13 +47,21 @@ export default function HistoryPage() {
           />
           {hasNextPage && (
             <div className="load-more">
-              <button
+              {/* Note for non-coders: MUI's Button auto-uses the theme colors and spacing. */}
+              <Button
                 type="button"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
+                variant="contained"
               >
-                {isFetchingNextPage ? <Skeleton width={100} height={24} sx={{ display: 'inline-block' }} /> : "Visa fler matcher"}
-              </button>
+                {isFetchingNextPage ? (
+                  <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+                    <Skeleton width={100} height={24} sx={{ display: "inline-block" }} />
+                  </Box>
+                ) : (
+                  "Visa fler matcher"
+                )}
+              </Button>
             </div>
           )}
         </>
