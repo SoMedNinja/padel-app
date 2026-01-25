@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import MVP from "../Components/MVP";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import Heatmap from "../Components/Heatmap";
@@ -13,6 +13,7 @@ import { usePadelData } from "../hooks/usePadelData";
 import { Match, Profile } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { calculateElo } from "../utils/elo";
 
 export default function Dashboard() {
   const { matchFilter, setMatchFilter } = useStore();
@@ -30,12 +31,34 @@ export default function Dashboard() {
     error: matchesError,
     refetch: refetchMatches
   } = useMatches(matchFilter);
+  const {
+    data: allMatches = [] as Match[],
+    isLoading: isLoadingAllMatches,
+  } = useMatches({ type: "all" });
 
   useScrollToFragment();
 
   const handleRefresh = usePullToRefresh([refetchProfiles, refetchMatches]);
 
   const { filteredMatches, playersWithTrend } = usePadelData(matches, matchFilter, profiles);
+  // Note for non-coders: we build a "global" ELO list from all matches so the leaderboard rating
+  // and other "current ELO" labels stay steady even when the filter shows a smaller slice of games.
+  const allEloPlayers = useMemo(
+    () => calculateElo(allMatches, profiles),
+    [allMatches, profiles]
+  );
+  const allEloMap = useMemo(
+    () => new Map(allEloPlayers.map(player => [player.id, player.elo])),
+    [allEloPlayers]
+  );
+  const leaderboardPlayers = useMemo(
+    () =>
+      playersWithTrend.map(player => ({
+        ...player,
+        elo: allEloMap.get(player.id) ?? player.elo,
+      })),
+    [allEloMap, playersWithTrend]
+  );
   const hasError = isProfilesError || isMatchesError;
   const errorMessage =
     (profilesError as Error | undefined)?.message ||
@@ -53,7 +76,7 @@ export default function Dashboard() {
           </button>
         </div>
       )}
-      {(isLoadingProfiles || isLoadingMatches) ? (
+      {(isLoadingProfiles || isLoadingMatches || isLoadingAllMatches) ? (
         <Stack spacing={2} sx={{ mb: 2 }}>
           {/* Note for non-coders: Stack is a layout helper that evenly spaces items vertically. */}
           <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: "12px" }} />
@@ -86,8 +109,8 @@ export default function Dashboard() {
                   title="Månadens MVP"
                 />
               </div>
-              <EloLeaderboard players={playersWithTrend} />
-              <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={playersWithTrend} />
+              <EloLeaderboard players={leaderboardPlayers} />
+              <Heatmap matches={filteredMatches} profiles={profiles} eloPlayers={allEloPlayers} />
             </>
           )}
         </>
