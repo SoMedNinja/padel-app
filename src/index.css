@@ -671,7 +671,13 @@ body.chart-fullscreen-active {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Note for non-coders: We removed the hover underline so the merits toggle doesn't look "stuck." */
+/* Note for non-coders: We match the hover state to the "active" red style for clarity. */
+.badge-toggle:hover {
+  background: var(--color-brand);
+  color: #fff;
+  border-radius: 6px;
+  box-shadow: 0 6px 14px rgba(211, 47, 47, 0.18);
+}
 
 .badge-toggle:active,
 .badge-toggle:focus-visible {
@@ -1975,6 +1981,15 @@ body.chart-fullscreen-active {
   }
 
   .bottom-nav-item:not(.primary).active {
+    color: #fff;
+    background: var(--color-brand);
+    border-radius: 14px;
+    margin: 8px 10px;
+    box-shadow: 0 6px 14px rgba(211, 47, 47, 0.25);
+  }
+
+  /* Note for non-coders: Hover now mirrors the active (selected) button style. */
+  .bottom-nav-item:not(.primary):hover {
     color: #fff;
     background: var(--color-brand);
     border-radius: 14px;
