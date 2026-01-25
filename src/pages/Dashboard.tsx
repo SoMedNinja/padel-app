@@ -3,7 +3,7 @@ import MVP from "../Components/MVP";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import Heatmap from "../Components/Heatmap";
 import FilterBar from "../Components/FilterBar";
-import { Skeleton } from "@mui/material";
+import { Box, Skeleton, Stack } from "@mui/material";
 import PTR from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
 
@@ -56,14 +56,15 @@ export default function Dashboard() {
         </div>
       )}
       {(isLoadingProfiles || isLoadingMatches) ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
-          <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: '12px' }} />
-          <div className="mvp-grid">
-            <Skeleton variant="rectangular" height={160} sx={{ borderRadius: '14px' }} />
-            <Skeleton variant="rectangular" height={160} sx={{ borderRadius: '14px' }} />
-          </div>
-          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: '14px' }} />
-        </div>
+        <Stack spacing={2} sx={{ mb: 2 }}>
+          {/* Note for non-coders: Stack is a layout helper that evenly spaces items vertically. */}
+          <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: "12px" }} />
+          <Box className="mvp-grid">
+            <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+            <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+          </Box>
+          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: "14px" }} />
+        </Stack>
       ) : (
         <>
           <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
