@@ -672,20 +672,19 @@ body.chart-fullscreen-active {
 }
 
 /* Note for non-coders: We match the hover state to the "active" red style for clarity. */
-.badge-toggle:hover {
+.badge-toggle:hover,
+.badge-toggle:active,
+.badge-toggle:focus-visible {
   background: var(--color-brand);
   color: #fff;
   border-radius: 6px;
   box-shadow: 0 6px 14px rgba(211, 47, 47, 0.18);
 }
 
-.badge-toggle:active,
+/* Note for non-coders: Keep a strong outline on keyboard focus so it stays visible. */
 .badge-toggle:focus-visible {
-  background:transparent;
-  color:#b71c1c;
-  outline:2px solid rgba(211, 47, 47, 0.2);
-  outline-offset:2px;
-  border-radius:6px;
+  outline: 2px solid rgba(211, 47, 47, 0.35);
+  outline-offset: 2px;
 }
 
 .badge-group {
