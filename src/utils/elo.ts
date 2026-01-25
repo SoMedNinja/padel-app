@@ -17,6 +17,13 @@ const MIN_PLAYER_WEIGHT = 0.75;
 const EXPECTED_SCORE_DIVISOR = 300;
 const PLAYER_WEIGHT_DIVISOR = 800;
 const ELO_BASELINE = 1000;
+const SHORT_SET_MAX = 3;
+const LONG_SET_MIN = 6;
+const SHORT_POINTS_MAX = 15;
+const MID_POINTS_MAX = 21;
+const SHORT_MATCH_WEIGHT = 0.6;
+const MID_MATCH_WEIGHT = 0.8;
+const LONG_MATCH_WEIGHT = 1;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -39,6 +46,25 @@ export const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
   if (!Number.isFinite(playerElo) || !Number.isFinite(teamAverageElo)) return 1;
   const adjustment = 1 + (teamAverageElo - playerElo) / PLAYER_WEIGHT_DIVISOR;
   return clamp(adjustment, MIN_PLAYER_WEIGHT, MAX_PLAYER_WEIGHT);
+};
+
+export const getMatchWeight = (match: Match) => {
+  // Note for non-coders: This gently scales ELO changes so long/tournament matches matter more than quick ones.
+  if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
+  const scoreType = match.score_type || "sets";
+  if (scoreType === "sets") {
+    const maxSets = Math.max(match.team1_sets, match.team2_sets);
+    if (maxSets <= SHORT_SET_MAX) return SHORT_MATCH_WEIGHT;
+    if (maxSets >= LONG_SET_MIN) return LONG_MATCH_WEIGHT;
+    return MID_MATCH_WEIGHT;
+  }
+  if (scoreType === "points") {
+    const target = match.score_target ?? 0;
+    if (target <= SHORT_POINTS_MAX) return SHORT_MATCH_WEIGHT;
+    if (target <= MID_POINTS_MAX) return MID_MATCH_WEIGHT;
+    return LONG_MATCH_WEIGHT;
+  }
+  return MID_MATCH_WEIGHT;
 };
 
 export { ELO_BASELINE };
@@ -129,6 +155,7 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
     const exp1 = getExpectedScore(e1, e2);
     const team1Won = m.team1_sets > m.team2_sets;
     const marginMultiplier = getMarginMultiplier(m.team1_sets, m.team2_sets);
+    const matchWeight = getMatchWeight(m);
     const timestamp = new Date(m.created_at).getTime();
     const historyStamp = Number.isNaN(timestamp) ? 0 : timestamp;
 
@@ -136,7 +163,9 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
       const player = players[id];
       const playerK = getKFactor(player.games);
       const weight = getPlayerWeight(player.elo, e1);
-      const delta = Math.round(playerK * marginMultiplier * weight * ((team1Won ? 1 : 0) - exp1));
+      const delta = Math.round(
+        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 1 : 0) - exp1)
+      );
       player.elo += delta;
       team1Won ? player.wins++ : player.losses++;
       player.games++;
@@ -153,7 +182,7 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
       const playerK = getKFactor(player.games);
       const weight = getPlayerWeight(player.elo, e2);
       const delta = Math.round(
-        playerK * marginMultiplier * weight * ((team1Won ? 0 : 1) - (1 - exp1))
+        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 0 : 1) - (1 - exp1))
       );
       player.elo += delta;
       team1Won ? player.losses++ : player.wins++;
