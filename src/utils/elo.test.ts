@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { calculateElo, getKFactor, getExpectedScore, getMarginMultiplier, getPlayerWeight } from "./elo";
+import {
+  calculateElo,
+  getExpectedScore,
+  getKFactor,
+  getMarginMultiplier,
+  getMatchWeight,
+  getPlayerWeight,
+} from "./elo";
 
 describe("ELO Logic", () => {
   it("should calculate correct K-factor based on games played", () => {
@@ -29,6 +36,27 @@ describe("ELO Logic", () => {
     expect(getPlayerWeight(1200, 1000)).toBeLessThan(1);
     // If player is worse than team avg, weight should be > 1 (contribution is 'harder')
     expect(getPlayerWeight(800, 1000)).toBeGreaterThan(1);
+  });
+
+  it("should weight long matches more than short matches", () => {
+    const shortMatch: any = {
+      team1_sets: 2,
+      team2_sets: 1,
+      score_type: "sets",
+    };
+    const midMatch: any = {
+      team1_sets: 4,
+      team2_sets: 2,
+      score_type: "sets",
+    };
+    const longMatch: any = {
+      team1_sets: 6,
+      team2_sets: 4,
+      score_type: "sets",
+    };
+
+    expect(getMatchWeight(shortMatch)).toBe(getMatchWeight(midMatch));
+    expect(getMatchWeight(shortMatch)).toBeLessThan(getMatchWeight(longMatch));
   });
 
   it("should calculate new ELOs after a match", () => {
