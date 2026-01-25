@@ -53,8 +53,11 @@ Within a team, players gain or lose ELO differently based on their individual ra
 **Formula:**
 `Weight = 1 + (Team Avg ELO - Player ELO) / 800` (Clamped between 0.75 and 1.25)
 
-* **Lower-rated players** on their team have a weight > 1.0 (they gain more on a win and lose less on a loss).
-* **Higher-rated players** on their team have a weight < 1.0 (they gain less on a win and lose more on a loss).
+**How it's applied:**
+* **Wins:** use `Weight` directly (lower-rated players gain more, higher-rated players gain less).
+* **Losses:** use the inverse `1 / Weight` (higher-rated players lose more, lower-rated players lose less).
+
+> **Note for non-coders:** This is how the app protects newer/lower-rated players from big drops while still holding higher-rated partners more accountable for losses.
 
 ### 7. Match Eligibility
 Matches only affect ELO when:
@@ -75,8 +78,9 @@ For each match (sorted by date):
 5. For each player:
    - Identify their **K-Factor** based on games played.
    - Calculate their **Individual Weight** based on team average.
-   - **ELO Change (Delta)** = `round(K * MarginMultiplier * MatchWeight * PlayerWeight * (Actual Result - Expected Score))`
+   - **ELO Change (Delta)** = `round(K * MarginMultiplier * MatchWeight * EffectiveWeight * (Actual Result - Expected Score))`
      - *Actual Result is 1 for a win, 0 for a loss.*
+     - *EffectiveWeight = PlayerWeight on wins, or (1 / PlayerWeight) on losses.*
 
 > **Note for non-coders:** The app rounds the final change to a whole number so the ELO stays easy to read.
 
@@ -120,6 +124,7 @@ Match ends 2-0 for Team 1. Players have 30+ games.
 - **Player B Weight:** `1 + (1000 - 800) / 800` = **1.25**
 - **Player A Delta:** `round(20 * 1.2 * 0.5 * 0.75 * (1 - 0.5))` = `round(9 * 0.5)` = **+5**
 - **Player B Delta:** `round(20 * 1.2 * 0.5 * 1.25 * (1 - 0.5))` = `round(15 * 0.5)` = **+8**
+*(If Team 1 lost instead, Player A would lose more than Player B because the loss uses inverse weights.)*
 
 ---
 
@@ -133,5 +138,5 @@ Match ends 2-0 for Team 1. Players have 30+ games.
 | Match result | Win (1) or loss (0). | Drives whether ELO goes up or down. | Multiplies `(Actual - Expected)`. |
 | Set difference | Absolute set gap between teams. | Rewards more decisive wins. | **1.0–1.2x** margin multiplier. |
 | Match length / format | Sets or points target (or tournament flag). | Scales short vs. long match impact. | **0.5x** for short, **1.0x** for long/tournament. |
-| Player vs. team ELO | Player rating compared to team average. | Adjusts gains for mismatched partners. | **0.75–1.25x** player weight. |
+| Player vs. team ELO | Player rating compared to team average. | Adjusts gains for mismatched partners. | **Wins:** 0.75–1.25x weight, **Losses:** inverse weight. |
 | Rounding | Final rounding to whole numbers. | Keeps ELO values readable. | `round(...)` on the final delta. |
