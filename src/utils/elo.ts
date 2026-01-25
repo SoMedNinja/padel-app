@@ -70,6 +70,29 @@ export const getMatchWeight = (match: Match) => {
 
 export { ELO_BASELINE };
 
+const buildPlayerDelta = ({
+  playerElo,
+  playerGames,
+  teamAverageElo,
+  expectedScore,
+  didWin,
+  marginMultiplier,
+  matchWeight,
+}: {
+  playerElo: number;
+  playerGames: number;
+  teamAverageElo: number;
+  expectedScore: number;
+  didWin: boolean;
+  marginMultiplier: number;
+  matchWeight: number;
+}) => {
+  // Note for non-coders: we start from a base "K" value, then scale it by match length and player weight.
+  const playerK = getKFactor(playerGames);
+  const weight = getPlayerWeight(playerElo, teamAverageElo);
+  return Math.round(playerK * marginMultiplier * matchWeight * weight * ((didWin ? 1 : 0) - expectedScore));
+};
+
 export function calculateElo(matches: Match[], profiles: Profile[] = []): PlayerStats[] {
   const players: Record<string, PlayerStats> = {};
   const profileMap = makeProfileMap(profiles);
@@ -162,11 +185,15 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
 
     t1Active.forEach(id => {
       const player = players[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e1);
-      const delta = Math.round(
-        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 1 : 0) - exp1)
-      );
+      const delta = buildPlayerDelta({
+        playerElo: player.elo,
+        playerGames: player.games,
+        teamAverageElo: e1,
+        expectedScore: exp1,
+        didWin: team1Won,
+        marginMultiplier,
+        matchWeight,
+      });
       player.elo += delta;
       team1Won ? player.wins++ : player.losses++;
       player.games++;
@@ -180,11 +207,15 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
 
     t2Active.forEach(id => {
       const player = players[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e2);
-      const delta = Math.round(
-        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 0 : 1) - (1 - exp1))
-      );
+      const delta = buildPlayerDelta({
+        playerElo: player.elo,
+        playerGames: player.games,
+        teamAverageElo: e2,
+        expectedScore: 1 - exp1,
+        didWin: !team1Won,
+        marginMultiplier,
+        matchWeight,
+      });
       player.elo += delta;
       team1Won ? player.losses++ : player.wins++;
       player.games++;
