@@ -25,6 +25,7 @@ const toDateTimeInput = (value: string) => {
 
 interface HistoryProps {
   matches?: Match[];
+  globalMatches?: Match[];
   profiles?: Profile[];
   user: any;
 }
@@ -44,7 +45,7 @@ interface TeamEntry {
   name: string;
 }
 
-export default function History({ matches = [], profiles = [], user }: HistoryProps) {
+export default function History({ matches = [], globalMatches = [], profiles = [], user }: HistoryProps) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
   const playerOptions = useMemo(() => {
@@ -182,8 +183,10 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
   );
 
   const { eloDeltaByMatch, eloRatingByMatch } = useMemo(() => {
+    // Note for non-coders: we use the full match list (when provided) so ratings stay global.
+    const eloMatches = globalMatches.length ? globalMatches : matches;
     // Note for non-coders: we compute both the Elo change and the updated rating after each match.
-    const players = calculateElo(matches, profiles);
+    const players = calculateElo(eloMatches, profiles);
     const deltas = players.reduce((acc, player) => {
       player.history.forEach(entry => {
         if (!acc[entry.matchId]) {
@@ -195,7 +198,7 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
     }, {} as Record<string, Record<string, number>>);
     const currentElo: Record<string, number> = {};
     const ratingsByMatch: Record<string, Record<string, number>> = {};
-    const chronologicalMatches = [...matches].sort(
+    const chronologicalMatches = [...eloMatches].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
 
@@ -213,7 +216,7 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
     });
 
     return { eloDeltaByMatch: deltas, eloRatingByMatch: ratingsByMatch };
-  }, [matches, profiles]);
+  }, [globalMatches, matches, profiles]);
 
   const visibleMatches = sortedMatches.slice(0, visibleCount);
   const canLoadMore = visibleCount < sortedMatches.length;
