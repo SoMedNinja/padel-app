@@ -586,7 +586,7 @@ body.chart-fullscreen-active {
 
 .player-chart-header {
   display:flex;
-  align-items:flex-end;
+  align-items:center;
   justify-content:space-between;
   gap:16px;
   flex-wrap:wrap;
@@ -595,7 +595,7 @@ body.chart-fullscreen-active {
 
 .player-chart-controls {
   display:flex;
-  align-items:flex-end;
+  align-items:center;
   gap:12px;
   flex-wrap:wrap;
 }
