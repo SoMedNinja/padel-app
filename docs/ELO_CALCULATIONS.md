@@ -53,8 +53,8 @@ Within a team, players gain or lose ELO differently based on their individual ra
 **Formula:**
 `Weight = 1 + (Team Avg ELO - Player ELO) / 800` (Clamped between 0.75 and 1.25)
 
-* **Lower-rated players** in a high-rated team have a weight > 1.0 (they gain more ELO on win, lose less on loss).
-* **Higher-rated players** in a low-rated team have a weight < 1.0 (they gain less ELO on win, lose more on loss).
+* **Lower-rated players** on their team have a weight > 1.0 (they gain more on a win and lose less on a loss).
+* **Higher-rated players** on their team have a weight < 1.0 (they gain less on a win and lose more on a loss).
 
 ### 7. Match Eligibility
 Matches only affect ELO when:
