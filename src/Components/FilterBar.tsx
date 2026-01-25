@@ -19,15 +19,16 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
   };
 
   return (
-    <Box className="filter-bar" sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+    <Box className="filter-bar" sx={{ mb: 2, display: "flex", justifyContent: "flex-start" }}>
       <FormControl size="small" sx={{ minWidth: 160, mt: 1 }}>
         <InputLabel
           id="filter-select-label"
           sx={{
-            backgroundColor: 'var(--color-surface)',
+            // Note for non-coders: "background.paper" means "use the app's default surface color."
+            backgroundColor: "background.paper",
             px: 0.5,
             ml: -0.5,
-            '&.Mui-focused, &.MuiInputLabel-shrink': {
+            "&.Mui-focused, &.MuiInputLabel-shrink": {
               ml: 0,
             }
           }}
@@ -41,10 +42,10 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           label="Visa matcher"
           onChange={handleChange}
           sx={{
-            borderRadius: '12px',
-            backgroundColor: 'var(--color-surface)',
-            '& .MuiOutlinedInput-notchedOutline': {
-              borderColor: 'var(--color-border)',
+            borderRadius: "12px",
+            backgroundColor: "background.paper",
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "divider",
             },
           }}
         >
