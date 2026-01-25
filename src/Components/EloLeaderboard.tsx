@@ -2,14 +2,19 @@ import { useState } from "react";
 import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
+import { PlayerStats } from "../types";
 
 // Enkel hjälpfunktion för vinstprocent
-const winPct = (wins, losses) =>
+const winPct = (wins: number, losses: number) =>
   wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
 
-export default function EloLeaderboard({ players = [] }) {
-  const [sortKey, setSortKey] = useState("elo");
-  const [asc, setAsc] = useState(false);
+interface EloLeaderboardProps {
+  players?: PlayerStats[];
+}
+
+export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
+  const [sortKey, setSortKey] = useState<string>("elo");
+  const [asc, setAsc] = useState<boolean>(false);
 
   const hasUnknownPlayers = players.some(player => !player.name || player.name === "Okänd");
   const showLoadingOverlay = !players.length || hasUnknownPlayers;
@@ -18,30 +23,38 @@ export default function EloLeaderboard({ players = [] }) {
   const visiblePlayers = players.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
 
   const sortedPlayers = [...visiblePlayers].sort((a, b) => {
-    let aVal, bVal;
-
-    switch (sortKey) {
-      case "name":
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
-        return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      case "games":
-        aVal = a.wins + a.losses;
-        bVal = b.wins + b.losses;
-        break;
-      case "winPct":
-        aVal = a.wins / (a.wins + a.losses || 1);
-        bVal = b.wins / (b.wins + b.losses || 1);
-        break;
-      default:
-        aVal = a[sortKey];
-        bVal = b[sortKey];
+    if (sortKey === "name") {
+      const aVal = a.name.toLowerCase();
+      const bVal = b.name.toLowerCase();
+      return asc ? aVal.localeCompare(bVal, "sv") : bVal.localeCompare(aVal, "sv");
     }
 
-    return asc ? aVal - bVal : bVal - aVal;
+    let valA: number, valB: number;
+
+    switch (sortKey) {
+      case "games":
+        valA = a.wins + a.losses;
+        valB = b.wins + b.losses;
+        break;
+      case "winPct":
+        valA = a.wins / (a.wins + a.losses || 1);
+        valB = b.wins / (b.wins + b.losses || 1);
+        break;
+      case "wins":
+        valA = a.wins;
+        valB = b.wins;
+        break;
+      case "elo":
+      default:
+        valA = a.elo;
+        valB = b.elo;
+        break;
+    }
+
+    return asc ? valA - valB : valB - valA;
   });
 
-  const toggleSort = (key) => {
+  const toggleSort = (key: string) => {
     if (key === sortKey) setAsc(!asc);
     else {
       setSortKey(key);
@@ -49,7 +62,7 @@ export default function EloLeaderboard({ players = [] }) {
     }
   };
 
-  const getStreak = (player) => {
+  const getStreak = (player: PlayerStats) => {
     const results = player.recentResults || [];
     if (!results.length) return "—";
     const reversed = [...results].reverse();
@@ -62,7 +75,7 @@ export default function EloLeaderboard({ players = [] }) {
     return `${first}${count}`;
   };
 
-  const getTrendIndicator = (player) => {
+  const getTrendIndicator = (player: PlayerStats) => {
     const last5 = player.recentResults?.slice(-5) || [];
     if (last5.length < 3) return "—";
     const wins = last5.filter(r => r === "W").length;

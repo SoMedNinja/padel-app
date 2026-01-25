@@ -2,23 +2,41 @@ import { useMemo, useState } from "react";
 import { getProfileDisplayName, makeProfileMap, resolveTeamNames } from "../utils/profileMap";
 import ProfileName from "./ProfileName";
 import { GUEST_NAME } from "../utils/guest";
+import { Match, Profile, PlayerStats } from "../types";
 
 const ELO_BASELINE = 1000;
-const normalizeProfileName = (name) => name?.trim().toLowerCase();
-const normalizeServeFlag = (value) => {
+const normalizeProfileName = (name: string) => name?.trim().toLowerCase();
+const normalizeServeFlag = (value: any) => {
   if (value === true || value === 1 || value === "1" || value === "true") return true;
   if (value === false || value === 0 || value === "0" || value === "false") return false;
   return null;
 };
 
-export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }) {
-  const [sortKey, setSortKey] = useState("games");
-  const [asc, setAsc] = useState(false);
-  const [playerFilter, setPlayerFilter] = useState("all");
+interface HeatmapProps {
+  matches?: Match[];
+  profiles?: Profile[];
+  eloPlayers?: PlayerStats[];
+}
+
+interface Combo {
+  players: string[];
+  games: number;
+  wins: number;
+  serveFirstGames: number;
+  serveFirstWins: number;
+  serveSecondGames: number;
+  serveSecondWins: number;
+  recentResults: string[];
+}
+
+export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }: HeatmapProps) {
+  const [sortKey, setSortKey] = useState<string>("games");
+  const [asc, setAsc] = useState<boolean>(false);
+  const [playerFilter, setPlayerFilter] = useState<string>("all");
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const allowedNameMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, string>();
     profiles.forEach(profile => {
       const name = getProfileDisplayName(profile);
       const key = normalizeProfileName(name);
@@ -30,7 +48,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     return map;
   }, [profiles]);
   const badgeNameMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, string | null>();
     profiles.forEach(profile => {
       const name = getProfileDisplayName(profile);
       map.set(name, profile.featured_badge_id || null);
@@ -38,7 +56,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     return map;
   }, [profiles]);
   const eloMap = useMemo(() => {
-    return new Map(eloPlayers.map(player => [player.name, player.elo]));
+    return new Map<string, number>(eloPlayers.map(player => [player.name, player.elo]));
   }, [eloPlayers]);
 
   const sortedProfileNames = useMemo(() => {
@@ -48,70 +66,75 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
       .sort((a, b) => a.localeCompare(b, "sv"));
   }, [profiles]);
 
-  if (!matches.length) return null;
+  const sortedMatches = useMemo(() => {
+    return [...matches].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [matches]);
 
-  const combos = {};
-  const sortedMatches = [...matches].sort(
-    (a, b) => new Date(b.created_at) - new Date(a.created_at)
-  );
+  const combos = useMemo(() => {
+    const comboMap: Record<string, Combo> = {};
+    sortedMatches.forEach((m) => {
+      const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
+      const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
+      const normalizedServeFlag = normalizeServeFlag(m.team1_serves_first);
+      const team1ServedFirst = normalizedServeFlag === true;
+      const team2ServedFirst = normalizedServeFlag === false;
+      const teams = [
+        { players: team1, won: m.team1_sets > m.team2_sets, servedFirst: team1ServedFirst },
+        { players: team2, won: m.team2_sets > m.team1_sets, servedFirst: team2ServedFirst },
+      ];
 
-  sortedMatches.forEach((m) => {
-    const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
-    const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
-    const normalizedServeFlag = normalizeServeFlag(m.team1_serves_first);
-    const team1ServedFirst = normalizedServeFlag === true;
-    const team2ServedFirst = normalizedServeFlag === false;
-    const teams = [
-      { players: team1, won: m.team1_sets > m.team2_sets, servedFirst: team1ServedFirst },
-      { players: team2, won: m.team2_sets > m.team1_sets, servedFirst: team2ServedFirst },
-    ];
+      teams.forEach(({ players, won, servedFirst }) => {
+        if (!Array.isArray(players) || !players.length) return;
+        const resolvedPlayers = players
+          .map(player => {
+            const key = normalizeProfileName(player);
+            if (!key) return null;
+            return allowedNameMap.get(key) || null;
+          })
+          .filter((p): p is string => Boolean(p));
 
-    teams.forEach(({ players, won, servedFirst }) => {
-      if (!Array.isArray(players) || !players.length) return;
-      const resolvedPlayers = players
-        .map(player => {
-          const key = normalizeProfileName(player);
-          if (!key) return null;
-          return allowedNameMap.get(key) || null;
-        })
-        .filter(Boolean);
+        if (!resolvedPlayers.length) return;
+        if (resolvedPlayers.some(player => normalizeProfileName(player) === normalizeProfileName(GUEST_NAME))) {
+          return;
+        }
+        if (allowedNameMap.size && resolvedPlayers.some(player => !allowedNameMap.has(normalizeProfileName(player)))) {
+          return;
+        }
 
-      if (!resolvedPlayers.length) return;
-      if (resolvedPlayers.some(player => normalizeProfileName(player) === normalizeProfileName(GUEST_NAME))) {
-        return;
-      }
-      if (allowedNameMap.size && resolvedPlayers.some(player => !allowedNameMap.has(normalizeProfileName(player)))) {
-        return;
-      }
-
-      const key = [...resolvedPlayers].sort().join(" + ");
-      if (!combos[key]) {
-        combos[key] = {
-          players: [...resolvedPlayers].sort(),
-          games: 0,
-          wins: 0,
-          serveFirstGames: 0,
-          serveFirstWins: 0,
-          serveSecondGames: 0,
-          serveSecondWins: 0,
-          recentResults: [],
-        };
-      }
-      combos[key].games++;
-      if (won) combos[key].wins++;
-      if (servedFirst === true) {
-        combos[key].serveFirstGames++;
-        if (won) combos[key].serveFirstWins++;
-      }
-      if (servedFirst === false) {
-        combos[key].serveSecondGames++;
-        if (won) combos[key].serveSecondWins++;
-      }
-      if (combos[key].recentResults.length < 5) {
-        combos[key].recentResults.push(won ? "V" : "F");
-      }
+        const key = [...resolvedPlayers].sort().join(" + ");
+        if (!comboMap[key]) {
+          comboMap[key] = {
+            players: [...resolvedPlayers].sort(),
+            games: 0,
+            wins: 0,
+            serveFirstGames: 0,
+            serveFirstWins: 0,
+            serveSecondGames: 0,
+            serveSecondWins: 0,
+            recentResults: [],
+          };
+        }
+        comboMap[key].games++;
+        if (won) comboMap[key].wins++;
+        if (servedFirst === true) {
+          comboMap[key].serveFirstGames++;
+          if (won) comboMap[key].serveFirstWins++;
+        }
+        if (servedFirst === false) {
+          comboMap[key].serveSecondGames++;
+          if (won) comboMap[key].serveSecondWins++;
+        }
+        if (comboMap[key].recentResults.length < 5) {
+          comboMap[key].recentResults.push(won ? "V" : "F");
+        }
+      });
     });
-  });
+    return comboMap;
+  }, [sortedMatches, profileMap, allowedNameMap]);
+
+  if (!matches.length) return null;
 
   let rows = Object.values(combos).map((c) => {
     const avgElo = c.players.length
@@ -138,7 +161,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     rows = rows.filter(r => r.players.includes(playerFilter));
   }
 
-  rows.sort((a, b) => {
+  rows.sort((a: any, b: any) => {
     let valA = a[sortKey], valB = b[sortKey];
     if (sortKey === "winPct") {
       valA = a.winPct; valB = b.winPct;
@@ -154,10 +177,13 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     if (sortKey === "avgElo") {
       valA = a.avgElo; valB = b.avgElo;
     }
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
     return asc ? valA - valB : valB - valA;
   });
 
-  const handleSort = (key) => {
+  const handleSort = (key: string) => {
     if (key === sortKey) setAsc(!asc);
     else {
       setSortKey(key);
@@ -205,7 +231,7 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
                   <span className="team-names">
                     {r.players.map((name, index) => (
                       <span key={`${name}-${index}`} className="team-name">
-                        <ProfileName name={name} badgeId={badgeNameMap.get(name)} />
+                        <ProfileName name={name} badgeId={badgeNameMap.get(name) || null} />
                         {index < r.players.length - 1 && (
                           <span className="team-separator"> & </span>
                         )}

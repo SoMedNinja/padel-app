@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -29,76 +29,79 @@ import { getMvpStats } from "../utils/stats";
 import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
+import { Match, Profile, TournamentResult } from "../types";
 
-const percent = (wins, losses) => {
+const percent = (wins: number, losses: number) => {
   const total = wins + losses;
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
-const formatEloDelta = (delta) => {
+const formatEloDelta = (delta: number | string) => {
   const numericDelta = Number(delta);
   if (!Number.isFinite(numericDelta) || numericDelta === 0) return "0";
   const roundedDelta = Math.round(numericDelta);
   return roundedDelta > 0 ? `+${roundedDelta}` : `${roundedDelta}`;
 };
 
-const getEloDeltaClass = (delta) => {
+const getEloDeltaClass = (delta: number | string) => {
   const numericDelta = Number(delta);
   if (!Number.isFinite(numericDelta) || numericDelta === 0) return "";
   return numericDelta > 0 ? "stat-delta-positive" : "stat-delta-negative";
 };
 
-const formatMvpDays = (days) => {
+const formatMvpDays = (days: number) => {
   if (!days) return "0 dagar";
   if (days >= 365) return `${(days / 365).toFixed(1)} år`;
   return `${days} dagar`;
 };
 
-const formatChartTimestamp = (value, includeTime = false) => {
+const formatChartTimestamp = (value: string | number, includeTime = false) => {
   if (!value) return "";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const options = includeTime
+  if (Number.isNaN(date.getTime())) return String(value);
+  const options: Intl.DateTimeFormatOptions = includeTime
     ? { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
     : { year: "numeric", month: "short", day: "numeric" };
   return new Intl.DateTimeFormat("sv-SE", options).format(date);
 };
 
-const getPlayerOptionLabel = (profile) => {
+const getPlayerOptionLabel = (profile: Profile) => {
   if (!profile) return "Okänd";
-  const badgeLabel = getBadgeLabelById(profile.featured_badge_id);
+  const badgeLabel = getBadgeLabelById(profile.featured_badge_id || null);
   const baseName = getProfileDisplayName(profile);
   return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
 };
 
-const normalizeTeam = (team) =>
+const normalizeTeam = (team: any): string[] =>
   Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
 
-const ensurePlayer = (map, id) => {
+const ensurePlayer = (map: any, id: string) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE, games: 0 };
 };
 
-const buildMvpSummary = (matches, profiles) => {
+const buildMvpSummary = (matches: Match[], profiles: Profile[]) => {
   const allowedNames = new Set(
     profiles
       .map(profile => getProfileDisplayName(profile))
       .filter(name => name && name !== "Gäst")
   );
-  const dateMap = new Map();
+  const dateMap = new Map<string, Match[]>();
   const matchEntries = matches
     .map(match => ({
       match,
       time: new Date(match.created_at).getTime(),
       dateKey: match.created_at?.slice(0, 10),
     }))
-    .filter(entry => Number.isFinite(entry.time) && entry.dateKey);
+    .filter((entry): entry is { match: Match, time: number, dateKey: string } =>
+      Number.isFinite(entry.time) && entry.dateKey !== undefined
+    );
 
   matchEntries.forEach(({ match, dateKey }) => {
     if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
-    dateMap.get(dateKey).push(match);
+    dateMap.get(dateKey)!.push(match);
   });
 
-  const getMvpWinner = (matchGroup) => {
+  const getMvpWinner = (matchGroup: Match[]) => {
     const stats = getMvpStats(matchGroup, allowedNames);
     const scored = Object.entries(stats).map(([name, s]) => {
       const winPct = s.games ? s.wins / s.games : 0;
@@ -123,7 +126,7 @@ const buildMvpSummary = (matches, profiles) => {
     return winner?.name || null;
   };
 
-  const monthlyMvpDays = {};
+  const monthlyMvpDays: Record<string, number> = {};
   if (matchEntries.length) {
     const sortedEntries = [...matchEntries].sort((a, b) => a.time - b.time);
     const startDate = new Date(sortedEntries[0].dateKey);
@@ -160,7 +163,7 @@ const buildMvpSummary = (matches, profiles) => {
     }
   }
 
-  const eveningMvpCounts = {};
+  const eveningMvpCounts: Record<string, number> = {};
   dateMap.forEach((dayMatches) => {
     const winner = getMvpWinner(dayMatches);
     if (!winner) return;
@@ -170,20 +173,20 @@ const buildMvpSummary = (matches, profiles) => {
   return { monthlyMvpDays, eveningMvpCounts };
 };
 
-const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
-  const eloMap = {};
+const buildEloHistoryMap = (matches: Match[], profiles: Profile[], nameToIdMap: Map<string, string>) => {
+  const eloMap: Record<string, any> = {};
   profiles.forEach(profile => {
     eloMap[profile.id] = { elo: ELO_BASELINE, history: [], games: 0 };
   });
 
-  const ensureHistoryPlayer = (id) => {
+  const ensureHistoryPlayer = (id: string) => {
     if (!eloMap[id]) {
       eloMap[id] = { elo: ELO_BASELINE, history: [], games: 0 };
     }
   };
 
   const sortedMatches = [...matches].sort(
-    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
   sortedMatches.forEach((match, matchIndex) => {
@@ -196,7 +199,7 @@ const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
     team1.forEach(ensureHistoryPlayer);
     team2.forEach(ensureHistoryPlayer);
 
-    const avg = team => {
+    const avg = (team: string[]) => {
       if (!team.length) return ELO_BASELINE;
       return (
         team.reduce((sum, id) => {
@@ -258,10 +261,10 @@ const buildEloHistoryMap = (matches, profiles, nameToIdMap) => {
       history: data.history || []
     };
     return acc;
-  }, {});
+  }, {} as Record<string, any>);
 };
 
-const buildComparisonChartData = (historyMap, profiles, playerIds) => {
+const buildComparisonChartData = (historyMap: Record<string, any>, profiles: Profile[], playerIds: string[]) => {
   if (!playerIds.length) return [];
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -269,12 +272,12 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
   const profileNameMap = profiles.reduce((acc, profile) => {
     acc[profile.id] = getProfileDisplayName(profile);
     return acc;
-  }, {});
+  }, {} as Record<string, string>);
 
-  const timelineEntries = new Map();
+  const timelineEntries = new Map<string, { date: string, matchIndex: number }>();
   playerIds.forEach(id => {
     const history = historyMap[id]?.history || [];
-    history.forEach(entry => {
+    history.forEach((entry: any) => {
       if (!entry.date) return;
       const entryDate = new Date(entry.date);
       if (Number.isNaN(entryDate.getTime()) || entryDate < oneYearAgo) return;
@@ -295,12 +298,12 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
 
   const historyPointers = playerIds.map(id => {
     const history = (historyMap[id]?.history || [])
-      .filter(entry => entry.date);
+      .filter((entry: any) => entry.date);
     return {
       id,
       name: profileNameMap[id] || "Okänd",
       history: history
-        .sort((a, b) => {
+        .sort((a: any, b: any) => {
           const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
           if (timeDiff !== 0) return timeDiff;
           return (a.matchIndex ?? 0) - (b.matchIndex ?? 0);
@@ -310,7 +313,7 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
     };
   });
 
-  const isEntryBeforeOrEqual = (entry, dateEntry) => {
+  const isEntryBeforeOrEqual = (entry: any, dateEntry: any) => {
     const entryTime = new Date(entry.date).getTime();
     const dateTime = new Date(dateEntry.date).getTime();
     if (entryTime < dateTime) return true;
@@ -319,7 +322,7 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
   };
 
   return dates.map(dateEntry => {
-    const row = { date: dateEntry.date };
+    const row: any = { date: dateEntry.date };
     historyPointers.forEach(pointer => {
       while (
         pointer.index < pointer.history.length &&
@@ -334,20 +337,20 @@ const buildComparisonChartData = (historyMap, profiles, playerIds) => {
   });
 };
 
-const getHighestEloRating = (historyEntry) => {
+const getHighestEloRating = (historyEntry: any) => {
   if (!historyEntry) return ELO_BASELINE;
   const history = Array.isArray(historyEntry.history) ? historyEntry.history : [];
   const historyMax = history.reduce(
-    (max, entry) => Math.max(max, entry?.elo ?? ELO_BASELINE),
+    (max: number, entry: any) => Math.max(max, entry?.elo ?? ELO_BASELINE),
     ELO_BASELINE
   );
   return Math.max(historyMax, historyEntry.currentElo ?? ELO_BASELINE);
 };
 
-const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
+const buildPlayerSummary = (matches: Match[], profiles: Profile[], playerId: string | undefined, nameToIdMap: Map<string, string>) => {
   if (!playerId) return null;
 
-  const eloMap = {};
+  const eloMap: Record<string, any> = {};
   profiles.forEach(profile => {
     eloMap[profile.id] = { elo: ELO_BASELINE, games: 0 };
   });
@@ -357,13 +360,13 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
   let wins = 0;
   let losses = 0;
   let lastMatchDelta = 0;
-  let currentSessionDate = null;
-  let sessionStartElo = null;
-  let sessionEndElo = null;
+  let currentSessionDate: string | null = null;
+  let sessionStartElo: number | null = null;
+  let sessionEndElo: number | null = null;
   let lastSessionDelta = 0;
 
   const sortedMatches = [...matches].sort(
-    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
   sortedMatches.forEach(match => {
@@ -381,7 +384,7 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
       team2.forEach(id => ensurePlayer(eloMap, id));
     }
 
-    const avg = team => {
+    const avg = (team: string[]) => {
       if (!team.length) return ELO_BASELINE;
       return (
         team.reduce((sum, id) => {
@@ -471,7 +474,7 @@ const buildPlayerSummary = (matches, profiles, playerId, nameToIdMap) => {
   };
 };
 
-const buildHeadToHead = (matches, playerId, opponentId, mode, nameToIdMap) => {
+const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponentId: string, mode: string, nameToIdMap: Map<string, string>) => {
   if (!playerId || !opponentId) {
     return { wins: 0, losses: 0, matches: 0 };
   }
@@ -512,7 +515,7 @@ const buildHeadToHead = (matches, playerId, opponentId, mode, nameToIdMap) => {
   return { wins, losses, matches: total };
 };
 
-const buildHeadToHeadTournaments = (tournamentResults, playerId, opponentId, mode) => {
+const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string, mode: string) => {
   if (!playerId || !opponentId) return { wins: 0, matches: 0 };
 
   const playerResults = tournamentResults.filter(r => r.profile_id === playerId);
@@ -529,10 +532,6 @@ const buildHeadToHeadTournaments = (tournamentResults, playerId, opponentId, mod
     const playRes = playerResults.find(r => r.tournament_id === oppRes.tournament_id);
     if (!playRes) return;
 
-    // In a tournament, everyone is technically "against" everyone else (it's individual total points)
-    // but they might also be teammates in some rounds.
-    // Given the request, we just show how many tournaments they both participated in.
-
     matches++;
     if (playRes.rank === 1) wins++;
   });
@@ -541,16 +540,16 @@ const buildHeadToHeadTournaments = (tournamentResults, playerId, opponentId, mod
 };
 
 const buildHeadToHeadRecentResults = (
-  matches,
-  playerId,
-  opponentId,
-  mode,
+  matches: Match[],
+  playerId: string | undefined,
+  opponentId: string,
+  mode: string,
   limit = 5,
-  nameToIdMap
+  nameToIdMap: Map<string, string>
 ) => {
   if (!playerId || !opponentId) return [];
   const sortedMatches = [...matches].sort(
-    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
   const results = [];
@@ -586,13 +585,21 @@ const buildHeadToHeadRecentResults = (
   return results;
 };
 
+interface PlayerSectionProps {
+  user: any;
+  profiles?: Profile[];
+  matches?: Match[];
+  tournamentResults?: TournamentResult[];
+  onProfileUpdate?: (profile: Profile) => void;
+}
+
 export default function PlayerSection({
   user,
   profiles = [],
   matches = [],
   tournamentResults = [],
   onProfileUpdate,
-}) {
+}: PlayerSectionProps) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
@@ -604,12 +611,12 @@ export default function PlayerSection({
     : user?.email || "Din profil";
 
   const avatarStorageId = user?.id || null;
-  const [avatarUrl, setAvatarUrl] = useState(() =>
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
     avatarStorageId ? getStoredAvatar(avatarStorageId) : null
   );
-  const [pendingAvatar, setPendingAvatar] = useState(null);
-  const [avatarZoom, setAvatarZoom] = useState(1);
-  const [savingAvatar, setSavingAvatar] = useState(false);
+  const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
+  const [avatarZoom, setAvatarZoom] = useState<number>(1);
+  const [savingAvatar, setSavingAvatar] = useState<boolean>(false);
 
   const summary = useMemo(
     () => buildPlayerSummary(matches, profiles, user?.id, nameToIdMap),
@@ -641,7 +648,7 @@ export default function PlayerSection({
         acc[`${type}-vinster`] = (acc[`${type}-vinster`] || 0) + 1;
       }
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     return Object.entries(counts).map(([label, count]) => ({ label, count }));
   }, [tournamentResults, user]);
@@ -656,8 +663,8 @@ export default function PlayerSection({
     [profiles, user]
   );
 
-  const [compareTarget, setCompareTarget] = useState("none");
-  const [selectedBadgeId, setSelectedBadgeId] = useState(
+  const [compareTarget, setCompareTarget] = useState<string>("none");
+  const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
   const comparisonIds = useMemo(() => {
@@ -680,12 +687,12 @@ export default function PlayerSection({
     const profileNameMap = profiles.reduce((acc, profile) => {
       acc[profile.id] = getProfileDisplayName(profile);
       return acc;
-    }, {});
+    }, {} as Record<string, string>);
     return comparisonIds.map(id => profileNameMap[id] || "Okänd");
   }, [comparisonIds, profiles]);
 
   const comparisonDateLabels = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, string>();
     let lastDate = "";
     comparisonData.forEach(row => {
       if (!row.date) return;
@@ -733,7 +740,7 @@ export default function PlayerSection({
     setSelectedBadgeId(playerProfile?.featured_badge_id || null);
   }, [playerProfile?.featured_badge_id]);
 
-  const handleAvatarChange = (event) => {
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !avatarStorageId) return;
 
@@ -767,7 +774,7 @@ export default function PlayerSection({
           onProfileUpdate?.(data[0]);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       alert(error.message || "Kunde inte beskära bilden.");
     } finally {
       setSavingAvatar(false);
@@ -988,7 +995,14 @@ export default function PlayerSection({
   );
 }
 
-export function HeadToHeadSection({ user, profiles = [], matches = [], tournamentResults = [] }) {
+interface HeadToHeadSectionProps {
+  user: any;
+  profiles?: Profile[];
+  matches?: Match[];
+  tournamentResults?: TournamentResult[];
+}
+
+export function HeadToHeadSection({ user, profiles = [], matches = [], tournamentResults = [] }: HeadToHeadSectionProps) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
@@ -1000,13 +1014,13 @@ export function HeadToHeadSection({ user, profiles = [], matches = [], tournamen
   const playerAvatarUrl = playerProfile?.avatar_url || getStoredAvatar(user?.id);
 
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
-  const [mode, setMode] = useState("against");
+  const [mode, setMode] = useState<string>("against");
   const selectablePlayers = useMemo(
     () => profiles.filter(profile => profile.id !== user?.id),
     [profiles, user]
   );
 
-  const [opponentId, setOpponentId] = useState("");
+  const [opponentId, setOpponentId] = useState<string>("");
   const resolvedOpponentId =
     selectablePlayers.find(player => player.id === opponentId)?.id ||
     selectablePlayers[0]?.id ||

@@ -1,12 +1,21 @@
+import React from "react";
 import { getMvpStats, getLatestMatchDate } from "../utils/stats";
 import ProfileName from "./ProfileName";
+import { Match, PlayerStats } from "../types";
+
+interface MVPProps {
+  matches?: Match[];
+  players?: PlayerStats[];
+  mode: "evening" | "30days";
+  title: string;
+}
 
 export default function MVP({
   matches = [],
   players = [],
   mode,
   title,
-}) {
+}: MVPProps) {
   if (!matches.length) return null;
 
   let relevantMatches = matches;
@@ -73,13 +82,15 @@ export default function MVP({
     );
   }
 
-  const mvp = eligible.sort((a, b) => {
+  const sortedEligible = eligible.sort((a, b) => {
     if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
     if (b.periodEloGain !== a.periodEloGain) return b.periodEloGain - a.periodEloGain;
     if (b.eloNet !== a.eloNet) return b.eloNet - a.eloNet;
     if (b.wins !== a.wins) return b.wins - a.wins;
     return a.name.localeCompare(b.name);
-  })[0];
+  });
+
+  const mvp = sortedEligible[0];
 
   return (
     <div className="mvp">

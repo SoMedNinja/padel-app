@@ -1,12 +1,20 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { getProfileDisplayName } from "../utils/profileMap";
+import { Profile } from "../types";
 
-export default function AdminPanel({ user, profiles = [], onProfileUpdate, onProfileDelete }) {
-  const [editNames, setEditNames] = useState({});
-  const [savingId, setSavingId] = useState(null);
-  const [toggleId, setToggleId] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
+interface AdminPanelProps {
+  user: any;
+  profiles?: Profile[];
+  onProfileUpdate?: (profile: Profile) => void;
+  onProfileDelete?: (profile: Profile) => void;
+}
+
+export default function AdminPanel({ user, profiles = [], onProfileUpdate, onProfileDelete }: AdminPanelProps) {
+  const [editNames, setEditNames] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [toggleId, setToggleId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const sortedProfiles = useMemo(() => {
     return [...profiles]
@@ -18,11 +26,11 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
       });
   }, [profiles]);
 
-  const handleNameChange = (id, value) => {
+  const handleNameChange = (id: string, value: string) => {
     setEditNames(prev => ({ ...prev, [id]: value }));
   };
 
-  const saveName = async (profile) => {
+  const saveName = async (profile: Profile) => {
     const nextName = (editNames[profile.id] ?? profile.name ?? "").trim();
     if (!nextName) return alert("Ange ett namn.");
 
@@ -40,7 +48,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     onProfileUpdate?.(data[0]);
   };
 
-  const toggleApproval = async (profile) => {
+  const toggleApproval = async (profile: Profile) => {
     const nextApproved = profile.is_approved !== true;
     setToggleId(profile.id);
     const { data, error } = await supabase
@@ -56,7 +64,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     onProfileUpdate?.(data[0]);
   };
 
-  const deleteProfile = async (profile) => {
+  const deleteProfile = async (profile: Profile) => {
     if (profile.id === user?.id) {
       return alert("Du kan inte radera din egen adminprofil.");
     }
@@ -93,8 +101,9 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
         eller ta bort profiler.
       </p>
 
-      <div className="admin-table-wrapper">
-        <table>
+      <div className="table-scroll">
+        <div className="table-scroll-inner">
+          <table className="styled-table">
           <thead>
             <tr>
               <th>Namn</th>
@@ -160,6 +169,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );

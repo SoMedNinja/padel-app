@@ -1,38 +1,47 @@
-export default function FilterBar({ filter,setFilter }) {
+import React from "react";
+import {
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
+  Box
+} from "@mui/material";
+
+interface FilterBarProps {
+  filter: string;
+  setFilter: (filter: string) => void;
+}
+
+export default function FilterBar({ filter, setFilter }: FilterBarProps) {
+  const handleChange = (event: SelectChangeEvent) => {
+    setFilter(event.target.value as string);
+  };
+
   return (
-    <div className="filter-bar">
-      <button
-        type="button"
-        className={filter==="all"?"active":""}
-        aria-pressed={filter==="all"}
-        onClick={()=>setFilter("all")}
-      >
-        Alla matcher
-      </button>
-      <button
-        type="button"
-        className={filter==="short"?"active":""}
-        aria-pressed={filter==="short"}
-        onClick={()=>setFilter("short")}
-      >
-        Korta matcher
-      </button>
-      <button
-        type="button"
-        className={filter==="long"?"active":""}
-        aria-pressed={filter==="long"}
-        onClick={()=>setFilter("long")}
-      >
-        Långa matcher
-      </button>
-      <button
-        type="button"
-        className={filter==="tournaments"?"active":""}
-        aria-pressed={filter==="tournaments"}
-        onClick={()=>setFilter("tournaments")}
-      >
-        Turneringar
-      </button>
-    </div>
+    <Box className="filter-bar" sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+      <FormControl size="small" sx={{ minWidth: 160 }}>
+        <InputLabel id="filter-select-label">Visa matcher</InputLabel>
+        <Select
+          labelId="filter-select-label"
+          id="filter-select"
+          value={filter}
+          label="Visa matcher"
+          onChange={handleChange}
+          sx={{
+            borderRadius: '12px',
+            backgroundColor: 'var(--color-surface)',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'var(--color-border)',
+            },
+          }}
+        >
+          <MenuItem value="all">Alla matcher</MenuItem>
+          <MenuItem value="short">Korta matcher</MenuItem>
+          <MenuItem value="long">Långa matcher</MenuItem>
+          <MenuItem value="tournaments">Turneringar</MenuItem>
+        </Select>
+      </FormControl>
+    </Box>
   );
 }

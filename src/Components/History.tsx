@@ -8,9 +8,10 @@ import {
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { supabase } from "../supabaseClient";
+import { Match, Profile } from "../types";
 
-const normalizeName = (name) => name?.trim().toLowerCase();
-const toDateTimeInput = (value) => {
+const normalizeName = (name: string) => name?.trim().toLowerCase();
+const toDateTimeInput = (value: string) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -18,7 +19,23 @@ const toDateTimeInput = (value) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-export default function History({ matches = [], profiles = [], user }) {
+interface HistoryProps {
+  matches?: Match[];
+  profiles?: Profile[];
+  user: any;
+}
+
+interface EditState {
+  created_at: string;
+  team1_ids: (string | null)[];
+  team2_ids: (string | null)[];
+  team1_sets: number | string;
+  team2_sets: number | string;
+  score_type: string;
+  score_target: number | string;
+}
+
+export default function History({ matches = [], profiles = [], user }: HistoryProps) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
   const playerOptions = useMemo(() => {
@@ -29,9 +46,9 @@ export default function History({ matches = [], profiles = [], user }) {
     return [{ id: GUEST_ID, name: GUEST_NAME }, ...options];
   }, [profiles]);
 
-  const [editingId, setEditingId] = useState(null);
-  const [edit, setEdit] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [edit, setEdit] = useState<EditState | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 10;
 
   const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
@@ -44,13 +61,13 @@ export default function History({ matches = [], profiles = [], user }) {
 
   if (!matches.length) return <div>Inga matcher ännu.</div>;
 
-  const canDelete = (m) => {
+  const canDelete = (m: Match) => {
     return user?.id && (m.created_by === user.id || user?.is_admin === true);
   };
 
   const canEdit = user?.is_admin === true;
 
-  const getTeamIds = (teamIds, teamNames) => {
+  const getTeamIds = (teamIds: (string | null)[], teamNames: string | string[]): (string | null)[] => {
     const ids = Array.isArray(teamIds) ? teamIds : [];
     const names = Array.isArray(teamNames) ? teamNames : [];
 
@@ -60,11 +77,11 @@ export default function History({ matches = [], profiles = [], user }) {
       const name = names[index];
       if (!name) return "";
       const key = normalizeName(name);
-      return nameToIdMap[key] || "";
+      return nameToIdMap.get(key) || "";
     });
   };
 
-  const startEdit = (match) => {
+  const startEdit = (match: Match) => {
     setEditingId(match.id);
     setEdit({
       created_at: toDateTimeInput(match.created_at),
@@ -82,7 +99,7 @@ export default function History({ matches = [], profiles = [], user }) {
     setEdit(null);
   };
 
-  const updateTeam = (teamKey, index, value) => {
+  const updateTeam = (teamKey: "team1_ids" | "team2_ids", index: number, value: string) => {
     setEdit(prev => {
       if (!prev) return prev;
       const nextTeam = [...prev[teamKey]];
@@ -91,12 +108,12 @@ export default function History({ matches = [], profiles = [], user }) {
     });
   };
 
-  const hasDuplicatePlayers = (team1Ids, team2Ids) => {
+  const hasDuplicatePlayers = (team1Ids: (string | null)[], team2Ids: (string | null)[]) => {
     const ids = [...team1Ids, ...team2Ids].filter(Boolean);
     return new Set(ids).size !== ids.length;
   };
 
-  const saveEdit = async (matchId) => {
+  const saveEdit = async (matchId: string) => {
     if (!edit) return;
 
     if (!edit.created_at) {
@@ -121,8 +138,8 @@ export default function History({ matches = [], profiles = [], user }) {
       .from("matches")
       .update({
         created_at: new Date(edit.created_at).toISOString(),
-        team1: idsToNames(edit.team1_ids, profileMap),
-        team2: idsToNames(edit.team2_ids, profileMap),
+        team1: idsToNames(edit.team1_ids as string[], profileMap),
+        team2: idsToNames(edit.team2_ids as string[], profileMap),
         team1_ids: team1IdsForDb,
         team2_ids: team2IdsForDb,
         team1_sets: Number(edit.team1_sets),
@@ -143,7 +160,7 @@ export default function History({ matches = [], profiles = [], user }) {
     }
   };
 
-  const deleteMatch = async (matchId) => {
+  const deleteMatch = async (matchId: string) => {
     if (!window.confirm("Radera matchen?")) return;
 
     const { error } = await supabase.from("matches").delete().eq("id", matchId);
@@ -157,12 +174,12 @@ export default function History({ matches = [], profiles = [], user }) {
   const startIndex = (currentPage - 1) * pageSize;
   const pagedMatches = matches.slice(startIndex, startIndex + pageSize);
 
-  const renderTeam = (ids = [], names = []) => {
-    const resolvedNames = names.length ? names : idsToNames(ids, profileMap);
+  const renderTeam = (ids: (string | null)[] = [], names: string | string[] = []) => {
+    const resolvedNames = Array.isArray(names) && names.length ? names : idsToNames(ids as string[], profileMap);
     return resolvedNames.join(" & ");
   };
 
-  const formatScore = (match) => {
+  const formatScore = (match: Match) => {
     const scoreType = match.score_type || "sets";
     const score = `${match.team1_sets} – ${match.team2_sets}`;
     if (scoreType === "points") {
@@ -217,9 +234,9 @@ export default function History({ matches = [], profiles = [], user }) {
           <tbody>
             {pagedMatches.map(m => {
               const teamAList =
-                m.team1_ids?.length ? idsToNames(m.team1_ids, profileMap) : m.team1 || [];
+                m.team1_ids?.length ? idsToNames(m.team1_ids as string[], profileMap) : (Array.isArray(m.team1) ? m.team1 : [m.team1]) || [];
               const teamBList =
-                m.team2_ids?.length ? idsToNames(m.team2_ids, profileMap) : m.team2 || [];
+                m.team2_ids?.length ? idsToNames(m.team2_ids as string[], profileMap) : (Array.isArray(m.team2) ? m.team2 : [m.team2]) || [];
               const date = m.created_at?.slice(0, 10);
               const isEditing = editingId === m.id;
 
@@ -254,7 +271,7 @@ export default function History({ matches = [], profiles = [], user }) {
                           <select
                             key={`team1-${index}`}
                             aria-label={`Lag A spelare ${index + 1}`}
-                            value={value}
+                            value={value || ""}
                             onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
                           >
                             <option value="">Välj spelare</option>
@@ -278,7 +295,7 @@ export default function History({ matches = [], profiles = [], user }) {
                           <select
                             key={`team2-${index}`}
                             aria-label={`Lag B spelare ${index + 1}`}
-                            value={value}
+                            value={value || ""}
                             onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
                           >
                             <option value="">Välj spelare</option>
