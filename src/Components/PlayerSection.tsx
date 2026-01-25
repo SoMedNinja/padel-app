@@ -20,6 +20,7 @@ import {
   ELO_BASELINE,
   getExpectedScore,
   getKFactor,
+  getMatchWeight,
   getMarginMultiplier,
   getPlayerWeight
 } from "../utils/elo";
@@ -228,6 +229,9 @@ const buildEloHistoryMap = (matches: Match[], profiles: Profile[], nameToIdMap: 
     const expected1 = getExpectedScore(e1, e2);
     const team1Won = match.team1_sets > match.team2_sets;
     const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
+    // Note for non-coders: we reuse the same match-length weight as the live ELO so the chart
+    // mirrors the real rating changes over time.
+    const matchWeight = getMatchWeight(match);
     const historyDate = match.created_at || "";
 
     team1.forEach(id => {
@@ -236,7 +240,7 @@ const buildEloHistoryMap = (matches: Match[], profiles: Profile[], nameToIdMap: 
       const playerK = getKFactor(player.games);
       const weight = getPlayerWeight(player.elo, e1);
       const delta = Math.round(
-        playerK * marginMultiplier * weight * ((team1Won ? 1 : 0) - expected1)
+        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 1 : 0) - expected1)
       );
       player.elo += delta;
       player.games += 1;
@@ -255,7 +259,7 @@ const buildEloHistoryMap = (matches: Match[], profiles: Profile[], nameToIdMap: 
       const playerK = getKFactor(player.games);
       const weight = getPlayerWeight(player.elo, e2);
       const delta = Math.round(
-        playerK * marginMultiplier * weight * ((team1Won ? 0 : 1) - (1 - expected1))
+        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 0 : 1) - (1 - expected1))
       );
       player.elo += delta;
       player.games += 1;
