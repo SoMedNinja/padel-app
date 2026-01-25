@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "../supabaseClient";
 import { useStore } from "../store/useStore";
@@ -14,6 +14,24 @@ export const useAuthProfile = () => {
   const { setUser, setIsGuest } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const loadingTimeoutRef = useRef<number | null>(null);
+
+  const startLoadingTimeout = useCallback(() => {
+    // Note for non-coders: if login checks take too long, we stop showing the loading screen.
+    if (loadingTimeoutRef.current !== null) {
+      window.clearTimeout(loadingTimeoutRef.current);
+    }
+    loadingTimeoutRef.current = window.setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+  }, []);
+
+  const clearLoadingTimeout = useCallback(() => {
+    if (loadingTimeoutRef.current !== null) {
+      window.clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+  }, []);
 
   const syncProfile = useCallback(
     async (authUser: User | null) => {
@@ -43,6 +61,7 @@ export const useAuthProfile = () => {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
+    startLoadingTimeout();
     const timeoutMs = 8000;
     // Note for non-coders: we use a timeout so the loading screen doesn't get stuck forever.
     const timeoutPromise = new Promise<null>((resolve) => {
@@ -77,9 +96,10 @@ export const useAuthProfile = () => {
 
       await syncProfile(result.data.user ?? null);
     } finally {
+      clearLoadingTimeout();
       setIsLoading(false);
     }
-  }, [syncProfile]);
+  }, [clearLoadingTimeout, startLoadingTimeout, syncProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,9 +114,10 @@ export const useAuthProfile = () => {
 
     return () => {
       isMounted = false;
+      clearLoadingTimeout();
       subscription.subscription.unsubscribe();
     };
-  }, [refresh, syncProfile]);
+  }, [clearLoadingTimeout, refresh, syncProfile]);
 
   return { isLoading, errorMessage, refresh };
 };
