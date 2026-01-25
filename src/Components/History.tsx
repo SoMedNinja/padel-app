@@ -12,7 +12,7 @@ import {
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { supabase } from "../supabaseClient";
 import { Match, Profile } from "../types";
-import { calculateElo } from "../utils/elo";
+import { calculateElo, ELO_BASELINE } from "../utils/elo";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -181,10 +181,10 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
     [matches]
   );
 
-  const eloDeltaByMatch = useMemo(() => {
-    // Note for non-coders: we calculate Elo once and store each player's change per match for quick lookup.
+  const { eloDeltaByMatch, eloRatingByMatch } = useMemo(() => {
+    // Note for non-coders: we compute both the Elo change and the updated rating after each match.
     const players = calculateElo(matches, profiles);
-    return players.reduce((acc, player) => {
+    const deltas = players.reduce((acc, player) => {
       player.history.forEach(entry => {
         if (!acc[entry.matchId]) {
           acc[entry.matchId] = {};
@@ -193,6 +193,26 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
       });
       return acc;
     }, {} as Record<string, Record<string, number>>);
+    const currentElo: Record<string, number> = {};
+    const ratingsByMatch: Record<string, Record<string, number>> = {};
+    const chronologicalMatches = [...matches].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    chronologicalMatches.forEach(match => {
+      const matchDeltas = deltas[match.id] || {};
+      Object.entries(matchDeltas).forEach(([playerId, delta]) => {
+        const previousElo = currentElo[playerId] ?? ELO_BASELINE;
+        const nextElo = previousElo + delta;
+        currentElo[playerId] = nextElo;
+        if (!ratingsByMatch[match.id]) {
+          ratingsByMatch[match.id] = {};
+        }
+        ratingsByMatch[match.id][playerId] = nextElo;
+      });
+    });
+
+    return { eloDeltaByMatch: deltas, eloRatingByMatch: ratingsByMatch };
   }, [matches, profiles]);
 
   const visibleMatches = sortedMatches.slice(0, visibleCount);
@@ -220,6 +240,11 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
   const formatDelta = (delta?: number) => {
     if (typeof delta !== "number") return "—";
     return delta > 0 ? `+${delta}` : `${delta}`;
+  };
+
+  const formatElo = (elo?: number) => {
+    if (typeof elo !== "number") return "—";
+    return Math.round(elo).toString();
   };
 
   const getDeltaClass = (delta?: number) => {
@@ -276,76 +301,6 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
               </div>
 
               <div className="history-card-body">
-                <div className="history-card-team">
-                  <div className="history-card-label">Lag A</div>
-                  {isEditing ? (
-                    <div className="history-edit-team">
-                      {edit?.team1_ids.map((value, index) => (
-                        <select
-                          key={`team1-${index}`}
-                          aria-label={`Lag A spelare ${index + 1}`}
-                          value={value || ""}
-                          onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
-                        >
-                          <option value="">Välj spelare</option>
-                          {playerOptions.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
-                      ))}
-                    </div>
-                  ) : (
-                    <ul className="history-team-list">
-                      {teamAEntries.map(entry => {
-                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                        return (
-                          <li key={`${m.id}-team1-${entry.name}`}>
-                            <span>{entry.name}</span>
-                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="history-card-team">
-                  <div className="history-card-label">Lag B</div>
-                  {isEditing ? (
-                    <div className="history-edit-team">
-                      {edit?.team2_ids.map((value, index) => (
-                        <select
-                          key={`team2-${index}`}
-                          aria-label={`Lag B spelare ${index + 1}`}
-                          value={value || ""}
-                          onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
-                        >
-                          <option value="">Välj spelare</option>
-                          {playerOptions.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
-                      ))}
-                    </div>
-                  ) : (
-                    <ul className="history-team-list">
-                      {teamBEntries.map(entry => {
-                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                        return (
-                          <li key={`${m.id}-team2-${entry.name}`}>
-                            <span>{entry.name}</span>
-                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-
                 <div className="history-card-score">
                   <div className="history-card-label">Resultat</div>
                   {isEditing ? (
@@ -405,6 +360,86 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
                     <div className="history-card-score-value">{formatScore(m)}</div>
                   )}
                 </div>
+
+                <div className="history-card-team">
+                  <div className="history-card-label">Lag A</div>
+                  {isEditing ? (
+                    <div className="history-edit-team">
+                      {edit?.team1_ids.map((value, index) => (
+                        <select
+                          key={`team1-${index}`}
+                          aria-label={`Lag A spelare ${index + 1}`}
+                          value={value || ""}
+                          onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
+                        >
+                          <option value="">Välj spelare</option>
+                          {playerOptions.map(option => (
+                            <option key={option.id} value={option.id}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </select>
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="history-team-list">
+                      {teamAEntries.map(entry => {
+                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                        const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                        return (
+                          <li key={`${m.id}-team1-${entry.name}`}>
+                            <div className="history-player-info">
+                              <span>{entry.name}</span>
+                              {/* Note for non-coders: "Elo nu" shows the player's rating after this match. */}
+                              <span className="history-player-elo muted">Elo nu {formatElo(currentElo)}</span>
+                            </div>
+                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="history-card-team">
+                  <div className="history-card-label">Lag B</div>
+                  {isEditing ? (
+                    <div className="history-edit-team">
+                      {edit?.team2_ids.map((value, index) => (
+                        <select
+                          key={`team2-${index}`}
+                          aria-label={`Lag B spelare ${index + 1}`}
+                          value={value || ""}
+                          onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
+                        >
+                          <option value="">Välj spelare</option>
+                          {playerOptions.map(option => (
+                            <option key={option.id} value={option.id}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </select>
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="history-team-list">
+                      {teamBEntries.map(entry => {
+                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                        const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                        return (
+                          <li key={`${m.id}-team2-${entry.name}`}>
+                            <div className="history-player-info">
+                              <span>{entry.name}</span>
+                              {/* Note for non-coders: "Elo nu" is the updated rating; the delta on the right is the change from before. */}
+                              <span className="history-player-elo muted">Elo nu {formatElo(currentElo)}</span>
+                            </div>
+                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               <div className="history-card-actions">
@@ -435,21 +470,6 @@ export default function History({ matches = [], profiles = [], user }: HistoryPr
                 )}
               </div>
 
-              {!isEditing && (
-                <div className="history-card-footer">
-                  <div className="history-card-label">Elo-förändring per spelare</div>
-                  <div className="history-card-footer-note muted">
-                    {teamAEntries.concat(teamBEntries).map(entry => {
-                      const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                      return (
-                        <span key={`${m.id}-delta-${entry.name}`}>
-                          {entry.name}: <strong className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</strong>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </article>
           );
         })}

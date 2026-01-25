@@ -1444,6 +1444,16 @@ body.chart-fullscreen-active {
   align-items:center;
 }
 
+.history-player-info {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.history-player-elo {
+  font-size:12px;
+}
+
 .history-card-score-value {
   font-size:16px;
   font-weight:700;
