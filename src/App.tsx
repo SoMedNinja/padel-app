@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "sonner";
 import { supabase } from "./supabaseClient";
@@ -9,52 +8,46 @@ import MainLayout from "./layouts/MainLayout";
 import AppRoutes from "./AppRoutes";
 import { useRealtime } from "./hooks/useRealtime";
 import ScrollToTop from "./Components/ScrollToTop";
+import { useAuthProfile } from "./hooks/useAuthProfile";
 
 export default function App() {
   const { user, setUser, isGuest, setIsGuest } = useStore();
+  const { isLoading, errorMessage, refresh } = useAuthProfile();
 
   useRealtime();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", data.user.id)
-          .single()
-          .then(({ data: profile }) => {
-            setUser({ ...data.user, ...profile });
-          });
-      }
-    });
+  if (isLoading) {
+    return (
+      <div className="container">
+        <section className="player-section">
+          {/* Note for non-coders: this simple message shows while we check login status. */}
+          <p className="muted">Laddar inloggning...</p>
+        </section>
+      </div>
+    );
+  }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data: profile }) => {
-            setUser({ ...session.user, ...profile });
-          });
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => sub.subscription.unsubscribe();
-  }, [setUser]);
+  if (errorMessage) {
+    return (
+      <div className="container">
+        <section className="player-section">
+          <div className="notice-banner error" role="alert">
+            <span>{errorMessage}</span>
+            <button type="button" className="ghost-button" onClick={refresh}>
+              Försök igen
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (!user && !isGuest) {
     return (
       <Auth
         onAuth={() => {
           setIsGuest(false);
-          return supabase.auth.getUser().then(({ data }) => {
-            if (data.user) setUser(data.user);
-          });
+          refresh();
         }}
         onGuest={() => setIsGuest(true)}
       />

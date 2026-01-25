@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID } from "../utils/guest";
+import { queryKeys } from "../utils/queryKeys";
 
 export function useTournaments() {
   return useQuery({
-    queryKey: ["tournaments"],
+    queryKey: queryKeys.tournaments(),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mexicana_tournaments")
@@ -18,7 +19,7 @@ export function useTournaments() {
 
 export function useTournamentDetails(tournamentId: string) {
   return useQuery({
-    queryKey: ["tournamentDetails", tournamentId],
+    queryKey: queryKeys.tournamentDetails(tournamentId),
     queryFn: async () => {
       if (!tournamentId) return { participants: [], rounds: [] };
 
@@ -55,7 +56,7 @@ export function useTournamentDetails(tournamentId: string) {
 
 export function useTournamentResults() {
   return useQuery({
-    queryKey: ["tournamentResultsHistory"],
+    queryKey: queryKeys.tournamentResultsHistory(),
     queryFn: async () => {
       const { data, error } = await supabase.from("mexicana_results").select("*");
       if (error) throw error;

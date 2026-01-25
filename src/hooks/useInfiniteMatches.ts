@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter } from "../types";
+import { queryKeys } from "../utils/queryKeys";
 
 const PAGE_SIZE = 20;
 
@@ -27,7 +28,7 @@ const getDateRange = (filter: MatchFilter) => {
 
 export const useInfiniteMatches = (filter: MatchFilter) => {
   return useInfiniteQuery({
-    queryKey: ["matches-infinite", filter],
+    queryKey: queryKeys.matchesInfinite(filter),
     queryFn: async ({ pageParam }: { pageParam: string | null }) => {
       let query = supabase
         .from("matches")

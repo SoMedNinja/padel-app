@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { useProfiles } from "../hooks/useProfiles";
 import { useQueryClient } from "@tanstack/react-query";
 import { Profile } from "../types";
+import { queryKeys } from "../utils/queryKeys";
 
 export default function AdminPage() {
   const { user } = useStore();
@@ -11,11 +12,11 @@ export default function AdminPage() {
   const queryClient = useQueryClient();
 
   const handleProfileUpdate = () => {
-    queryClient.invalidateQueries({ queryKey: ["profiles"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.profiles() });
   };
 
   const handleProfileDelete = () => {
-    queryClient.invalidateQueries({ queryKey: ["profiles"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.profiles() });
   };
 
   if (!user?.is_admin) return <div>Access denied.</div>;

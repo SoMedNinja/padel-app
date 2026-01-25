@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../supabaseClient";
+import { queryKeys } from "../utils/queryKeys";
 
 export const useRealtime = () => {
   const queryClient = useQueryClient();
@@ -12,7 +13,8 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "matches" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["matches"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.matches() });
+          queryClient.invalidateQueries({ queryKey: queryKeys.matchesInfiniteBase() });
         }
       )
       .subscribe();
@@ -23,7 +25,7 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "profiles" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["profiles"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.profiles() });
         }
       )
       .subscribe();
@@ -34,7 +36,7 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "mexicana_results" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["tournamentResults"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() });
         }
       )
       .subscribe();
@@ -45,8 +47,8 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "mexicana_tournaments" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["tournaments"] });
-          queryClient.invalidateQueries({ queryKey: ["tournamentDetails"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails() });
         }
       )
       .subscribe();
@@ -57,7 +59,7 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "mexicana_rounds" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["tournamentDetails"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails() });
         }
       )
       .subscribe();
@@ -68,7 +70,7 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "mexicana_participants" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["tournamentDetails"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails() });
         }
       )
       .subscribe();
