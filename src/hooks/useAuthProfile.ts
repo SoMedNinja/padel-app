@@ -56,7 +56,9 @@ export const useAuthProfile = () => {
       ]);
 
       if (!result) {
-        setErrorMessage("Inloggningen tog för lång tid. Försök igen.");
+        // Note for non-coders: if login is slow, we show the normal login screen instead of an error loop.
+        setUser(null);
+        setIsGuest(false);
         return;
       }
 

@@ -36,6 +36,18 @@ export default function App() {
             <button type="button" className="ghost-button" onClick={refresh}>
               Försök igen
             </button>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => {
+                // Note for non-coders: this clears any login state and returns you to the sign-in screen.
+                supabase.auth.signOut();
+                setIsGuest(false);
+                setUser(null);
+              }}
+            >
+              Återgå till inloggningssidan
+            </button>
           </div>
         </section>
       </div>
