@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { getPlayerWeight } from "../utils/elo";
@@ -40,13 +41,11 @@ export default function MatchForm({
   const [team2, setTeam2] = useState<string[]>(["", ""]);
   const [a, setA] = useState("");
   const [b, setB] = useState("");
-  const [toastMessage, setToastMessage] = useState("");
   const [matchSuggestion, setMatchSuggestion] = useState<any>(null);
   const [matchRecap, setMatchRecap] = useState<any>(null);
   const [eveningRecap, setEveningRecap] = useState<any>(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
-  const toastTimeoutRef = useRef<any>(null);
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
@@ -76,23 +75,6 @@ export default function MatchForm({
     [team1, team2]
   );
 
-  useEffect(() => {
-    return () => {
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-    }
-    toastTimeoutRef.current = setTimeout(() => {
-      setToastMessage("");
-    }, 2500);
-  };
 
   const getPlayerOptionLabel = (player: Profile) => {
     if (player.id === GUEST_ID) return GUEST_NAME;
@@ -252,7 +234,7 @@ export default function MatchForm({
       team2.includes("") ||
       team1.some(p => team2.includes(p))
     ) {
-      showToast("Ogiltiga lag.");
+      toast.error("Ogiltiga lag.");
       return;
     }
 
@@ -281,11 +263,11 @@ export default function MatchForm({
       });
 
       if (error) {
-        showToast(error.message);
+        toast.error(error.message);
         return;
       }
     } catch (error: any) {
-      showToast(error.message || "Kunde inte spara matchen.");
+      toast.error(error.message || "Kunde inte spara matchen.");
       return;
     }
 
@@ -309,21 +291,21 @@ export default function MatchForm({
     setMatchSuggestion(null);
     setRecapMode("evening");
     setShowRecap(true);
-    showToast(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
+    toast.success(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
   };
 
   const suggestTeams = () => {
     const uniquePool = Array.from(new Set(playerPool)).filter(Boolean);
 
     if (uniquePool.length < 4 || uniquePool.length > 8) {
-      showToast("Välj 4–8 unika spelare för smarta lagförslag.");
+      toast.error("Välj 4–8 unika spelare för smarta lagförslag.");
       return;
     }
 
     if (uniquePool.length > 4) {
       const rotation = buildRotationSchedule(uniquePool, eloMap);
       if (!rotation.rounds.length) {
-        showToast("Kunde inte skapa rotation. Prova med färre spelare.");
+        toast.error("Kunde inte skapa rotation. Prova med färre spelare.");
         return;
       }
       const firstRound = rotation.rounds[0];
@@ -366,7 +348,7 @@ export default function MatchForm({
       teamA: best.teamA,
       teamB: best.teamB,
     });
-    showToast("Lagförslag klart!");
+    toast.success("Lagförslag klart!");
   };
 
   const recapSummary = useMemo(() => {
@@ -466,7 +448,6 @@ export default function MatchForm({
         </div>
 
         <button type="submit">Spara</button>
-        {toastMessage && <div className="toast toast-success">{toastMessage}</div>}
       </form>
 
       {matchSuggestion && (
@@ -667,11 +648,11 @@ export default function MatchForm({
               className="ghost-button"
               onClick={() => {
                 if (!navigator.clipboard) {
-                  showToast("Kopiering stöds inte i den här webbläsaren.");
+                  toast.error("Kopiering stöds inte i den här webbläsaren.");
                   return;
                 }
                 navigator.clipboard.writeText(recapSummary);
-                showToast("Recap kopierad!");
+                toast.success("Recap kopierad!");
               }}
             >
               Kopiera sammanfattning

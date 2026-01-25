@@ -17,6 +17,7 @@ export const makeNameToIdMap = (profiles: Profile[]) => {
 
 export const getIdDisplayName = (id: string | null, profileMap: Map<string, Profile>) => {
   if (id === GUEST_ID || !id) return GUEST_NAME;
+  if (id.startsWith("name:")) return id.replace("name:", "");
   const p = profileMap.get(id);
   return p ? getProfileDisplayName(p) : "Okänd";
 };

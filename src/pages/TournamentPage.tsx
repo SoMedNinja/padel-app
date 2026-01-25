@@ -5,12 +5,15 @@ import { useProfiles } from "../hooks/useProfiles";
 import { useMatches } from "../hooks/useMatches";
 import { calculateElo } from "../utils/elo";
 import { useQueryClient } from "@tanstack/react-query";
+import PTR from "react-simple-pull-to-refresh";
 import { Match, Profile } from "../types";
+
+const PullToRefresh = (PTR as any).default || PTR;
 
 export default function TournamentPage() {
   const { user, isGuest } = useStore();
-  const { data: profiles = [] as Profile[] } = useProfiles();
-  const { data: matches = [] as Match[] } = useMatches("all");
+  const { data: profiles = [] as Profile[], refetch: refetchProfiles } = useProfiles();
+  const { data: matches = [] as Match[], refetch: refetchMatches } = useMatches("all");
   const queryClient = useQueryClient();
 
   const allEloPlayers = calculateElo(matches, profiles);
@@ -19,7 +22,18 @@ export default function TournamentPage() {
     queryClient.invalidateQueries({ queryKey: ["tournamentResults"] });
   };
 
+  const handleRefresh = async () => {
+    await Promise.all([
+      refetchProfiles(),
+      refetchMatches(),
+      queryClient.invalidateQueries({ queryKey: ["tournaments"] }),
+      queryClient.invalidateQueries({ queryKey: ["tournamentDetails"] }),
+      queryClient.invalidateQueries({ queryKey: ["tournamentResults"] }),
+    ]);
+  };
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <section id="mexicana" className="page-section">
       <MexicanaTournament
         user={isGuest ? null : user}
@@ -29,5 +43,6 @@ export default function TournamentPage() {
         onTournamentSync={handleTournamentSync}
       />
     </section>
+    </PullToRefresh>
   );
 }

@@ -1,7 +1,11 @@
 import React from "react";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
+import { Skeleton } from "@mui/material";
+import PTR from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
+
+const PullToRefresh = (PTR as any).default || PTR;
 import { useInfiniteMatches } from "../hooks/useInfiniteMatches";
 import { useProfiles } from "../hooks/useProfiles";
 import { Match, Profile } from "../types";
@@ -13,18 +17,26 @@ export default function HistoryPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading
+    isLoading,
+    refetch: refetchMatches
   } = useInfiniteMatches(matchFilter);
-  const { data: profiles = [] as Profile[] } = useProfiles();
+  const { data: profiles = [] as Profile[], refetch: refetchProfiles } = useProfiles();
 
   const allMatches = data?.pages.flat() || [];
 
+  const handleRefresh = async () => {
+    await Promise.all([refetchMatches(), refetchProfiles()]);
+  };
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <section id="history" className="page-section">
       <h2>Match-historik</h2>
       <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
       {isLoading ? (
-        <p className="muted">Laddar matcher...</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: '14px' }} />
+        </div>
       ) : (
         <>
           <History
@@ -39,12 +51,13 @@ export default function HistoryPage() {
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
               >
-                {isFetchingNextPage ? "Laddar..." : "Visa fler matcher"}
+                {isFetchingNextPage ? <Skeleton width={100} height={24} sx={{ display: 'inline-block' }} /> : "Visa fler matcher"}
               </button>
             </div>
           )}
         </>
       )}
     </section>
+    </PullToRefresh>
   );
 }

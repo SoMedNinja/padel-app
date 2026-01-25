@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter } from "react-router-dom";
+import { Toaster } from "sonner";
 import { supabase } from "./supabaseClient";
 import { useStore } from "./store/useStore";
 import Auth from "./Components/Auth";
@@ -94,6 +95,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <Toaster position="top-center" richColors />
       <MainLayout>
         <AppRoutes />
       </MainLayout>
