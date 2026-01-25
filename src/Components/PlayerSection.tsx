@@ -24,7 +24,13 @@ import {
   getPlayerWeight
 } from "../utils/elo";
 import { GUEST_ID } from "../utils/guest";
-import { getProfileDisplayName, makeNameToIdMap, resolveTeamIds } from "../utils/profileMap";
+import {
+  getProfileDisplayName,
+  makeNameToIdMap,
+  makeProfileMap,
+  resolveTeamIds,
+  resolveTeamNames
+} from "../utils/profileMap";
 import { getMvpStats } from "../utils/stats";
 import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
@@ -85,13 +91,21 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[]) => {
       .map(profile => getProfileDisplayName(profile))
       .filter(name => name && name !== "Gäst")
   );
+  const profileMap = makeProfileMap(profiles);
   const dateMap = new Map<string, Match[]>();
   const matchEntries = matches
-    .map(match => ({
-      match,
-      time: new Date(match.created_at).getTime(),
-      dateKey: match.created_at?.slice(0, 10),
-    }))
+    .map(match => {
+      const normalizedMatch = {
+        ...match,
+        team1: resolveTeamNames(match.team1_ids, match.team1, profileMap),
+        team2: resolveTeamNames(match.team2_ids, match.team2, profileMap)
+      };
+      return {
+        match: normalizedMatch,
+        time: new Date(match.created_at).getTime(),
+        dateKey: match.created_at?.slice(0, 10),
+      };
+    })
     .filter((entry): entry is { match: Match, time: number, dateKey: string } =>
       Number.isFinite(entry.time) && entry.dateKey !== undefined
     );
