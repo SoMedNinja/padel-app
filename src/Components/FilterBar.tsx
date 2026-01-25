@@ -51,13 +51,14 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
             }
           }}
         >
-          Visa matcher
+          {/* Note for non-coders: This text is the heading users see above the filter dropdown. */}
+          globalt filter
         </InputLabel>
         <Select
           labelId="filter-select-label"
           id="filter-select"
           value={filter.type}
-          label="Visa matcher"
+          label="globalt filter"
           onChange={handleChange}
           sx={{
             borderRadius: "12px",
