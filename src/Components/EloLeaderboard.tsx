@@ -87,7 +87,8 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
       if (result !== first) break;
       count += 1;
     }
-    return `${first}${count}`;
+    const label = first === "W" ? "V" : "F";
+    return `${label}${count}`;
   };
 
   const getTrendIndicator = (player: PlayerStats) => {

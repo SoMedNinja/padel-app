@@ -58,6 +58,7 @@ import {
   Tab,
   Tabs,
   MenuItem,
+  Chip,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -299,7 +300,11 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
     const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
 
     total++;
-    playerWon ? wins++ : losses++;
+    if (playerWon) {
+      wins++;
+    } else {
+      losses++;
+    }
 
     let setsFor = isTeam1 ? s1 : s2;
     let setsAgainst = isTeam1 ? s2 : s1;
@@ -328,7 +333,7 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
   return { wins, losses, matches: total, avgSetDiff, totalSetsFor, totalSetsAgainst };
 };
 
-const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string, mode: string) => {
+const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string) => {
   if (!playerId || !opponentId) return { wins: 0, matches: 0 };
 
   const playerResults = tournamentResults.filter(r => r.profile_id === playerId);
@@ -421,7 +426,6 @@ export default function PlayerSection({
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
   );
-  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
 
   const playerName = playerProfile
     ? getProfileDisplayName(playerProfile)
@@ -485,13 +489,6 @@ export default function PlayerSection({
     const wins = recentForm.filter(result => result === "W").length;
     return { wins, losses: recentForm.length - wins };
   }, [recentForm]);
-
-  const recentEloDelta = useMemo(() => {
-    const history = filteredStats?.history ?? [];
-    if (history.length < 1) return 0;
-    // For filtered view, we want the total change over these matches
-    return history.reduce((sum, entry) => sum + entry.delta, 0);
-  }, [filteredStats]);
 
   const last30DaysDelta = useMemo(() => {
     const history = globalStats?.history ?? [];
@@ -611,7 +608,7 @@ export default function PlayerSection({
           if (data) onProfileUpdate?.(data);
         });
     }
-  }, [avatarStorageId, playerProfile?.avatar_url, user?.id]);
+  }, [avatarStorageId, playerProfile?.avatar_url, user?.id, onProfileUpdate]);
 
   useEffect(() => {
     setSelectedBadgeId(playerProfile?.featured_badge_id || null);
@@ -850,7 +847,7 @@ export default function PlayerSection({
 
         <Grid container spacing={2}>
           {tournamentMerits.map(merit => (
-            <Grid item xs={6} sm={4} md={3} key={merit.label}>
+            <Grid key={merit.label} size={{ xs: 6, sm: 4, md: 3 }}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'grey.50' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{merit.label}</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 800 }}>{merit.count}</Typography>
@@ -867,7 +864,7 @@ export default function PlayerSection({
             { label: "ELO +/- (Pass)", value: formatEloDelta(lastSessionDelta), color: getEloDeltaClass(lastSessionDelta) },
             { label: "Form (L5)", value: `${recentFormStats.wins}V - ${recentFormStats.losses}F` },
           ].map(stat => (
-            <Grid item xs={6} sm={4} md={3} key={stat.label}>
+            <Grid key={stat.label} size={{ xs: 6, sm: 4, md: 3 }}>
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 800, color: stat.color === 'stat-delta-positive' ? 'success.main' : stat.color === 'stat-delta-negative' ? 'error.main' : 'inherit' }}>
@@ -882,7 +879,7 @@ export default function PlayerSection({
           <Box sx={{ mt: 6 }}>
             <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Synergi & Rivalitet (30d)</Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'success.light', color: 'success.contrastText' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Bästa Partner</Typography>
                   {(() => {
@@ -899,7 +896,7 @@ export default function PlayerSection({
                   })()}
                 </Paper>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Tuffaste Motståndare</Typography>
                   {(() => {
@@ -981,8 +978,8 @@ export function HeadToHeadSection({
   );
 
   const tournamentH2H = useMemo(
-    () => buildHeadToHeadTournaments(tournamentResults, user?.id, resolvedOpponentId, mode),
-    [tournamentResults, user?.id, resolvedOpponentId, mode]
+    () => buildHeadToHeadTournaments(tournamentResults, user?.id, resolvedOpponentId),
+    [tournamentResults, user?.id, resolvedOpponentId]
   );
 
   const mvpSummary = useMemo(
@@ -1096,7 +1093,7 @@ export function HeadToHeadSection({
                   color: headToHead.avgSetDiff > 0 ? 'success.main' : headToHead.avgSetDiff < 0 ? 'error.main' : 'inherit'
                 },
               ].map(stat => (
-                <Grid item xs={6} sm={4} md={2.4} key={stat.label}>
+                <Grid key={stat.label} size={{ xs: 6, sm: 4, md: 2.4 }}>
                   <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800, color: stat.color || 'inherit' }}>{stat.value}</Typography>
@@ -1104,7 +1101,7 @@ export function HeadToHeadSection({
                 </Grid>
               ))}
 
-              <Grid item xs={12} sm={12} md={12}>
+              <Grid size={{ xs: 12 }}>
                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste 5</Typography>
                     {recentResults.length ? (
@@ -1130,15 +1127,15 @@ export function HeadToHeadSection({
                 { label: "Turneringar (Gemensamma / Dina vinster)", val1: tournamentH2H.matches, val2: tournamentH2H.wins, labels: ["Gemensamma", "Dina vinster"] },
                 { label: "Antal kvällens MVP", val1: playerEveningMvps, val2: opponentEveningMvps },
               ].map((comp, idx) => (
-                <Grid item xs={12} key={idx}>
+                <Grid key={idx} size={{ xs: 12 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 2 }}>{comp.label}</Typography>
                     <Grid container spacing={2}>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="caption" color="text.secondary">{comp.labels ? comp.labels[0] : "Du"}</Typography>
                         <Typography variant="h6" sx={{ fontWeight: 800 }}>{comp.val1}</Typography>
                       </Grid>
-                      <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                      <Grid size={{ xs: 6 }} sx={{ textAlign: 'right' }}>
                         <Typography variant="caption" color="text.secondary">{comp.labels ? comp.labels[1] : opponentName}</Typography>
                         <Typography variant="h6" sx={{ fontWeight: 800 }}>{comp.val2}</Typography>
                       </Grid>

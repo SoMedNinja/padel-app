@@ -1,9 +1,31 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
 import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Box,
+  Fab,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Alert,
+  AlertTitle,
+  Container,
+} from "@mui/material";
+import {
+  Menu as MenuIcon,
+  Add as AddIcon,
+  Close as CloseIcon,
+  SportsTennis as TennisIcon,
+  EmojiEvents as TrophyIcon,
+} from "@mui/icons-material";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -12,9 +34,7 @@ interface MainLayoutProps {
 export default function MainLayout({ children }: MainLayoutProps) {
   const { user, isGuest, setIsGuest, setUser } = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isFabOpen, setIsFabOpen] = useState(false);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLElement>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -22,18 +42,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
-    requestAnimationFrame(() => menuButtonRef.current?.focus());
   }, []);
 
   const toggleMenu = useCallback(() => {
     setIsMenuOpen(prev => !prev);
-    setIsFabOpen(false);
   }, []);
 
-  const toggleFab = useCallback(() => {
-    setIsFabOpen(prev => !prev);
-    setIsMenuOpen(false);
-  }, []);
+  const handleFabClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleFabClose = () => {
+    setAnchorEl(null);
+  };
 
   const handleAuthAction = () => {
     closeMenu();
@@ -45,54 +66,75 @@ export default function MainLayout({ children }: MainLayoutProps) {
     }
   };
 
-  useEffect(() => {
-    if (!isMenuOpen) return;
-    const focusable = menuRef.current?.querySelector("a, button") as HTMLElement;
-    focusable?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMenu();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isMenuOpen, closeMenu]);
-
   return (
-    <div className="container">
-      <div className="app-header">
-        <h1 className="app-title">
-          <span className="app-logo" aria-hidden="true">GS</span>
-          <span className="app-title-text">
-            {isDashboard ? (
-              <>
-                <span className="app-title-name">Grabbarnas serie</span>
-                <span className="app-title-subtitle">Padel, prestige & bragging rights</span>
-              </>
-            ) : (
-              <span className="app-title-name">Padel app</span>
-            )}
-          </span>
-        </h1>
-        <button
-          ref={menuButtonRef}
-          className="menu-toggle hide-on-mobile"
-          type="button"
-          aria-label="Öppna meny"
-          aria-expanded={isMenuOpen}
-          aria-controls="app-menu"
-          onClick={toggleMenu}
-        >
-          ☰
-        </button>
-      </div>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', pb: { xs: 8, sm: 0 } }}>
+      <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+        <Container maxWidth="lg" disableGutters>
+          <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 2,
+                  display: 'grid',
+                  placeItems: 'center',
+                  background: 'linear-gradient(140deg, #b71c1c, #ff8f00)',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: 14,
+                  letterSpacing: '0.08em',
+                  boxShadow: '0 6px 12px rgba(183, 28, 28, 0.2)',
+                }}
+              >
+                GS
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                <Typography
+                  variant="h6"
+                  component="div"
+                  sx={{
+                    color: 'primary.main',
+                    fontWeight: 800,
+                    lineHeight: 1.2,
+                    fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                  }}
+                >
+                  {isDashboard ? "Grabbarnas serie" : "Padel app"}
+                </Typography>
+                {isDashboard && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: 10,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Padel, prestige & bragging rights
+                  </Typography>
+                )}
+              </Box>
+            </Box>
 
-      {isMenuOpen && <div className="app-menu-backdrop" onClick={closeMenu} />}
+            <IconButton
+              edge="end"
+              color="primary"
+              aria-label="meny"
+              onClick={toggleMenu}
+              sx={{
+                display: { xs: 'none', sm: 'inline-flex' },
+                ml: 'auto'
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
+          </Toolbar>
+        </Container>
+      </AppBar>
 
       <SideMenu
-        ref={menuRef}
         isMenuOpen={isMenuOpen}
         closeMenu={closeMenu}
         user={user}
@@ -101,54 +143,80 @@ export default function MainLayout({ children }: MainLayoutProps) {
       />
 
       {isGuest && (
-        <div className="guest-banner">
-          <div className="guest-banner-header">
-            <strong>Gästläge</strong>
-            <span className="muted">Utforska statistik, men inga ändringar sparas.</span>
-          </div>
-        </div>
+        <Container maxWidth="lg" sx={{ mt: 2 }}>
+          <Alert severity="warning">
+            <AlertTitle>Gästläge</AlertTitle>
+            Utforska statistik, men inga ändringar sparas.
+          </Alert>
+        </Container>
       )}
 
-      <main>{children}</main>
+      <Box component="main" sx={{ flexGrow: 1 }}>
+        {children}
+      </Box>
 
-      <>
-        {isFabOpen && (
-          <div className="fab-overlay" onClick={() => setIsFabOpen(false)}>
-            <div className="fab-options">
-              {!isGuest && (
-                <button
-                  type="button"
-                  onClick={() => { navigate("/single-game"); setIsFabOpen(false); }}
-                >
-                  🎾 Enkel match
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => { navigate("/tournament"); setIsFabOpen(false); }}
-              >
-                🏆 Turnering
-              </button>
-            </div>
-          </div>
+      {/* Floating Action Button for large screens */}
+      <Fab
+        color="primary"
+        aria-label="spela"
+        onClick={handleFabClick}
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 1200,
+          display: { xs: 'none', sm: 'flex' },
+          width: { sm: 56 },
+          height: { sm: 56 }
+        }}
+      >
+        {anchorEl ? <CloseIcon /> : <AddIcon />}
+      </Fab>
+
+      {/* Shareable Menu for FAB and BottomNav */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleFabClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              mb: 2,
+              minWidth: 160,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+              borderRadius: 3,
+            }
+          }
+        }}
+        sx={{ zIndex: 1400 }}
+      >
+        {!isGuest && (
+          <MenuItem onClick={() => { navigate("/single-game"); handleFabClose(); }}>
+            <ListItemIcon><TennisIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Enkel match</ListItemText>
+          </MenuItem>
         )}
-        <button
-          type="button"
-          className={`fab ${isFabOpen ? 'open' : ''} hide-on-mobile`}
-          onClick={toggleFab}
-          aria-label="Spela"
-        >
-          {isFabOpen ? '✕' : '+'}
-        </button>
-      </>
+        <MenuItem onClick={() => { navigate("/tournament"); handleFabClose(); }}>
+          <ListItemIcon><TrophyIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Turnering</ListItemText>
+        </MenuItem>
+      </Menu>
 
       <BottomNav
         isMenuOpen={isMenuOpen}
-        isFabOpen={isFabOpen}
+        isFabOpen={Boolean(anchorEl)}
         toggleMenu={toggleMenu}
-        toggleFab={toggleFab}
+        toggleFab={handleFabClick as any}
         closeMenu={closeMenu}
       />
-    </div>
+    </Box>
   );
 }

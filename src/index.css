@@ -19,8 +19,16 @@
   --shadow-card:0 8px 18px rgba(0, 0, 0, 0.08);
 }
 
-body { font-family:"Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; background:var(--color-bg); margin:0; padding:0; color:var(--color-text); line-height:1.5; }
+body {
+  font-family:"Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--color-bg);
+  margin:0;
+  padding:0;
+  color:var(--color-text);
+  line-height:1.5;
+}
 
+/* Legacy support for tables if needed, but transitioning to MUI Table */
 .styled-table {
   width:100%;
   border-collapse:separate;
@@ -34,20 +42,6 @@ body { font-family:"Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; 
   width:100%;
   position:relative;
   overflow:visible;
-}
-
-.table-loading-overlay {
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(255, 255, 255, 0.8);
-  color:var(--color-text);
-  font-weight:600;
-  border-radius:var(--radius-lg);
-  text-transform:lowercase;
-  pointer-events:none;
 }
 
 .table-scroll-inner {
@@ -99,122 +93,10 @@ body { font-family:"Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; 
   color:#b71c1c;
 }
 
-.avatar {
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:#fbe9e9;
-  color:#b71c1c;
-  font-weight:700;
-  text-transform:uppercase;
+/* Helper for Recharts fullscreen */
+body.chart-fullscreen-active {
+  overflow:hidden;
 }
-
-.avatar-fallback span {
-  font-size:42px;
-}
-
-.leaderboard-avatar.avatar-fallback span {
-  font-size:14px;
-}
-
-.head-to-head-avatar.avatar-fallback span {
-  font-size:18px;
-}
-
-.player-details {
-  flex:1;
-  min-width:240px;
-}
-
-.form-label {
-  display:block;
-  font-size:14px;
-  color:#555;
-  margin-bottom:10px;
-}
-
-body { font-family:"Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; background:var(--color-bg); margin:0; padding:0; color:var(--color-text); line-height:1.5; }
-
-.styled-table {
-  width:100%;
-  border-collapse:separate;
-  border-spacing:0;
-  margin-bottom:0;
-  border:1px solid var(--color-border);
-  border-radius:var(--radius-lg);
-}
-
-.table-scroll {
-  width:100%;
-  position:relative;
-  overflow:visible;
-}
-
-.table-loading-overlay {
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(255, 255, 255, 0.8);
-  color:var(--color-text);
-  font-weight:600;
-  border-radius:var(--radius-lg);
-  text-transform:lowercase;
-  pointer-events:none;
-}
-
-.table-scroll-inner {
-  width:100%;
-  overflow-x:auto;
-  overflow-y:visible;
-  -webkit-overflow-scrolling:touch;
-}
-
-.table-scroll-inner .styled-table {
-  min-width:100%;
-  width:max-content;
-}
-
-.styled-table th,
-.styled-table td {
-  padding:10px 12px;
-  border:none;
-  border-bottom:1px solid #eee;
-  text-align:left;
-  white-space:nowrap;
-}
-
-.styled-table th:not(:first-child),
-.styled-table td:not(:first-child) {
-  text-align:center;
-}
-
-.styled-table thead th {
-  background:var(--color-highlight);
-  color:var(--color-brand-dark);
-  font-weight:600;
-  border-bottom:1px solid #f0dada;
-}
-
-.styled-table tbody tr:nth-child(even) {
-  background:#fafafa;
-}
-
-.styled-table tbody tr:hover {
-  background:#fff0f0;
-}
-
-.styled-table th.sortable {
-  cursor:pointer;
-}
-
-.styled-table th.sortable:hover {
-  color:#b71c1c;
-}
-
-
-
 
 /* Tournament Bracket Visualization */
 .tournament-bracket {

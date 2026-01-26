@@ -4,7 +4,6 @@ import {
   getRestCycle,
   pickAmericanoRestingPlayers,
   pickAmericanoTeams,
-  pickMexicanoRestingPlayers,
   pickMexicanoTeams,
   generateAmericanoRounds,
   getNextSuggestion

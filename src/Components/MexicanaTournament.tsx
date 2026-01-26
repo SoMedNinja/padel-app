@@ -471,7 +471,7 @@ export default function MexicanaTournament({
         <Box sx={{ maxHeight: '240px', overflowY: 'auto', mb: 2 }}>
           <Grid container spacing={1}>
             {selectableProfiles.map(p => (
-              <Grid item xs={12} key={p.id}>
+              <Grid key={p.id} size={{ xs: 12 }}>
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -535,10 +535,10 @@ export default function MexicanaTournament({
       {isLoading ? (
         <Stack spacing={2}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
             </Grid>
           </Grid>
@@ -547,7 +547,7 @@ export default function MexicanaTournament({
       ) : (
       <>
       <Grid container spacing={3}>
-        <Grid item xs={12} md={activeTournament?.status === 'draft' ? 6 : 12}>
+        <Grid size={{ xs: 12, md: activeTournament?.status === 'draft' ? 6 : 12 }}>
           <Card variant="outlined" sx={{ borderRadius: 3 }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -642,7 +642,7 @@ export default function MexicanaTournament({
         </Grid>
 
         {activeTournament?.status === 'draft' && (
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             {rosterCard}
           </Grid>
         )}
@@ -650,7 +650,7 @@ export default function MexicanaTournament({
 
       {activeTournament?.status === 'in_progress' && (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Spela ronder</Typography>
@@ -687,7 +687,7 @@ export default function MexicanaTournament({
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Lag A (vänster) börjar serva.</Typography>
 
                         <Grid container spacing={2} alignItems="center">
-                          <Grid item xs={5}>
+                          <Grid size={{ xs: 5 }}>
                             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>{idsToNames(recordingRound.team1_ids, profileMap).join(" & ")}</Typography>
                             <TextField
                               fullWidth
@@ -698,10 +698,10 @@ export default function MexicanaTournament({
                               onChange={e => handleScoreChange('team1_score', e.target.value)}
                             />
                           </Grid>
-                          <Grid item xs={2} sx={{ textAlign: 'center' }}>
+                          <Grid size={{ xs: 2 }} sx={{ textAlign: 'center' }}>
                             <Typography sx={{ fontWeight: 800 }}>VS</Typography>
                           </Grid>
-                          <Grid item xs={5}>
+                          <Grid size={{ xs: 5 }}>
                             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>{idsToNames(recordingRound.team2_ids, profileMap).join(" & ")}</Typography>
                             <TextField
                               fullWidth
@@ -739,7 +739,7 @@ export default function MexicanaTournament({
                             </Box>
 
                             <Grid container spacing={2} alignItems="center">
-                              <Grid item xs={5}>
+                              <Grid size={{ xs: 5 }}>
                                 <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>{idsToNames(round.team1_ids, profileMap).join(" & ")}</Typography>
                                 <TextField
                                   fullWidth
@@ -749,10 +749,10 @@ export default function MexicanaTournament({
                                   onChange={e => handleScoreChangeInList(round.id, 'team1_score', e.target.value)}
                                 />
                               </Grid>
-                              <Grid item xs={2} sx={{ textAlign: 'center' }}>
+                              <Grid size={{ xs: 2 }} sx={{ textAlign: 'center' }}>
                                 <Typography sx={{ fontWeight: 700 }}>–</Typography>
                               </Grid>
-                              <Grid item xs={5}>
+                              <Grid size={{ xs: 5 }}>
                                 <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>{idsToNames(round.team2_ids, profileMap).join(" & ")}</Typography>
                                 <TextField
                                   fullWidth
@@ -808,38 +808,36 @@ export default function MexicanaTournament({
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Poängställning</Typography>
-                <Box className="table-scroll">
-                  <Box className="table-scroll-inner">
-                    <table className="styled-table">
-                      <thead>
-                        <tr>
-                          <th>Plac.</th>
-                          <th>Namn</th>
-                          <th>Poäng</th>
-                          <th>Matcher</th>
-                          <th>V/O/F</th>
-                          <th>Diff</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedStandings.map((res, i) => (
-                          <tr key={res.id}>
-                            <td style={{ fontWeight: 700 }}>{i + 1}</td>
-                            <td>{getIdDisplayName(res.id, profileMap)}</td>
-                            <td style={{ fontWeight: 700 }}>{res.totalPoints}</td>
-                            <td>{res.gamesPlayed}</td>
-                            <td>{res.wins}/{res.ties}/{res.losses}</td>
-                            <td>{res.pointsFor - res.pointsAgainst}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </Box>
-                </Box>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
+                  <Table size="small">
+                    <TableHead sx={{ bgcolor: 'grey.50' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700 }}>Plac.</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Poäng</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Matcher</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">V/O/F</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Diff</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {sortedStandings.map((res, i) => (
+                        <TableRow key={res.id} hover>
+                          <TableCell sx={{ fontWeight: 700 }}>{i + 1}</TableCell>
+                          <TableCell>{getIdDisplayName(res.id, profileMap)}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{res.totalPoints}</TableCell>
+                          <TableCell align="center">{res.gamesPlayed}</TableCell>
+                          <TableCell align="center">{res.wins}/{res.ties}/{res.losses}</TableCell>
+                          <TableCell align="center">{res.pointsFor - res.pointsAgainst}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
                 <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
                    <Button variant="outlined" color="error" startIcon={<StopIcon />} onClick={markAbandoned}>Avbryt</Button>
                    <Button variant="contained" color="success" startIcon={<CompleteIcon />} onClick={completeTournament} disabled={rounds.length === 0}>
@@ -862,7 +860,7 @@ export default function MexicanaTournament({
 
             <Grid container spacing={2} sx={{ mb: 4 }}>
               {sortedStandings.slice(0, 3).map((res, i) => (
-                <Grid item xs={12} sm={4} key={res.id}>
+                <Grid key={res.id} size={{ xs: 12, sm: 4 }}>
                   <Paper sx={{ p: 2, textAlign: 'center', bgcolor: i === 0 ? 'primary.light' : 'background.paper', color: i === 0 ? 'primary.contrastText' : 'text.primary', border: 1, borderColor: 'divider' }}>
                     <Typography variant="h4" sx={{ fontWeight: 900 }}>{i + 1}</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>{getIdDisplayName(res.id, profileMap)}</Typography>
@@ -872,36 +870,34 @@ export default function MexicanaTournament({
               ))}
             </Grid>
 
-            <Box className="table-scroll" sx={{ mb: 4 }}>
-              <Box className="table-scroll-inner">
-                <table className="styled-table">
-                  <thead>
-                    <tr>
-                      <th>Plac.</th>
-                      <th>Namn</th>
-                      <th>Poäng</th>
-                      <th>Matcher</th>
-                      <th>V/O/F</th>
-                      <th>Diff</th>
-                      <th>Snitt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedStandings.map((res, i) => (
-                      <tr key={res.id}>
-                        <td style={{ fontWeight: 700 }}>{i + 1}</td>
-                        <td>{getIdDisplayName(res.id, profileMap)}</td>
-                        <td style={{ fontWeight: 700 }}>{res.totalPoints}</td>
-                        <td>{res.gamesPlayed}</td>
-                        <td>{res.wins}/{res.ties}/{res.losses}</td>
-                        <td>{res.pointsFor - res.pointsAgainst}</td>
-                        <td>{(res.totalPoints / (res.gamesPlayed || 1)).toFixed(1)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Box>
-            </Box>
+            <TableContainer component={Paper} variant="outlined" sx={{ mb: 4, borderRadius: 2, overflow: 'auto' }}>
+              <Table size="small">
+                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>Plac.</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Poäng</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Matcher</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">V/O/F</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Diff</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Snitt</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedStandings.map((res, i) => (
+                    <TableRow key={res.id} hover>
+                      <TableCell sx={{ fontWeight: 700 }}>{i + 1}</TableCell>
+                      <TableCell>{getIdDisplayName(res.id, profileMap)}</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700 }}>{res.totalPoints}</TableCell>
+                      <TableCell align="center">{res.gamesPlayed}</TableCell>
+                      <TableCell align="center">{res.wins}/{res.ties}/{res.losses}</TableCell>
+                      <TableCell align="center">{res.pointsFor - res.pointsAgainst}</TableCell>
+                      <TableCell align="center">{(res.totalPoints / (res.gamesPlayed || 1)).toFixed(1)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
             <Divider sx={{ mb: 3 }} />
 
@@ -929,46 +925,44 @@ export default function MexicanaTournament({
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Historik</Typography>
-          <Box className="table-scroll">
-            <Box className="table-scroll-inner">
-              <table className="styled-table">
-                <thead>
-                  <tr>
-                    <th>Turnering</th>
-                    <th>Typ</th>
-                    <th>Status</th>
-                    <th>Datum</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tournaments.map(t => (
-                    <tr key={t.id}>
-                      <td style={{ fontWeight: 600 }}>{t.name}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{t.tournament_type}</td>
-                      <td>
-                        <Chip
-                          label={getTournamentStatusLabel(t.status)}
-                          size="small"
-                          color={t.status === 'completed' ? 'success' : 'default'}
-                          sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                        />
-                      </td>
-                      <td>{formatDate(t.scheduled_at)}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
-                          <IconButton size="small" color="error" onClick={() => deleteTournament(t)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Stack>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Box>
-          </Box>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
+            <Table size="small">
+              <TableHead sx={{ bgcolor: 'grey.50' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>Turnering</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Typ</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Datum</TableCell>
+                  <TableCell align="right"></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {tournaments.map(t => (
+                  <TableRow key={t.id} hover>
+                    <TableCell sx={{ fontWeight: 600 }}>{t.name}</TableCell>
+                    <TableCell sx={{ textTransform: 'capitalize' }}>{t.tournament_type}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={getTournamentStatusLabel(t.status)}
+                        size="small"
+                        color={t.status === 'completed' ? 'success' : 'default'}
+                        sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                      />
+                    </TableCell>
+                    <TableCell>{formatDate(t.scheduled_at)}</TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
+                        <IconButton size="small" color="error" onClick={() => deleteTournament(t)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </CardContent>
       </Card>
       </>

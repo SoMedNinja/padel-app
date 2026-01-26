@@ -139,7 +139,7 @@ export default function MeritsSection({
                     <Typography variant="overline" sx={{ fontWeight: 700, color: 'primary.main', mb: 2, display: 'block' }}>{group.label}</Typography>
                     <Grid container spacing={2}>
                       {group.items.map(badge => (
-                        <Grid item xs={12} sm={6} md={4} key={badge.id}>
+                        <Grid key={badge.id} size={{ xs: 12, sm: 6, md: 4 }}>
                           <Paper
                             variant="outlined"
                             sx={{
@@ -149,27 +149,28 @@ export default function MeritsSection({
                               flexDirection: 'column',
                               gap: 1,
                               borderRadius: 2,
-                              bgcolor: 'success.light',
-                              color: 'success.contrastText',
+                              bgcolor: '#f1f8f4',
+                              color: 'success.dark',
                               border: 2,
-                              borderColor: selectedBadgeId === badge.id ? 'primary.main' : 'transparent',
+                              borderColor: selectedBadgeId === badge.id ? 'primary.main' : 'success.light',
                               transition: 'all 0.2s',
                             }}
                           >
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Typography variant="h4">{badge.icon}</Typography>
-                              {badge.tier && <Chip label={badge.tier} size="small" sx={{ fontWeight: 800, bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit' }} />}
+                              {badge.tier && <Chip label={badge.tier} size="small" variant="outlined" color="success" sx={{ fontWeight: 800 }} />}
                             </Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{badge.title}</Typography>
-                            <Typography variant="caption" sx={{ opacity: 0.9, flexGrow: 1 }}>{badge.description}</Typography>
-                            {badge.meta && <Typography variant="caption" sx={{ fontWeight: 700 }}>{badge.meta}</Typography>}
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>{badge.title}</Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>{badge.description}</Typography>
+                            {badge.meta && <Typography variant="caption" sx={{ fontWeight: 700, color: 'success.main' }}>{badge.meta}</Typography>}
                             <Button
-                              variant="contained"
+                              variant={selectedBadgeId === badge.id ? "contained" : "outlined"}
                               size="small"
+                              color="success"
                               fullWidth
                               onClick={() => handleBadgeSelection(badge.id)}
                               disabled={savingBadgeId === badge.id}
-                              sx={{ mt: 1, bgcolor: selectedBadgeId === badge.id ? 'primary.main' : 'rgba(0,0,0,0.1)', '&:hover': { bgcolor: 'primary.dark' } }}
+                              sx={{ mt: 1, fontWeight: 700 }}
                             >
                               {selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn"}
                             </Button>
@@ -209,7 +210,7 @@ export default function MeritsSection({
                         ? Math.round((progress.current / progress.target) * 100)
                         : 0;
                       return (
-                        <Grid item xs={12} sm={6} md={4} key={badge.id}>
+                        <Grid key={badge.id} size={{ xs: 12, sm: 6, md: 4 }}>
                           <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 2, bgcolor: 'grey.50', opacity: 0.8 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Typography variant="h4" sx={{ filter: 'grayscale(1)' }}>{badge.icon}</Typography>

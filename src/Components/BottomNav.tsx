@@ -70,7 +70,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
         <BottomNavigationAction
           label="Spela"
           value="fab"
-          icon={isFabOpen ? <CloseIcon /> : <AddIcon />}
+          icon={isFabOpen ? <CloseIcon sx={{ fontSize: '2rem' }} /> : <AddIcon sx={{ fontSize: '2rem' }} />}
           onClick={toggleFab}
           sx={{
             '& .MuiBottomNavigationAction-label': {
@@ -79,7 +79,6 @@ const BottomNav: React.FC<BottomNavProps> = ({
             },
             '& .MuiSvgIcon-root': {
               color: 'primary.main',
-              fontSize: '2rem'
             }
           }}
         />

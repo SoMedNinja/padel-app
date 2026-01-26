@@ -5,10 +5,10 @@ import { Profile, TournamentRound } from '../types';
 interface TournamentBracketProps {
   rounds: TournamentRound[];
   profileMap: Map<string, Profile>;
-  activeTournament: any;
+  activeTournament?: any;
 }
 
-export default function TournamentBracket({ rounds, profileMap, activeTournament }: TournamentBracketProps) {
+export default function TournamentBracket({ rounds, profileMap }: TournamentBracketProps) {
   if (!rounds || rounds.length === 0) {
     return <div className="muted">Inga ronder har skapats än.</div>;
   }

@@ -314,7 +314,7 @@ export default function History({
                 </Box>
 
                 <Grid container spacing={3}>
-                  <Grid item xs={12} sm={4}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
                     <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
                     {isEditing ? (
                       <Stack spacing={1} sx={{ mt: 1 }}>
@@ -358,7 +358,7 @@ export default function History({
                     )}
                   </Grid>
 
-                  <Grid item xs={12} sm={4}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
                     <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag A</Typography>
                     {isEditing ? (
                       <Stack spacing={1} sx={{ mt: 1 }}>
@@ -400,7 +400,7 @@ export default function History({
                     )}
                   </Grid>
 
-                  <Grid item xs={12} sm={4}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
                     <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag B</Typography>
                     {isEditing ? (
                       <Stack spacing={1} sx={{ mt: 1 }}>

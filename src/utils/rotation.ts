@@ -1,4 +1,4 @@
-import { getPlayerWeight, getExpectedScore, ELO_BASELINE } from "./elo";
+import { getExpectedScore, ELO_BASELINE } from "./elo";
 
 export const getTeamAverageElo = (team: string[], eloMap: Record<string, number>) => {
   const active = team.filter(id => id && id !== "guest-id");

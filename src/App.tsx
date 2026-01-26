@@ -76,7 +76,7 @@ export default function App() {
   // Check if profile setup is needed
   if (user && !user.name && !isGuest) {
     return (
-      <div className="container">
+      <MainLayout>
         <ProfileSetup
           user={user}
           initialName={user.name}
@@ -84,7 +84,7 @@ export default function App() {
             setUser({ ...user, ...updatedProfile });
           }}
         />
-      </div>
+      </MainLayout>
     );
   }
 
