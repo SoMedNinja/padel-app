@@ -154,6 +154,7 @@ export function getMvpWinner(
     }
 
     return {
+      id: player?.id,
       name,
       wins: s.wins,
       games: s.games,
