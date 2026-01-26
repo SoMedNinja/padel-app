@@ -1019,7 +1019,7 @@ export function HeadToHeadSection({
               )}
             </div>
             <div className="stat-card stat-card-compare">
-              <span className="stat-label">MVP-månader</span>
+              <span className="stat-label">Antal dagar som månadens MVP</span>
               <div className="stat-compare">
                 <div className="stat-compare-item">
                   <span className="stat-compare-name">Du</span>
@@ -1047,7 +1047,7 @@ export function HeadToHeadSection({
               </div>
             </div>
             <div className="stat-card stat-card-compare">
-              <span className="stat-label">Kvällens MVP</span>
+              <span className="stat-label">Antal kvällens MVP</span>
               <div className="stat-compare">
                 <div className="stat-compare-item">
                   <span className="stat-compare-name">Du</span>
