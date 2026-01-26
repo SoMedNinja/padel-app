@@ -57,9 +57,9 @@ export default function App() {
   if (!user && !isGuest) {
     return (
       <Auth
-        onAuth={() => {
+        onAuth={(authUser) => {
           setIsGuest(false);
-          refresh();
+          setUser({ ...authUser } as any);
         }}
         onGuest={() => setIsGuest(true)}
       />

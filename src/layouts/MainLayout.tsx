@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
 import SideMenu from "../Components/SideMenu";
@@ -16,6 +16,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isDashboard = location.pathname === "/grabbarnas-serie";
 
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
@@ -63,8 +66,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <h1 className="app-title">
           <span className="app-logo" aria-hidden="true">GS</span>
           <span className="app-title-text">
-            <span className="app-title-name">Grabbarnas serie</span>
-            <span className="app-title-subtitle">Padel, prestige & bragging rights</span>
+            {isDashboard ? (
+              <>
+                <span className="app-title-name">Grabbarnas serie</span>
+                <span className="app-title-subtitle">Padel, prestige & bragging rights</span>
+              </>
+            ) : (
+              <span className="app-title-name">Padel app</span>
+            )}
           </span>
         </h1>
         <button

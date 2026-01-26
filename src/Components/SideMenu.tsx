@@ -19,7 +19,7 @@ const SideMenu = React.forwardRef<HTMLElement, SideMenuProps>(
         aria-label="Huvudmeny"
       >
         <Link to="/" onClick={closeMenu}>Hem</Link>
-        <Link to="/profile" onClick={closeMenu}>Spelarprofil</Link>
+        <Link to="/grabbarnas-serie" onClick={closeMenu}>Grabbarnas serie</Link>
         <Link to="/history" onClick={closeMenu}>Match-historik</Link>
         {user?.is_admin && <Link to="/admin" onClick={closeMenu}>Admin</Link>}
         <button type="button" className="ghost-button" onClick={handleAuthAction}>

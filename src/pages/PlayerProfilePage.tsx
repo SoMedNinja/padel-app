@@ -1,6 +1,7 @@
-import React, { useMemo } from "react";
-import PlayerSection, { HeadToHeadSection } from "../Components/PlayerSection";
+import React, { useMemo, useState } from "react";
+import PlayerSection from "../Components/PlayerSection";
 import MeritsSection from "../Components/MeritsSection";
+import Heatmap from "../Components/Heatmap";
 import FilterBar from "../Components/FilterBar";
 import { useStore } from "../store/useStore";
 import { useMatches } from "../hooks/useMatches";
@@ -76,11 +77,13 @@ export default function PlayerProfilePage() {
     [allMatches, profiles]
   );
 
+  const [activeTab, setActiveTab] = useState(0);
+
   // Simplified handling for admin and approval state for now
   const userWithAdmin = user ? { ...user, is_admin: user.is_admin } : null;
 
   const handleProfileUpdate = () => {
-    // In a real refactor, TanStack Query would handle invalidation
+    refetchProfiles();
   };
 
   const handleRefresh = usePullToRefresh([
@@ -138,36 +141,87 @@ export default function PlayerProfilePage() {
           </Stack>
         ) : (
           <>
-            <section id="profile" className="page-section">
-              <PlayerSection
-                user={userWithAdmin}
-                profiles={profiles}
-                matches={filteredMatches}
-                allEloPlayers={allEloPlayers}
-                tournamentResults={tournamentResults}
-                onProfileUpdate={handleProfileUpdate}
-              />
-            </section>
+            <div className="mode-toggle" style={{ marginBottom: '1.5rem' }}>
+              <button
+                type="button"
+                className={activeTab === 0 ? "active" : ""}
+                onClick={() => setActiveTab(0)}
+              >
+                Spelare
+              </button>
+              <button
+                type="button"
+                className={activeTab === 1 ? "active" : ""}
+                onClick={() => setActiveTab(1)}
+              >
+                ELO-utveckling
+              </button>
+              <button
+                type="button"
+                className={activeTab === 2 ? "active" : ""}
+                onClick={() => setActiveTab(2)}
+              >
+                Lag kombinationer
+              </button>
+              <button
+                type="button"
+                className={activeTab === 3 ? "active" : ""}
+                onClick={() => setActiveTab(3)}
+              >
+                Meriter
+              </button>
+            </div>
 
-            <section id="head-to-head" className="page-section">
-              <HeadToHeadSection
-                user={userWithAdmin}
-                profiles={profiles}
-                matches={filteredMatches}
-                allEloPlayers={allEloPlayers}
-                tournamentResults={tournamentResults}
-              />
-            </section>
+            {activeTab === 0 && (
+              <section id="profile" className="page-section">
+                <PlayerSection
+                  user={userWithAdmin}
+                  profiles={profiles}
+                  matches={filteredMatches}
+                  allEloPlayers={allEloPlayers}
+                  tournamentResults={tournamentResults}
+                  onProfileUpdate={handleProfileUpdate}
+                  mode="overview"
+                />
+              </section>
+            )}
 
-            <section id="meriter" className="page-section">
-              <MeritsSection
-                user={userWithAdmin}
-                profiles={profiles}
-                matches={filteredMatches}
-                tournamentResults={tournamentResults}
-                onProfileUpdate={handleProfileUpdate}
-              />
-            </section>
+            {activeTab === 1 && (
+              <section id="elo-history" className="page-section">
+                <PlayerSection
+                  user={userWithAdmin}
+                  profiles={profiles}
+                  matches={filteredMatches}
+                  allEloPlayers={allEloPlayers}
+                  tournamentResults={tournamentResults}
+                  onProfileUpdate={handleProfileUpdate}
+                  mode="chart"
+                />
+              </section>
+            )}
+
+            {activeTab === 2 && (
+              <section id="team-combos" className="page-section">
+                <Heatmap
+                  matches={allMatches}
+                  profiles={profiles}
+                  eloPlayers={allEloPlayers}
+                  currentUserOnly={user?.id}
+                />
+              </section>
+            )}
+
+            {activeTab === 3 && (
+              <section id="meriter" className="page-section">
+                <MeritsSection
+                  user={userWithAdmin}
+                  profiles={profiles}
+                  matches={allMatches}
+                  tournamentResults={tournamentResults}
+                  onProfileUpdate={handleProfileUpdate}
+                />
+              </section>
+            )}
           </>
         )}
       </div>
