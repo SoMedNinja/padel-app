@@ -1,7 +1,8 @@
 import React from "react";
-import { getMvpStats, getLatestMatchDate } from "../utils/stats";
+import { getLatestMatchDate } from "../utils/stats";
 import ProfileName from "./ProfileName";
 import { Match, PlayerStats } from "../types";
+import { getMvpWinner, scorePlayersForMvp, EVENING_MIN_GAMES, MONTH_MIN_GAMES } from "../utils/mvp";
 
 interface MVPProps {
   matches?: Match[];
@@ -40,40 +41,13 @@ export default function MVP({
     );
   }
 
-  const allowedNames = new Set(players.map(player => player.name));
-  const stats = getMvpStats(relevantMatches, allowedNames);
-  const relevantMatchIds = new Set(relevantMatches.map(m => m.id).filter(Boolean));
-
-  const minGames = mode === "evening" ? 3 : 6;
-
-  const scored = Object.entries(stats).map(([name, s]) => {
-    const winRate = s.games ? s.wins / s.games : 0;
-    const player = players.find(p => p.name === name);
-
-    const periodEloGain = (player?.history || [])
-      .filter(h => relevantMatchIds.has(h.matchId))
-      .reduce((sum, h) => sum + (h.delta || 0), 0);
-
-    const eloNet = player?.elo || 1000;
-
-    return {
-      name,
-      wins: s.wins,
-      games: s.games,
-      winRate,
-      winPct: Math.round(winRate * 100),
-      periodEloGain,
-      eloNet,
-      badgeId: player?.featuredBadgeId || null,
-      score: periodEloGain * (0.9 + 0.2 * winRate) + 0.3 * s.games,
-    };
-  });
-
-  const eligible = scored.filter(s => s.games >= minGames);
+  const minGames = mode === "evening" ? EVENING_MIN_GAMES : MONTH_MIN_GAMES;
+  const scored = scorePlayersForMvp(relevantMatches, players, minGames);
+  const mvp = getMvpWinner(scored);
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
 
-  if (!eligible.length) {
+  if (!mvp) {
     return (
       <div className="mvp">
         <div className="mvp-title">{titleEmoji} {title}</div>
@@ -82,22 +56,15 @@ export default function MVP({
     );
   }
 
-  const sortedEligible = eligible.sort((a, b) => {
-    if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
-    if (b.periodEloGain !== a.periodEloGain) return b.periodEloGain - a.periodEloGain;
-    if (b.eloNet !== a.eloNet) return b.eloNet - a.eloNet;
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    return a.name.localeCompare(b.name);
-  });
-
-  const mvp = sortedEligible[0];
+  const player = players.find(p => p.id === mvp.id);
+  const winPct = Math.round(mvp.winRate * 100);
 
   return (
     <div className="mvp">
       <div className="mvp-title">{titleEmoji} {title}</div>
-      <ProfileName className="mvp-name" name={mvp.name} badgeId={mvp.badgeId} />
+      <ProfileName className="mvp-name" name={mvp.name} badgeId={player?.featuredBadgeId || null} />
       <div className="mvp-meta">
-        {mvp.wins} vinster, {mvp.games} matcher, {mvp.winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
+        {mvp.wins} vinster, {mvp.games} matcher, {winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
       </div>
     </div>
   );

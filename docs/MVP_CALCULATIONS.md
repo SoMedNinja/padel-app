@@ -20,16 +20,16 @@ The application tracks two types of MVP titles:
 
 ## The Scoring Formula
 
-The MVP score is designed to reward high ELO gains while also accounting for win efficiency and participation volume.
+The MVP score is designed to reward high ELO gains while also accounting for win efficiency and participation volume. The formula is additive to ensure that playing more and winning more always provides a positive bonus, regardless of whether the ELO gain was positive or negative.
 
-**`MVP Score = eloGain × (0.9 + 0.2 × winRate) + 0.3 × gamesPlayed`**
+**`MVP Score = eloGain + (winRate × 15) + (gamesPlayed × 0.5)`**
 
 ### Breakdown of components:
 1.  **eloGain:** The total ELO points gained (or lost) by the player during the specific period (evening or month). This is the sum of each match's ELO delta for that player.
-2.  **winRate:** The percentage of matches won during the period (expressed as a decimal between 0 and 1). This factor slightly amplifies the ELO gain.
-3.  **gamesPlayed:** The total number of matches played during the period. Every match contributes a flat 0.3 points to the score.
+2.  **winRate:** The percentage of matches won during the period (expressed as a decimal between 0 and 1). A 100% win rate adds **15 points** to the score.
+3.  **gamesPlayed:** The total number of matches played during the period. Every match contributes a flat **0.5 points** to the score.
 
-> **Note for non-coders:** A big ELO jump matters most, but a strong win rate and playing more matches can help boost the score.
+> **Note for non-coders:** Your ELO improvement is the most important part, but winning your games and being active (playing many matches) gives you a solid boost!
 
 ---
 
@@ -52,14 +52,12 @@ If two or more players have the same MVP Score, the following tie-breakers are a
 ## MVP Day Counters (Profile Stats)
 The player profile shows how many times someone has been MVP for:
 
-- **Evening MVPs:** Counted per match date, using the same scoring logic as the MVP card.
-- **Monthly MVP days:** For every calendar day from the first match date up to today (or the latest match date, whichever is later), the app looks back **30 days** and computes a rolling MVP winner. Each day a player wins adds **1 day** to their tally.
+- **Evening MVPs:** Counted per match date, using the same scoring logic as the Dashboard's Evening MVP card.
+- **MVP-dagar (Månad):** This counter shows how many days a player has held the title of "Monthly MVP". For every calendar day since the first recorded match, the app looks back **30 days** and calculates who would have been the Monthly MVP on that specific day using the standard formula.
 
-The rolling MVP winner for these counters uses a **different score** than the MVP cards:
+The rolling MVP winner for these counters uses the **exact same score and eligibility rules** (6 games minimum) as the Dashboard Monthly MVP card.
 
-**`Rolling MVP Score = wins × 3 + winRate × 5 + gamesPlayed`**
-
-> **Note for non-coders:** Think of the monthly MVP days as "how many days you would have been MVP if we checked every day."
+> **Note for non-coders:** Think of this as a continuous ticker. Every morning the app checks "Who has been the best over the last 30 days?" and the winner gets +1 day on their counter.
 
 ---
 
@@ -70,8 +68,8 @@ Evening MVP (Min 3 games).
 - **Player A:** +30 ELO, 3 wins, 3 games (WinRate: 1.0)
 - **Player B:** +35 ELO, 3 wins, 4 games (WinRate: 0.75)
 
-**Player A Score:** `30 * (0.9 + 0.2 * 1.0) + 0.3 * 3` = `30 * 1.1 + 0.9` = **33.9**
-**Player B Score:** `35 * (0.9 + 0.2 * 0.75) + 0.3 * 4` = `35 * 1.05 + 1.2` = **37.95**
+**Player A Score:** `30 + (1.0 * 15) + (3 * 0.5)` = `30 + 15 + 1.5` = **46.5**
+**Player B Score:** `35 + (0.75 * 15) + (4 * 0.5)` = `35 + 11.25 + 2.0` = **48.25**
 
 **Result:** **Player B** wins due to higher ELO gain and participation, despite a lower win percentage.
 
@@ -89,13 +87,10 @@ Evening MVP (Min 3 games). Both players gain 20 ELO and play 4 matches (WinRate 
 
 | Input name | Small description | Reason for inclusion | Weight / impact |
 | :--- | :--- | :--- | :--- |
-| eloGain | Sum of ELO deltas for matches in the window. | Rewards players who improve the most. | Multiplied by **0.9 + 0.2 × winRate**. |
-| winRate | Wins divided by games in the window. | Slightly boosts strong win efficiency. | Adds **0.2 × winRate** inside the eloGain multiplier. |
-| gamesPlayed | Total matches in the window. | Rewards participation volume. | Adds **0.3 per game**. |
+| eloGain | Sum of ELO deltas for matches in the window. | Rewards players who improve the most. | Direct contribution to score. |
+| winRate | Wins divided by games in the window. | Boosts strong win efficiency. | Adds up to **15 points**. |
+| gamesPlayed | Total matches in the window. | Rewards participation volume. | Adds **0.5 points per game**. |
 | minGames | Required games (3 evening, 6 month). | Ensures MVP is based on enough matches. | Eligibility gate only. |
 | time window | Latest match date or last 30 days. | Defines which matches count. | Inclusion gate only. |
-| eloNet | Current total ELO. | Tie-breaker when scores match. | Tie-breaker priority #2. |
-| wins | Count of wins in the window. | Tie-breaker when needed. | Tie-breaker priority #3. |
-| rolling wins | Wins in a rolling 30-day window. | Used for MVP day counters. | **wins × 3** in rolling score. |
-| rolling winRate | Wins ÷ games in rolling window. | Balances efficiency for MVP day counters. | **winRate × 5** in rolling score. |
-| rolling games | Games in rolling window. | Rewards activity for MVP day counters. | **+1 per game** in rolling score. |
+| eloNet | Current total ELO. | Tie-breaker when scores match. | Tie-breaker priority #3. |
+| wins | Count of wins in the window. | Tie-breaker when needed. | Tie-breaker priority #4. |
