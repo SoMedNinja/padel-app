@@ -1,11 +1,22 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
+} from "@mui/material";
+import {
+  Home as HomeIcon,
+  Add as AddIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 
 interface BottomNavProps {
   isMenuOpen: boolean;
   isFabOpen: boolean;
   toggleMenu: () => void;
-  toggleFab: () => void;
+  toggleFab: (event: React.MouseEvent<HTMLButtonElement>) => void;
   closeMenu: () => void;
 }
 
@@ -16,30 +27,69 @@ const BottomNav: React.FC<BottomNavProps> = ({
   toggleFab,
   closeMenu
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const getActiveValue = () => {
+    if (isMenuOpen) return 'menu';
+    if (location.pathname === '/') return 'home';
+    return null;
+  };
+
   return (
-    <nav className="bottom-nav" aria-label="Bottenmeny">
-      <Link to="/" className="bottom-nav-item" onClick={closeMenu}>
-        <span className="bottom-nav-icon">🏠</span>
-        <span className="bottom-nav-label">Hem</span>
-      </Link>
-      <button
-        type="button"
-        className={`bottom-nav-item primary ${isFabOpen ? 'active' : ''}`}
-        onClick={toggleFab}
-        aria-label="Spela"
+    <Paper
+      sx={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        display: { xs: 'block', sm: 'none' },
+        zIndex: 1100,
+        borderTop: 1,
+        borderColor: 'divider'
+      }}
+      elevation={3}
+    >
+      <BottomNavigation
+        showLabels
+        value={getActiveValue()}
+        onChange={(_, newValue) => {
+          if (newValue === 'home') {
+            closeMenu();
+            navigate('/');
+          } else if (newValue === 'menu') {
+            toggleMenu();
+          }
+        }}
       >
-        <span className="bottom-nav-icon">{isFabOpen ? '✕' : '+'}</span>
-      </button>
-      <button
-        type="button"
-        className={`bottom-nav-item ${isMenuOpen ? 'active' : ''}`}
-        onClick={toggleMenu}
-        aria-label="Meny"
-      >
-        <span className="bottom-nav-icon">☰</span>
-        <span className="bottom-nav-label">Meny</span>
-      </button>
-    </nav>
+        <BottomNavigationAction
+          label="Hem"
+          value="home"
+          icon={<HomeIcon />}
+        />
+        <BottomNavigationAction
+          label="Spela"
+          value="fab"
+          icon={isFabOpen ? <CloseIcon /> : <AddIcon />}
+          onClick={toggleFab}
+          sx={{
+            '& .MuiBottomNavigationAction-label': {
+              color: 'primary.main',
+              fontWeight: 800
+            },
+            '& .MuiSvgIcon-root': {
+              color: 'primary.main',
+              fontSize: '2rem'
+            }
+          }}
+        />
+        <BottomNavigationAction
+          label="Meny"
+          value="menu"
+          icon={<MenuIcon />}
+        />
+      </BottomNavigation>
+    </Paper>
   );
 };
 

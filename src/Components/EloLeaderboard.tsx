@@ -3,7 +3,21 @@ import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
 import { PlayerStats } from "../types";
-import { Tooltip, IconButton } from "@mui/material";
+import {
+  Tooltip,
+  IconButton,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from "@mui/material";
 import { InfoOutlined } from "@mui/icons-material";
 
 // Enkel hjälpfunktion för vinstprocent
@@ -21,7 +35,6 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
   const hasUnknownPlayers = players.some(player => !player.name || player.name === "Okänd");
   const showLoadingOverlay = !players.length || hasUnknownPlayers;
 
-  // Ta bort Gäst tidigt
   const visiblePlayers = players.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
 
   const sortedPlayers = [...visiblePlayers].sort((a, b) => {
@@ -90,64 +103,72 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
   };
 
   return (
-    <div className="table-card">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
-        <h2 style={{ margin: 0 }}>ELO Leaderboard</h2>
-        <Tooltip title="ELO är ett rankingsystem baserat på flertal faktorer - hur stark du är, hur stark motståndet är, hur lång matchen är, med mer." arrow>
-          <IconButton size="small" sx={{ opacity: 0.6 }}>
-            <InfoOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </div>
-      <div className="table-scroll">
-        {showLoadingOverlay && (
-          <div className="table-loading-overlay" role="status" aria-live="polite">
-            laddar data…
-          </div>
-        )}
-        <div className="table-scroll-inner">
-          <table className="styled-table leaderboard-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => toggleSort("name")}>Spelare</th>
-              <th className="sortable" onClick={() => toggleSort("elo")}>ELO</th>
-              <th className="sortable" onClick={() => toggleSort("games")}>Matcher</th>
-              <th className="sortable" onClick={() => toggleSort("wins")}>Vinster</th>
-              <th>Streak</th>
-              <th>Trend</th>
-              <th className="sortable" onClick={() => toggleSort("winPct")}>Vinst %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedPlayers.map(p => (
-              <tr key={p.name}>
-                <td>
-                  <div className="leaderboard-name" tabIndex={0}>
-                    <Avatar
-                      className="leaderboard-avatar"
-                      src={p.avatarUrl || getStoredAvatar(p.id)}
-                      name={p.name}
-                      alt={`Profilbild för ${p.name}`}
-                    />
-                    <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
-                  </div>
-                </td>
-                <td>{Math.round(p.elo)}</td>
-                <td>{p.wins + p.losses}</td>
-                <td>{p.wins}</td>
-                <td>{getStreak(p)}</td>
-                <td>
-                  <span className="form-trend" aria-hidden="true">
-                    {getTrendIndicator(p)}
-                  </span>
-                </td>
-                <td>{winPct(p.wins, p.losses)}%</td>
-              </tr>
-            ))}
-          </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>ELO-topplista</Typography>
+          <Tooltip title="ELO är ett rankingsystem baserat på flertal faktorer - hur stark du är, hur starkt motståndet är, hur lång matchen är, med mera." arrow>
+            <IconButton size="small" sx={{ opacity: 0.6 }}>
+              <InfoOutlined fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto', position: 'relative' }}>
+          {showLoadingOverlay && (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'rgba(255,255,255,0.8)',
+                zIndex: 1
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>laddar data…</Typography>
+            </Box>
+          )}
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead sx={{ bgcolor: 'grey.50' }}>
+              <TableRow>
+                <TableCell onClick={() => toggleSort("name")} sx={{ cursor: 'pointer', fontWeight: 700 }}>Spelare</TableCell>
+                <TableCell onClick={() => toggleSort("elo")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">ELO</TableCell>
+                <TableCell onClick={() => toggleSort("games")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Matcher</TableCell>
+                <TableCell onClick={() => toggleSort("wins")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinster</TableCell>
+                <TableCell sx={{ fontWeight: 700 }} align="center">Streak</TableCell>
+                <TableCell sx={{ fontWeight: 700 }} align="center">Trend</TableCell>
+                <TableCell onClick={() => toggleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst %</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedPlayers.map(p => (
+                <TableRow key={p.name} hover>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Avatar
+                        sx={{ width: 32, height: 32 }}
+                        src={p.avatarUrl || getStoredAvatar(p.id)}
+                        name={p.name}
+                      />
+                      <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
+                    </Box>
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
+                  <TableCell align="center">{p.wins + p.losses}</TableCell>
+                  <TableCell align="center">{p.wins}</TableCell>
+                  <TableCell align="center">{getStreak(p)}</TableCell>
+                  <TableCell align="center">
+                    <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
+                  </TableCell>
+                  <TableCell align="center">{winPct(p.wins, p.losses)}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </CardContent>
+    </Card>
   );
 }

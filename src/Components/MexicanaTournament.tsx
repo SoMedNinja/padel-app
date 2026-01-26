@@ -1,5 +1,30 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Skeleton } from "@mui/material";
+import {
+  Skeleton,
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Button,
+  TextField,
+  MenuItem,
+  Stack,
+  Divider,
+  Chip,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+} from "@mui/material";
+import {
+  Add as AddIcon,
+  PlayArrow as StartIcon,
+  Delete as DeleteIcon,
+  Stop as StopIcon,
+  CheckCircle as CompleteIcon,
+  Visibility as ViewIcon,
+  VisibilityOff as HideIcon,
+} from "@mui/icons-material";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
@@ -440,38 +465,64 @@ export default function MexicanaTournament({
   };
 
   const rosterCard = activeTournament && activeTournament.status === 'draft' && (
-    <div className="mexicana-card">
-      <h3>Roster ({participants.length})</h3>
-      <div className="mexicana-roster" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-        {selectableProfiles.map(p => (
-          <label key={p.id} className="mexicana-roster-item">
-            <input type="checkbox" checked={participants.includes(p.id)} onChange={() => toggleParticipant(p.id)} disabled={activeTournament.status !== 'draft'} />
-            <span>{getProfileDisplayName(p)}</span>
-          </label>
-        ))}
-      </div>
-      {activeTournament.status === 'draft' && (
-        <button onClick={saveRoster} disabled={isSaving} style={{ marginTop: '0.5rem' }}>Spara roster</button>
-      )}
-      {activeTournament.status === 'draft' && participants.length >= 4 && (
-        <button onClick={startTournament} disabled={isSaving} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Starta turnering</button>
-      )}
-    </div>
+    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <CardContent>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>Deltagare ({participants.length})</Typography>
+        <Box sx={{ maxHeight: '240px', overflowY: 'auto', mb: 2 }}>
+          <Grid container spacing={1}>
+            {selectableProfiles.map(p => (
+              <Grid item xs={12} key={p.id}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={participants.includes(p.id)}
+                      onChange={() => toggleParticipant(p.id)}
+                      disabled={activeTournament.status !== 'draft'}
+                    />
+                  }
+                  label={getProfileDisplayName(p)}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+        {activeTournament.status === 'draft' && (
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={saveRoster} disabled={isSaving}>
+              Spara roster
+            </Button>
+            {participants.length >= 4 && (
+              <Button variant="outlined" startIcon={<StartIcon />} onClick={startTournament} disabled={isSaving}>
+                Starta turnering
+              </Button>
+            )}
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
   );
 
   return (
-    <section className="page-section mexicana-page">
-      <header className="mexicana-header">
-        <div>
-          <h2>Turnering</h2>
-          <p className="muted">Stöd för Americano (fairness) och Mexicano (merit-baserad).</p>
-        </div>
+    <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Turnering</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Stöd för Americano (rättvisa) och Mexicano (jämna matcher).
+          </Typography>
+        </Box>
         {activeTournament && (
-          <span className={`mexicana-status status-${activeTournament.status}`}>
-            {getTournamentStatusLabel(activeTournament.status)}
-          </span>
+          <Chip
+            label={getTournamentStatusLabel(activeTournament.status)}
+            color={
+              activeTournament.status === 'completed' ? 'success' :
+              activeTournament.status === 'in_progress' ? 'primary' :
+              'default'
+            }
+            sx={{ fontWeight: 700 }}
+          />
         )}
-      </header>
+      </Box>
 
       {activeTournament && (activeTournament.status === 'in_progress' || activeTournament.status === 'completed') && (
         <TournamentBracket
@@ -481,190 +532,348 @@ export default function MexicanaTournament({
         />
       )}
 
-
       {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="mexicana-grid">
-            <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '16px' }} />
-            <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '16px' }} />
-          </div>
-          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: '16px' }} />
-        </div>
+        <Stack spacing={2}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+            </Grid>
+          </Grid>
+          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 3 }} />
+        </Stack>
       ) : (
       <>
-      <div className="mexicana-grid">
-        <div className="mexicana-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 style={{ margin: 0 }}>Välj eller skapa turnering</h3>
-            {activeTournamentId && (
-              <button
-                className="ghost-button"
-                onClick={() => setActiveTournamentId("")}
-                style={{ fontSize: '12px', padding: '4px 8px' }}
-              >
-                + Ny turnering
-              </button>
-            )}
-          </div>
-          <select value={activeTournamentId} onChange={e => setActiveTournamentId(e.target.value)}>
-            <option value="">-- Välj turnering / Skapa ny --</option>
-            {tournaments.map(t => (
-              <option key={t.id} value={t.id}>{t.name} ({getTournamentStatusLabel(t.status)})</option>
-            ))}
-          </select>
-
-          {!activeTournamentId && (
-            <form className="mexicana-form" onSubmit={createTournament} style={{ marginTop: '1rem' }}>
-              <input type="text" placeholder="Namn" value={newTournament.name} onChange={e => setNewTournament({ ...newTournament, name: e.target.value })} disabled={isSaving} />
-              <input type="text" placeholder="Plats (valfritt)" value={newTournament.location} onChange={e => setNewTournament({ ...newTournament, location: e.target.value })} disabled={isSaving} />
-              <input type="date" value={newTournament.scheduled_at} onChange={e => setNewTournament({ ...newTournament, scheduled_at: e.target.value })} disabled={isSaving} />
-              <select value={newTournament.tournament_type} onChange={e => setNewTournament({ ...newTournament, tournament_type: e.target.value })} disabled={isSaving}>
-                <option value="americano">Americano</option>
-                <option value="mexicano">Mexicano</option>
-              </select>
-              <div className="muted" style={{ fontSize: '0.8rem', padding: '0 4px' }}>
-                {newTournament.tournament_type === 'americano' ? (
-                  <>
-                    <strong>Americano:</strong> Fokus på rättvisa. Alla spelar med och mot alla så mycket som möjligt. Lagen är förutbestämda. Vinnare är den med flest totalpoäng.
-                  </>
-                ) : (
-                  <>
-                    <strong>Mexicano:</strong> Fokus på jämna matcher. Laguppställningar baseras på poäng för att skapa utmanande möten. Vinnare är den med flest totalpoäng.
-                  </>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={activeTournament?.status === 'draft' ? 6 : 12}>
+          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>Välj eller skapa turnering</Typography>
+                {activeTournamentId && (
+                  <Button size="small" startIcon={<AddIcon />} onClick={() => setActiveTournamentId("")}>
+                    Ny turnering
+                  </Button>
                 )}
-              </div>
-              <select value={newTournament.score_target} onChange={e => setNewTournament({ ...newTournament, score_target: e.target.value })} disabled={isSaving}>
-                {POINTS_OPTIONS.map(p => <option key={p} value={p}>{p} poäng</option>)}
-              </select>
-              <button type="submit" disabled={isSaving}>Skapa</button>
-            </form>
-          )}
-        </div>
+              </Box>
 
-        {activeTournament?.status === 'draft' && rosterCard}
-      </div>
+              <TextField
+                select
+                fullWidth
+                label="Välj turnering"
+                value={activeTournamentId}
+                onChange={e => setActiveTournamentId(e.target.value)}
+                sx={{ mb: 2 }}
+              >
+                <MenuItem value="">-- Välj turnering / Skapa ny --</MenuItem>
+                {tournaments.map(t => (
+                  <MenuItem key={t.id} value={t.id}>
+                    {t.name} ({getTournamentStatusLabel(t.status)})
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              {!activeTournamentId && (
+                <Box component="form" onSubmit={createTournament}>
+                  <Stack spacing={2}>
+                    <TextField
+                      label="Namn"
+                      required
+                      value={newTournament.name}
+                      onChange={e => setNewTournament({ ...newTournament, name: e.target.value })}
+                      disabled={isSaving}
+                    />
+                    <TextField
+                      label="Plats (valfritt)"
+                      value={newTournament.location}
+                      onChange={e => setNewTournament({ ...newTournament, location: e.target.value })}
+                      disabled={isSaving}
+                    />
+                    <TextField
+                      label="Datum"
+                      type="date"
+                      value={newTournament.scheduled_at}
+                      onChange={e => setNewTournament({ ...newTournament, scheduled_at: e.target.value })}
+                      disabled={isSaving}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                    <TextField
+                      select
+                      label="Turneringstyp"
+                      value={newTournament.tournament_type}
+                      onChange={e => setNewTournament({ ...newTournament, tournament_type: e.target.value })}
+                      disabled={isSaving}
+                    >
+                      <MenuItem value="americano">Americano</MenuItem>
+                      <MenuItem value="mexicano">Mexicano</MenuItem>
+                    </TextField>
+
+                    <Alert severity="info" sx={{ py: 0 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>
+                        {newTournament.tournament_type === 'americano' ? 'Americano' : 'Mexicano'}:
+                      </Typography>
+                      <Typography variant="caption">
+                        {newTournament.tournament_type === 'americano'
+                          ? 'Alla spelar med och mot alla. Lagen är förutbestämda.'
+                          : 'Laguppställningar baseras på poäng för att skapa jämna matcher.'}
+                      </Typography>
+                    </Alert>
+
+                    <TextField
+                      select
+                      label="Målpoäng"
+                      value={newTournament.score_target}
+                      onChange={e => setNewTournament({ ...newTournament, score_target: e.target.value })}
+                      disabled={isSaving}
+                    >
+                      {POINTS_OPTIONS.map(p => <MenuItem key={p} value={p}>{p} poäng</MenuItem>)}
+                    </TextField>
+
+                    <Button type="submit" variant="contained" disabled={isSaving}>
+                      Skapa turnering
+                    </Button>
+                  </Stack>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {activeTournament?.status === 'draft' && (
+          <Grid item xs={12} md={6}>
+            {rosterCard}
+          </Grid>
+        )}
+      </Grid>
 
       {activeTournament?.status === 'in_progress' && (
-        <div className="mexicana-grid two-columns">
-          <div className="mexicana-card">
-            <h3>Spela ronder</h3>
-            <p className="muted">Läge: <strong>{tournamentMode === 'americano' ? 'Americano' : 'Mexicano'}</strong></p>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Spela ronder</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Läge: <Chip label={tournamentMode === 'americano' ? 'Americano' : 'Mexicano'} size="small" sx={{ fontWeight: 700 }} />
+                </Typography>
 
-            {tournamentMode === 'mexicano' && (
-              <div className="mexicano-flow" style={{ marginBottom: '2rem' }}>
-                {!recordingRound ? (
-                  <div className="next-suggestion">
-                    <p><strong>Föreslagen nästa match:</strong></p>
-                    {currentSuggestion ? (
-                      <>
-                        <p>{idsToNames(currentSuggestion.team1_ids, profileMap).join(" & ")} vs {idsToNames(currentSuggestion.team2_ids, profileMap).join(" & ")}</p>
-                        {currentSuggestion.resting_ids.length > 0 && <p className="muted">Vilar: {idsToNames(currentSuggestion.resting_ids, profileMap).join(", ")}</p>}
-                        <button onClick={handleRecordRound}>Starta rond {rounds.length + 1}</button>
-                      </>
-                    ) : <p className="muted">Välj minst 4 spelare.</p>}
-                  </div>
-                ) : (
-                  <div className="recording-form">
-                    <h4>Registrera resultat (Rond {rounds.length + 1})</h4>
-                    <p className="muted" style={{ marginBottom: '1rem' }}>Lag A (vänster) börjar serva.</p>
-                    <div className="mexicana-round-match">
-                      <div className="mexicana-team">
-                        <div className="mexicana-team-name">{idsToNames(recordingRound.team1_ids, profileMap).join(" & ")}</div>
-                        <input type="number" value={recordingRound.team1_score} onChange={e => handleScoreChange('team1_score', e.target.value)} placeholder="Poäng" />
-                      </div>
-                      <span className="vs">vs</span>
-                      <div className="mexicana-team">
-                        <div className="mexicana-team-name">{idsToNames(recordingRound.team2_ids, profileMap).join(" & ")}</div>
-                        <input type="number" value={recordingRound.team2_score} onChange={e => handleScoreChange('team2_score', e.target.value)} placeholder="Poäng" />
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '1rem' }}>
-                      <button onClick={saveRound} disabled={isSaving}>Spara rond</button>
-                      <button onClick={() => setRecordingRound(null)} className="ghost-button" style={{ marginLeft: '0.5rem' }}>Avbryt</button>
-                    </div>
-                  </div>
+                {tournamentMode === 'mexicano' && (
+                  <Box sx={{ mb: 4 }}>
+                    {!recordingRound ? (
+                      <Stack spacing={2} sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Föreslagen nästa match:</Typography>
+                        {currentSuggestion ? (
+                          <>
+                            <Typography variant="body1" sx={{ fontWeight: 800 }}>
+                              {idsToNames(currentSuggestion.team1_ids, profileMap).join(" & ")} vs {idsToNames(currentSuggestion.team2_ids, profileMap).join(" & ")}
+                            </Typography>
+                            {currentSuggestion.resting_ids.length > 0 && (
+                              <Typography variant="caption" color="text.secondary">
+                                Vilar: {idsToNames(currentSuggestion.resting_ids, profileMap).join(", ")}
+                              </Typography>
+                            )}
+                            <Button variant="contained" onClick={handleRecordRound}>
+                              Starta rond {rounds.length + 1}
+                            </Button>
+                          </>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">Välj minst 4 spelare.</Typography>
+                        )}
+                      </Stack>
+                    ) : (
+                      <Box sx={{ p: 2, border: 1, borderColor: 'primary.light', borderRadius: 2 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Registrera resultat (Rond {rounds.length + 1})</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>Lag A (vänster) börjar serva.</Typography>
+
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid item xs={5}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>{idsToNames(recordingRound.team1_ids, profileMap).join(" & ")}</Typography>
+                            <TextField
+                              fullWidth
+                              type="number"
+                              size="small"
+                              label="Poäng"
+                              value={recordingRound.team1_score}
+                              onChange={e => handleScoreChange('team1_score', e.target.value)}
+                            />
+                          </Grid>
+                          <Grid item xs={2} sx={{ textAlign: 'center' }}>
+                            <Typography sx={{ fontWeight: 800 }}>VS</Typography>
+                          </Grid>
+                          <Grid item xs={5}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>{idsToNames(recordingRound.team2_ids, profileMap).join(" & ")}</Typography>
+                            <TextField
+                              fullWidth
+                              type="number"
+                              size="small"
+                              label="Poäng"
+                              value={recordingRound.team2_score}
+                              onChange={e => handleScoreChange('team2_score', e.target.value)}
+                            />
+                          </Grid>
+                        </Grid>
+
+                        <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
+                          <Button variant="contained" onClick={saveRound} disabled={isSaving}>Spara rond</Button>
+                          <Button variant="outlined" onClick={() => setRecordingRound(null)}>Avbryt</Button>
+                        </Stack>
+                      </Box>
+                    )}
+                  </Box>
                 )}
-              </div>
-            )}
 
-            {tournamentMode === 'americano' && (
-              <div className="americano-flow" style={{ marginBottom: '2rem' }}>
-                <p>Alla ronder är förutbestämda. Fyll i poäng allt eftersom ni spelar.</p>
-                <div className="mexicana-rounds">
-                  {rounds.map(round => {
-                    const isPlayed = Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score);
-                    return (
-                      <div key={round.id} className={`mexicana-round-card ${isPlayed ? 'is-played' : ''}`}>
-                         <div className="mexicana-round-header">
-                            <strong>Rond {round.round_number}</strong>
-                            {round.resting_ids && round.resting_ids.length > 0 && <span className="muted">Vilar: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
-                         </div>
-                         <div className="mexicana-round-match">
-                            <div className="mexicana-team">
-                              <div className="mexicana-team-name">{idsToNames(round.team1_ids, profileMap).join(" & ")}</div>
-                              <input
-                                type="number"
-                                value={round.team1_score ?? ""}
-                                onChange={e => handleScoreChangeInList(round.id, 'team1_score', e.target.value)}
-                                placeholder="Poäng"
-                              />
-                            </div>
-                            <span className="vs">vs</span>
-                            <div className="mexicana-team">
-                              <div className="mexicana-team-name">{idsToNames(round.team2_ids, profileMap).join(" & ")}</div>
-                              <input
-                                type="number"
-                                value={round.team2_score ?? ""}
-                                onChange={e => handleScoreChangeInList(round.id, 'team2_score', e.target.value)}
-                                placeholder="Poäng"
-                              />
-                            </div>
-                         </div>
-                         <button
-                            className="ghost-button"
-                            onClick={() => updateRoundInDb(round.id, round.team1_score, round.team2_score)}
-                            disabled={isSaving || !Number.isFinite(round.team1_score) || !Number.isFinite(round.team2_score)}
-                          >
-                           {isPlayed ? "Uppdatera" : "Spara"}
-                         </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                {tournamentMode === 'americano' && (
+                  <Box sx={{ mb: 4 }}>
+                    <Typography variant="body2" sx={{ mb: 2 }}>Alla ronder är förutbestämda. Fyll i poäng allt eftersom ni spelar.</Typography>
+                    <Stack spacing={2}>
+                      {rounds.map(round => {
+                        const isPlayed = Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score);
+                        return (
+                          <Paper key={round.id} variant="outlined" sx={{ p: 2, bgcolor: isPlayed ? 'action.hover' : 'background.paper' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Rond {round.round_number}</Typography>
+                              {round.resting_ids && round.resting_ids.length > 0 && (
+                                <Chip label={`Vilar: ${idsToNames(round.resting_ids, profileMap).join(", ")}`} size="small" variant="outlined" />
+                              )}
+                            </Box>
 
-            {tournamentMode === 'mexicano' && rounds.length > 0 && (
-              <div style={{ marginTop: '2rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4>Tidigare matcher ({rounds.length})</h4>
-                  <button className="ghost-button" onClick={() => setShowPreviousGames(!showPreviousGames)}>
-                    {showPreviousGames ? "Dölj" : "Visa"}
-                  </button>
-                </div>
+                            <Grid container spacing={2} alignItems="center">
+                              <Grid item xs={5}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>{idsToNames(round.team1_ids, profileMap).join(" & ")}</Typography>
+                                <TextField
+                                  fullWidth
+                                  type="number"
+                                  size="small"
+                                  value={round.team1_score ?? ""}
+                                  onChange={e => handleScoreChangeInList(round.id, 'team1_score', e.target.value)}
+                                />
+                              </Grid>
+                              <Grid item xs={2} sx={{ textAlign: 'center' }}>
+                                <Typography sx={{ fontWeight: 700 }}>–</Typography>
+                              </Grid>
+                              <Grid item xs={5}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>{idsToNames(round.team2_ids, profileMap).join(" & ")}</Typography>
+                                <TextField
+                                  fullWidth
+                                  type="number"
+                                  size="small"
+                                  value={round.team2_score ?? ""}
+                                  onChange={e => handleScoreChangeInList(round.id, 'team2_score', e.target.value)}
+                                />
+                              </Grid>
+                            </Grid>
 
-                {showPreviousGames && (
-                  <div className="mexicana-rounds" style={{ marginTop: '1rem' }}>
-                    {[...rounds].reverse().map(round => (
-                      <div key={round.id} className="mexicana-round-card">
-                        <div className="mexicana-round-header">
-                          <strong>Rond {round.round_number}</strong>
-                          {round.resting_ids && round.resting_ids.length > 0 && <span className="muted">Vilade: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>}
-                        </div>
-                        <p>{idsToNames(round.team1_ids, profileMap).join(" & ")} ({round.team1_score}) - ({round.team2_score}) {idsToNames(round.team2_ids, profileMap).join(" & ")}</p>
-                      </div>
-                    ))}
-                  </div>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              fullWidth
+                              sx={{ mt: 2 }}
+                              onClick={() => updateRoundInDb(round.id, round.team1_score, round.team2_score)}
+                              disabled={isSaving || !Number.isFinite(round.team1_score) || !Number.isFinite(round.team2_score)}
+                            >
+                              {isPlayed ? "Uppdatera resultat" : "Spara resultat"}
+                            </Button>
+                          </Paper>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
                 )}
-              </div>
-            )}
-          </div>
 
-          <div className="mexicana-card">
-            <h3>Poängställning</h3>
-            <div className="table-scroll">
-              {/* Note for non-coders: this inner wrapper enables horizontal scrolling on small screens without shrinking the table columns. */}
-              <div className="table-scroll-inner">
+                {tournamentMode === 'mexicano' && rounds.length > 0 && (
+                  <Box sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Tidigare matcher ({rounds.length})</Typography>
+                      <IconButton onClick={() => setShowPreviousGames(!showPreviousGames)}>
+                        {showPreviousGames ? <HideIcon /> : <ViewIcon />}
+                      </IconButton>
+                    </Box>
+
+                    {showPreviousGames && (
+                      <Stack spacing={1}>
+                        {[...rounds].reverse().map(round => (
+                          <Paper key={round.id} variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 800 }}>Rond {round.round_number}</Typography>
+                            <Typography variant="body2">
+                              {idsToNames(round.team1_ids, profileMap).join(" & ")} ({round.team1_score}) - ({round.team2_score}) {idsToNames(round.team2_ids, profileMap).join(" & ")}
+                            </Typography>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Poängställning</Typography>
+                <Box className="table-scroll">
+                  <Box className="table-scroll-inner">
+                    <table className="styled-table">
+                      <thead>
+                        <tr>
+                          <th>Plac.</th>
+                          <th>Namn</th>
+                          <th>Poäng</th>
+                          <th>Matcher</th>
+                          <th>V/O/F</th>
+                          <th>Diff</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedStandings.map((res, i) => (
+                          <tr key={res.id}>
+                            <td style={{ fontWeight: 700 }}>{i + 1}</td>
+                            <td>{getIdDisplayName(res.id, profileMap)}</td>
+                            <td style={{ fontWeight: 700 }}>{res.totalPoints}</td>
+                            <td>{res.gamesPlayed}</td>
+                            <td>{res.wins}/{res.ties}/{res.losses}</td>
+                            <td>{res.pointsFor - res.pointsAgainst}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </Box>
+                </Box>
+                <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
+                   <Button variant="outlined" color="error" startIcon={<StopIcon />} onClick={markAbandoned}>Avbryt</Button>
+                   <Button variant="contained" color="success" startIcon={<CompleteIcon />} onClick={completeTournament} disabled={rounds.length === 0}>
+                     Slutför & synka
+                   </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {activeTournament?.status === 'completed' && (
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Resultat</Typography>
+            <Typography variant="body2" sx={{ mb: 3 }}>
+              <strong>{activeTournament.name}</strong> slutfördes {formatDate(activeTournament.completed_at)}.
+            </Typography>
+
+            <Grid container spacing={2} sx={{ mb: 4 }}>
+              {sortedStandings.slice(0, 3).map((res, i) => (
+                <Grid item xs={12} sm={4} key={res.id}>
+                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: i === 0 ? 'primary.light' : 'background.paper', color: i === 0 ? 'primary.contrastText' : 'text.primary', border: 1, borderColor: 'divider' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 900 }}>{i + 1}</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>{getIdDisplayName(res.id, profileMap)}</Typography>
+                    <Typography variant="body2">{res.totalPoints} poäng</Typography>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+
+            <Box className="table-scroll" sx={{ mb: 4 }}>
+              <Box className="table-scroll-inner">
                 <table className="styled-table">
                   <thead>
                     <tr>
@@ -674,138 +883,96 @@ export default function MexicanaTournament({
                       <th>Matcher</th>
                       <th>V/O/F</th>
                       <th>Diff</th>
+                      <th>Snitt</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedStandings.map((res, i) => (
                       <tr key={res.id}>
-                        <td>{i + 1}</td>
+                        <td style={{ fontWeight: 700 }}>{i + 1}</td>
                         <td>{getIdDisplayName(res.id, profileMap)}</td>
-                        <td>{res.totalPoints}</td>
+                        <td style={{ fontWeight: 700 }}>{res.totalPoints}</td>
                         <td>{res.gamesPlayed}</td>
                         <td>{res.wins}/{res.ties}/{res.losses}</td>
                         <td>{res.pointsFor - res.pointsAgainst}</td>
+                        <td>{(res.totalPoints / (res.gamesPlayed || 1)).toFixed(1)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-            <div style={{ marginTop: '1rem' }}>
-               <button onClick={markAbandoned} className="ghost-button danger">Avbryt turnering</button>
-               <button onClick={completeTournament} disabled={rounds.length === 0} style={{ marginLeft: '0.5rem' }}>Slutför & synka</button>
-            </div>
-          </div>
-        </div>
+              </Box>
+            </Box>
+
+            <Divider sx={{ mb: 3 }} />
+
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Matchresultat</Typography>
+            <Stack spacing={1}>
+              {rounds.map(round => (
+                <Paper key={round.id} variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800 }}>Rond {round.round_number}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {idsToNames(round.team1_ids, profileMap).join(" & ")}
+                    <Chip label={`${round.team1_score} – ${round.team2_score}`} size="small" sx={{ mx: 2, fontWeight: 800 }} />
+                    {idsToNames(round.team2_ids, profileMap).join(" & ")}
+                  </Typography>
+                </Paper>
+              ))}
+            </Stack>
+
+            <Button variant="outlined" fullWidth sx={{ mt: 4 }} onClick={() => setActiveTournamentId("")}>
+              Tillbaka till alla turneringar
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      {activeTournament?.status === 'completed' && (
-        <div className="mexicana-card">
-          <h3>Results of finished tournament</h3>
-          <p><strong>{activeTournament.name}</strong> slutfördes {formatDate(activeTournament.completed_at)}.</p>
-
-          <div className="mexicana-podium" style={{ marginBottom: '2rem' }}>
-            {sortedStandings.slice(0, 3).map((res, i) => (
-              <div key={res.id} className="mexicana-podium-spot">
-                <span className="mexicana-podium-rank">{i + 1}</span>
-                <strong>{getIdDisplayName(res.id, profileMap)}</strong>
-                <span className="muted">{res.totalPoints} poäng</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="table-scroll" style={{ marginBottom: '2rem' }}>
-            {/* Note for non-coders: this wrapper lets the results table scroll sideways instead of squishing columns. */}
-            <div className="table-scroll-inner">
+      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Historik</Typography>
+          <Box className="table-scroll">
+            <Box className="table-scroll-inner">
               <table className="styled-table">
                 <thead>
                   <tr>
-                    <th>Plac.</th>
-                    <th>Namn</th>
-                    <th>Poäng</th>
-                    <th>Matcher</th>
-                    <th>V/O/F</th>
-                    <th>Diff</th>
-                    <th>Snitt</th>
+                    <th>Turnering</th>
+                    <th>Typ</th>
+                    <th>Status</th>
+                    <th>Datum</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedStandings.map((res, i) => (
-                    <tr key={res.id}>
-                      <td>{i + 1}</td>
-                      <td>{getIdDisplayName(res.id, profileMap)}</td>
-                      <td>{res.totalPoints}</td>
-                      <td>{res.gamesPlayed}</td>
-                      <td>{res.wins}/{res.ties}/{res.losses}</td>
-                      <td>{res.pointsFor - res.pointsAgainst}</td>
-                      <td>{(res.totalPoints / (res.gamesPlayed || 1)).toFixed(1)}</td>
+                  {tournaments.map(t => (
+                    <tr key={t.id}>
+                      <td style={{ fontWeight: 600 }}>{t.name}</td>
+                      <td style={{ textTransform: 'capitalize' }}>{t.tournament_type}</td>
+                      <td>
+                        <Chip
+                          label={getTournamentStatusLabel(t.status)}
+                          size="small"
+                          color={t.status === 'completed' ? 'success' : 'default'}
+                          sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                        />
+                      </td>
+                      <td>{formatDate(t.scheduled_at)}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
+                          <IconButton size="small" color="error" onClick={() => deleteTournament(t)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
-
-          <div className="tournament-history-details">
-            <h4>Matchresultat</h4>
-            <div className="mexicana-rounds">
-              {rounds.map(round => (
-                <div key={round.id} className="mexicana-round-card is-played">
-                  <div className="mexicana-round-header">
-                    <strong>Rond {round.round_number}</strong>
-                    {round.resting_ids && round.resting_ids.length > 0 && (
-                      <span className="muted">Vilade: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>
-                    )}
-                  </div>
-                  <div className="mexicana-round-match" style={{ justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span>{idsToNames(round.team1_ids, profileMap).join(" & ")}</span>
-                    <strong>{round.team1_score} – {round.team2_score}</strong>
-                    <span>{idsToNames(round.team2_ids, profileMap).join(" & ")}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '2rem' }}>Tillbaka till alla turneringar</button>
-        </div>
-      )}
-
-      <div className="mexicana-card mexicana-history" style={{ marginTop: '2rem' }}>
-        <h3>Historik</h3>
-        <div className="table-scroll">
-          {/* Note for non-coders: adding this inner div keeps the history table readable by enabling side-to-side scrolling. */}
-          <div className="table-scroll-inner">
-            <table className="styled-table">
-              <thead>
-                <tr>
-                  <th>Turnering</th>
-                  <th>Typ</th>
-                  <th>Status</th>
-                  <th>Datum</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {tournaments.map(t => (
-                  <tr key={t.id}>
-                    <td>{t.name}</td>
-                    <td>{t.tournament_type === 'americano' ? 'Americano' : 'Mexicano'}</td>
-                    <td><span className={`mexicana-status status-${t.status} inline`}>{getTournamentStatusLabel(t.status)}</span></td>
-                    <td>{formatDate(t.scheduled_at)}</td>
-                    <td>
-                      <button className="ghost-button" onClick={() => setActiveTournamentId(t.id)}>Visa</button>
-                      <button className="ghost-button danger" onClick={() => deleteTournament(t)}>Ta bort</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
       </>
       )}
-    </section>
+    </Box>
   );
 }

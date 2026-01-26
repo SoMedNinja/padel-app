@@ -2,6 +2,30 @@ import { useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { getProfileDisplayName } from "../utils/profileMap";
 import { Profile } from "../types";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TextField,
+  Button,
+  Chip,
+  IconButton,
+  Stack,
+} from "@mui/material";
+import {
+  Save as SaveIcon,
+  Delete as DeleteIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as RevokeIcon,
+} from "@mui/icons-material";
 
 interface AdminPanelProps {
   user: any;
@@ -94,83 +118,93 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
   };
 
   return (
-    <section className="player-section admin-panel">
-      <h2>Admin</h2>
-      <p className="muted">
-        Godkänn användare innan de får åtkomst till appen. Du kan även uppdatera namn
-        eller ta bort profiler.
-      </p>
+    <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Typography variant="h5" sx={{ fontWeight: 800 }}>Administration</Typography>
+      <Typography variant="body2" color="text.secondary">
+        Godkänn användare innan de får åtkomst till appen. Du kan även uppdatera namn eller ta bort profiler.
+      </Typography>
 
-      <div className="table-scroll">
-        <div className="table-scroll-inner">
-          <table className="styled-table">
-          <thead>
-            <tr>
-              <th>Namn</th>
-              <th>Admin</th>
-              <th>Status</th>
-              <th>Åtgärder</th>
-            </tr>
-          </thead>
-          <tbody>
+      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
+        <Table sx={{ minWidth: 650 }}>
+          <TableHead sx={{ bgcolor: 'grey.50' }}>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Admin</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Åtgärder</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {sortedProfiles.map(profile => {
               const currentName = editNames[profile.id] ?? profile.name ?? "";
               const hasNameChange = currentName.trim() !== (profile.name ?? "");
               const isSelf = profile.id === user?.id;
 
               return (
-                <tr key={profile.id}>
-                  <td className="admin-name-cell">
-                    <input
-                      value={currentName}
-                      size={Math.max(12, currentName.length || 0)}
-                      onChange={(event) => handleNameChange(profile.id, event.target.value)}
-                      aria-label={`Namn för ${getProfileDisplayName(profile)}`}
+                <TableRow key={profile.id} hover>
+                  <TableCell>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        size="small"
+                        value={currentName}
+                        onChange={(e) => handleNameChange(profile.id, e.target.value)}
+                        sx={{ minWidth: 200 }}
+                      />
+                      {isSelf && <Chip label="Du" size="small" variant="outlined" />}
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={profile.is_admin ? "Ja" : "Nej"}
+                      size="small"
+                      color={profile.is_admin ? "primary" : "default"}
+                      variant="outlined"
                     />
-                    {isSelf && <span className="chip chip-neutral">Du</span>}
-                  </td>
-                  <td>{profile.is_admin ? "Ja" : "Nej"}</td>
-                  <td>
-                    <span
-                      className={`chip ${profile.is_approved ? "chip-success" : "chip-warning"}`}
-                    >
-                      {profile.is_approved ? "Godkänd" : "Väntar"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="admin-actions">
-                      <button
-                        type="button"
-                        className="ghost-button"
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={profile.is_approved ? "Godkänd" : "Väntar"}
+                      size="small"
+                      color={profile.is_approved ? "success" : "warning"}
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={profile.is_approved ? <RevokeIcon /> : <ApproveIcon />}
                         onClick={() => toggleApproval(profile)}
                         disabled={toggleId === profile.id}
                       >
                         {profile.is_approved ? "Återkalla" : "Godkänn"}
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<SaveIcon />}
                         onClick={() => saveName(profile)}
                         disabled={!hasNameChange || savingId === profile.id}
                       >
-                        {savingId === profile.id ? "Sparar..." : "Spara namn"}
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost-button"
+                        Spara
+                      </Button>
+                      <IconButton
+                        size="small"
+                        color="error"
                         onClick={() => deleteProfile(profile)}
                         disabled={deleteId === profile.id || isSelf}
                       >
-                        {deleteId === profile.id ? "Raderar..." : "Radera"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-        </div>
-      </div>
-    </section>
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }

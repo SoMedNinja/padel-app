@@ -1,5 +1,24 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import {
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Box,
+  Button,
+} from "@mui/material";
+import {
+  Home as HomeIcon,
+  EmojiEvents as TrophyIcon,
+  History as HistoryIcon,
+  AdminPanelSettings as AdminIcon,
+  Logout as LogoutIcon,
+  Login as LoginIcon,
+} from "@mui/icons-material";
 
 interface SideMenuProps {
   isMenuOpen: boolean;
@@ -9,27 +28,58 @@ interface SideMenuProps {
   handleAuthAction: () => void;
 }
 
-const SideMenu = React.forwardRef<HTMLElement, SideMenuProps>(
-  ({ isMenuOpen, closeMenu, user, isGuest, handleAuthAction }, ref) => {
-    return (
-      <nav
-        id="app-menu"
-        ref={ref}
-        className={`app-menu ${isMenuOpen ? "open" : ""}`}
-        aria-label="Huvudmeny"
-      >
-        <Link to="/" onClick={closeMenu}>Hem</Link>
-        <Link to="/grabbarnas-serie" onClick={closeMenu}>Grabbarnas serie</Link>
-        <Link to="/history" onClick={closeMenu}>Match-historik</Link>
-        {user?.is_admin && <Link to="/admin" onClick={closeMenu}>Admin</Link>}
-        <button type="button" className="ghost-button" onClick={handleAuthAction}>
-          {isGuest ? "Logga in / skapa konto" : "Logga ut"}
-        </button>
-      </nav>
-    );
+export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleAuthAction }: SideMenuProps) {
+  const navigate = useNavigate();
+
+  const menuItems = [
+    { text: "Hem", icon: <HomeIcon />, path: "/" },
+    { text: "Grabbarnas serie", icon: <TrophyIcon />, path: "/grabbarnas-serie" },
+    { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
+  ];
+
+  if (user?.is_admin) {
+    menuItems.push({ text: "Admin", icon: <AdminIcon />, path: "/admin" });
   }
-);
 
-SideMenu.displayName = "SideMenu";
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    closeMenu();
+  };
 
-export default SideMenu;
+  return (
+    <Drawer
+      anchor="right"
+      open={isMenuOpen}
+      onClose={closeMenu}
+      PaperProps={{
+        sx: { width: 280 }
+      }}
+    >
+      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <List>
+          {menuItems.map((item) => (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton onClick={() => handleNavigate(item.path)}>
+                <ListItemIcon sx={{ color: 'primary.main' }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+        <Divider sx={{ my: 1 }} />
+        <Box sx={{ mt: 'auto', p: 1 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            color={isGuest ? "primary" : "inherit"}
+            startIcon={isGuest ? <LoginIcon /> : <LogoutIcon />}
+            onClick={handleAuthAction}
+            sx={{ borderRadius: 2 }}
+          >
+            {isGuest ? "Logga in / Skapa konto" : "Logga ut"}
+          </Button>
+        </Box>
+      </Box>
+    </Drawer>
+  );
+}
