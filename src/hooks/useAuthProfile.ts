@@ -47,8 +47,11 @@ export const useAuthProfile = () => {
         .single();
 
       if (error) {
-        setErrorMessage(error.message);
-        setUser({ ...authUser });
+        // PGRST116 means no profile found - this is normal for new users
+        if (error.code !== "PGRST116") {
+          setErrorMessage(error.message);
+        }
+        setUser({ ...authUser } as AppUser);
         return;
       }
 

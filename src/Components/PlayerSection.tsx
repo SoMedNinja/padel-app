@@ -18,6 +18,7 @@ import {
 } from "../utils/avatar";
 import {
   ELO_BASELINE,
+  calculateElo,
   getExpectedScore,
   getKFactor,
   getMatchWeight,
