@@ -1,7 +1,27 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
-import { CircularProgress } from "@mui/material";
+import {
+  CircularProgress,
+  Box,
+  Typography,
+  Button,
+  Grid,
+  Avatar,
+  Chip,
+  Paper,
+  IconButton,
+  Divider,
+} from "@mui/material";
+import {
+  ArrowBack as ArrowBackIcon,
+  Close as CloseIcon,
+  Groups as GroupsIcon,
+  Scoreboard as ScoreboardIcon,
+  Balance as BalanceIcon,
+  CheckCircle as CheckCircleIcon,
+  PersonAdd as PersonAddIcon,
+} from "@mui/icons-material";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
   getPlayerWeight,
@@ -43,15 +63,18 @@ export default function MatchForm({
   matches = [],
   eloPlayers = [],
 }: MatchFormProps) {
+  const [step, setStep] = useState(0); // 0: Start/TeamA, 1: TeamB, 2: Score, 3: Review, 10: Pool Selection (Matchmaker)
   const [team1, setTeam1] = useState<string[]>(["", ""]);
   const [team2, setTeam2] = useState<string[]>(["", ""]);
   const [a, setA] = useState("");
   const [b, setB] = useState("");
+  const [pool, setPool] = useState<string[]>([]);
   const [matchSuggestion, setMatchSuggestion] = useState<any>(null);
   const [matchRecap, setMatchRecap] = useState<any>(null);
   const [eveningRecap, setEveningRecap] = useState<any>(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
+  const [showExtraScores, setShowExtraScores] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -79,10 +102,71 @@ export default function MatchForm({
     return map;
   }, [eloPlayers]);
   const playerPool = useMemo(
-    () => Array.from(new Set([...team1, ...team2].filter(Boolean))),
-    [team1, team2]
+    () => Array.from(new Set([...pool, ...team1, ...team2].filter(Boolean))),
+    [pool, team1, team2]
   );
 
+  const resetWizard = () => {
+    setStep(0);
+    setTeam1(["", ""]);
+    setTeam2(["", ""]);
+    setA("");
+    setB("");
+    setPool([]);
+    setMatchSuggestion(null);
+    setShowExtraScores(false);
+  };
+
+  const togglePlayerInPool = (playerId: string) => {
+    if (playerId === GUEST_ID) {
+      setPool(prev => [...prev, GUEST_ID]);
+      return;
+    }
+    setPool(prev =>
+      prev.includes(playerId)
+        ? prev.filter(id => id !== playerId)
+        : [...prev, playerId]
+    );
+  };
+
+  const selectPlayerForTeam = (playerId: string, team: 1 | 2) => {
+    const currentTeam = team === 1 ? team1 : team2;
+    const otherTeam = team === 1 ? team2 : team1;
+    const setTeam = team === 1 ? setTeam1 : setTeam2;
+    const setOtherTeam = team === 1 ? setTeam2 : setTeam1;
+
+    // Prevent duplicate selection of same non-guest player in same team
+    if (playerId !== GUEST_ID && currentTeam.includes(playerId)) {
+      toast.error("Spelaren är redan vald.");
+      return;
+    }
+
+    // Remove from other team if already there (and not guest)
+    if (playerId !== GUEST_ID && otherTeam.includes(playerId)) {
+      setOtherTeam(otherTeam.map(id => id === playerId ? "" : id));
+    }
+
+    // Find first empty slot
+    const emptyIndex = currentTeam.indexOf("");
+    if (emptyIndex !== -1) {
+      const newTeam = [...currentTeam];
+      newTeam[emptyIndex] = playerId;
+      setTeam(newTeam);
+
+      // Auto-advance if team is full
+      if (emptyIndex === 1) {
+        setStep(prev => (prev === 10 ? 2 : prev + 1));
+      }
+    }
+  };
+
+  const removePlayerFromTeam = (index: number, team: 1 | 2) => {
+    const currentTeam = team === 1 ? team1 : team2;
+    const setTeam = team === 1 ? setTeam1 : setTeam2;
+    const newTeam = [...currentTeam];
+    newTeam[index] = "";
+    setTeam(newTeam);
+  };
 
   const getPlayerOptionLabel = (player: Profile) => {
     if (player.id === GUEST_ID) return GUEST_NAME;
@@ -308,41 +392,17 @@ export default function MatchForm({
 
     createRecap(team1, team2, scoreA, scoreB);
     buildEveningRecap(matches, newMatch);
-    setTeam1(["", ""]);
-    setTeam2(["", ""]);
-    setA("");
-    setB("");
-    setMatchSuggestion(null);
+    resetWizard();
     setRecapMode("evening");
     setShowRecap(true);
     setIsSubmitting(false);
     toast.success(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
   };
 
-  const suggestTeams = () => {
-    const uniquePool = Array.from(new Set(playerPool)).filter(Boolean);
-
-    if (uniquePool.length < 4 || uniquePool.length > 8) {
-      toast.error("Välj 4–8 unika spelare för smarta lagförslag.");
-      return;
-    }
-
-    if (uniquePool.length > 4) {
-      const rotation = buildRotationSchedule(uniquePool, eloMap);
-      if (!rotation.rounds.length) {
-        toast.error("Kunde inte skapa rotation. Prova med färre spelare.");
-        return;
-      }
-      const firstRound = rotation.rounds[0];
-      setTeam1(firstRound.teamA);
-      setTeam2(firstRound.teamB);
-      setMatchSuggestion({
-        mode: "rotation",
-        rounds: rotation.rounds,
-        fairness: rotation.averageFairness,
-        targetGames: rotation.targetGames,
-      });
-      showToast("Rotationsschema klart!");
+  const suggestBalancedMatch = () => {
+    const uniquePool = Array.from(new Set(pool)).filter(Boolean);
+    if (uniquePool.length !== 4) {
+      toast.error("Välj exakt 4 spelare för balansering.");
       return;
     }
 
@@ -364,8 +424,6 @@ export default function MatchForm({
       .sort((a, b) => b.fairness - a.fairness);
 
     const best = scored[0];
-    setTeam1(best.teamA);
-    setTeam2(best.teamB);
     setMatchSuggestion({
       mode: "single",
       fairness: best.fairness,
@@ -373,7 +431,29 @@ export default function MatchForm({
       teamA: best.teamA,
       teamB: best.teamB,
     });
-    toast.success("Lagförslag klart!");
+    toast.success("Mest balanserade matchen hittad!");
+  };
+
+  const suggestRotation = () => {
+    const uniquePool = Array.from(new Set(pool)).filter(Boolean);
+    if (uniquePool.length < 4 || uniquePool.length > 8) {
+      toast.error("Välj 4–8 spelare för rotationsschema.");
+      return;
+    }
+
+    const rotation = buildRotationSchedule(uniquePool, eloMap);
+    if (!rotation.rounds.length) {
+      toast.error("Kunde inte skapa rotation. Prova med färre spelare.");
+      return;
+    }
+
+    setMatchSuggestion({
+      mode: "rotation",
+      rounds: rotation.rounds,
+      fairness: rotation.averageFairness,
+      targetGames: rotation.targetGames,
+    });
+    toast.success("Rotationsschema genererat!");
   };
 
   const recapSummary = useMemo(() => {
@@ -718,330 +798,652 @@ export default function MatchForm({
     }
   };
 
-  const renderPlayerSelect = (team: string[], setTeam: (t: string[]) => void, index: number, teamLabel: string) => (
-    <select
-      aria-label={`${teamLabel} spelare ${index + 1}`}
-      value={team[index]}
-      onChange={e => {
-        const t = [...team];
-        t[index] = e.target.value;
-        setTeam(t);
-      }}
-    >
-      <option value="">Välj</option>
-      {selectablePlayers.map(p => (
-        <option key={p.id} value={p.id}>
-          {getPlayerOptionLabel(p)}
-        </option>
-      ))}
-    </select>
-  );
+  const renderPlayerGrid = (
+    onSelect: (id: string) => void,
+    selectedIds: string[] = [],
+    excludeIds: string[] = []
+  ) => {
+    // Sort players: Guest first, then alphabetical
+    const sortedPlayers = [...selectablePlayers].sort((a, b) => {
+      if (a.id === GUEST_ID) return -1;
+      if (b.id === GUEST_ID) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    return (
+      <Grid container spacing={1}>
+        {sortedPlayers.map(p => {
+          const isSelected = selectedIds.includes(p.id) && p.id !== GUEST_ID;
+          const isExcluded = excludeIds.includes(p.id) && p.id !== GUEST_ID;
+
+          return (
+            <Grid item xs={4} sm={3} key={p.id}>
+              <Paper
+                elevation={isSelected ? 4 : 1}
+                sx={{
+                  p: 1.5,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  cursor: isExcluded ? "not-allowed" : "pointer",
+                  bgcolor: isSelected ? "primary.light" : "background.paper",
+                  color: isSelected ? "primary.contrastText" : "text.primary",
+                  opacity: isExcluded ? 0.5 : 1,
+                  border: isSelected ? "2px solid" : "1px solid",
+                  borderColor: isSelected ? "primary.main" : "divider",
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    bgcolor: isExcluded ? "" : isSelected ? "primary.light" : "action.hover",
+                  },
+                }}
+                onClick={() => !isExcluded && onSelect(p.id)}
+              >
+                <Avatar
+                  src={p.avatar_url || ""}
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    mb: 1,
+                    border: isSelected ? "2px solid #fff" : "none",
+                  }}
+                >
+                  {p.name.charAt(0)}
+                </Avatar>
+                <Typography
+                  variant="caption"
+                  align="center"
+                  sx={{
+                    fontWeight: isSelected ? 800 : 500,
+                    wordBreak: "break-word",
+                    lineHeight: 1.2,
+                    height: "2.4em",
+                    overflow: "hidden",
+                  }}
+                >
+                  {p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}
+                </Typography>
+                {isSelected && (
+                  <CheckCircleIcon
+                    sx={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      fontSize: 16,
+                      color: "primary.main",
+                    }}
+                  />
+                )}
+              </Paper>
+            </Grid>
+          );
+        })}
+      </Grid>
+    );
+  };
+
+  const renderScoreButtons = (value: string, onChange: (val: string) => void) => {
+    const mainScores = ["0", "1", "2", "3", "4", "5", "6", "7"];
+    const extraScores = ["8", "9", "10", "11", "12"];
+
+    return (
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "center" }}>
+        {mainScores.map(s => (
+          <Button
+            key={s}
+            variant={value === s ? "contained" : "outlined"}
+            onClick={() => onChange(s)}
+            sx={{
+              minWidth: 50,
+              height: 50,
+              fontSize: "1.2rem",
+              borderRadius: "50%",
+            }}
+          >
+            {s}
+          </Button>
+        ))}
+        {showExtraScores && extraScores.map(s => (
+          <Button
+            key={s}
+            variant={value === s ? "contained" : "outlined"}
+            onClick={() => onChange(s)}
+            sx={{
+              minWidth: 50,
+              height: 50,
+              fontSize: "1.2rem",
+              borderRadius: "50%",
+            }}
+          >
+            {s}
+          </Button>
+        ))}
+        {!showExtraScores && (
+          <Button
+            variant="outlined"
+            onClick={() => setShowExtraScores(true)}
+            sx={{
+              minWidth: 50,
+              height: 50,
+              fontSize: "0.8rem",
+              borderRadius: "50%",
+              textTransform: "none"
+            }}
+          >
+            Mer...
+          </Button>
+        )}
+      </Box>
+    );
+  };
 
   return (
-    <div className="match-form-stack">
-      <form onSubmit={submit} className="match-form">
-        <div className="match-form-title">
-          <h3>Ny match</h3>
-          <button
-            type="button"
-            className="ghost-button matchmaker-button"
-            onClick={suggestTeams}
-          >
-            ⚖️ Föreslå lag
-          </button>
-        </div>
-
-        <div className="match-form-grid">
-          <div className="match-form-header">
-            <span>Lag A (Börjar med serv)</span>
-            <span>Lag B</span>
-          </div>
-
-          <div className="match-form-row">
-            <div className="match-form-cell">
-              {renderPlayerSelect(team1, setTeam1, 0, "Lag A")}
-            </div>
-            <div className="match-form-cell">
-              {renderPlayerSelect(team2, setTeam2, 0, "Lag B")}
-            </div>
-          </div>
-
-          <div className="match-form-row">
-            <div className="match-form-cell">
-              {renderPlayerSelect(team1, setTeam1, 1, "Lag A")}
-            </div>
-            <div className="match-form-cell">
-              {renderPlayerSelect(team2, setTeam2, 1, "Lag B")}
-            </div>
-          </div>
-
-          <div className="match-form-header match-form-result-title">
-            <span>Resultat</span>
-            <span />
-          </div>
-
-          <div className="match-form-row match-form-result-row">
-            <input
-              type="number"
-              min="0"
-              className="match-form-score-input"
-              aria-label="Set Lag A"
-              value={a}
-              onChange={e => setA(e.target.value)}
-            />
-            <span className="match-form-score-separator">–</span>
-            <input
-              type="number"
-              min="0"
-              className="match-form-score-input"
-              aria-label="Set Lag B"
-              value={b}
-              onChange={e => setB(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "Spara"}
-        </button>
-      </form>
-
-      {matchSuggestion && (
-        <div className="matchmaker-card">
-          <div className="matchmaker-header">
-            <strong>Smart Matchmaker</strong>
-            <span className="chip chip-success">
-              {matchSuggestion.mode === "rotation" ? "Rotation" : "Balansering"}{" "}
-              {matchSuggestion.fairness}%
-            </span>
-          </div>
-          <div className="matchmaker-body">
-            {matchSuggestion.mode === "rotation" ? (
-              <div className="matchmaker-rotation">
-                {matchSuggestion.rounds.map((round: any) => (
-                  <div key={round.round} className="matchmaker-round">
-                    <div className="matchmaker-round-title">Runda {round.round}</div>
-                    <div className="matchmaker-round-teams">
-                      <div>
-                        <span className="muted">Lag A</span>
-                        <div className="matchmaker-team">
-                          {round.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="muted">Lag B</span>
-                        <div className="matchmaker-team">
-                          {round.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="matchmaker-round-meta muted">
-                      Balans {round.fairness}% · Vinstchans Lag A:{" "}
-                      {Math.round(round.winProbability * 100)}%
-                    </div>
-                    <div className="matchmaker-round-meta muted">
-                      Vilar: {round.rest.map((id: string) => getIdDisplayName(id, profileMap)).join(", ")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <>
-                <div>
-                  <span className="muted">Lag A</span>
-                  <div className="matchmaker-team">
-                    {matchSuggestion.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
-                  </div>
-                </div>
-                <div>
-                  <span className="muted">Lag B</span>
-                  <div className="matchmaker-team">
-                    {matchSuggestion.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}
-                  </div>
-                </div>
-              </>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      {/* Wizard Paper */}
+      {!showRecap || (!matchRecap && !eveningRecap) ? (
+        <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4 }}>
+          {/* Header */}
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2, justifyContent: "space-between" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {step > 0 && (
+                <IconButton onClick={() => setStep(step === 10 ? 0 : prev => prev - 1)} size="small">
+                  <ArrowBackIcon />
+                </IconButton>
+              )}
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {step === 0 && "Välj Lag A"}
+                {step === 1 && "Välj Lag B"}
+                {step === 2 && "Ange resultat"}
+                {step === 3 && "Granska & Spara"}
+                {step === 10 && "Matchmaker: Välj spelare"}
+              </Typography>
+            </Box>
+            {step === 0 && (
+              <Button
+                startIcon={<BalanceIcon />}
+                size="small"
+                variant="outlined"
+                onClick={() => setStep(10)}
+              >
+                Matchmaker
+              </Button>
             )}
-          </div>
-          <div className="matchmaker-footer muted">
-            {matchSuggestion.mode === "rotation"
-              ? `Mål: ${matchSuggestion.targetGames} matcher per spelare.`
-              : `Förväntad vinstchans Lag A: ${Math.round(
-                  matchSuggestion.winProbability * 100
-                )}%`}
-          </div>
-        </div>
+            {step > 0 && (
+              <IconButton onClick={resetWizard} size="small" color="error">
+                <CloseIcon />
+              </IconButton>
+            )}
+          </Box>
+
+          <Divider sx={{ mb: 2 }} />
+
+          {/* Step Content */}
+          <Box sx={{ minHeight: 200 }}>
+            {/* Step 0: Team A */}
+            {step === 0 && (
+              <Box>
+                <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+                  {[0, 1].map(idx => (
+                    <Chip
+                      key={idx}
+                      label={team1[idx] ? getIdDisplayName(team1[idx], profileMap) : `Spelare ${idx + 1}`}
+                      onDelete={team1[idx] ? () => removePlayerFromTeam(idx, 1) : undefined}
+                      color={team1[idx] ? "primary" : "default"}
+                      variant={team1[idx] ? "filled" : "outlined"}
+                      sx={{ flex: 1, height: 40, fontWeight: 700 }}
+                    />
+                  ))}
+                </Box>
+                {renderPlayerGrid(id => selectPlayerForTeam(id, 1), team1)}
+                {team1.every(id => id !== "") && (
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => setStep(1)}
+                    sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
+                  >
+                    Nästa (Välj Lag B)
+                  </Button>
+                )}
+              </Box>
+            )}
+
+            {/* Step 1: Team B */}
+            {step === 1 && (
+              <Box>
+                <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+                  {[0, 1].map(idx => (
+                    <Chip
+                      key={idx}
+                      label={team2[idx] ? getIdDisplayName(team2[idx], profileMap) : `Spelare ${idx + 1}`}
+                      onDelete={team2[idx] ? () => removePlayerFromTeam(idx, 2) : undefined}
+                      color={team2[idx] ? "primary" : "default"}
+                      variant={team2[idx] ? "filled" : "outlined"}
+                      sx={{ flex: 1, height: 40, fontWeight: 700 }}
+                    />
+                  ))}
+                </Box>
+                {renderPlayerGrid(id => selectPlayerForTeam(id, 2), team2, team1)}
+                {team2.every(id => id !== "") && (
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => setStep(2)}
+                    sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
+                  >
+                    Nästa (Ange resultat)
+                  </Button>
+                )}
+              </Box>
+            )}
+
+            {/* Step 2: Score */}
+            {step === 2 && (
+              <Box sx={{ textAlign: "center" }}>
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 1 }}>
+                    {team1.map((id, i) => (
+                      <Chip
+                        key={i}
+                        size="small"
+                        label={getIdDisplayName(id, profileMap)}
+                        avatar={<Avatar src={profileMap.get(id)?.avatar_url || ""} />}
+                      />
+                    ))}
+                  </Box>
+                  {renderScoreButtons(a, setA)}
+                </Box>
+                <Divider sx={{ mb: 4 }}>
+                  <Chip label="VS" size="small" />
+                </Divider>
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 1 }}>
+                    {team2.map((id, i) => (
+                      <Chip
+                        key={i}
+                        size="small"
+                        label={getIdDisplayName(id, profileMap)}
+                        avatar={<Avatar src={profileMap.get(id)?.avatar_url || ""} />}
+                      />
+                    ))}
+                  </Box>
+                  {renderScoreButtons(b, setB)}
+                </Box>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  disabled={a === "" || b === ""}
+                  onClick={() => setStep(3)}
+                  sx={{ mt: 2, height: 56, fontSize: "1.1rem" }}
+                >
+                  Fortsätt
+                </Button>
+              </Box>
+            )}
+
+            {/* Step 3: Review */}
+            {step === 3 && (
+              <Box sx={{ textAlign: "center" }}>
+                <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: "grey.50" }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={5}>
+                      <Typography variant="h6" fontWeight={800}>{a}</Typography>
+                      <Typography variant="body2">{idsToNames(team1, profileMap)}</Typography>
+                    </Grid>
+                    <Grid item xs={2}>
+                      <Typography variant="h4" color="text.secondary">—</Typography>
+                    </Grid>
+                    <Grid item xs={5}>
+                      <Typography variant="h6" fontWeight={800}>{b}</Typography>
+                      <Typography variant="body2">{idsToNames(team2, profileMap)}</Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  onClick={submit}
+                  disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={20} /> : <CheckCircleIcon />}
+                  sx={{ height: 56, fontSize: "1.1rem" }}
+                >
+                  Spara match
+                </Button>
+                <Button
+                  variant="text"
+                  fullWidth
+                  onClick={() => setStep(2)}
+                  sx={{ mt: 1 }}
+                >
+                  Ändra resultat
+                </Button>
+              </Box>
+            )}
+
+            {/* Step 10: Pool Selection & Matchmaker */}
+            {step === 10 && (
+              <Box>
+                {!matchSuggestion ? (
+                  <>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Välj 4–8 spelare för att generera jämna lag eller rotationsschema.
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
+                      {pool.map((id, idx) => (
+                        <Chip
+                          key={`${id}-${idx}`}
+                          label={getIdDisplayName(id, profileMap)}
+                          onDelete={() => {
+                            const newPool = [...pool];
+                            newPool.splice(idx, 1);
+                            setPool(newPool);
+                          }}
+                          size="small"
+                          color="primary"
+                        />
+                      ))}
+                      {pool.length === 0 && (
+                        <Typography variant="caption" sx={{ fontStyle: "italic", p: 1 }}>
+                          Inga spelare valda...
+                        </Typography>
+                      )}
+                    </Box>
+                    <Grid container spacing={1} sx={{ mb: 3 }}>
+                      <Grid item xs={6}>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          disabled={pool.length !== 4}
+                          onClick={suggestBalancedMatch}
+                          startIcon={<BalanceIcon />}
+                          sx={{ height: 48, fontSize: "0.85rem" }}
+                        >
+                          Balansera lag
+                        </Button>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          disabled={pool.length < 4 || pool.length > 8}
+                          onClick={suggestRotation}
+                          startIcon={<GroupsIcon />}
+                          sx={{ height: 48, fontSize: "0.85rem" }}
+                        >
+                          Skapa rotation
+                        </Button>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          fullWidth
+                          onClick={() => {
+                            setPool([]);
+                            setMatchSuggestion(null);
+                          }}
+                        >
+                          Rensa val ({pool.length})
+                        </Button>
+                      </Grid>
+                    </Grid>
+                    {renderPlayerGrid(togglePlayerInPool, pool)}
+                  </>
+                ) : (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="subtitle1" fontWeight={800}>Förslag</Typography>
+                      <Button size="small" onClick={() => setMatchSuggestion(null)}>Ändra spelare</Button>
+                    </Box>
+
+                    <Chip
+                      label={`${matchSuggestion.mode === "rotation" ? "Rotation" : "Balansering"} ${matchSuggestion.fairness}%`}
+                      color="success"
+                      variant="outlined"
+                      sx={{ mb: 1 }}
+                    />
+
+                    {matchSuggestion.mode === "rotation" ? (
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {matchSuggestion.rounds.map((round: any) => (
+                          <Paper key={round.round} variant="outlined" sx={{ p: 2 }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                              <Typography variant="subtitle2" fontWeight={800}>Runda {round.round}</Typography>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() => {
+                                  setTeam1(round.teamA);
+                                  setTeam2(round.teamB);
+                                  setMatchSuggestion(null);
+                                  setStep(2);
+                                }}
+                              >
+                                Starta
+                              </Button>
+                            </Box>
+                            <Grid container spacing={1}>
+                              <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">Lag A</Typography>
+                                <Typography variant="body2" fontWeight={600}>{round.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">Lag B</Typography>
+                                <Typography variant="body2" fontWeight={600}>{round.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
+                              </Grid>
+                            </Grid>
+                            {round.rest.length > 0 && (
+                              <Typography variant="caption" sx={{ mt: 1, display: "block", fontStyle: "italic" }}>
+                                Vilar: {round.rest.map((id: string) => getIdDisplayName(id, profileMap)).join(", ")}
+                              </Typography>
+                            )}
+                          </Paper>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50" }}>
+                        <Grid container spacing={2} sx={{ mb: 2 }}>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary">Lag A</Typography>
+                            <Typography variant="body1" fontWeight={600}>{matchSuggestion.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary">Lag B</Typography>
+                            <Typography variant="body1" fontWeight={600}>{matchSuggestion.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
+                          </Grid>
+                        </Grid>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          onClick={() => {
+                            setTeam1(matchSuggestion.teamA);
+                            setTeam2(matchSuggestion.teamB);
+                            setMatchSuggestion(null);
+                            setStep(2);
+                          }}
+                        >
+                          Använd dessa lag
+                        </Button>
+                      </Paper>
+                    )}
+                    <Typography variant="caption" color="text.secondary" align="center">
+                      {matchSuggestion.mode === "rotation"
+                        ? `Mål: ${matchSuggestion.targetGames.toFixed(1)} matcher per spelare.`
+                        : `Förväntad vinstchans Lag A: ${Math.round(matchSuggestion.winProbability * 100)}%`}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      ) : (
+        <Button
+          variant="outlined"
+          fullWidth
+          startIcon={<PersonAddIcon />}
+          onClick={() => setShowRecap(false)}
+          sx={{ py: 2, borderRadius: 3, borderWidth: 2, fontWeight: 700 }}
+        >
+          Registrera ny match
+        </Button>
       )}
+
 
       {showRecap && (matchRecap || eveningRecap) && (
-        <div className="recap-card">
-          <div className="recap-header">
-            <div className="recap-brand">
-              {/* Note for non-coders: Using a public image path keeps the logo easy to reuse in the UI. */}
-              <img src="/icon-192.png" alt="App-logga" className="recap-logo" />
-              <div>
-                <strong>{recapMode === "evening" ? "Kvällsrecap" : "Match‑recap"}</strong>
-                <div className="recap-subtitle muted">Redo att dela kvällens highlights.</div>
-              </div>
-            </div>
-            <div className="recap-header-actions">
-              <div className="recap-toggle">
-                <button
-                  type="button"
-                  className={`ghost-button ${recapMode === "evening" ? "is-active" : ""}`}
-                  onClick={() => setRecapMode("evening")}
-                  disabled={!eveningRecap}
-                >
-                  Kväll
-                </button>
-                <button
-                  type="button"
-                  className={`ghost-button ${recapMode === "match" ? "is-active" : ""}`}
-                  onClick={() => setRecapMode("match")}
-                  disabled={!matchRecap}
-                >
-                  Match
-                </button>
-              </div>
+        <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Avatar src="/icon-192.png" variant="rounded" sx={{ width: 48, height: 48, border: "1px solid", borderColor: "divider" }} />
+              <Box>
+                <Typography variant="subtitle1" fontWeight={800}>{recapMode === "evening" ? "Kvällsrecap" : "Match‑recap"}</Typography>
+                <Typography variant="caption" color="text.secondary">Redo att dela höjdpunkter.</Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                variant={recapMode === "evening" ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setRecapMode("evening")}
+                disabled={!eveningRecap}
+              >
+                Kväll
+              </Button>
+              <Button
+                variant={recapMode === "match" ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setRecapMode("match")}
+                disabled={!matchRecap}
+              >
+                Match
+              </Button>
               {recapMode === "evening" && (
-                <button type="button" className="ghost-button" onClick={() => setShowRecap(false)}>
-                  Stäng
-                </button>
+                <IconButton size="small" onClick={() => setShowRecap(false)}>
+                  <CloseIcon />
+                </IconButton>
               )}
-              {recapMode === "match" && matchRecap && (
-                <span className="chip chip-neutral">{matchRecap.scoreline}</span>
-              )}
-            </div>
-          </div>
-          <div className="recap-body">
+            </Box>
+          </Box>
+
+          <Divider />
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {recapMode === "evening" && eveningRecap ? (
               <>
-                <div className="recap-hero recap-hero-evening">
-                  <div className="recap-hero-date">{eveningRecap.dateLabel}</div>
-                  <div className="recap-hero-stats">
-                    {eveningRecap.matches} matcher · {eveningRecap.totalSets} sets
-                  </div>
-                  <div className="recap-hero-mvp">
-                    <span className="chip chip-success">MVP</span>
-                    <strong>
-                      <ProfileName
-                        name={eveningRecap.mvp?.name || "—"}
-                        badgeId={getBadgeIdForName(eveningRecap.mvp?.name || "")}
-                      />
-                    </strong>
-                  </div>
-                </div>
-                <div className="recap-team">
-                  <div className="recap-team-header">
-                    <span>Topp vinster</span>
-                  </div>
-                  <div className="recap-team-players">
+                <Paper variant="outlined" sx={{ p: 2, textAlign: "center", bgcolor: "primary.light", color: "primary.contrastText" }}>
+                  <Typography variant="h6" fontWeight={800}>{eveningRecap.dateLabel}</Typography>
+                  <Typography variant="body2">{eveningRecap.matches} matcher · {eveningRecap.totalSets} sets</Typography>
+                  <Box sx={{ mt: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
+                    <Chip label="MVP" color="success" size="small" sx={{ fontWeight: 800 }} />
+                    <ProfileName
+                      name={eveningRecap.mvp?.name || "—"}
+                      badgeId={getBadgeIdForName(eveningRecap.mvp?.name || "")}
+                    />
+                  </Box>
+                </Paper>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700} gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <GroupsIcon fontSize="small" /> Topp vinster
+                  </Typography>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                     {eveningRecap.leaders.map((player: any) => (
-                      <div key={player.id} className="recap-player">
+                      <Paper key={player.id} variant="outlined" sx={{ px: 2, py: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <ProfileName
                           name={player.name}
                           badgeId={getBadgeIdForName(player.name)}
                         />
-                        <span className="muted">
-                          {player.wins} vinster · {player.games} matcher
-                        </span>
-                      </div>
+                        <Typography variant="caption" color="text.secondary">
+                          {player.wins} V · {player.games} M
+                        </Typography>
+                      </Paper>
                     ))}
-                  </div>
-                </div>
+                  </Box>
+                </Box>
               </>
             ) : null}
+
             {recapMode === "match" && matchRecap ? (
               <>
-                <div className="recap-hero recap-hero-match">
-                  <div className="recap-hero-score">{matchRecap.scoreline}</div>
-                  <div
-                    className={`recap-hero-result ${
-                      matchRecap.teamAWon ? "is-win" : "is-loss"
-                    }`}
-                  >
-                    {matchRecap.teamAWon ? "Vinst Lag A" : "Vinst Lag B"}
-                  </div>
-                  <div className="recap-hero-subtitle muted">Matchens resultat i fokus.</div>
-                </div>
-                <div className="recap-team">
-                  <div className="recap-team-header">
-                    <span>Lag A</span>
-                    <span className={matchRecap.teamAWon ? "chip chip-success" : "chip chip-warning"}>
-                      {matchRecap.teamAWon ? "Vinst" : "Förlust"}
-                    </span>
-                  </div>
-                  <div className="recap-team-players">
-                    {matchRecap.teamA.players.map((player: any) => (
-                      <div key={player.id} className="recap-player">
-                        <ProfileName
-                          name={player.name}
-                          badgeId={getBadgeIdForName(player.name)}
-                        />
-                        <span className="muted">
-                          ELO {player.elo} · {player.delta >= 0 ? "+" : ""}{player.delta}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="recap-team">
-                  <div className="recap-team-header">
-                    <span>Lag B</span>
-                    <span className={!matchRecap.teamAWon ? "chip chip-success" : "chip chip-warning"}>
-                      {!matchRecap.teamAWon ? "Vinst" : "Förlust"}
-                    </span>
-                  </div>
-                  <div className="recap-team-players">
-                    {matchRecap.teamB.players.map((player: any) => (
-                      <div key={player.id} className="recap-player">
-                        <ProfileName
-                          name={player.name}
-                          badgeId={getBadgeIdForName(player.name)}
-                        />
-                        <span className="muted">
-                          ELO {player.elo} · {player.delta >= 0 ? "+" : ""}{player.delta}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <Paper variant="outlined" sx={{ p: 2, textAlign: "center", bgcolor: "grey.50" }}>
+                  <Typography variant="h4" fontWeight={900}>{matchRecap.scoreline}</Typography>
+                  <Chip
+                    label={matchRecap.teamAWon ? "Vinst Lag A" : "Vinst Lag B"}
+                    color={matchRecap.teamAWon ? "success" : "warning"}
+                    sx={{ fontWeight: 800, mt: 1 }}
+                  />
+                </Paper>
+
+                <Grid container spacing={2}>
+                  {[
+                    { title: "Lag A", won: matchRecap.teamAWon, players: matchRecap.teamA.players },
+                    { title: "Lag B", won: !matchRecap.teamAWon, players: matchRecap.teamB.players }
+                  ].map((team, idx) => (
+                    <Grid item xs={12} sm={6} key={idx}>
+                      <Paper variant="outlined" sx={{ p: 1.5 }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                          <Typography variant="subtitle2" fontWeight={800}>{team.title}</Typography>
+                          <Chip
+                            label={team.won ? "Vinst" : "Förlust"}
+                            size="small"
+                            color={team.won ? "success" : "error"}
+                            variant="outlined"
+                          />
+                        </Box>
+                        {team.players.map((player: any) => (
+                          <Box key={player.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                            <ProfileName name={player.name} badgeId={getBadgeIdForName(player.name)} />
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                              {player.delta >= 0 ? "+" : ""}{player.delta}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
               </>
             ) : null}
-          </div>
-          <div className="recap-footer">
-            {recapMode === "match" && matchRecap ? (
-              <div className="muted">
-                Fairness: {matchRecap.fairness}% · Förväntad vinstchans Lag A:{" "}
-                {Math.round(matchRecap.winProbability * 100)}%
-              </div>
-            ) : (
-              <div className="muted">Dela kvällens höjdpunkter med laget.</div>
+          </Box>
+
+          <Divider />
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {recapMode === "match" && matchRecap && (
+              <Typography variant="caption" color="text.secondary" align="center">
+                Fairness: {matchRecap.fairness}% · Vinstchans Lag A: {Math.round(matchRecap.winProbability * 100)}%
+              </Typography>
             )}
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={exportRecapImage}
-              disabled={isExporting}
-            >
-              {isExporting ? "Exporterar..." : "Ladda ner som bild"}
-            </button>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => {
-                if (!navigator.clipboard) {
-                  toast.error("Kopiering stöds inte i den här webbläsaren.");
-                  return;
-                }
-                navigator.clipboard.writeText(recapSummary);
-                toast.success("Recap kopierad!");
-              }}
-            >
-              Kopiera sammanfattning
-            </button>
-          </div>
-        </div>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={exportRecapImage}
+                disabled={isExporting}
+                sx={{ flex: 1 }}
+              >
+                {isExporting ? "Exporterar..." : "Spara som bild"}
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => {
+                  if (!navigator.clipboard) {
+                    toast.error("Kopiering stöds inte.");
+                    return;
+                  }
+                  navigator.clipboard.writeText(recapSummary);
+                  toast.success("Sammanfattning kopierad!");
+                }}
+                sx={{ flex: 1 }}
+              >
+                Kopiera text
+              </Button>
+            </Box>
+          </Box>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 }
