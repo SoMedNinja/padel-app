@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { Match, Profile } from "../types";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { Box, Skeleton, Stack } from "@mui/material";
+import { Box, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
 import { queryKeys } from "../utils/queryKeys";
 
 export default function TournamentPage() {
@@ -51,7 +51,19 @@ export default function TournamentPage() {
     "Något gick fel när turneringsdata hämtades.";
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      pullingContent={
+        <Box sx={{ p: 2, textAlign: 'center', opacity: 0.6 }}>
+          <Typography variant="body2">Dra för att uppdatera...</Typography>
+        </Box>
+      }
+      refreshingContent={
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <CircularProgress size={24} />
+        </Box>
+      }
+    >
       <section id="mexicana" className="page-section">
         {hasError && (
           <div className="notice-banner error" role="alert">

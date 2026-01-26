@@ -38,10 +38,10 @@ export default function Streaks({ matches = [] }: StreaksProps) {
     });
   });
 
-  let rows = Object.entries(stats).map(([name, s]) => ({ name, ...s }));
+  const rows = Object.entries(stats).map(([name, s]) => ({ name, ...s }));
 
   rows.sort((a: any, b: any) => {
-    let valA = a[sortKey], valB = b[sortKey];
+    const valA = a[sortKey], valB = b[sortKey];
     if (typeof valA === 'string' && typeof valB === 'string') {
         return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
     }

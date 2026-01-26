@@ -3,6 +3,8 @@ import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
 import { PlayerStats } from "../types";
+import { Tooltip, IconButton } from "@mui/material";
+import { InfoOutlined } from "@mui/icons-material";
 
 // Enkel hjälpfunktion för vinstprocent
 const winPct = (wins: number, losses: number) =>
@@ -89,7 +91,14 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
 
   return (
     <div className="table-card">
-      <h2>ELO Leaderboard</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
+        <h2 style={{ margin: 0 }}>ELO Leaderboard</h2>
+        <Tooltip title="ELO är ett rankingsystem baserat på vinstsannolikhet. Du startar på 1000 poäng." arrow>
+          <IconButton size="small" sx={{ opacity: 0.6 }}>
+            <InfoOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </div>
       <div className="table-scroll">
         {showLoadingOverlay && (
           <div className="table-loading-overlay" role="status" aria-live="polite">

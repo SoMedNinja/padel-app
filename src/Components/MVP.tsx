@@ -2,7 +2,8 @@ import React from "react";
 import { getLatestMatchDate, getMvpWinner, MIN_GAMES_EVENING, MIN_GAMES_MONTH } from "../utils/stats";
 import ProfileName from "./ProfileName";
 import { Match, PlayerStats } from "../types";
-import { getMvpWinner, scorePlayersForMvp, EVENING_MIN_GAMES, MONTH_MIN_GAMES } from "../utils/mvp";
+import { Tooltip, IconButton } from "@mui/material";
+import { InfoOutlined } from "@mui/icons-material";
 
 interface MVPProps {
   matches?: Match[];
@@ -51,11 +52,21 @@ export default function MVP({
   );
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
+  const explanation = mode === "evening"
+    ? "Beräknas på senaste spelkvällens matcher. Kräver minst 3 matcher."
+    : "Beräknas på rullande 30 dagar. Kräver minst 6 matcher.";
 
   if (!mvp) {
     return (
       <div className="mvp">
-        <div className="mvp-title">{titleEmoji} {title}</div>
+        <div className="mvp-title">
+          {titleEmoji} {title}
+          <Tooltip title={explanation} arrow>
+            <IconButton size="small" sx={{ ml: 0.5, p: 0.5, opacity: 0.6 }}>
+              <InfoOutlined fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+        </div>
         <div className="mvp-meta">inte tillräckligt många spelade matcher</div>
       </div>
     );
@@ -65,8 +76,15 @@ export default function MVP({
 
   return (
     <div className="mvp">
-      <div className="mvp-title">{titleEmoji} {title}</div>
-      <ProfileName className="mvp-name" name={mvp.name} badgeId={player?.featuredBadgeId || null} />
+      <div className="mvp-title">
+        {titleEmoji} {title}
+        <Tooltip title={explanation} arrow>
+          <IconButton size="small" sx={{ ml: 0.5, p: 0.5, opacity: 0.6 }}>
+            <InfoOutlined fontSize="inherit" />
+          </IconButton>
+        </Tooltip>
+      </div>
+      <ProfileName className="mvp-name" name={mvp.name} badgeId={mvp.badgeId} />
       <div className="mvp-meta">
         {mvp.wins} vinster, {mvp.games} matcher, {winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
       </div>
