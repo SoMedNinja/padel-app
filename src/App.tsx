@@ -1,4 +1,3 @@
-import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "sonner";
 import { supabase } from "./supabaseClient";
 import { useStore } from "./store/useStore";
@@ -107,12 +106,12 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <>
       <ScrollToTop />
       <Toaster position="top-center" richColors />
       <MainLayout>
         <AppRoutes />
       </MainLayout>
-    </BrowserRouter>
+    </>
   );
 }
