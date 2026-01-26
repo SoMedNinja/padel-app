@@ -188,7 +188,7 @@ select:focus-visible {
   gap:12px;
   flex-wrap:wrap;
   background:var(--color-surface);
-  padding:16px 20px;
+  padding:12px 16px;
   border-radius:var(--radius-lg);
   border:1px solid var(--color-border);
   box-shadow:var(--shadow-soft);
@@ -203,17 +203,17 @@ select:focus-visible {
 }
 
 .app-logo {
-  width:48px;
-  height:48px;
-  border-radius:14px;
+  width:36px;
+  height:36px;
+  border-radius:10px;
   display:grid;
   place-items:center;
   background:linear-gradient(140deg, #b71c1c, #ff8f00);
   color:#fff;
   font-weight:800;
-  font-size:18px;
+  font-size:14px;
   letter-spacing:0.08em;
-  box-shadow:0 10px 18px rgba(183, 28, 28, 0.25);
+  box-shadow:0 6px 12px rgba(183, 28, 28, 0.2);
 }
 
 .app-title-text {
@@ -222,12 +222,12 @@ select:focus-visible {
 }
 
 .app-title-name {
-  font-size:28px;
+  font-size:22px;
   font-weight:800;
 }
 
 .app-title-subtitle {
-  font-size:11px;
+  font-size:10px;
   letter-spacing:0.12em;
   text-transform:uppercase;
   color:var(--color-muted);
@@ -1664,12 +1664,13 @@ body.chart-fullscreen-active {
   }
 
   .app-header {
-    flex-direction:column;
-    align-items:flex-start;
+    flex-direction:row;
+    align-items:center;
+    padding: 10px 14px;
   }
 
   h1 {
-    font-size:24px;
+    font-size:20px;
   }
 
   button {
@@ -2006,21 +2007,35 @@ body.chart-fullscreen-active {
 
 .mode-toggle {
   display: flex;
-  gap: 8px;
+  background: #ededed;
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
 }
 
 .mode-toggle button {
   flex: 1;
-  background: var(--color-bg);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  border: none;
   margin-top: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.mode-toggle button:hover {
+  background: rgba(0,0,0,0.05);
+  transform: none;
+  box-shadow: none;
 }
 
 .mode-toggle button.active {
-  background: var(--color-brand);
-  color: #fff;
-  border-color: var(--color-brand);
+  background: #fff;
+  color: var(--color-brand);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .mexicana-team-selector {

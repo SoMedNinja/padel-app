@@ -23,8 +23,7 @@ import {
   getKFactor,
   getMatchWeight,
   getMarginMultiplier,
-  getPlayerWeight,
-  calculateElo
+  getPlayerWeight
 } from "../utils/elo";
 import { GUEST_ID } from "../utils/guest";
 import {
@@ -34,7 +33,7 @@ import {
   resolveTeamIds,
   resolveTeamNames
 } from "../utils/profileMap";
-import { getMvpStats } from "../utils/stats";
+import { getMvpStats, getMvpWinner as findMvpWinner, MIN_GAMES_EVENING } from "../utils/stats";
 import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
@@ -88,12 +87,7 @@ const ensurePlayer = (map: any, id: string) => {
   if (!map[id]) map[id] = { elo: ELO_BASELINE, games: 0 };
 };
 
-const buildMvpSummary = (matches: Match[], profiles: Profile[]) => {
-  const allowedNames = new Set(
-    profiles
-      .map(profile => getProfileDisplayName(profile))
-      .filter(name => name && name !== "Gäst")
-  );
+const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: PlayerStats[]) => {
   const profileMap = makeProfileMap(profiles);
   const dateMap = new Map<string, Match[]>();
   const matchEntries = matches
@@ -117,31 +111,6 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[]) => {
     if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
     dateMap.get(dateKey)!.push(match);
   });
-
-  const getMvpWinner = (matchGroup: Match[]) => {
-    const stats = getMvpStats(matchGroup, allowedNames);
-    const scored = Object.entries(stats).map(([name, s]) => {
-      const winPct = s.games ? s.wins / s.games : 0;
-      return {
-        name,
-        wins: s.wins,
-        games: s.games,
-        winPct,
-        score: s.wins * 3 + winPct * 5 + s.games
-      };
-    });
-
-    if (!scored.length) return null;
-
-    const [winner] = scored.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      if (b.games !== a.games) return b.games - a.games;
-      return a.name.localeCompare(b.name);
-    });
-
-    return winner?.name || null;
-  };
 
   const monthlyMvpDays: Record<string, number> = {};
   if (matchEntries.length) {
@@ -174,17 +143,17 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[]) => {
       const rollingMatches = sortedEntries
         .slice(windowStartIndex, windowEndIndex)
         .map(entry => entry.match);
-      const winner = getMvpWinner(rollingMatches);
+      const winner = findMvpWinner(rollingMatches, allEloPlayers, "rolling", 0);
       if (!winner) continue;
-      monthlyMvpDays[winner] = (monthlyMvpDays[winner] || 0) + 1;
+      monthlyMvpDays[winner.name] = (monthlyMvpDays[winner.name] || 0) + 1;
     }
   }
 
   const eveningMvpCounts: Record<string, number> = {};
   dateMap.forEach((dayMatches) => {
-    const winner = getMvpWinner(dayMatches);
+    const winner = findMvpWinner(dayMatches, allEloPlayers, "evening", MIN_GAMES_EVENING);
     if (!winner) return;
-    eveningMvpCounts[winner] = (eveningMvpCounts[winner] || 0) + 1;
+    eveningMvpCounts[winner.name] = (eveningMvpCounts[winner.name] || 0) + 1;
   });
 
   return { monthlyMvpDays, eveningMvpCounts };
@@ -454,7 +423,7 @@ export default function PlayerSection({
 
   const recentForm = useMemo(() => {
     const results = filteredStats?.recentResults ?? [];
-    return results.slice(-10);
+    return results.slice(-5);
   }, [filteredStats]);
 
   const recentFormStats = useMemo(() => {
@@ -731,9 +700,6 @@ export default function PlayerSection({
             name={playerName}
             alt="Profilbild"
           />
-          <button type="button" className="ghost-button" onClick={resetAvatar}>
-            Återställ till standard
-          </button>
         </div>
 
         <div className="player-details">
@@ -755,9 +721,9 @@ export default function PlayerSection({
           )}
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-            <label className="file-input" style={{ margin: 0 }}>
+            <label className="ghost-button" style={{ margin: 0, padding: '8px 12px', fontSize: '14px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
               Byt profilbild
-              <input type="file" accept="image/*" onChange={handleAvatarChange} />
+              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
             </label>
             {!isEditingName && (
               <button
@@ -769,6 +735,14 @@ export default function PlayerSection({
                 Ändra namn
               </button>
             )}
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={resetAvatar}
+              style={{ marginTop: 0, padding: '8px 12px', fontSize: '14px' }}
+            >
+              Återställ bild
+            </button>
           </div>
         </div>
       </div>
@@ -842,6 +816,12 @@ export default function PlayerSection({
             {formatEloDelta(lastSessionDelta)}
           </span>
         </div>
+        <div className="stat-card">
+          <span className="stat-label">Trend/Form (Senaste 5)</span>
+          <span className="stat-value">
+            {recentFormStats.wins}V - {recentFormStats.losses}F
+          </span>
+        </div>
       </div>
 
 
@@ -911,8 +891,8 @@ export function HeadToHeadSection({
   );
 
   const mvpSummary = useMemo(
-    () => buildMvpSummary(matches, profiles),
-    [matches, profiles]
+    () => buildMvpSummary(matches, profiles, allEloPlayers),
+    [matches, profiles, allEloPlayers]
   );
 
   const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);

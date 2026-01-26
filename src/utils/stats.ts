@@ -1,5 +1,8 @@
 // All match- och statistiklogik samlad här
-import { Match } from "../types";
+import { Match, PlayerStats } from "../types";
+
+export const MIN_GAMES_EVENING = 3;
+export const MIN_GAMES_MONTH = 6;
 
 const normalizeTeam = (team: any): string[] => {
   if (Array.isArray(team)) return team.filter(Boolean);
@@ -112,3 +115,67 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
   if (winRate <= 0.2) return "⬇️";
   return "➖";
 };
+
+export function calculateMvpScore(eloGain: number, winRate: number, games: number) {
+  return eloGain * (0.9 + 0.2 * winRate) + 0.3 * games;
+}
+
+export function calculateRollingMvpScore(wins: number, winRate: number, games: number) {
+  return wins * 3 + winRate * 5 + games;
+}
+
+export function getMvpWinner(
+  matches: Match[],
+  players: PlayerStats[],
+  mode: "evening" | "rolling",
+  minGames: number = 0
+) {
+  if (!matches.length) return null;
+
+  const allowedNames = new Set(players.map((p) => p.name));
+  const stats = getMvpStats(matches, allowedNames);
+  const matchIds = new Set(matches.map((m) => m.id).filter(Boolean));
+
+  const scored = Object.entries(stats).map(([name, s]) => {
+    const winRate = s.games ? s.wins / s.games : 0;
+    const player = players.find((p) => p.name === name);
+
+    const periodEloGain = (player?.history || [])
+      .filter((h) => matchIds.has(h.matchId))
+      .reduce((sum, h) => sum + (h.delta || 0), 0);
+
+    const eloNet = player?.elo || 1000;
+
+    let score = 0;
+    if (mode === "evening") {
+      score = calculateMvpScore(periodEloGain, winRate, s.games);
+    } else {
+      score = calculateRollingMvpScore(s.wins, winRate, s.games);
+    }
+
+    return {
+      name,
+      wins: s.wins,
+      games: s.games,
+      winRate,
+      periodEloGain,
+      eloNet,
+      score,
+      badgeId: player?.featuredBadgeId || null,
+    };
+  });
+
+  const eligible = scored.filter((s) => s.games >= minGames);
+
+  if (!eligible.length) return null;
+
+  const sorted = eligible.sort((a, b) => {
+    if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
+    if (b.periodEloGain !== a.periodEloGain) return b.periodEloGain - a.periodEloGain;
+    if (b.eloNet !== a.eloNet) return b.eloNet - a.eloNet;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return a.name.localeCompare(b.name);
+  });
+
+  return sorted[0];
+}
