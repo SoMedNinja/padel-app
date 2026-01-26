@@ -2,7 +2,14 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { getPlayerWeight } from "../utils/elo";
+import {
+  getPlayerWeight,
+  getExpectedScore,
+  getMarginMultiplier,
+  getMatchWeight,
+  buildPlayerDelta,
+  ELO_BASELINE,
+} from "../utils/elo";
 import { getBadgeLabelById } from "../utils/badges";
 import {
   getIdDisplayName,
@@ -21,8 +28,6 @@ import {
 } from "../utils/rotation";
 import { Match, PlayerStats, Profile } from "../types";
 
-const ELO_BASELINE = 1000;
-const K = 20;
 
 interface MatchFormProps {
   user: any;
@@ -182,26 +187,41 @@ export default function MatchForm({
   const createRecap = (teamAIds: string[], teamBIds: string[], scoreA: number, scoreB: number) => {
     const teamAElo = getTeamAverageElo(teamAIds, eloMap);
     const teamBElo = getTeamAverageElo(teamBIds, eloMap);
-    const winProbability = getWinProbability(teamAElo, teamBElo);
+    const winProbability = getExpectedScore(teamAElo, teamBElo);
     const teamAWon = scoreA > scoreB;
+    const marginMultiplier = getMarginMultiplier(scoreA, scoreB);
+    const matchWeight = getMatchWeight({
+      team1_sets: scoreA,
+      team2_sets: scoreB,
+      score_type: "sets",
+    } as any);
 
-    const teamADelta = Math.round(K * ((teamAWon ? 1 : 0) - winProbability));
-    const teamBDelta = Math.round(K * ((teamAWon ? 0 : 1) - (1 - winProbability)));
-
-    const mapPlayers = (ids: string[], delta: number, teamAverageElo: number) =>
+    const mapPlayers = (ids: string[], teamAverageElo: number, expected: number, didWin: boolean) =>
       ids
         .filter(Boolean)
-        .map(id => ({
-          id,
-          name: getIdDisplayName(id, profileMap),
-          elo: eloMap[id] ?? ELO_BASELINE,
-          delta:
-            id === GUEST_ID
-              ? 0
-              : Math.round(
-                  delta * getPlayerWeight(eloMap[id] ?? ELO_BASELINE, teamAverageElo)
-                ),
-        }));
+        .map(id => {
+          const playerStats = eloPlayers.find(p => p.id === id);
+          const games = playerStats?.games ?? 0;
+          const currentElo = eloMap[id] ?? ELO_BASELINE;
+          const delta = id === GUEST_ID ? 0 : buildPlayerDelta({
+            playerElo: currentElo,
+            playerGames: games,
+            teamAverageElo,
+            expectedScore: expected,
+            didWin,
+            marginMultiplier,
+            matchWeight,
+          });
+          return {
+            id,
+            name: getIdDisplayName(id, profileMap),
+            elo: currentElo,
+            delta,
+          };
+        });
+
+    const teamAPlayers = mapPlayers(teamAIds, teamAElo, winProbability, teamAWon);
+    const teamBPlayers = mapPlayers(teamBIds, teamBElo, 1 - winProbability, !teamAWon);
 
     const recap = {
       createdAt: new Date().toISOString(),
@@ -212,14 +232,12 @@ export default function MatchForm({
       teamA: {
         ids: teamAIds,
         averageElo: Math.round(teamAElo),
-        delta: teamADelta,
-        players: mapPlayers(teamAIds, teamADelta, teamAElo),
+        players: teamAPlayers,
       },
       teamB: {
         ids: teamBIds,
         averageElo: Math.round(teamBElo),
-        delta: teamBDelta,
-        players: mapPlayers(teamBIds, teamBDelta, teamBElo),
+        players: teamBPlayers,
       },
     };
 

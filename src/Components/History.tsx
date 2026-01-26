@@ -187,31 +187,16 @@ export default function History({ matches = [], globalMatches = [], profiles = [
     const eloMatches = globalMatches.length ? globalMatches : matches;
     // Note for non-coders: we compute both the Elo change and the updated rating after each match.
     const players = calculateElo(eloMatches, profiles);
-    const deltas = players.reduce((acc, player) => {
-      player.history.forEach(entry => {
-        if (!acc[entry.matchId]) {
-          acc[entry.matchId] = {};
-        }
-        acc[entry.matchId][player.id] = entry.delta;
-      });
-      return acc;
-    }, {} as Record<string, Record<string, number>>);
-    const currentElo: Record<string, number> = {};
+    const deltas: Record<string, Record<string, number>> = {};
     const ratingsByMatch: Record<string, Record<string, number>> = {};
-    const chronologicalMatches = [...eloMatches].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
 
-    chronologicalMatches.forEach(match => {
-      const matchDeltas = deltas[match.id] || {};
-      Object.entries(matchDeltas).forEach(([playerId, delta]) => {
-        const previousElo = currentElo[playerId] ?? ELO_BASELINE;
-        const nextElo = previousElo + delta;
-        currentElo[playerId] = nextElo;
-        if (!ratingsByMatch[match.id]) {
-          ratingsByMatch[match.id] = {};
-        }
-        ratingsByMatch[match.id][playerId] = nextElo;
+    players.forEach(player => {
+      player.history.forEach(entry => {
+        if (!deltas[entry.matchId]) deltas[entry.matchId] = {};
+        if (!ratingsByMatch[entry.matchId]) ratingsByMatch[entry.matchId] = {};
+
+        deltas[entry.matchId][player.id] = entry.delta;
+        ratingsByMatch[entry.matchId][player.id] = entry.elo;
       });
     });
 

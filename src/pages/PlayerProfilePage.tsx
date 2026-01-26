@@ -69,10 +69,10 @@ export default function PlayerProfilePage() {
   });
 
   const { filteredMatches } = usePadelData(matches, matchFilter, profiles);
-  // Note for non-coders: this map stores each player's latest ELO from all matches, so
-  // "current ELO" stays steady even when the filter shows a shorter time window.
-  const globalEloMap = useMemo(
-    () => new Map(calculateElo(allMatches, profiles).map(player => [player.id, player.elo])),
+  // Note for non-coders: this array stores each player's full stats from all matches, so
+  // ELO and history stay steady even when the filter shows a shorter time window.
+  const allEloPlayers = useMemo(
+    () => calculateElo(allMatches, profiles),
     [allMatches, profiles]
   );
 
@@ -143,8 +143,7 @@ export default function PlayerProfilePage() {
                 user={userWithAdmin}
                 profiles={profiles}
                 matches={filteredMatches}
-                globalMatches={allMatches}
-                globalEloMap={globalEloMap}
+                allEloPlayers={allEloPlayers}
                 tournamentResults={tournamentResults}
                 onProfileUpdate={handleProfileUpdate}
               />
@@ -155,7 +154,7 @@ export default function PlayerProfilePage() {
                 user={userWithAdmin}
                 profiles={profiles}
                 matches={filteredMatches}
-                globalEloMap={globalEloMap}
+                allEloPlayers={allEloPlayers}
                 tournamentResults={tournamentResults}
               />
             </section>

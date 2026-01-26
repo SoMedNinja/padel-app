@@ -62,7 +62,9 @@ export interface PlayerStats {
 export interface EloHistoryEntry {
   result: "W" | "L";
   timestamp: number;
+  date: string;
   delta: number;
+  elo: number;
   matchId: string;
 }
 

@@ -1,6 +1,4 @@
-import { getPlayerWeight } from "./elo";
-
-const ELO_BASELINE = 1000;
+import { getPlayerWeight, getExpectedScore, ELO_BASELINE } from "./elo";
 
 export const getTeamAverageElo = (team: string[], eloMap: Record<string, number>) => {
   const active = team.filter(id => id && id !== "guest-id");
@@ -9,8 +7,7 @@ export const getTeamAverageElo = (team: string[], eloMap: Record<string, number>
   return total / active.length;
 };
 
-export const getWinProbability = (teamAElo: number, teamBElo: number) =>
-  1 / (1 + Math.pow(10, (teamBElo - teamAElo) / 400));
+export const getWinProbability = getExpectedScore;
 
 export const getFairnessScore = (winProbability: number) =>
   Math.max(0, Math.min(100, Math.round((1 - Math.abs(0.5 - winProbability) * 2) * 100)));
