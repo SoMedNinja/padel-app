@@ -33,7 +33,7 @@ import {
   resolveTeamIds,
   resolveTeamNames
 } from "../utils/profileMap";
-import { getMvpStats, getMvpWinner as findMvpWinner, MIN_GAMES_EVENING } from "../utils/stats";
+import { getMvpStats } from "../utils/stats";
 import { getBadgeLabelById } from "../utils/badges";
 import { getMvpWinner, scorePlayersForMvp, MONTH_MIN_GAMES, EVENING_MIN_GAMES } from "../utils/mvp";
 import ProfileName from "./ProfileName";
@@ -144,7 +144,8 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: P
       const rollingMatches = sortedEntries
         .slice(windowStartIndex, windowEndIndex)
         .map(entry => entry.match);
-      const winner = findMvpWinner(rollingMatches, allEloPlayers, "rolling", 0);
+      const results = scorePlayersForMvp(rollingMatches, allEloPlayers, 0);
+      const winner = getMvpWinner(results);
       if (!winner) continue;
       monthlyMvpDays[winner.name] = (monthlyMvpDays[winner.name] || 0) + 1;
     }
@@ -152,7 +153,8 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: P
 
   const eveningMvpCounts: Record<string, number> = {};
   dateMap.forEach((dayMatches) => {
-    const winner = findMvpWinner(dayMatches, allEloPlayers, "evening", MIN_GAMES_EVENING);
+    const results = scorePlayersForMvp(dayMatches, allEloPlayers, EVENING_MIN_GAMES);
+    const winner = getMvpWinner(results);
     if (!winner) return;
     eveningMvpCounts[winner.name] = (eveningMvpCounts[winner.name] || 0) + 1;
   });
