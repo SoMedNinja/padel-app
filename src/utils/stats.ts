@@ -113,3 +113,142 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
   return "➖";
 };
 
+export function calculateMvpScore(eloGain: number, winRate: number, games: number) {
+  return eloGain * (0.9 + 0.2 * winRate) + 0.3 * games;
+}
+
+export function calculateRollingMvpScore(wins: number, winRate: number, games: number) {
+  return wins * 3 + winRate * 5 + games;
+}
+
+export function getMvpWinner(
+  matches: Match[],
+  players: PlayerStats[],
+  mode: "evening" | "rolling",
+  minGames: number = 0
+) {
+  if (!matches.length) return null;
+
+  const allowedNames = new Set(players.map((p) => p.name));
+  const stats = getMvpStats(matches, allowedNames);
+  const matchIds = new Set(matches.map((m) => m.id).filter(Boolean));
+
+  const scored = Object.entries(stats).map(([name, s]) => {
+    const winRate = s.games ? s.wins / s.games : 0;
+    const player = players.find((p) => p.name === name);
+
+    const periodEloGain = (player?.history || [])
+      .filter((h) => matchIds.has(h.matchId))
+      .reduce((sum, h) => sum + (h.delta || 0), 0);
+
+    const eloNet = player?.elo || 1000;
+
+    let score = 0;
+    if (mode === "evening") {
+      score = calculateMvpScore(periodEloGain, winRate, s.games);
+    } else {
+      score = calculateRollingMvpScore(s.wins, winRate, s.games);
+    }
+
+    return {
+      id: player?.id,
+      name,
+      wins: s.wins,
+      games: s.games,
+      winRate,
+      periodEloGain,
+      eloNet,
+      score,
+      badgeId: player?.featuredBadgeId || null,
+    };
+  });
+
+  const eligible = scored.filter((s) => s.games >= minGames);
+
+  if (!eligible.length) return null;
+
+  const sorted = eligible.sort((a, b) => {
+    if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
+    if (b.periodEloGain !== a.periodEloGain) return b.periodEloGain - a.periodEloGain;
+    if (b.eloNet !== a.eloNet) return b.eloNet - a.eloNet;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return a.name.localeCompare(b.name);
+  });
+
+  return sorted[0];
+}
+
+  export function getPartnerSynergy(matches: Match[], playerName: string) {
+    const synergy: Record<string, { games: number; wins: number; eloGain: number }> = {};
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+    matches.forEach(m => {
+      const matchDate = new Date(m.created_at).getTime();
+      if (matchDate < thirtyDaysAgo) return;
+
+      const team1 = normalizeTeam(m.team1);
+      const team2 = normalizeTeam(m.team2);
+      const isTeam1 = team1.includes(playerName);
+      const isTeam2 = team2.includes(playerName);
+
+      if (!isTeam1 && !isTeam2) return;
+
+      const partner = isTeam1
+        ? team1.find(p => p !== playerName)
+        : team2.find(p => p !== playerName);
+
+      if (!partner || partner === "Gäst") return;
+
+      const won = (isTeam1 && m.team1_sets > m.team2_sets) || (isTeam2 && m.team2_sets > m.team1_sets);
+
+      if (!synergy[partner]) synergy[partner] = { games: 0, wins: 0, eloGain: 0 };
+      synergy[partner].games++;
+      if (won) synergy[partner].wins++;
+      // Note: eloGain per partner is tricky without player stats, but we can track wins/games.
+    });
+
+    const sorted = Object.entries(synergy).sort((a, b) => {
+      const winRateA = a[1].wins / a[1].games;
+      const winRateB = b[1].wins / b[1].games;
+      if (winRateB !== winRateA) return winRateB - winRateA;
+      return b[1].games - a[1].games;
+    });
+
+    return sorted[0] ? { name: sorted[0][0], ...sorted[0][1] } : null;
+  }
+
+  export function getToughestOpponent(matches: Match[], playerName: string) {
+    const rivals: Record<string, { games: number; losses: number }> = {};
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+    matches.forEach(m => {
+      const matchDate = new Date(m.created_at).getTime();
+      if (matchDate < thirtyDaysAgo) return;
+
+      const team1 = normalizeTeam(m.team1);
+      const team2 = normalizeTeam(m.team2);
+      const isTeam1 = team1.includes(playerName);
+      const isTeam2 = team2.includes(playerName);
+
+      if (!isTeam1 && !isTeam2) return;
+
+      const opponents = isTeam1 ? team2 : team1;
+      const won = (isTeam1 && m.team1_sets > m.team2_sets) || (isTeam2 && m.team2_sets > m.team1_sets);
+
+      opponents.forEach(opp => {
+        if (opp === "Gäst") return;
+        if (!rivals[opp]) rivals[opp] = { games: 0, losses: 0 };
+        rivals[opp].games++;
+        if (!won) rivals[opp].losses++;
+      });
+    });
+
+    const sorted = Object.entries(rivals).sort((a, b) => {
+      const lossRateA = a[1].losses / a[1].games;
+      const lossRateB = b[1].losses / b[1].games;
+      if (lossRateB !== lossRateA) return lossRateB - lossRateA;
+      return b[1].games - a[1].games;
+    });
+
+    return sorted[0] ? { name: sorted[0][0], ...sorted[0][1] } : null;
+  }

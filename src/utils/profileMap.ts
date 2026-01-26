@@ -40,7 +40,10 @@ export const resolveTeamIds = (
 };
 
 export const idsToNames = (ids: (string | null)[], profileMap: Map<string, Profile>): string[] => {
-  return ids.map(id => getIdDisplayName(id, profileMap));
+  return ids
+    .filter(id => id !== undefined && id !== "")
+    .map(id => getIdDisplayName(id, profileMap))
+    .filter(name => name !== "Okänd");
 };
 
 export const resolveTeamNames = (

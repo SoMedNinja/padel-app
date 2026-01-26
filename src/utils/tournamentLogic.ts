@@ -263,7 +263,7 @@ export const generateAmericanoRounds = (participants: string[]) => {
   };
   const roundCount = roundMap[playerCount] || playerCount;
 
-  let currentRounds: Round[] = [];
+  const currentRounds: Round[] = [];
   for (let i = 0; i < roundCount; i++) {
     const suggestion = getNextSuggestion(currentRounds, participants, 'americano');
     const newRound: Round = {

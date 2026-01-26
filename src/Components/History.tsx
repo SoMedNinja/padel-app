@@ -65,6 +65,32 @@ export default function History({ matches = [], globalMatches = [], profiles = [
     setVisibleCount(10);
   }, [matches.length]);
 
+  const sortedMatches = useMemo(
+    () => [...matches].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [matches]
+  );
+
+  const { eloDeltaByMatch, eloRatingByMatch } = useMemo(() => {
+    // Note for non-coders: we use the full match list (when provided) so ratings stay global.
+    const eloMatches = globalMatches.length ? globalMatches : matches;
+    // Note for non-coders: we compute both the Elo change and the updated rating after each match.
+    const players = calculateElo(eloMatches, profiles);
+    const deltas: Record<string, Record<string, number>> = {};
+    const ratingsByMatch: Record<string, Record<string, number>> = {};
+
+    players.forEach(player => {
+      player.history.forEach(entry => {
+        if (!deltas[entry.matchId]) deltas[entry.matchId] = {};
+        if (!ratingsByMatch[entry.matchId]) ratingsByMatch[entry.matchId] = {};
+
+        deltas[entry.matchId][player.id] = entry.delta;
+        ratingsByMatch[entry.matchId][player.id] = entry.elo;
+      });
+    });
+
+    return { eloDeltaByMatch: deltas, eloRatingByMatch: ratingsByMatch };
+  }, [globalMatches, matches, profiles]);
+
   if (!matches.length) return <div>Inga matcher ännu.</div>;
 
   const canDelete = (m: Match) => {
@@ -177,32 +203,6 @@ export default function History({ matches = [], globalMatches = [], profiles = [
     }
   };
 
-  const sortedMatches = useMemo(
-    () => [...matches].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [matches]
-  );
-
-  const { eloDeltaByMatch, eloRatingByMatch } = useMemo(() => {
-    // Note for non-coders: we use the full match list (when provided) so ratings stay global.
-    const eloMatches = globalMatches.length ? globalMatches : matches;
-    // Note for non-coders: we compute both the Elo change and the updated rating after each match.
-    const players = calculateElo(eloMatches, profiles);
-    const deltas: Record<string, Record<string, number>> = {};
-    const ratingsByMatch: Record<string, Record<string, number>> = {};
-
-    players.forEach(player => {
-      player.history.forEach(entry => {
-        if (!deltas[entry.matchId]) deltas[entry.matchId] = {};
-        if (!ratingsByMatch[entry.matchId]) ratingsByMatch[entry.matchId] = {};
-
-        deltas[entry.matchId][player.id] = entry.delta;
-        ratingsByMatch[entry.matchId][player.id] = entry.elo;
-      });
-    });
-
-    return { eloDeltaByMatch: deltas, eloRatingByMatch: ratingsByMatch };
-  }, [globalMatches, matches, profiles]);
-
   const visibleMatches = sortedMatches.slice(0, visibleCount);
   const canLoadMore = visibleCount < sortedMatches.length;
 
@@ -219,13 +219,15 @@ export default function History({ matches = [], globalMatches = [], profiles = [
   const buildTeamEntries = (match: Match, teamKey: "team1" | "team2", idKey: "team1_ids" | "team2_ids"): TeamEntry[] => {
     const ids = resolveTeamIds(match[idKey], match[teamKey], nameToIdMap);
     const names = resolveTeamNames(match[idKey], match[teamKey], profileMap);
-    // Note for non-coders: we only keep the first two players per team to avoid displaying extra "unknown" slots.
-    const trimmedIds = ids.slice(0, 2);
-    const trimmedNames = names.slice(0, 2);
-    return trimmedIds.map((id, index) => ({
+
+    // Create entries and filter out "Okänd"
+    const entries = ids.map((id, index) => ({
       id,
-      name: trimmedNames[index] || getIdDisplayName(id, profileMap),
-    }));
+      name: names[index] || getIdDisplayName(id, profileMap),
+    })).filter(entry => entry.name !== "Okänd");
+
+    // Only keep the first two players per team
+    return entries.slice(0, 2);
   };
 
   const formatDelta = (delta?: number) => {

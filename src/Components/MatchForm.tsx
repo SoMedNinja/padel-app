@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
+import { CircularProgress } from "@mui/material";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
   getPlayerWeight,
@@ -52,6 +53,7 @@ export default function MatchForm({
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
@@ -265,6 +267,7 @@ export default function MatchForm({
     const team1IdsForDb = team1.map(id => (id === GUEST_ID ? null : id));
     const team2IdsForDb = team2.map(id => (id === GUEST_ID ? null : id));
 
+    setIsSubmitting(true);
     try {
       const { error } = await supabase.from("matches").insert({
         team1: idsToNames(team1, profileMap),
@@ -283,10 +286,12 @@ export default function MatchForm({
 
       if (error) {
         toast.error(error.message);
+        setIsSubmitting(false);
         return;
       }
     } catch (error: any) {
       toast.error(error.message || "Kunde inte spara matchen.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -310,6 +315,7 @@ export default function MatchForm({
     setMatchSuggestion(null);
     setRecapMode("evening");
     setShowRecap(true);
+    setIsSubmitting(false);
     toast.success(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
   };
 
@@ -795,7 +801,9 @@ export default function MatchForm({
           </div>
         </div>
 
-        <button type="submit">Spara</button>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "Spara"}
+        </button>
       </form>
 
       {matchSuggestion && (

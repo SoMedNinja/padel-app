@@ -19,11 +19,6 @@ import {
 import {
   ELO_BASELINE,
   calculateElo,
-  getExpectedScore,
-  getKFactor,
-  getMatchWeight,
-  getMarginMultiplier,
-  getPlayerWeight
 } from "../utils/elo";
 import { GUEST_ID } from "../utils/guest";
 import {
@@ -33,9 +28,13 @@ import {
   resolveTeamIds,
   resolveTeamNames
 } from "../utils/profileMap";
-import { getMvpStats } from "../utils/stats";
+import {
+  getMvpWinner as findMvpWinner,
+  MIN_GAMES_EVENING,
+  getPartnerSynergy,
+  getToughestOpponent
+} from "../utils/stats";
 import { getBadgeLabelById } from "../utils/badges";
-import { getMvpWinner, scorePlayersForMvp, MONTH_MIN_GAMES, EVENING_MIN_GAMES } from "../utils/mvp";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
 import { Match, Profile, TournamentResult, PlayerStats } from "../types";
@@ -83,10 +82,6 @@ const getPlayerOptionLabel = (profile: Profile) => {
 
 const normalizeTeam = (team: any): string[] =>
   Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
-
-const ensurePlayer = (map: any, id: string) => {
-  if (!map[id]) map[id] = { elo: ELO_BASELINE, games: 0 };
-};
 
 const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: PlayerStats[]) => {
   const profileMap = makeProfileMap(profiles);
@@ -237,12 +232,14 @@ const getHighestEloRating = (playerStats: PlayerStats | undefined) => {
 
 const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponentId: string, mode: string, nameToIdMap: Map<string, string>) => {
   if (!playerId || !opponentId) {
-    return { wins: 0, losses: 0, matches: 0 };
+    return { wins: 0, losses: 0, matches: 0, avgSetDiff: 0, totalSetsFor: 0, totalSetsAgainst: 0 };
   }
 
   let wins = 0;
   let losses = 0;
   let total = 0;
+  let totalSetsFor = 0;
+  let totalSetsAgainst = 0;
 
   matches.forEach(match => {
     const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
@@ -266,14 +263,39 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
 
     if (match.team1_sets == null || match.team2_sets == null) return;
 
-    const team1Won = match.team1_sets > match.team2_sets;
+    const s1 = Number(match.team1_sets || 0);
+    const s2 = Number(match.team2_sets || 0);
+    const team1Won = s1 > s2;
     const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
 
     total++;
     playerWon ? wins++ : losses++;
+
+    let setsFor = isTeam1 ? s1 : s2;
+    let setsAgainst = isTeam1 ? s2 : s1;
+
+    // Normalize point-based matches (from tournaments) to a 1-set win/loss
+    // so they don't skew the "Set difference" average.
+    if (match.score_type === "points") {
+      if (setsFor > setsAgainst) {
+        setsFor = 1;
+        setsAgainst = 0;
+      } else if (setsAgainst > setsFor) {
+        setsFor = 0;
+        setsAgainst = 1;
+      } else {
+        setsFor = 0;
+        setsAgainst = 0;
+      }
+    }
+
+    totalSetsFor += setsFor;
+    totalSetsAgainst += setsAgainst;
   });
 
-  return { wins, losses, matches: total };
+  const avgSetDiff = total ? (totalSetsFor - totalSetsAgainst) / total : 0;
+
+  return { wins, losses, matches: total, avgSetDiff, totalSetsFor, totalSetsAgainst };
 };
 
 const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string, mode: string) => {
@@ -827,6 +849,43 @@ export default function PlayerSection({
         </div>
       </div>
 
+      {mode === "overview" && (
+        <div className="player-synergy" style={{ marginTop: '2rem' }}>
+          <h3>Synergi & Rivalitet (Senaste 30 dagarna)</h3>
+          <div className="synergy-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginTop: '12px' }}>
+            <div className="stat-card">
+              <span className="stat-label">Bästa Partner</span>
+              {(() => {
+                const synergy = getPartnerSynergy(matches, playerName);
+                if (!synergy) return <span className="stat-value">—</span>;
+                return (
+                  <div>
+                    <span className="stat-value">{synergy.name}</span>
+                    <span className="muted" style={{ fontSize: '14px' }}>
+                      {synergy.wins} vinster på {synergy.games} matcher ({Math.round((synergy.wins / synergy.games) * 100)}%)
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Tuffaste Motståndare</span>
+              {(() => {
+                const rival = getToughestOpponent(matches, playerName);
+                if (!rival) return <span className="stat-value">—</span>;
+                return (
+                  <div>
+                    <span className="stat-value">{rival.name}</span>
+                    <span className="muted" style={{ fontSize: '14px' }}>
+                      {rival.losses} förluster på {rival.games} matcher ({Math.round((rival.losses / rival.games) * 100)}%)
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
     </section>
   );
@@ -949,40 +1008,47 @@ export function HeadToHeadSection({
             </label>
           </div>
 
-          <div className="head-to-head-summary">
-            <div className="head-to-head-card">
+          <div className="head-to-head-summary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            <div className="head-to-head-card" style={{ flex: 1, minWidth: '150px' }}>
               <Avatar
                 className="head-to-head-avatar"
                 src={playerAvatarUrl}
                 name={playerName}
                 alt="Din profilbild"
+                sx={{ width: 80, height: 80, margin: '0 auto 12px' }}
               />
-              <div>
+              <div style={{ textAlign: 'center' }}>
                 <strong>
                   <ProfileName name={playerName} badgeId={playerBadgeId} />
                 </strong>
-                <span className="muted">Du</span>
-                <span className="muted">ELO {currentPlayerElo}</span>
-                <span className="muted">Högsta ELO {playerHighestElo}</span>
+                <div className="muted" style={{ fontSize: '13px' }}>Du · ELO {currentPlayerElo}</div>
+                <div className="muted" style={{ fontSize: '12px' }}>Högst: {playerHighestElo}</div>
               </div>
             </div>
-            <div className="head-to-head-card">
+
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-muted)', opacity: 0.5 }}>
+              {mode === "against" ? "VS" : "&"}
+            </div>
+
+            <div className="head-to-head-card" style={{ flex: 1, minWidth: '150px' }}>
               <Avatar
                 className="head-to-head-avatar"
                 src={opponentAvatarUrl}
                 name={getProfileDisplayName(opponentProfile)}
                 alt="Motståndare"
+                sx={{ width: 80, height: 80, margin: '0 auto 12px' }}
               />
-              <div>
+              <div style={{ textAlign: 'center' }}>
                 <strong>
                   <ProfileName
                     name={getProfileDisplayName(opponentProfile)}
                     badgeId={opponentBadgeId}
                   />
                 </strong>
-                <span className="muted">{mode === "against" ? "Motstånd" : "Partner"}</span>
-                <span className="muted">ELO {opponentElo}</span>
-                <span className="muted">Högsta ELO {opponentHighestElo}</span>
+                <div className="muted" style={{ fontSize: '13px' }}>
+                  {mode === "against" ? "Motstånd" : "Partner"} · ELO {opponentElo}
+                </div>
+                <div className="muted" style={{ fontSize: '12px' }}>Högst: {opponentHighestElo}</div>
               </div>
             </div>
           </div>
@@ -1003,6 +1069,12 @@ export function HeadToHeadSection({
             <div className="stat-card">
               <span className="stat-label">Vinst %</span>
               <span className="stat-value">{percent(headToHead.wins, headToHead.losses)}%</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Snitt setdiff</span>
+              <span className={`stat-value ${headToHead.avgSetDiff > 0 ? 'positive' : headToHead.avgSetDiff < 0 ? 'negative' : ''}`}>
+                {headToHead.avgSetDiff > 0 ? '+' : ''}{headToHead.avgSetDiff.toFixed(1)}
+              </span>
             </div>
             <div className="stat-card">
               <span className="stat-label">Senaste 5</span>

@@ -16,6 +16,7 @@ import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { calculateElo } from "../utils/elo";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
+import { CircularProgress, Typography } from "@mui/material";
 import { supabase } from "../supabaseClient";
 import { PostgrestError } from "@supabase/supabase-js";
 
@@ -101,7 +102,19 @@ export default function Dashboard() {
     "Något gick fel när data hämtades.";
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      pullingContent={
+        <Box sx={{ p: 2, textAlign: 'center', opacity: 0.6 }}>
+          <Typography variant="body2">Dra för att uppdatera...</Typography>
+        </Box>
+      }
+      refreshingContent={
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <CircularProgress size={24} />
+        </Box>
+      }
+    >
     <section id="dashboard" className="page-section">
       {hasError && (
         <div className="notice-banner error" role="alert">

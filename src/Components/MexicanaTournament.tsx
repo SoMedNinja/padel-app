@@ -122,11 +122,6 @@ export default function MexicanaTournament({
     return getNextSuggestion(rounds, participants, tournamentMode as any);
   }, [rounds, participants, tournamentMode]);
 
-  useEffect(() => {
-    if (!activeTournamentId && tournaments.length > 0) {
-      setActiveTournamentId(tournaments[0].id);
-    }
-  }, [tournaments, activeTournamentId]);
 
   useEffect(() => {
     if (tournamentData) {
@@ -499,9 +494,20 @@ export default function MexicanaTournament({
       <>
       <div className="mexicana-grid">
         <div className="mexicana-card">
-          <h3>Välj eller skapa turnering</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ margin: 0 }}>Välj eller skapa turnering</h3>
+            {activeTournamentId && (
+              <button
+                className="ghost-button"
+                onClick={() => setActiveTournamentId("")}
+                style={{ fontSize: '12px', padding: '4px 8px' }}
+              >
+                + Ny turnering
+              </button>
+            )}
+          </div>
           <select value={activeTournamentId} onChange={e => setActiveTournamentId(e.target.value)}>
-            <option value="">-- Ny turnering --</option>
+            <option value="">-- Välj turnering / Skapa ny --</option>
             {tournaments.map(t => (
               <option key={t.id} value={t.id}>{t.name} ({getTournamentStatusLabel(t.status)})</option>
             ))}
@@ -708,7 +714,7 @@ export default function MexicanaTournament({
             ))}
           </div>
 
-          <div className="table-scroll">
+          <div className="table-scroll" style={{ marginBottom: '2rem' }}>
             {/* Note for non-coders: this wrapper lets the results table scroll sideways instead of squishing columns. */}
             <div className="table-scroll-inner">
               <table className="styled-table">
@@ -720,6 +726,7 @@ export default function MexicanaTournament({
                     <th>Matcher</th>
                     <th>V/O/F</th>
                     <th>Diff</th>
+                    <th>Snitt</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -731,13 +738,36 @@ export default function MexicanaTournament({
                       <td>{res.gamesPlayed}</td>
                       <td>{res.wins}/{res.ties}/{res.losses}</td>
                       <td>{res.pointsFor - res.pointsAgainst}</td>
+                      <td>{(res.totalPoints / (res.gamesPlayed || 1)).toFixed(1)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-          <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '1rem' }}>Tillbaka till alla turneringar</button>
+
+          <div className="tournament-history-details">
+            <h4>Matchresultat</h4>
+            <div className="mexicana-rounds">
+              {rounds.map(round => (
+                <div key={round.id} className="mexicana-round-card is-played">
+                  <div className="mexicana-round-header">
+                    <strong>Rond {round.round_number}</strong>
+                    {round.resting_ids && round.resting_ids.length > 0 && (
+                      <span className="muted">Vilade: {idsToNames(round.resting_ids, profileMap).join(", ")}</span>
+                    )}
+                  </div>
+                  <div className="mexicana-round-match" style={{ justifyContent: 'space-between', padding: '8px 0' }}>
+                    <span>{idsToNames(round.team1_ids, profileMap).join(" & ")}</span>
+                    <strong>{round.team1_score} – {round.team2_score}</strong>
+                    <span>{idsToNames(round.team2_ids, profileMap).join(" & ")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={() => setActiveTournamentId("")} style={{ marginTop: '2rem' }}>Tillbaka till alla turneringar</button>
         </div>
       )}
 
