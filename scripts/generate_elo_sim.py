@@ -265,10 +265,10 @@ def create_simulation():
 
         ws_mvp[f'E{row}'] = f'=IF(D{row}=0, 0, C{row}/D{row})'
         ws_mvp[f'G{row}'] = f'=IF(D{row}>=6, "Month OK", IF(D{row}>=3, "Evening OK", "Too few games"))'
-        # Standard MVP Score = eloGain * (0.9 + 0.2 * winRate) + 0.3 * games
-        ws_mvp[f'H{row}'] = f'=B{row} * (0.9 + 0.2 * E{row}) + 0.3 * D{row}'
-        # Rolling MVP Score = wins * 3 + winRate * 5 + games
-        ws_mvp[f'I{row}'] = f'=C{row} * 3 + E{row} * 5 + D{row}'
+        # Standard MVP Score = eloGain + (winRate * 15) + (games * 0.5)
+        ws_mvp[f'H{row}'] = f'=B{row} + (E{row} * 15) + (D{row} * 0.5)'
+        # Harmonized MVP Days Score is now the same as Standard MVP Score
+        ws_mvp[f'I{row}'] = f'=H{row}'
 
         for col in 'ABCDEF':
             ws_mvp[f'{col}{row}'].border = border
@@ -289,18 +289,18 @@ def create_simulation():
     mvp_scenarios = [
         ("Scenario 1: The Efficiency King", "High win rate, few games (Evening MVP focus)."),
         ("Player", "ELO Gain", "Wins", "Games", "Win Rate", "Std MVP Score", "Roll MVP Score"),
-        ("Efficiency King", 40, 3, 3, 1.00, 44.90, 17.00),
-        ("The Grinder", 30, 4, 6, 0.67, 32.80, 21.33),
+        ("Efficiency King", 40, 3, 3, 1.00, 56.50, 56.50),
+        ("The Grinder", 30, 4, 6, 0.67, 43.05, 43.05),
         ("", "", "", "", "", "", ""),
         ("Scenario 2: The Workhorse", "High game count compensates for lower efficiency (Month MVP focus)."),
         ("Player", "ELO Gain", "Wins", "Games", "Win Rate", "Std MVP Score", "Roll MVP Score"),
-        ("Workhorse", 50, 7, 10, 0.70, 55.00, 34.50),
-        ("Elite Sprinter", 60, 5, 6, 0.83, 65.80, 25.17),
+        ("Workhorse", 50, 7, 10, 0.70, 65.50, 65.50),
+        ("Elite Sprinter", 60, 5, 6, 0.83, 75.45, 75.45),
         ("", "", "", "", "", "", ""),
         ("Scenario 3: The Comeback", "Massive ELO gains from underdog wins."),
         ("Player", "ELO Gain", "Wins", "Games", "Win Rate", "Std MVP Score", "Roll MVP Score"),
-        ("Underdog Hero", 80, 3, 4, 0.75, 85.20, 16.75),
-        ("Consistent Pro", 40, 5, 5, 1.00, 45.50, 25.00),
+        ("Underdog Hero", 80, 3, 4, 0.75, 93.25, 93.25),
+        ("Consistent Pro", 40, 5, 5, 1.00, 57.50, 57.50),
     ]
 
     for r_idx, row_data in enumerate(mvp_scenarios, 1):
@@ -332,7 +332,7 @@ def create_simulation():
         ("", ""),
         ("MVP Scoring", ""),
         ("Standard MVP Score", "Used for Evening and Month MVP awards."),
-        ("Rolling MVP Score", "Used for the 'MVP Days' counter in player profiles."),
+        ("MVP Days Score", "Now harmonized with the Standard MVP Score."),
         ("Evening MVP Eligibility", "Must play at least 3 matches in the session."),
         ("Month MVP Eligibility", "Must play at least 6 matches in the rolling 30-day window."),
         ("", ""),
@@ -340,8 +340,8 @@ def create_simulation():
         ("Expected Score", "=1 / (1 + 10^((Opponent_Avg - Own_Avg) / 300))"),
         ("Player Weight", "=MIN(1.25, MAX(0.75, 1 + (Team_Avg - Player_Elo) / 800))"),
         ("Delta (ELO)", "=ROUND(K * MarginMult * MatchWeight * EffWeight * (Result - Expected), 0)"),
-        ("Standard MVP Score", "=eloGain * (0.9 + 0.2 * winRate) + 0.3 * gamesPlayed"),
-        ("Rolling MVP Score", "=wins * 3 + winRate * 5 + gamesPlayed"),
+        ("Standard MVP Score", "=eloGain + (winRate * 15) + (gamesPlayed * 0.5)"),
+        ("MVP Days Score", "=eloGain + (winRate * 15) + (gamesPlayed * 0.5)"),
     ]
 
     for r_idx, (term, expl) in enumerate(doc, 1):
