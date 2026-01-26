@@ -224,7 +224,97 @@ def create_simulation():
         for col in 'ABCDE':
             ws3[f'{col}{row}'].border = border
 
-    # --- Sheet 4: Documentation ---
+    # --- Sheet 4: MVP Simulator ---
+    ws_mvp = wb.create_sheet("MVP Simulator")
+    ws_mvp.column_dimensions['A'].width = 20
+    ws_mvp.column_dimensions['B'].width = 15
+    ws_mvp.column_dimensions['C'].width = 15
+    ws_mvp.column_dimensions['D'].width = 15
+    ws_mvp.column_dimensions['E'].width = 15
+    ws_mvp.column_dimensions['F'].width = 15
+    ws_mvp.column_dimensions['G'].width = 15
+    ws_mvp.column_dimensions['H'].width = 20
+    ws_mvp.column_dimensions['I'].width = 20
+
+    ws_mvp.merge_cells('A1:I1')
+    ws_mvp['A1'] = "MVP Scoring Simulator"
+    ws_mvp['A1'].font = Font(size=16, bold=True, color="FFFFFF")
+    ws_mvp['A1'].fill = header_fill
+    ws_mvp['A1'].alignment = Alignment(horizontal="center")
+
+    mvp_headers = ["Player Name", "ELO Gain", "Wins", "Games Played", "Win Rate", "Total ELO", "Eligibility", "Standard MVP Score", "Rolling MVP Score"]
+    for i, h in enumerate(mvp_headers):
+        cell = ws_mvp.cell(row=3, column=i+1)
+        cell.value = h
+        cell.font = Font(bold=True)
+        cell.border = border
+        cell.fill = calc_fill
+
+    for i in range(5):
+        row = 4 + i
+        ws_mvp[f'A{row}'] = f"Player {i+1}"
+        ws_mvp[f'A{row}'].fill = input_fill
+        ws_mvp[f'B{row}'] = 20
+        ws_mvp[f'B{row}'].fill = input_fill
+        ws_mvp[f'C{row}'] = 3
+        ws_mvp[f'C{row}'].fill = input_fill
+        ws_mvp[f'D{row}'] = 4
+        ws_mvp[f'D{row}'].fill = input_fill
+        ws_mvp[f'F{row}'] = 1100
+        ws_mvp[f'F{row}'].fill = input_fill
+
+        ws_mvp[f'E{row}'] = f'=IF(D{row}=0, 0, C{row}/D{row})'
+        ws_mvp[f'G{row}'] = f'=IF(D{row}>=6, "Month OK", IF(D{row}>=3, "Evening OK", "Too few games"))'
+        # Standard MVP Score = eloGain * (0.9 + 0.2 * winRate) + 0.3 * games
+        ws_mvp[f'H{row}'] = f'=B{row} * (0.9 + 0.2 * E{row}) + 0.3 * D{row}'
+        # Rolling MVP Score = wins * 3 + winRate * 5 + games
+        ws_mvp[f'I{row}'] = f'=C{row} * 3 + E{row} * 5 + D{row}'
+
+        for col in 'ABCDEF':
+            ws_mvp[f'{col}{row}'].border = border
+        for col in 'GHI':
+            ws_mvp[f'{col}{row}'].border = border
+            ws_mvp[f'{col}{row}'].fill = result_fill
+
+    # --- Sheet 5: MVP Scenarios ---
+    ws_mvp_scen = wb.create_sheet("MVP Scenarios")
+    ws_mvp_scen.column_dimensions['A'].width = 25
+    ws_mvp_scen.column_dimensions['B'].width = 15
+    ws_mvp_scen.column_dimensions['C'].width = 15
+    ws_mvp_scen.column_dimensions['D'].width = 15
+    ws_mvp_scen.column_dimensions['E'].width = 15
+    ws_mvp_scen.column_dimensions['F'].width = 20
+    ws_mvp_scen.column_dimensions['G'].width = 20
+
+    mvp_scenarios = [
+        ("Scenario 1: The Efficiency King", "High win rate, few games (Evening MVP focus)."),
+        ("Player", "ELO Gain", "Wins", "Games", "Win Rate", "Std MVP Score", "Roll MVP Score"),
+        ("Efficiency King", 40, 3, 3, 1.00, 44.90, 17.00),
+        ("The Grinder", 30, 4, 6, 0.67, 32.80, 21.33),
+        ("", "", "", "", "", "", ""),
+        ("Scenario 2: The Workhorse", "High game count compensates for lower efficiency (Month MVP focus)."),
+        ("Player", "ELO Gain", "Wins", "Games", "Win Rate", "Std MVP Score", "Roll MVP Score"),
+        ("Workhorse", 50, 7, 10, 0.70, 55.00, 34.50),
+        ("Elite Sprinter", 60, 5, 6, 0.83, 65.80, 25.17),
+        ("", "", "", "", "", "", ""),
+        ("Scenario 3: The Comeback", "Massive ELO gains from underdog wins."),
+        ("Player", "ELO Gain", "Wins", "Games", "Win Rate", "Std MVP Score", "Roll MVP Score"),
+        ("Underdog Hero", 80, 3, 4, 0.75, 85.20, 16.75),
+        ("Consistent Pro", 40, 5, 5, 1.00, 45.50, 25.00),
+    ]
+
+    for r_idx, row_data in enumerate(mvp_scenarios, 1):
+        for c_idx, val in enumerate(row_data, 1):
+            cell = ws_mvp_scen.cell(row=r_idx, column=c_idx)
+            cell.value = val
+            if "Scenario" in str(val):
+                cell.font = Font(bold=True, size=12)
+            if val in ["Player", "ELO Gain", "Wins", "Games", "Win Rate", "Std MVP Score", "Roll MVP Score"]:
+                cell.font = Font(bold=True)
+                cell.fill = calc_fill
+            cell.border = border
+
+    # --- Sheet 6: Documentation ---
     ws4 = wb.create_sheet("Documentation")
     ws4.column_dimensions['A'].width = 25
     ws4.column_dimensions['B'].width = 80
@@ -240,10 +330,18 @@ def create_simulation():
         ("Effective Weight", "Uses Player Weight for wins and 1/Weight for losses."),
         ("Guest Players", "The app ignores players marked as Guests. In this simulator, simply leave their ELO blank to exclude them from team averages."),
         ("", ""),
+        ("MVP Scoring", ""),
+        ("Standard MVP Score", "Used for Evening and Month MVP awards."),
+        ("Rolling MVP Score", "Used for the 'MVP Days' counter in player profiles."),
+        ("Evening MVP Eligibility", "Must play at least 3 matches in the session."),
+        ("Month MVP Eligibility", "Must play at least 6 matches in the rolling 30-day window."),
+        ("", ""),
         ("Excel Formulas used:", ""),
         ("Expected Score", "=1 / (1 + 10^((Opponent_Avg - Own_Avg) / 300))"),
         ("Player Weight", "=MIN(1.25, MAX(0.75, 1 + (Team_Avg - Player_Elo) / 800))"),
-        ("Delta", "=ROUND(K * MarginMult * MatchWeight * EffWeight * (Result - Expected), 0)"),
+        ("Delta (ELO)", "=ROUND(K * MarginMult * MatchWeight * EffWeight * (Result - Expected), 0)"),
+        ("Standard MVP Score", "=eloGain * (0.9 + 0.2 * winRate) + 0.3 * gamesPlayed"),
+        ("Rolling MVP Score", "=wins * 3 + winRate * 5 + gamesPlayed"),
     ]
 
     for r_idx, (term, expl) in enumerate(doc, 1):
@@ -252,14 +350,14 @@ def create_simulation():
         ws4[f'A{r_idx}'].font = Font(bold=True)
         ws4[f'A{r_idx}'].border = border
         ws4[f'B{r_idx}'].border = border
-        if term == "Term":
+        if term == "Term" or term == "MVP Scoring" or term == "Excel Formulas used:":
             ws4[f'A{r_idx}'].fill = header_fill
             ws4[f'A{r_idx}'].font = Font(color="FFFFFF", bold=True)
             ws4[f'B{r_idx}'].fill = header_fill
             ws4[f'B{r_idx}'].font = Font(color="FFFFFF", bold=True)
 
     wb.save("ELO_Simulation.xlsx")
-    print("ELO_Simulation.xlsx created successfully.")
+    print("ELO_Simulation.xlsx created/updated successfully.")
 
 if __name__ == "__main__":
     create_simulation()
