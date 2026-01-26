@@ -219,13 +219,55 @@ const BADGE_DEFINITIONS: BadgeDefinition[] = [
     thresholds: [1, 3, 5],
     group: "Turneringar",
     groupOrder: 19
+  },
+  {
+    idPrefix: "night-owl",
+    icon: "🦉",
+    title: "Nattugglan",
+    description: (target) => `Spela ${target} matcher efter kl 21:00`,
+    thresholds: [5, 10, 25],
+    group: "Övrigt",
+    groupOrder: 20
+  },
+  {
+    idPrefix: "early-bird",
+    icon: "🌅",
+    title: "Morgonpigg",
+    description: (target) => `Spela ${target} matcher före kl 09:00`,
+    thresholds: [5, 10, 25],
+    group: "Övrigt",
+    groupOrder: 21
+  },
+  {
+    idPrefix: "clean-sheets",
+    icon: "🧹",
+    title: "Nollan",
+    description: (target) => `Vinn ${target} matcher utan att tappa set`,
+    thresholds: [5, 10, 25, 50],
+    group: "Vinster",
+    groupOrder: 22
   }
+];
+
+const UNIQUE_BADGE_DEFINITIONS = [
+  { id: "king-of-elo", icon: "👑", title: "Padelkungen", description: "Högst ELO just nu (minst 10 spelade matcher)", group: "Unika Meriter", groupOrder: 0 },
+  { id: "most-active", icon: "🐜", title: "Arbetsmyran", description: "Flest spelade matcher totalt", group: "Unika Meriter", groupOrder: 0 },
+  { id: "win-machine", icon: "🤖", title: "Vinstmaskinen", description: "Högst vinstprocent (minst 20 spelade matcher)", group: "Unika Meriter", groupOrder: 0 },
+  { id: "upset-king", icon: "⚡", title: "Skräll-mästaren", description: "Störst enskild ELO-skräll", group: "Unika Meriter", groupOrder: 0 },
+  { id: "marathon-pro", icon: "🏃", title: "Maraton-löparen", description: "Flest maratonmatcher (6+ set)", group: "Unika Meriter", groupOrder: 0 },
+  { id: "clutch-pro", icon: "🧊", title: "Clutch-specialisten", description: "Flest nagelbitare (vinster med 1 set)", group: "Unika Meriter", groupOrder: 0 },
+  { id: "social-butterfly", icon: "🦋", title: "Sociala fjärilen", description: "Flest unika partners", group: "Unika Meriter", groupOrder: 0 },
+  { id: "monthly-giant", icon: "🐘", title: "Månadens gigant", description: "Flest matcher senaste 30 dagarna", group: "Unika Meriter", groupOrder: 0 },
 ];
 
 const BADGE_ICON_MAP = BADGE_DEFINITIONS.reduce((acc, def) => {
   acc[def.idPrefix] = def.icon;
   return acc;
 }, { "giant-slayer": "⚔️" } as Record<string, string>);
+
+UNIQUE_BADGE_DEFINITIONS.forEach(def => {
+  BADGE_ICON_MAP[def.id] = def.icon;
+});
 
 const BADGE_THRESHOLD_MAP = BADGE_DEFINITIONS.reduce((acc, def) => {
   acc[def.idPrefix] = def.thresholds;
@@ -321,6 +363,9 @@ export interface PlayerBadgeStats {
   marathonMatches: number;
   quickWins: number;
   closeWins: number;
+  cleanSheets: number;
+  nightOwlMatches: number;
+  earlyBirdMatches: number;
   uniquePartners: number;
   uniqueOpponents: number;
   tournamentsPlayed: number;
@@ -361,6 +406,9 @@ export const buildPlayerBadgeStats = (
     marathonMatches: 0,
     quickWins: 0,
     closeWins: 0,
+    cleanSheets: 0,
+    nightOwlMatches: 0,
+    earlyBirdMatches: 0,
     uniquePartners: 0,
     uniqueOpponents: 0,
     tournamentsPlayed: 0,
@@ -427,10 +475,17 @@ export const buildPlayerBadgeStats = (
         if (maxSets >= 6) stats.marathonMatches += 1;
         if (playerWon && maxSets <= 3) stats.quickWins += 1;
         if (playerWon && margin === 1) stats.closeWins += 1;
+        if (playerWon && (isTeam1 ? match.team2_sets === 0 : match.team1_sets === 0)) {
+          stats.cleanSheets += 1;
+        }
       }
       if (matchDate && !Number.isNaN(matchDate.getTime())) {
         const diffDays = (now - matchDate.getTime()) / (1000 * 60 * 60 * 24);
         if (diffDays <= 30) stats.matchesLast30Days += 1;
+
+        const hour = matchDate.getHours();
+        if (hour >= 21) stats.nightOwlMatches += 1;
+        if (hour < 9) stats.earlyBirdMatches += 1;
       }
 
       stats.matchesPlayed += 1;
@@ -496,7 +551,11 @@ export const buildPlayerBadgeStats = (
   return stats;
 };
 
-export const buildPlayerBadges = (stats: PlayerBadgeStats | null) => {
+export const buildPlayerBadges = (
+  stats: PlayerBadgeStats | null,
+  allPlayerStats: Record<string, PlayerBadgeStats> = {},
+  playerId: string | null = null
+) => {
   if (!stats) {
     return {
       earnedBadges: [],
@@ -524,6 +583,9 @@ export const buildPlayerBadges = (stats: PlayerBadgeStats | null) => {
     marathon: stats.marathonMatches,
     "fast-win": stats.quickWins,
     clutch: stats.closeWins,
+    "clean-sheets": stats.cleanSheets,
+    "night-owl": stats.nightOwlMatches,
+    "early-bird": stats.earlyBirdMatches,
     partners: stats.uniquePartners,
     rivals: stats.uniqueOpponents,
     "tournaments-played": stats.tournamentsPlayed,
@@ -545,13 +607,56 @@ export const buildPlayerBadges = (stats: PlayerBadgeStats | null) => {
       description: "Vinn mot ett lag med högre genomsnittlig ELO",
       earned: Boolean(stats.firstWinVsHigherEloAt),
       group: "Jättedödare",
-      groupOrder: 20,
+      groupOrder: 25,
       meta: stats.firstWinVsHigherEloAt
         ? `Första gången: ${formatDate(stats.firstWinVsHigherEloAt)}`
         : "Sikta på en seger mot högre ELO.",
       progress: null
     }
   ];
+
+  // Unique merits
+  const allPlayers = Object.keys(allPlayerStats);
+  if (allPlayers.length > 0 && playerId) {
+      UNIQUE_BADGE_DEFINITIONS.forEach(def => {
+        let bestPlayerId = null;
+        let bestValue = -1;
+
+        allPlayers.forEach(id => {
+          const s = allPlayerStats[id];
+          let val = -1;
+          switch (def.id) {
+            case "king-of-elo": if (s.matchesPlayed >= 10) val = s.currentElo; break;
+            case "most-active": val = s.matchesPlayed; break;
+            case "win-machine": if (s.matchesPlayed >= 20) val = (s.wins / s.matchesPlayed); break;
+            case "upset-king": val = s.biggestUpsetEloGap; break;
+            case "marathon-pro": val = s.marathonMatches; break;
+            case "clutch-pro": val = s.closeWins; break;
+            case "social-butterfly": val = s.uniquePartners; break;
+            case "monthly-giant": val = s.matchesLast30Days; break;
+          }
+
+          if (val > bestValue) {
+            bestValue = val;
+            bestPlayerId = id;
+          }
+        });
+
+        if (bestPlayerId === playerId && bestValue > 0) {
+          badges.push({
+            id: def.id,
+            icon: def.icon,
+            tier: "Unique",
+            title: def.title,
+            description: def.description,
+            earned: true,
+            group: def.group,
+            groupOrder: def.groupOrder,
+            progress: null
+          });
+        }
+      });
+  }
 
   const earnedBadges = badges.filter(badge => badge.earned);
   const lockedBadges = badges.filter(badge => !badge.earned);

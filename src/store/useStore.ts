@@ -1,24 +1,6 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { AppUser, Profile, Match, MatchFilter } from "../types";
-
-const MATCH_FILTER_STORAGE_KEY = "padel.matchFilter";
-
-const loadMatchFilter = (): MatchFilter => {
-  if (typeof window === "undefined") return { type: "all" };
-  const raw = window.localStorage.getItem(MATCH_FILTER_STORAGE_KEY);
-  if (!raw) return { type: "all" };
-  try {
-    return JSON.parse(raw) as MatchFilter;
-  } catch {
-    return { type: "all" };
-  }
-};
-
-const persistMatchFilter = (filter: MatchFilter) => {
-  if (typeof window === "undefined") return;
-  // Note for non-coders: localStorage saves a small preference in the browser so filters persist.
-  window.localStorage.setItem(MATCH_FILTER_STORAGE_KEY, JSON.stringify(filter));
-};
 
 interface AppState {
   user: AppUser | null;
@@ -31,20 +13,50 @@ interface AppState {
   setProfiles: (profiles: Profile[]) => void;
   matches: Match[];
   setMatches: (matches: Match[]) => void;
+  dismissedMatchId: string | null;
+  lastSeenMatchDate: string | null;
+  dismissMatch: (matchId: string, matchDate: string) => void;
+  checkAndResetDismissed: (latestMatchDate: string) => void;
 }
 
-export const useStore = create<AppState>((set) => ({
-  user: null,
-  setUser: (user) => set({ user }),
-  isGuest: false,
-  setIsGuest: (isGuest) => set({ isGuest }),
-  matchFilter: loadMatchFilter(),
-  setMatchFilter: (matchFilter) => {
-    persistMatchFilter(matchFilter);
-    set({ matchFilter });
-  },
-  profiles: [],
-  setProfiles: (profiles) => set({ profiles }),
-  matches: [],
-  setMatches: (matches) => set({ matches }),
-}));
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      user: null,
+      setUser: (user) => set({ user }),
+      isGuest: false,
+      setIsGuest: (isGuest) => set({ isGuest }),
+      matchFilter: { type: "all" },
+      setMatchFilter: (matchFilter) => set({ matchFilter }),
+      profiles: [],
+      setProfiles: (profiles) => set({ profiles }),
+      matches: [],
+      setMatches: (matches) => set({ matches }),
+      dismissedMatchId: null,
+      lastSeenMatchDate: null,
+      dismissMatch: (matchId, matchDate) => set({
+        dismissedMatchId: matchId,
+        lastSeenMatchDate: matchDate
+      }),
+      checkAndResetDismissed: (latestMatchDate) => set((state) => {
+        if (state.lastSeenMatchDate && state.lastSeenMatchDate !== latestMatchDate) {
+          return { dismissedMatchId: null, lastSeenMatchDate: latestMatchDate };
+        }
+        return { lastSeenMatchDate: latestMatchDate };
+      }),
+    }),
+    {
+      name: "padel-store",
+      storage: createJSONStorage(() => localStorage),
+      // Only persist these fields
+      partialize: (state) => ({
+        matchFilter: state.matchFilter,
+        dismissedMatchId: state.dismissedMatchId,
+        lastSeenMatchDate: state.lastSeenMatchDate,
+        // We might want to persist user/isGuest as well if they were intended to be persistent
+        user: state.user,
+        isGuest: state.isGuest,
+      }),
+    }
+  )
+);
