@@ -22,7 +22,8 @@ import {
   getKFactor,
   getMatchWeight,
   getMarginMultiplier,
-  getPlayerWeight
+  getPlayerWeight,
+  calculateElo
 } from "../utils/elo";
 import { GUEST_ID } from "../utils/guest";
 import {
@@ -36,7 +37,7 @@ import { getMvpStats } from "../utils/stats";
 import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
-import { Match, Profile, TournamentResult } from "../types";
+import { Match, Profile, TournamentResult, PlayerStats } from "../types";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
