@@ -2,6 +2,7 @@ import React from "react";
 import { getLatestMatchDate, getMvpWinner, MIN_GAMES_EVENING, MIN_GAMES_MONTH } from "../utils/stats";
 import ProfileName from "./ProfileName";
 import { Match, PlayerStats } from "../types";
+import { getMvpWinner, scorePlayersForMvp, EVENING_MIN_GAMES, MONTH_MIN_GAMES } from "../utils/mvp";
 
 interface MVPProps {
   matches?: Match[];
@@ -65,7 +66,7 @@ export default function MVP({
   return (
     <div className="mvp">
       <div className="mvp-title">{titleEmoji} {title}</div>
-      <ProfileName className="mvp-name" name={mvp.name} badgeId={mvp.badgeId} />
+      <ProfileName className="mvp-name" name={mvp.name} badgeId={player?.featuredBadgeId || null} />
       <div className="mvp-meta">
         {mvp.wins} vinster, {mvp.games} matcher, {winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
       </div>

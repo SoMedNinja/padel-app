@@ -35,6 +35,7 @@ import {
 } from "../utils/profileMap";
 import { getMvpStats, getMvpWinner as findMvpWinner, MIN_GAMES_EVENING } from "../utils/stats";
 import { getBadgeLabelById } from "../utils/badges";
+import { getMvpWinner, scorePlayersForMvp, MONTH_MIN_GAMES, EVENING_MIN_GAMES } from "../utils/mvp";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
 import { Match, Profile, TournamentResult, PlayerStats } from "../types";
