@@ -76,6 +76,9 @@ describe('Badges Logic', () => {
       marathonMatches: 0,
       quickWins: 1,
       closeWins: 0,
+      cleanSheets: 0,
+      nightOwlMatches: 0,
+      earlyBirdMatches: 0,
       uniquePartners: 1,
       uniqueOpponents: 2,
       tournamentsPlayed: 0,
@@ -91,5 +94,53 @@ describe('Badges Logic', () => {
     const hasWinBadge = result.earnedBadges.some(b => b.id === 'wins-1');
     expect(hasMatchBadge).toBe(true);
     expect(hasWinBadge).toBe(true);
+  });
+
+  it('should identify unique merits correctly', () => {
+    const p1Stats = {
+      matchesPlayed: 100,
+      wins: 80,
+      losses: 20,
+      currentWinStreak: 5,
+      bestWinStreak: 10,
+      firstWinVsHigherEloAt: null,
+      biggestUpsetEloGap: 50,
+      currentElo: 1500,
+      matchesLast30Days: 10,
+      marathonMatches: 5,
+      quickWins: 10,
+      closeWins: 5,
+      cleanSheets: 5,
+      nightOwlMatches: 0,
+      earlyBirdMatches: 0,
+      uniquePartners: 10,
+      uniqueOpponents: 20,
+      tournamentsPlayed: 0,
+      tournamentWins: 0,
+      tournamentPodiums: 0,
+      americanoWins: 0,
+      mexicanoWins: 0
+    };
+    const p2Stats = {
+      ...p1Stats,
+      matchesPlayed: 50,
+      currentElo: 1400
+    };
+
+    const allStats = {
+      'p1': p1Stats,
+      'p2': p2Stats
+    };
+
+    const result = buildPlayerBadges(p1Stats, allStats, 'p1');
+    const hasKingBadge = result.earnedBadges.some(b => b.id === 'king-of-elo');
+    const hasMostActiveBadge = result.earnedBadges.some(b => b.id === 'most-active');
+
+    expect(hasKingBadge).toBe(true);
+    expect(hasMostActiveBadge).toBe(true);
+
+    const result2 = buildPlayerBadges(p2Stats, allStats, 'p2');
+    const hasKingBadge2 = result2.earnedBadges.some(b => b.id === 'king-of-elo');
+    expect(hasKingBadge2).toBe(false);
   });
 });

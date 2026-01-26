@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import MVP from "../Components/MVP";
+import MatchHighlightCard from "../Components/MatchHighlightCard";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import { HeadToHeadSection } from "../Components/PlayerSection";
 import FilterBar from "../Components/FilterBar";
@@ -14,6 +15,7 @@ import { Match, Profile, TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { calculateElo } from "../utils/elo";
+import { findMatchHighlight } from "../utils/highlights";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
 import { CircularProgress, Typography } from "@mui/material";
@@ -25,7 +27,15 @@ type TournamentResultRow = TournamentResult & {
 };
 
 export default function Dashboard() {
-  const { matchFilter, setMatchFilter, user, isGuest } = useStore();
+  const {
+    matchFilter,
+    setMatchFilter,
+    user,
+    isGuest,
+    dismissedMatchId,
+    dismissMatch,
+    checkAndResetDismissed
+  } = useStore();
   const {
     data: profiles = [] as Profile[],
     isLoading: isLoadingProfiles,
@@ -95,6 +105,28 @@ export default function Dashboard() {
       })),
     [allEloMap, playersWithTrend]
   );
+
+  const highlight = useMemo(() => {
+    if (!allMatches.length || !allEloPlayers.length) return null;
+    return findMatchHighlight(allMatches, allEloPlayers);
+  }, [allMatches, allEloPlayers]);
+
+  useEffect(() => {
+    if (highlight?.matchDate) {
+      checkAndResetDismissed(highlight.matchDate);
+    }
+  }, [highlight, checkAndResetDismissed]);
+
+  const showHighlight = useMemo(() => {
+    if (!highlight) return false;
+    if (dismissedMatchId === highlight.matchId) return false;
+    return true;
+  }, [highlight, dismissedMatchId]);
+
+  const highlightMatch = useMemo(() => {
+    if (!highlight) return null;
+    return allMatches.find(m => m.id === highlight.matchId);
+  }, [highlight, allMatches]);
   const hasError = isProfilesError || isMatchesError;
   const errorMessage =
     (profilesError as Error | undefined)?.message ||
@@ -137,6 +169,13 @@ export default function Dashboard() {
       ) : (
         <>
           <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+          {showHighlight && highlight && highlightMatch && (
+            <MatchHighlightCard
+              highlight={highlight}
+              match={highlightMatch}
+              onDismiss={() => dismissMatch(highlight.matchId, highlight.matchDate)}
+            />
+          )}
           {!filteredMatches.length ? (
             <div className="notice-banner" role="status">
               <span>Inga matcher ännu. Lägg in din första match för att se statistik.</span>

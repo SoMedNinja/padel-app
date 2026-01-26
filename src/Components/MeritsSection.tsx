@@ -67,11 +67,23 @@ export default function MeritsSection({
     }
   };
 
+  const allPlayerStats = useMemo(() => {
+    const statsMap: Record<string, any> = {};
+    profiles.forEach(profile => {
+      statsMap[profile.id] = buildPlayerBadgeStats(matches, profiles, profile.id, nameToIdMap, tournamentResults);
+    });
+    return statsMap;
+  }, [matches, profiles, nameToIdMap, tournamentResults]);
+
   const badgeStats = useMemo(
-    () => buildPlayerBadgeStats(matches, profiles, user?.id, nameToIdMap, tournamentResults),
-    [matches, profiles, user, nameToIdMap, tournamentResults]
+    () => allPlayerStats[user?.id || ''],
+    [allPlayerStats, user]
   );
-  const badgeSummary = useMemo(() => buildPlayerBadges(badgeStats), [badgeStats]);
+
+  const badgeSummary = useMemo(
+    () => buildPlayerBadges(badgeStats, allPlayerStats, user?.id),
+    [badgeStats, allPlayerStats, user]
+  );
   const earnedBadgeGroups = useMemo(
     () => groupBadgesByType(badgeSummary.earnedBadges),
     [badgeSummary.earnedBadges]
