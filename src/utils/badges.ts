@@ -3,7 +3,8 @@ import {
   getExpectedScore,
   getKFactor,
   getMarginMultiplier,
-  getPlayerWeight
+  getPlayerWeight,
+  getMatchWeight,
 } from "./elo";
 import { GUEST_ID } from "./guest";
 import { resolveTeamIds } from "./profileMap";
@@ -401,6 +402,7 @@ export const buildPlayerBadgeStats = (
     const expected1 = getExpectedScore(e1, e2);
     const team1Won = match.team1_sets > match.team2_sets;
     const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
+    const matchWeight = getMatchWeight(match);
 
     const isTeam1 = team1.includes(playerId);
     const isTeam2 = team2.includes(playerId);
@@ -455,8 +457,9 @@ export const buildPlayerBadgeStats = (
       const player = eloMap[id];
       const playerK = getKFactor(player.games);
       const weight = getPlayerWeight(player.elo, e1);
+      const effectiveWeight = team1Won ? weight : 1 / weight;
       const delta = Math.round(
-        playerK * marginMultiplier * weight * ((team1Won ? 1 : 0) - expected1)
+        playerK * marginMultiplier * matchWeight * effectiveWeight * ((team1Won ? 1 : 0) - expected1)
       );
       player.elo += delta;
       player.games += 1;
@@ -466,8 +469,9 @@ export const buildPlayerBadgeStats = (
       const player = eloMap[id];
       const playerK = getKFactor(player.games);
       const weight = getPlayerWeight(player.elo, e2);
+      const effectiveWeight = !team1Won ? weight : 1 / weight;
       const delta = Math.round(
-        playerK * marginMultiplier * weight * ((team1Won ? 0 : 1) - (1 - expected1))
+        playerK * marginMultiplier * matchWeight * effectiveWeight * ((team1Won ? 0 : 1) - (1 - expected1))
       );
       player.elo += delta;
       player.games += 1;

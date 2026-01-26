@@ -36,6 +36,8 @@ export const getKFactor = (games = 0) => {
 export const getExpectedScore = (rating: number, opponentRating: number) =>
   1 / (1 + Math.pow(10, (opponentRating - rating) / EXPECTED_SCORE_DIVISOR));
 
+export const getWinProbability = getExpectedScore;
+
 export const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
   if (!Number.isFinite(team1Sets) || !Number.isFinite(team2Sets)) return 1;
   const margin = Math.min(2, Math.abs(team1Sets - team2Sets));
@@ -70,7 +72,7 @@ export const getMatchWeight = (match: Match) => {
 
 export { ELO_BASELINE };
 
-const buildPlayerDelta = ({
+export const buildPlayerDelta = ({
   playerElo,
   playerGames,
   teamAverageElo,
@@ -204,7 +206,9 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
       player.history.push({
         result: team1Won ? "W" : "L",
         timestamp: historyStamp,
+        date: m.created_at || "",
         delta,
+        elo: player.elo,
         matchId: m.id,
       });
     });
@@ -226,7 +230,9 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
       player.history.push({
         result: team1Won ? "L" : "W",
         timestamp: historyStamp,
+        date: m.created_at || "",
         delta,
+        elo: player.elo,
         matchId: m.id,
       });
     });

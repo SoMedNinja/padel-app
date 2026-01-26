@@ -46,11 +46,15 @@ export default function EloTrend({ players = [] }) {
     players.forEach(p => {
       if (p.name === "Gäst") return;
 
-      let elo = 1000;
+      let elo = p.startElo ?? 1000;
       if (p.history?.length) {
         const historyUpToDate = p.history
-          .filter(h => new Date(h.date) <= new Date(date))
-          .sort((a, b) => new Date(a.date) - new Date(b.date));
+          .filter(h => h.date <= date)
+          .sort((a, b) => {
+            const timeDiff = a.timestamp - b.timestamp;
+            if (timeDiff !== 0) return timeDiff;
+            return a.matchId.localeCompare(b.matchId);
+          });
 
         if (historyUpToDate.length) {
           elo = historyUpToDate.at(-1).elo;

@@ -188,101 +188,7 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[]) => {
   return { monthlyMvpDays, eveningMvpCounts };
 };
 
-const buildEloHistoryMap = (matches: Match[], profiles: Profile[], nameToIdMap: Map<string, string>) => {
-  const eloMap: Record<string, any> = {};
-  profiles.forEach(profile => {
-    eloMap[profile.id] = { elo: ELO_BASELINE, history: [], games: 0 };
-  });
-
-  const ensureHistoryPlayer = (id: string) => {
-    if (!eloMap[id]) {
-      eloMap[id] = { elo: ELO_BASELINE, history: [], games: 0 };
-    }
-  };
-
-  const sortedMatches = [...matches].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
-
-  sortedMatches.forEach((match, matchIndex) => {
-    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
-    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
-
-    if (!team1.length || !team2.length) return;
-    if (match.team1_sets == null || match.team2_sets == null) return;
-
-    team1.forEach(ensureHistoryPlayer);
-    team2.forEach(ensureHistoryPlayer);
-
-    const avg = (team: string[]) => {
-      if (!team.length) return ELO_BASELINE;
-      return (
-        team.reduce((sum, id) => {
-          ensureHistoryPlayer(id);
-          return sum + eloMap[id].elo;
-        }, 0) / team.length
-      );
-    };
-
-    const e1 = avg(team1);
-    const e2 = avg(team2);
-    const expected1 = getExpectedScore(e1, e2);
-    const team1Won = match.team1_sets > match.team2_sets;
-    const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
-    // Note for non-coders: we reuse the same match-length weight as the live ELO so the chart
-    // mirrors the real rating changes over time.
-    const matchWeight = getMatchWeight(match);
-    const historyDate = match.created_at || "";
-
-    team1.forEach(id => {
-      ensureHistoryPlayer(id);
-      const player = eloMap[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e1);
-      const delta = Math.round(
-        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 1 : 0) - expected1)
-      );
-      player.elo += delta;
-      player.games += 1;
-      if (historyDate) {
-        eloMap[id].history.push({
-          date: historyDate,
-          elo: Math.round(player.elo),
-          matchIndex
-        });
-      }
-    });
-
-    team2.forEach(id => {
-      ensureHistoryPlayer(id);
-      const player = eloMap[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e2);
-      const delta = Math.round(
-        playerK * marginMultiplier * matchWeight * weight * ((team1Won ? 0 : 1) - (1 - expected1))
-      );
-      player.elo += delta;
-      player.games += 1;
-      if (historyDate) {
-        eloMap[id].history.push({
-          date: historyDate,
-          elo: Math.round(player.elo),
-          matchIndex
-        });
-      }
-    });
-  });
-
-  return Object.entries(eloMap).reduce((acc, [id, data]) => {
-    acc[id] = {
-      currentElo: Math.round(data.elo ?? ELO_BASELINE),
-      history: data.history || []
-    };
-    return acc;
-  }, {} as Record<string, any>);
-};
-
-const buildComparisonChartData = (historyMap: Record<string, any>, profiles: Profile[], playerIds: string[]) => {
+const buildComparisonChartData = (players: PlayerStats[], profiles: Profile[], playerIds: string[]) => {
   if (!playerIds.length) return [];
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -292,51 +198,42 @@ const buildComparisonChartData = (historyMap: Record<string, any>, profiles: Pro
     return acc;
   }, {} as Record<string, string>);
 
-  const timelineEntries = new Map<string, { date: string, matchIndex: number }>();
+  const timelineEntries = new Map<string, { date: string, timestamp: number, matchId: string }>();
   playerIds.forEach(id => {
-    const history = historyMap[id]?.history || [];
-    history.forEach((entry: any) => {
+    const player = players.find(p => p.id === id);
+    if (!player) return;
+    player.history.forEach((entry) => {
       if (!entry.date) return;
       const entryDate = new Date(entry.date);
       if (Number.isNaN(entryDate.getTime()) || entryDate < oneYearAgo) return;
-      const matchIndex = entry.matchIndex ?? 0;
-      const key = `${entry.date}::${matchIndex}`;
+      const key = `${entry.date}::${entry.matchId}`;
       if (!timelineEntries.has(key)) {
-        timelineEntries.set(key, { date: entry.date, matchIndex });
+        timelineEntries.set(key, { date: entry.date, timestamp: entry.timestamp, matchId: entry.matchId });
       }
     });
   });
 
   const dates = Array.from(timelineEntries.values()).sort((a, b) => {
-    const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-    if (timeDiff !== 0) return timeDiff;
-    return a.matchIndex - b.matchIndex;
+    if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+    return a.matchId.localeCompare(b.matchId);
   });
   if (!dates.length) return [];
 
   const historyPointers = playerIds.map(id => {
-    const history = (historyMap[id]?.history || [])
-      .filter((entry: any) => entry.date);
+    const player = players.find(p => p.id === id);
     return {
       id,
       name: profileNameMap[id] || "Okänd",
-      history: history
-        .sort((a: any, b: any) => {
-          const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-          if (timeDiff !== 0) return timeDiff;
-          return (a.matchIndex ?? 0) - (b.matchIndex ?? 0);
-        }),
+      history: (player?.history || []).filter(h => h.date),
       index: 0,
-      lastElo: ELO_BASELINE
+      lastElo: player?.startElo ?? ELO_BASELINE
     };
   });
 
   const isEntryBeforeOrEqual = (entry: any, dateEntry: any) => {
-    const entryTime = new Date(entry.date).getTime();
-    const dateTime = new Date(dateEntry.date).getTime();
-    if (entryTime < dateTime) return true;
-    if (entryTime > dateTime) return false;
-    return (entry.matchIndex ?? 0) <= dateEntry.matchIndex;
+    if (entry.timestamp < dateEntry.timestamp) return true;
+    if (entry.timestamp > dateEntry.timestamp) return false;
+    return entry.matchId.localeCompare(dateEntry.matchId) <= 0;
   };
 
   return dates.map(dateEntry => {
@@ -355,141 +252,13 @@ const buildComparisonChartData = (historyMap: Record<string, any>, profiles: Pro
   });
 };
 
-const getHighestEloRating = (historyEntry: any) => {
-  if (!historyEntry) return ELO_BASELINE;
-  const history = Array.isArray(historyEntry.history) ? historyEntry.history : [];
-  const historyMax = history.reduce(
-    (max: number, entry: any) => Math.max(max, entry?.elo ?? ELO_BASELINE),
-    ELO_BASELINE
+const getHighestEloRating = (playerStats: PlayerStats | undefined) => {
+  if (!playerStats) return ELO_BASELINE;
+  const historyMax = playerStats.history.reduce(
+    (max, entry) => Math.max(max, entry.elo),
+    playerStats.startElo
   );
-  return Math.max(historyMax, historyEntry.currentElo ?? ELO_BASELINE);
-};
-
-const buildPlayerSummary = (matches: Match[], profiles: Profile[], playerId: string | undefined, nameToIdMap: Map<string, string>) => {
-  if (!playerId) return null;
-
-  const eloMap: Record<string, any> = {};
-  profiles.forEach(profile => {
-    eloMap[profile.id] = { elo: ELO_BASELINE, games: 0 };
-  });
-
-  const history = [];
-  const results = [];
-  let wins = 0;
-  let losses = 0;
-  let lastMatchDelta = 0;
-  let currentSessionDate: string | null = null;
-  let sessionStartElo: number | null = null;
-  let sessionEndElo: number | null = null;
-  let lastSessionDelta = 0;
-
-  const sortedMatches = [...matches].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
-
-  sortedMatches.forEach(match => {
-    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
-    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
-
-    if (!team1.length || !team2.length) return;
-    if (match.team1_sets == null || match.team2_sets == null) return;
-
-    const isTeam1 = team1.includes(playerId);
-    const isTeam2 = team2.includes(playerId);
-
-    if (!isTeam1 && !isTeam2) {
-      team1.forEach(id => ensurePlayer(eloMap, id));
-      team2.forEach(id => ensurePlayer(eloMap, id));
-    }
-
-    const avg = (team: string[]) => {
-      if (!team.length) return ELO_BASELINE;
-      return (
-        team.reduce((sum, id) => {
-          ensurePlayer(eloMap, id);
-          return sum + eloMap[id].elo;
-        }, 0) / team.length
-      );
-    };
-
-    const e1 = avg(team1);
-    const e2 = avg(team2);
-    const expected1 = getExpectedScore(e1, e2);
-    const team1Won = match.team1_sets > match.team2_sets;
-    const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
-    const preMatchElo = (isTeam1 || isTeam2)
-      ? Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE)
-      : null;
-
-    team1.forEach(id => {
-      ensurePlayer(eloMap, id);
-      const player = eloMap[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e1);
-      const delta = Math.round(
-        playerK * marginMultiplier * weight * ((team1Won ? 1 : 0) - expected1)
-      );
-      player.elo += delta;
-      player.games += 1;
-    });
-
-    team2.forEach(id => {
-      ensurePlayer(eloMap, id);
-      const player = eloMap[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e2);
-      const delta = Math.round(
-        playerK * marginMultiplier * weight * ((team1Won ? 0 : 1) - (1 - expected1))
-      );
-      player.elo += delta;
-      player.games += 1;
-    });
-
-    if (isTeam1 || isTeam2) {
-      const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
-      playerWon ? wins++ : losses++;
-      results.push(playerWon ? "V" : "F");
-      const postMatchElo = Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE);
-      lastMatchDelta = postMatchElo - (preMatchElo ?? postMatchElo);
-      if (match.created_at) {
-        const matchDate = new Date(match.created_at);
-        if (!Number.isNaN(matchDate.getTime())) {
-          const dateKey = matchDate.toISOString().split("T")[0];
-          if (currentSessionDate && dateKey !== currentSessionDate) {
-            if (sessionStartElo != null && sessionEndElo != null) {
-              lastSessionDelta = sessionEndElo - sessionStartElo;
-            }
-            currentSessionDate = dateKey;
-            sessionStartElo = preMatchElo ?? sessionEndElo ?? ELO_BASELINE;
-          } else if (!currentSessionDate) {
-            currentSessionDate = dateKey;
-            sessionStartElo = preMatchElo ?? ELO_BASELINE;
-          } else if (sessionStartElo == null) {
-            sessionStartElo = preMatchElo ?? ELO_BASELINE;
-          }
-          sessionEndElo = postMatchElo;
-        }
-      }
-
-      history.push({
-        date: match.created_at || "",
-        elo: postMatchElo
-      });
-    }
-  });
-
-  return {
-    wins,
-    losses,
-    history,
-    results,
-    currentElo: Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE),
-    lastMatchDelta,
-    lastSessionDelta:
-      sessionStartElo != null && sessionEndElo != null
-        ? sessionEndElo - sessionStartElo
-        : lastSessionDelta
-  };
+  return Math.max(historyMax, playerStats.elo);
 };
 
 const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponentId: string, mode: string, nameToIdMap: Map<string, string>) => {
@@ -607,8 +376,7 @@ interface PlayerSectionProps {
   user: any;
   profiles?: Profile[];
   matches?: Match[];
-  globalMatches?: Match[];
-  globalEloMap?: Map<string, number>;
+  allEloPlayers?: PlayerStats[];
   tournamentResults?: TournamentResult[];
   onProfileUpdate?: (profile: Profile) => void;
 }
@@ -617,8 +385,7 @@ export default function PlayerSection({
   user,
   profiles = [],
   matches = [],
-  globalMatches = [],
-  globalEloMap,
+  allEloPlayers = [],
   tournamentResults = [],
   onProfileUpdate,
 }: PlayerSectionProps) {
@@ -640,32 +407,58 @@ export default function PlayerSection({
   const [avatarZoom, setAvatarZoom] = useState<number>(1);
   const [savingAvatar, setSavingAvatar] = useState<boolean>(false);
 
-  const summary = useMemo(
-    () => buildPlayerSummary(matches, profiles, user?.id, nameToIdMap),
-    [matches, profiles, user, nameToIdMap]
+  // Stats based on filtered matches (matches prop)
+  const filteredEloPlayers = useMemo(
+    () => calculateElo(matches, profiles),
+    [matches, profiles]
   );
-  // Note for non-coders: this picks a stable "current ELO" from all matches if available,
-  // so it doesn't jump around when the profile filter is narrowed.
-  const currentEloDisplay = globalEloMap?.get(user?.id) ?? summary?.currentElo ?? ELO_BASELINE;
+
+  const filteredStats = useMemo(
+    () => filteredEloPlayers.find(p => p.id === user?.id),
+    [filteredEloPlayers, user?.id]
+  );
+
+  const globalStats = useMemo(
+    () => allEloPlayers.find(p => p.id === user?.id),
+    [allEloPlayers, user?.id]
+  );
+
+  const currentEloDisplay = globalStats?.elo ?? ELO_BASELINE;
+
   const recentForm = useMemo(() => {
-    const results = summary?.results ?? [];
+    const results = filteredStats?.recentResults ?? [];
     return results.slice(-10);
-  }, [summary]);
+  }, [filteredStats]);
+
   const recentFormStats = useMemo(() => {
-    const wins = recentForm.filter(result => result === "V").length;
+    const wins = recentForm.filter(result => result === "W").length;
     return { wins, losses: recentForm.length - wins };
   }, [recentForm]);
+
   const recentEloDelta = useMemo(() => {
-    const history = summary?.history ?? [];
-    if (history.length < 2) return 0;
-    const slice = history.slice(-10);
-    if (slice.length < 2) return 0;
-    return (slice[slice.length - 1]?.elo ?? 0) - (slice[0]?.elo ?? 0);
-  }, [summary]);
+    const history = filteredStats?.history ?? [];
+    if (history.length < 1) return 0;
+    // For filtered view, we want the total change over these matches
+    return history.reduce((sum, entry) => sum + entry.delta, 0);
+  }, [filteredStats]);
+
+  const lastMatchDelta = useMemo(() => {
+    const history = globalStats?.history ?? [];
+    return history.length > 0 ? history[history.length - 1].delta : 0;
+  }, [globalStats]);
+
+  const lastSessionDelta = useMemo(() => {
+    const history = globalStats?.history ?? [];
+    if (history.length === 0) return 0;
+    const lastDate = history[history.length - 1].date?.slice(0, 10);
+    return history
+      .filter(h => h.date?.slice(0, 10) === lastDate)
+      .reduce((sum, h) => sum + h.delta, 0);
+  }, [globalStats]);
 
   const tournamentMerits = useMemo(() => {
     if (!user?.id) return [];
-    const myResults = tournamentResults.filter(r => r.profile_id === user.id);
+    const myResults = tournamentResults.filter(r => (r.profile_id || r.player_id) === user.id);
     const counts = myResults.reduce((acc, r) => {
       const type = r.tournament_type === 'americano' ? 'Americano' : 'Mexicano';
       acc[type] = (acc[type] || 0) + 1;
@@ -678,23 +471,17 @@ export default function PlayerSection({
     return Object.entries(counts).map(([label, count]) => ({ label, count }));
   }, [tournamentResults, user]);
 
-  // Note for non-coders: the ELO history chart should reflect full history, not the filtered view.
-  const eloHistoryMap = useMemo(
-    () => buildEloHistoryMap(globalMatches, profiles, nameToIdMap),
-    [globalMatches, profiles, nameToIdMap]
-  );
-
   const selectablePlayers = useMemo(
     () => profiles.filter(profile => profile.id !== user?.id),
     [profiles, user]
   );
 
   const [compareTarget, setCompareTarget] = useState<string>("none");
-  // This flag lets the chart switch into a full-screen overlay for easier viewing.
   const [isEloChartFullscreen, setIsEloChartFullscreen] = useState(false);
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
+
   const comparisonIds = useMemo(() => {
     if (!user?.id) return [];
     if (compareTarget === "all") {
@@ -707,8 +494,8 @@ export default function PlayerSection({
   }, [compareTarget, selectablePlayers, user]);
 
   const comparisonData = useMemo(
-    () => buildComparisonChartData(eloHistoryMap, profiles, comparisonIds),
-    [eloHistoryMap, profiles, comparisonIds]
+    () => buildComparisonChartData(allEloPlayers, profiles, comparisonIds),
+    [allEloPlayers, profiles, comparisonIds]
   );
 
   const comparisonNames = useMemo(() => {
@@ -949,19 +736,19 @@ export default function PlayerSection({
         ))}
         <div className="stat-card">
           <span className="stat-label">Matcher</span>
-          <span className="stat-value">{summary ? summary.wins + summary.losses : 0}</span>
+          <span className="stat-value">{filteredStats ? filteredStats.wins + filteredStats.losses : 0}</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Vinster</span>
-          <span className="stat-value">{summary ? summary.wins : 0}</span>
+          <span className="stat-value">{filteredStats ? filteredStats.wins : 0}</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Förluster</span>
-          <span className="stat-value">{summary ? summary.losses : 0}</span>
+          <span className="stat-value">{filteredStats ? filteredStats.losses : 0}</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Vinst %</span>
-          <span className="stat-value">{summary ? percent(summary.wins, summary.losses) : 0}%</span>
+          <span className="stat-value">{filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">ELO</span>
@@ -969,14 +756,14 @@ export default function PlayerSection({
         </div>
         <div className="stat-card">
           <span className="stat-label">ELO ändring (senaste match)</span>
-          <span className={`stat-value ${getEloDeltaClass(summary?.lastMatchDelta)}`}>
-            {summary ? formatEloDelta(summary.lastMatchDelta) : "0"}
+          <span className={`stat-value ${getEloDeltaClass(lastMatchDelta)}`}>
+            {formatEloDelta(lastMatchDelta)}
           </span>
         </div>
         <div className="stat-card">
           <span className="stat-label">ELO ändring (senaste spelkväll)</span>
-          <span className={`stat-value ${getEloDeltaClass(summary?.lastSessionDelta)}`}>
-            {summary ? formatEloDelta(summary.lastSessionDelta) : "0"}
+          <span className={`stat-value ${getEloDeltaClass(lastSessionDelta)}`}>
+            {formatEloDelta(lastSessionDelta)}
           </span>
         </div>
       </div>
@@ -1046,7 +833,7 @@ interface HeadToHeadSectionProps {
   user: any;
   profiles?: Profile[];
   matches?: Match[];
-  globalEloMap?: Map<string, number>;
+  allEloPlayers?: PlayerStats[];
   tournamentResults?: TournamentResult[];
 }
 
@@ -1054,7 +841,7 @@ export function HeadToHeadSection({
   user,
   profiles = [],
   matches = [],
-  globalEloMap,
+  allEloPlayers = [],
   tournamentResults = []
 }: HeadToHeadSectionProps) {
   const playerProfile = useMemo(
@@ -1103,11 +890,6 @@ export function HeadToHeadSection({
     [tournamentResults, user?.id, resolvedOpponentId, mode]
   );
 
-  const eloHistoryMap = useMemo(
-    () => buildEloHistoryMap(matches, profiles, nameToIdMap),
-    [matches, profiles, nameToIdMap]
-  );
-
   const mvpSummary = useMemo(
     () => buildMvpSummary(matches, profiles),
     [matches, profiles]
@@ -1117,21 +899,20 @@ export function HeadToHeadSection({
   const opponentAvatarUrl = opponentProfile?.avatar_url || getStoredAvatar(opponentProfile?.id);
   const opponentName = opponentProfile ? getProfileDisplayName(opponentProfile) : "Motståndare";
   const opponentBadgeId = opponentProfile?.featured_badge_id || null;
-  // Note for non-coders: we show "current ELO" using the all-matches map when available so it
-  // stays consistent even if the head-to-head filter changes the match list.
-  const currentPlayerElo =
-    globalEloMap?.get(user?.id) ?? eloHistoryMap[user?.id]?.currentElo ?? ELO_BASELINE;
-  const opponentElo =
-    globalEloMap?.get(resolvedOpponentId) ??
-    eloHistoryMap[resolvedOpponentId]?.currentElo ??
-    ELO_BASELINE;
+
+  const currentPlayerStats = allEloPlayers.find(p => p.id === user?.id);
+  const opponentPlayerStats = allEloPlayers.find(p => p.id === resolvedOpponentId);
+
+  const currentPlayerElo = currentPlayerStats?.elo ?? ELO_BASELINE;
+  const opponentElo = opponentPlayerStats?.elo ?? ELO_BASELINE;
+
   const playerHighestElo = useMemo(
-    () => getHighestEloRating(eloHistoryMap[user?.id]),
-    [eloHistoryMap, user?.id]
+    () => getHighestEloRating(currentPlayerStats),
+    [currentPlayerStats]
   );
   const opponentHighestElo = useMemo(
-    () => getHighestEloRating(eloHistoryMap[resolvedOpponentId]),
-    [eloHistoryMap, resolvedOpponentId]
+    () => getHighestEloRating(opponentPlayerStats),
+    [opponentPlayerStats]
   );
   const playerMvpDays = mvpSummary.monthlyMvpDays[playerName] || 0;
   const opponentMvpDays = mvpSummary.monthlyMvpDays[opponentName] || 0;
@@ -1227,9 +1008,9 @@ export function HeadToHeadSection({
                   {recentResults.map((result, index) => (
                     <span
                       key={`${result}-${index}`}
-                      className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
+                        className={`result-pill ${result === "W" ? "result-win" : "result-loss"}`}
                     >
-                      {result}
+                        {result === "W" ? "V" : "F"}
                     </span>
                   ))}
                 </span>
