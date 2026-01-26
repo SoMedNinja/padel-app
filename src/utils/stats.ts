@@ -54,37 +54,6 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
     });
 }
 
-export interface MvpStat {
-  wins: number;
-  games: number;
-}
-
-export function getMvpStats(matches: Match[], allowedNames: string[] | Set<string> | null = null): Record<string, MvpStat> {
-  const stats: Record<string, MvpStat> = {};
-  const allowList =
-    allowedNames instanceof Set ? allowedNames : allowedNames ? new Set(allowedNames) : null;
-
-  matches.forEach(m => {
-    const { winners, losers } = getWinnersAndLosers(m);
-
-    winners.forEach(p => {
-      if (!p || p === "Gäst") return;
-      if (allowList && !allowList.has(p)) return;
-      if (!stats[p]) stats[p] = { wins: 0, games: 0 };
-      stats[p].wins++;
-      stats[p].games++;
-    });
-
-    losers.forEach(p => {
-      if (!p || p === "Gäst") return;
-      if (allowList && !allowList.has(p)) return;
-      if (!stats[p]) stats[p] = { wins: 0, games: 0 };
-      stats[p].games++;
-    });
-  });
-
-  return stats;
-}
 
 export const calculateWinPct = (wins: number, losses: number) =>
   wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
@@ -113,70 +82,6 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
   return "➖";
 };
 
-export function calculateMvpScore(eloGain: number, winRate: number, games: number) {
-  return eloGain * (0.9 + 0.2 * winRate) + 0.3 * games;
-}
-
-export function calculateRollingMvpScore(wins: number, winRate: number, games: number) {
-  return wins * 3 + winRate * 5 + games;
-}
-
-export function getMvpWinner(
-  matches: Match[],
-  players: PlayerStats[],
-  mode: "evening" | "rolling",
-  minGames: number = 0
-) {
-  if (!matches.length) return null;
-
-  const allowedNames = new Set(players.map((p) => p.name));
-  const stats = getMvpStats(matches, allowedNames);
-  const matchIds = new Set(matches.map((m) => m.id).filter(Boolean));
-
-  const scored = Object.entries(stats).map(([name, s]) => {
-    const winRate = s.games ? s.wins / s.games : 0;
-    const player = players.find((p) => p.name === name);
-
-    const periodEloGain = (player?.history || [])
-      .filter((h) => matchIds.has(h.matchId))
-      .reduce((sum, h) => sum + (h.delta || 0), 0);
-
-    const eloNet = player?.elo || 1000;
-
-    let score = 0;
-    if (mode === "evening") {
-      score = calculateMvpScore(periodEloGain, winRate, s.games);
-    } else {
-      score = calculateRollingMvpScore(s.wins, winRate, s.games);
-    }
-
-    return {
-      id: player?.id,
-      name,
-      wins: s.wins,
-      games: s.games,
-      winRate,
-      periodEloGain,
-      eloNet,
-      score,
-      badgeId: player?.featuredBadgeId || null,
-    };
-  });
-
-  const eligible = scored.filter((s) => s.games >= minGames);
-
-  if (!eligible.length) return null;
-
-  const sorted = eligible.sort((a, b) => {
-    if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
-    if (b.periodEloGain !== a.periodEloGain) return b.periodEloGain - a.periodEloGain;
-    if (b.eloNet !== a.eloNet) return b.eloNet - a.eloNet;
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    return a.name.localeCompare(b.name);
-  });
-
-  return sorted[0];
-}
 
   export function getPartnerSynergy(matches: Match[], playerName: string) {
     const synergy: Record<string, { games: number; wins: number; eloGain: number }> = {};

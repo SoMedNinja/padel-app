@@ -29,11 +29,14 @@ import {
   resolveTeamNames
 } from "../utils/profileMap";
 import {
-  getMvpWinner as findMvpWinner,
-  MIN_GAMES_EVENING,
   getPartnerSynergy,
   getToughestOpponent
 } from "../utils/stats";
+import {
+  getMvpWinner,
+  scorePlayersForMvp,
+  EVENING_MIN_GAMES
+} from "../utils/mvp";
 import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
