@@ -1,5 +1,5 @@
 import React from "react";
-import { getLatestMatchDate, getMvpWinner, MIN_GAMES_EVENING, MIN_GAMES_MONTH } from "../utils/stats";
+import { getLatestMatchDate } from "../utils/stats";
 import ProfileName from "./ProfileName";
 import { Match, PlayerStats } from "../types";
 import { getMvpWinner, scorePlayersForMvp, EVENING_MIN_GAMES, MONTH_MIN_GAMES } from "../utils/mvp";
@@ -41,14 +41,10 @@ export default function MVP({
     );
   }
 
-  const minGames = mode === "evening" ? MIN_GAMES_EVENING : MIN_GAMES_MONTH;
+  const minGames = mode === "evening" ? EVENING_MIN_GAMES : MONTH_MIN_GAMES;
 
-  const mvp = getMvpWinner(
-    relevantMatches,
-    players,
-    "evening", // MVP card always uses standard formula
-    minGames
-  );
+  const results = scorePlayersForMvp(relevantMatches, players, minGames);
+  const mvp = getMvpWinner(results);
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
 
@@ -66,7 +62,7 @@ export default function MVP({
   return (
     <div className="mvp">
       <div className="mvp-title">{titleEmoji} {title}</div>
-      <ProfileName className="mvp-name" name={mvp.name} badgeId={player?.featuredBadgeId || null} />
+      <ProfileName className="mvp-name" name={mvp.name} badgeId={mvp.badgeId} />
       <div className="mvp-meta">
         {mvp.wins} vinster, {mvp.games} matcher, {winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
       </div>

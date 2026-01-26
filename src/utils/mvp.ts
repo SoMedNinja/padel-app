@@ -13,6 +13,7 @@ export interface MvpScoreResult {
   eloNet: number;
   score: number;
   isEligible: boolean;
+  badgeId: string | null;
 }
 
 /**
@@ -58,6 +59,7 @@ export function scorePlayersForMvp(
       eloNet: player.elo,
       score,
       isEligible: games >= minGames,
+      badgeId: player.featuredBadgeId || null,
     };
   });
 }
