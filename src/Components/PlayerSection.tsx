@@ -661,7 +661,7 @@ export default function PlayerSection({
 
   if (mode === "chart") {
     return (
-      <div className={`player-chart${isEloChartFullscreen ? " is-fullscreen" : ""}`}>
+      <section className={`player-section player-chart${isEloChartFullscreen ? " is-fullscreen" : ""}`}>
         <div className="player-chart-header">
           <h3>ELO-utveckling (senaste året)</h3>
           <div className="player-chart-controls">
@@ -716,12 +716,12 @@ export default function PlayerSection({
         ) : (
           <p className="muted">Spela matcher senaste året för att se ELO-utvecklingen.</p>
         )}
-      </div>
+      </section>
     );
   }
 
   return (
-    <section className="player-section" style={{ border: 'none', boxShadow: 'none', background: 'transparent', padding: 0 }}>
+    <section className="player-section">
       <div className="player-header">
         <div className="player-avatar-wrap">
           <Avatar
@@ -748,16 +748,27 @@ export default function PlayerSection({
               <button type="button" className="ghost-button" onClick={() => setIsEditingName(false)}>Avbryt</button>
             </div>
           ) : (
-            <h3 onClick={() => setIsEditingName(true)} style={{ cursor: 'pointer' }}>
+            <h3>
               <ProfileName name={playerName} badgeId={selectedBadgeId} />
-              <span style={{ fontSize: '14px', marginLeft: '8px', color: 'var(--color-muted)' }}>✎</span>
             </h3>
           )}
 
-          <label className="file-input">
-            Byt profilbild
-            <input type="file" accept="image/*" onChange={handleAvatarChange} />
-          </label>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+            <label className="file-input" style={{ margin: 0 }}>
+              Byt profilbild
+              <input type="file" accept="image/*" onChange={handleAvatarChange} />
+            </label>
+            {!isEditingName && (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setIsEditingName(true)}
+                style={{ marginTop: 0, padding: '8px 12px', fontSize: '14px' }}
+              >
+                Ändra namn
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
