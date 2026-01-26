@@ -261,14 +261,32 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
 
     if (match.team1_sets == null || match.team2_sets == null) return;
 
-    const team1Won = match.team1_sets > match.team2_sets;
+    const s1 = Number(match.team1_sets || 0);
+    const s2 = Number(match.team2_sets || 0);
+    const team1Won = s1 > s2;
     const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
 
     total++;
     playerWon ? wins++ : losses++;
 
-    const setsFor = isTeam1 ? match.team1_sets : match.team2_sets;
-    const setsAgainst = isTeam1 ? match.team2_sets : match.team1_sets;
+    let setsFor = isTeam1 ? s1 : s2;
+    let setsAgainst = isTeam1 ? s2 : s1;
+
+    // Normalize point-based matches (from tournaments) to a 1-set win/loss
+    // so they don't skew the "Set difference" average.
+    if (match.score_type === "points") {
+      if (setsFor > setsAgainst) {
+        setsFor = 1;
+        setsAgainst = 0;
+      } else if (setsAgainst > setsFor) {
+        setsFor = 0;
+        setsAgainst = 1;
+      } else {
+        setsFor = 0;
+        setsAgainst = 0;
+      }
+    }
+
     totalSetsFor += setsFor;
     totalSetsAgainst += setsAgainst;
   });

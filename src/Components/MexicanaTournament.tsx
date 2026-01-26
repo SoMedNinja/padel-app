@@ -122,11 +122,6 @@ export default function MexicanaTournament({
     return getNextSuggestion(rounds, participants, tournamentMode as any);
   }, [rounds, participants, tournamentMode]);
 
-  useEffect(() => {
-    if (!activeTournamentId && tournaments.length > 0) {
-      setActiveTournamentId(tournaments[0].id);
-    }
-  }, [tournaments, activeTournamentId]);
 
   useEffect(() => {
     if (tournamentData) {
@@ -499,9 +494,20 @@ export default function MexicanaTournament({
       <>
       <div className="mexicana-grid">
         <div className="mexicana-card">
-          <h3>Välj eller skapa turnering</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ margin: 0 }}>Välj eller skapa turnering</h3>
+            {activeTournamentId && (
+              <button
+                className="ghost-button"
+                onClick={() => setActiveTournamentId("")}
+                style={{ fontSize: '12px', padding: '4px 8px' }}
+              >
+                + Ny turnering
+              </button>
+            )}
+          </div>
           <select value={activeTournamentId} onChange={e => setActiveTournamentId(e.target.value)}>
-            <option value="">-- Ny turnering --</option>
+            <option value="">-- Välj turnering / Skapa ny --</option>
             {tournaments.map(t => (
               <option key={t.id} value={t.id}>{t.name} ({getTournamentStatusLabel(t.status)})</option>
             ))}

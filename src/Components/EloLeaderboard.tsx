@@ -93,7 +93,7 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
     <div className="table-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
         <h2 style={{ margin: 0 }}>ELO Leaderboard</h2>
-        <Tooltip title="ELO är ett rankingsystem baserat på vinstsannolikhet. Du startar på 1000 poäng." arrow>
+        <Tooltip title="ELO är ett rankingsystem baserat på flertal faktorer - hur stark du är, hur stark motståndet är, hur lång matchen är, med mer." arrow>
           <IconButton size="small" sx={{ opacity: 0.6 }}>
             <InfoOutlined fontSize="small" />
           </IconButton>

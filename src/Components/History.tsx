@@ -219,13 +219,15 @@ export default function History({ matches = [], globalMatches = [], profiles = [
   const buildTeamEntries = (match: Match, teamKey: "team1" | "team2", idKey: "team1_ids" | "team2_ids"): TeamEntry[] => {
     const ids = resolveTeamIds(match[idKey], match[teamKey], nameToIdMap);
     const names = resolveTeamNames(match[idKey], match[teamKey], profileMap);
-    // Note for non-coders: we only keep the first two players per team to avoid displaying extra "unknown" slots.
-    const trimmedIds = ids.slice(0, 2);
-    const trimmedNames = names.slice(0, 2);
-    return trimmedIds.map((id, index) => ({
+
+    // Create entries and filter out "Okänd"
+    const entries = ids.map((id, index) => ({
       id,
-      name: trimmedNames[index] || getIdDisplayName(id, profileMap),
-    }));
+      name: names[index] || getIdDisplayName(id, profileMap),
+    })).filter(entry => entry.name !== "Okänd");
+
+    // Only keep the first two players per team
+    return entries.slice(0, 2);
   };
 
   const formatDelta = (delta?: number) => {
