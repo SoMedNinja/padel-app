@@ -137,13 +137,13 @@ export default function MeritsSection({
                 earnedBadgeGroups.map(group => (
                   <Box key={`earned-${group.label}`}>
                     <Typography variant="overline" sx={{ fontWeight: 700, color: 'primary.main', mb: 2, display: 'block' }}>{group.label}</Typography>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={1.5}>
                       {group.items.map(badge => (
-                        <Grid key={badge.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid key={badge.id} size={{ xs: 6, sm: 4, md: 4 }}>
                           <Paper
                             variant="outlined"
                             sx={{
-                              p: 2,
+                              p: 1.5,
                               height: '100%',
                               display: 'flex',
                               flexDirection: 'column',
@@ -157,10 +157,10 @@ export default function MeritsSection({
                             }}
                           >
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="h4">{badge.icon}</Typography>
-                              {badge.tier && <Chip label={badge.tier} size="small" variant="outlined" color="success" sx={{ fontWeight: 800 }} />}
+                              <Typography variant="h5">{badge.icon}</Typography>
+                              {badge.tier && <Chip label={badge.tier} size="small" variant="outlined" color="success" sx={{ fontWeight: 800, fontSize: '0.6rem', height: 20 }} />}
                             </Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>{badge.title}</Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>{badge.title}</Typography>
                             <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>{badge.description}</Typography>
                             {badge.meta && <Typography variant="caption" sx={{ fontWeight: 700, color: 'success.main' }}>{badge.meta}</Typography>}
                             <Button
@@ -203,20 +203,20 @@ export default function MeritsSection({
               {lockedBadgeGroups.map(group => (
                 <Box key={`locked-${group.label}`}>
                   <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', mb: 2, display: 'block' }}>{group.label}</Typography>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {group.items.map(badge => {
                       const progress = badge.progress;
                       const progressPercent = progress
                         ? Math.round((progress.current / progress.target) * 100)
                         : 0;
                       return (
-                        <Grid key={badge.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                          <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 2, bgcolor: 'grey.50', opacity: 0.8 }}>
+                        <Grid key={badge.id} size={{ xs: 6, sm: 4, md: 4 }}>
+                          <Paper variant="outlined" sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column', gap: 0.5, borderRadius: 2, bgcolor: 'grey.50', opacity: 0.8 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="h4" sx={{ filter: 'grayscale(1)' }}>{badge.icon}</Typography>
-                              {badge.tier && <Chip label={badge.tier} size="small" variant="outlined" />}
+                              <Typography variant="h5" sx={{ filter: 'grayscale(1)' }}>{badge.icon}</Typography>
+                              {badge.tier && <Chip label={badge.tier} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 20 }} />}
                             </Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{badge.title}</Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{badge.title}</Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>{badge.description}</Typography>
                             {progress && (
                               <Box sx={{ mt: 2 }}>

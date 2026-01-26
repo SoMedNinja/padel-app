@@ -214,3 +214,21 @@ body.chart-fullscreen-active {
   border-radius: 6px;
   border: 1px solid var(--color-border);
 }
+
+.avatar {
+  object-fit: cover;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-border-strong);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.2rem;
+}

@@ -72,13 +72,17 @@ export default function App() {
     );
   }
 
-  // Check if profile setup is needed
-  if (user && !user.name && !isGuest) {
+  // Check if profile setup is needed (require a non-empty name)
+  const hasValidName = user?.name && user.name.trim().length > 0;
+  if (user && !hasValidName && !isGuest) {
+    // Try to get name from metadata as fallback for the setup field
+    const metadataName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+
     return (
       <MainLayout>
         <ProfileSetup
           user={user}
-          initialName={user.name}
+          initialName={metadataName}
           onComplete={(updatedProfile: any) => {
             setUser({ ...user, ...updatedProfile });
           }}
@@ -97,9 +101,14 @@ export default function App() {
             En administratör behöver godkänna din åtkomst innan du kan använda
             appen fullt ut.
           </Typography>
-          <Button variant="outlined" onClick={() => supabase.auth.signOut()}>
-            Logga ut
-          </Button>
+          <Stack direction="row" spacing={2} justifyContent="center">
+            <Button variant="contained" onClick={refresh}>
+              Uppdatera status
+            </Button>
+            <Button variant="outlined" onClick={() => supabase.auth.signOut()}>
+              Logga ut
+            </Button>
+          </Stack>
         </Box>
       </Container>
     );
