@@ -379,6 +379,7 @@ interface PlayerSectionProps {
   allEloPlayers?: PlayerStats[];
   tournamentResults?: TournamentResult[];
   onProfileUpdate?: (profile: Profile) => void;
+  mode?: "overview" | "chart";
 }
 
 export default function PlayerSection({
@@ -388,6 +389,7 @@ export default function PlayerSection({
   allEloPlayers = [],
   tournamentResults = [],
   onProfileUpdate,
+  mode = "overview",
 }: PlayerSectionProps) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
@@ -398,6 +400,29 @@ export default function PlayerSection({
   const playerName = playerProfile
     ? getProfileDisplayName(playerProfile)
     : user?.email || "Din profil";
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(playerName);
+
+  useEffect(() => {
+    setEditedName(playerName);
+  }, [playerName]);
+
+  const handleNameSave = async () => {
+    if (!user?.id) return;
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({ name: editedName })
+      .eq("id", user.id)
+      .select()
+      .single();
+    if (error) {
+      alert(error.message);
+    } else {
+      setIsEditingName(false);
+      onProfileUpdate?.(data);
+    }
+  };
 
   const avatarStorageId = user?.id || null;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
@@ -442,9 +467,13 @@ export default function PlayerSection({
     return history.reduce((sum, entry) => sum + entry.delta, 0);
   }, [filteredStats]);
 
-  const lastMatchDelta = useMemo(() => {
+  const last30DaysDelta = useMemo(() => {
     const history = globalStats?.history ?? [];
-    return history.length > 0 ? history[history.length - 1].delta : 0;
+    if (history.length === 0) return 0;
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return history
+      .filter(h => h.timestamp >= thirtyDaysAgo)
+      .reduce((sum, h) => sum + h.delta, 0);
   }, [globalStats]);
 
   const lastSessionDelta = useMemo(() => {
@@ -629,145 +658,8 @@ export default function PlayerSection({
 
   const chartPalette = ["#d32f2f", "#1976d2", "#388e3c", "#f57c00", "#7b1fa2", "#00796b"];
 
-  return (
-    <section className="player-section">
-      <h2>Spelare</h2>
-
-      <div className="player-header">
-        <div className="player-avatar-wrap">
-          <Avatar
-            className="player-avatar"
-            src={avatarUrl}
-            name={playerName}
-            alt="Profilbild"
-          />
-          <button type="button" className="ghost-button" onClick={resetAvatar}>
-            Återställ till standard
-          </button>
-        </div>
-
-        <div className="player-details">
-          <h3>
-            <ProfileName name={playerName} badgeId={selectedBadgeId} />
-          </h3>
-
-          <label className="file-input">
-            Byt profilbild
-            <input type="file" accept="image/*" onChange={handleAvatarChange} />
-          </label>
-        </div>
-      </div>
-
-      {pendingAvatar && (
-        <div className="avatar-cropper">
-          <div
-            className="avatar-crop-preview"
-            style={{ backgroundImage: `url(${pendingAvatar})`, backgroundSize: `${avatarZoom * 100}%` }}
-          />
-          <div className="avatar-crop-controls">
-            <label className="form-label">
-              Zoom
-              <input
-                type="range"
-                min="1"
-                max="2.5"
-                step="0.1"
-                value={avatarZoom}
-                onChange={(event) => setAvatarZoom(Number(event.target.value))}
-              />
-            </label>
-            <div className="avatar-crop-actions">
-              <button type="button" onClick={saveAvatar} disabled={savingAvatar}>
-                {savingAvatar ? "Sparar..." : "Spara bild"}
-              </button>
-              <button type="button" className="ghost-button" onClick={cancelAvatar}>
-                Avbryt
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="performance-card">
-        <div className="performance-card-header">
-          <div>
-            <h3>Formkort</h3>
-            <p className="muted">Senaste 10 matcher</p>
-          </div>
-          <div className={`performance-elo ${getEloDeltaClass(recentEloDelta)}`}>
-            {formatEloDelta(recentEloDelta)} ELO
-          </div>
-        </div>
-        <div className="performance-card-grid">
-          <div className="stat-card">
-            <span className="stat-label">Vinster</span>
-            <span className="stat-value">{recentFormStats.wins}</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-label">Förluster</span>
-            <span className="stat-value">{recentFormStats.losses}</span>
-          </div>
-          <div className="stat-card stat-card-wide">
-            <span className="stat-label">Resultat</span>
-            <span className="stat-value performance-results">
-              {recentForm.length ? (
-                [...recentForm].reverse().map((result, index) => (
-                  <span
-                    key={`${result}-${index}`}
-                    className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
-                  >
-                    {result}
-                  </span>
-                ))
-              ) : (
-                <span className="muted">Inga matcher ännu.</span>
-              )}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="player-stats">
-        {tournamentMerits.map(merit => (
-          <div key={merit.label} className="stat-card">
-            <span className="stat-label">{merit.label}</span>
-            <span className="stat-value">{merit.count}</span>
-          </div>
-        ))}
-        <div className="stat-card">
-          <span className="stat-label">Matcher</span>
-          <span className="stat-value">{filteredStats ? filteredStats.wins + filteredStats.losses : 0}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Vinster</span>
-          <span className="stat-value">{filteredStats ? filteredStats.wins : 0}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Förluster</span>
-          <span className="stat-value">{filteredStats ? filteredStats.losses : 0}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Vinst %</span>
-          <span className="stat-value">{filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">ELO</span>
-          <span className="stat-value">{currentEloDisplay}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">ELO ändring (senaste match)</span>
-          <span className={`stat-value ${getEloDeltaClass(lastMatchDelta)}`}>
-            {formatEloDelta(lastMatchDelta)}
-          </span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">ELO ändring (senaste spelkväll)</span>
-          <span className={`stat-value ${getEloDeltaClass(lastSessionDelta)}`}>
-            {formatEloDelta(lastSessionDelta)}
-          </span>
-        </div>
-      </div>
-
+  if (mode === "chart") {
+    return (
       <div className={`player-chart${isEloChartFullscreen ? " is-fullscreen" : ""}`}>
         <div className="player-chart-header">
           <h3>ELO-utveckling (senaste året)</h3>
@@ -824,6 +716,121 @@ export default function PlayerSection({
           <p className="muted">Spela matcher senaste året för att se ELO-utvecklingen.</p>
         )}
       </div>
+    );
+  }
+
+  return (
+    <section className="player-section" style={{ border: 'none', boxShadow: 'none', background: 'transparent', padding: 0 }}>
+      <div className="player-header">
+        <div className="player-avatar-wrap">
+          <Avatar
+            className="player-avatar"
+            src={avatarUrl}
+            name={playerName}
+            alt="Profilbild"
+          />
+          <button type="button" className="ghost-button" onClick={resetAvatar}>
+            Återställ till standard
+          </button>
+        </div>
+
+        <div className="player-details">
+          {isEditingName ? (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                style={{ margin: 0 }}
+              />
+              <button type="button" onClick={handleNameSave} style={{ marginTop: 0 }}>Spara</button>
+              <button type="button" className="ghost-button" onClick={() => setIsEditingName(false)}>Avbryt</button>
+            </div>
+          ) : (
+            <h3 onClick={() => setIsEditingName(true)} style={{ cursor: 'pointer' }}>
+              <ProfileName name={playerName} badgeId={selectedBadgeId} />
+              <span style={{ fontSize: '14px', marginLeft: '8px', color: 'var(--color-muted)' }}>✎</span>
+            </h3>
+          )}
+
+          <label className="file-input">
+            Byt profilbild
+            <input type="file" accept="image/*" onChange={handleAvatarChange} />
+          </label>
+        </div>
+      </div>
+
+      {pendingAvatar && (
+        <div className="avatar-cropper">
+          <div
+            className="avatar-crop-preview"
+            style={{ backgroundImage: `url(${pendingAvatar})`, backgroundSize: `${avatarZoom * 100}%` }}
+          />
+          <div className="avatar-crop-controls">
+            <label className="form-label">
+              Zoom
+              <input
+                type="range"
+                min="1"
+                max="2.5"
+                step="0.1"
+                value={avatarZoom}
+                onChange={(event) => setAvatarZoom(Number(event.target.value))}
+              />
+            </label>
+            <div className="avatar-crop-actions">
+              <button type="button" onClick={saveAvatar} disabled={savingAvatar}>
+                {savingAvatar ? "Sparar..." : "Spara bild"}
+              </button>
+              <button type="button" className="ghost-button" onClick={cancelAvatar}>
+                Avbryt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="player-stats">
+        {tournamentMerits.map(merit => (
+          <div key={merit.label} className="stat-card">
+            <span className="stat-label">{merit.label}</span>
+            <span className="stat-value">{merit.count}</span>
+          </div>
+        ))}
+        <div className="stat-card">
+          <span className="stat-label">Matcher</span>
+          <span className="stat-value">{filteredStats ? filteredStats.wins + filteredStats.losses : 0}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Vinster</span>
+          <span className="stat-value">{filteredStats ? filteredStats.wins : 0}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Förluster</span>
+          <span className="stat-value">{filteredStats ? filteredStats.losses : 0}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Vinst %</span>
+          <span className="stat-value">{filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">ELO</span>
+          <span className="stat-value">{currentEloDisplay}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">ELO ändring (senaste 30 dagar)</span>
+          <span className={`stat-value ${getEloDeltaClass(last30DaysDelta)}`}>
+            {formatEloDelta(last30DaysDelta)}
+          </span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">ELO ändring (senaste spelkväll)</span>
+          <span className={`stat-value ${getEloDeltaClass(lastSessionDelta)}`}>
+            {formatEloDelta(lastSessionDelta)}
+          </span>
+        </div>
+      </div>
+
 
     </section>
   );
@@ -1008,9 +1015,9 @@ export function HeadToHeadSection({
                   {recentResults.map((result, index) => (
                     <span
                       key={`${result}-${index}`}
-                        className={`result-pill ${result === "W" ? "result-win" : "result-loss"}`}
+                        className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
                     >
-                        {result === "W" ? "V" : "F"}
+                        {result}
                     </span>
                   ))}
                 </span>

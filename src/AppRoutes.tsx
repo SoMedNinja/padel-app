@@ -13,11 +13,12 @@ export default function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/dashboard" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<PlayerProfilePage />} />
+      <Route path="/grabbarnas-serie" element={<Dashboard />} />
+      <Route path="/dashboard" element={<Navigate to="/grabbarnas-serie" replace />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/tournament" element={<TournamentPage />} />
-      <Route path="/profile" element={<PlayerProfilePage />} />
+      <Route path="/profile" element={<Navigate to="/" replace />} />
       <Route path="/mexicana" element={<Navigate to="/tournament" replace />} />
       {!isGuest && <Route path="/single-game" element={<SingleGamePage />} />}
       {isAdmin && <Route path="/admin" element={<AdminPage />} />}

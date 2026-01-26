@@ -16,6 +16,7 @@ interface HeatmapProps {
   matches?: Match[];
   profiles?: Profile[];
   eloPlayers?: PlayerStats[];
+  currentUserOnly?: string;
 }
 
 interface Combo {
@@ -29,7 +30,12 @@ interface Combo {
   recentResults: string[];
 }
 
-export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }: HeatmapProps) {
+export default function Heatmap({
+  matches = [],
+  profiles = [],
+  eloPlayers = [],
+  currentUserOnly
+}: HeatmapProps) {
   const [sortKey, setSortKey] = useState<string>("games");
   const [asc, setAsc] = useState<boolean>(false);
   const [playerFilter, setPlayerFilter] = useState<string>("all");
@@ -157,7 +163,13 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     };
   });
 
-  if (playerFilter !== "all") {
+  if (currentUserOnly) {
+    const currentProfile = profiles.find(p => p.id === currentUserOnly);
+    const currentName = currentProfile ? getProfileDisplayName(currentProfile) : null;
+    if (currentName) {
+      rows = rows.filter(r => r.players.includes(currentName));
+    }
+  } else if (playerFilter !== "all") {
     rows = rows.filter(r => r.players.includes(playerFilter));
   }
 
@@ -195,19 +207,21 @@ export default function Heatmap({ matches = [], profiles = [], eloPlayers = [] }
     <div className="table-card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "12px" }}>
         <h2 style={{ margin: 0 }}>Lag-kombinationer</h2>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span className="muted">Filtrera spelare:</span>
-          <select
-            value={playerFilter}
-            onChange={e => setPlayerFilter(e.target.value)}
-            style={{ margin: 0, width: "auto", minWidth: "160px" }}
-          >
-            <option value="all">Alla spelare</option>
-            {sortedProfileNames.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
+        {!currentUserOnly && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span className="muted">Filtrera spelare:</span>
+            <select
+              value={playerFilter}
+              onChange={e => setPlayerFilter(e.target.value)}
+              style={{ margin: 0, width: "auto", minWidth: "160px" }}
+            >
+              <option value="all">Alla spelare</option>
+              {sortedProfileNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
       <div className="table-scroll">
         <div className="table-scroll-inner">
