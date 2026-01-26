@@ -1,5 +1,5 @@
 import React from "react";
-import { getLatestMatchDate, getMvpWinner, MIN_GAMES_EVENING, MIN_GAMES_MONTH } from "../utils/stats";
+import { getLatestMatchDate } from "../utils/stats";
 import ProfileName from "./ProfileName";
 import { Match, PlayerStats } from "../types";
 import { Tooltip, IconButton } from "@mui/material";
@@ -42,14 +42,10 @@ export default function MVP({
     );
   }
 
-  const minGames = mode === "evening" ? MIN_GAMES_EVENING : MIN_GAMES_MONTH;
+  const minGames = mode === "evening" ? EVENING_MIN_GAMES : MONTH_MIN_GAMES;
 
-  const mvp = getMvpWinner(
-    relevantMatches,
-    players,
-    "evening", // MVP card always uses standard formula
-    minGames
-  );
+  const results = scorePlayersForMvp(relevantMatches, players, minGames);
+  const mvp = getMvpWinner(results);
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
   const explanation = mode === "evening"

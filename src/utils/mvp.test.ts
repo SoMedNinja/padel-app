@@ -1,21 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { calculateMvpScore, calculateRollingMvpScore, getMvpWinner } from "./stats";
+import { calculateMvpScore, getMvpWinner, scorePlayersForMvp } from "./mvp";
 import { Match, PlayerStats } from "../types";
 
 describe("MVP stats logic", () => {
   it("calculates standard MVP score correctly", () => {
-    // eloGain * (0.9 + 0.2 * winRate) + 0.3 * games
-    // 30 * (0.9 + 0.2 * 1.0) + 0.3 * 3 = 30 * 1.1 + 0.9 = 33 + 0.9 = 33.9
-    expect(calculateMvpScore(30, 1.0, 3)).toBeCloseTo(33.9);
+    // Score = eloGain + (winRate * 15) + (games * 0.5)
+    // 30 + (1.0 * 15) + (3 * 0.5) = 30 + 15 + 1.5 = 46.5
+    expect(calculateMvpScore(3, 3, 30)).toBeCloseTo(46.5);
 
-    // 35 * (0.9 + 0.2 * 0.75) + 0.3 * 4 = 35 * 1.05 + 1.2 = 36.75 + 1.2 = 37.95
-    expect(calculateMvpScore(35, 0.75, 4)).toBeCloseTo(37.95);
-  });
-
-  it("calculates rolling MVP score correctly", () => {
-    // wins * 3 + winRate * 5 + games
-    // 3 * 3 + 1.0 * 5 + 3 = 9 + 5 + 3 = 17
-    expect(calculateRollingMvpScore(3, 1.0, 3)).toBe(17);
+    // 35 + (0.75 * 15) + (4 * 0.5) = 35 + 11.25 + 2 = 48.25
+    expect(calculateMvpScore(3, 4, 35)).toBeCloseTo(48.25);
   });
 
   it("picks the correct MVP winner", () => {
@@ -65,10 +59,11 @@ describe("MVP stats logic", () => {
       { id: "m4", team1: "Bob", team2: "Other", team1_ids: ["p2"], team2_ids: [], team1_sets: 2, team2_sets: 0, created_at: "2023-01-01" },
     ];
 
-    // Alice: eloGain=30, winRate=1.0, games=3 => Score=33.9
-    // Bob: eloGain=35, winRate=1.0, games=4 => Score=35*(1.1) + 0.3*4 = 38.5 + 1.2 = 39.7
+    // Alice: eloGain=30, winRate=1.0, games=3 => Score=46.5
+    // Bob: eloGain=35, winRate=1.0, games=4 => Score=52.0
 
-    const winner = getMvpWinner(matches, players, "evening", 3);
+    const results = scorePlayersForMvp(matches, players, 3);
+    const winner = getMvpWinner(results);
     expect(winner?.name).toBe("Bob");
   });
 });

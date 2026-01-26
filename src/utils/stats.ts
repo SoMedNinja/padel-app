@@ -1,9 +1,6 @@
 // All match- och statistiklogik samlad här
 import { Match, PlayerStats } from "../types";
 
-export const MIN_GAMES_EVENING = 3;
-export const MIN_GAMES_MONTH = 6;
-
 const normalizeTeam = (team: any): string[] => {
   if (Array.isArray(team)) return team.filter(Boolean);
   if (typeof team === "string") {
