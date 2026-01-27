@@ -9,6 +9,7 @@ interface MatchHighlightCardProps {
   highlight: MatchHighlight;
   match: Match;
   onDismiss: () => void;
+  deltas?: Record<string, number>;
 }
 
 const getIcon = (reason: MatchHighlight['reason']) => {
@@ -31,7 +32,7 @@ const getBackgroundColor = (reason: MatchHighlight['reason']) => {
   }
 };
 
-export default function MatchHighlightCard({ highlight, match, onDismiss }: MatchHighlightCardProps) {
+export default function MatchHighlightCard({ highlight, match, onDismiss, deltas }: MatchHighlightCardProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const team1 = Array.isArray(match.team1) ? match.team1.join(' & ') : match.team1;
   const team2 = Array.isArray(match.team2) ? match.team2.join(' & ') : match.team2;
@@ -119,7 +120,7 @@ export default function MatchHighlightCard({ highlight, match, onDismiss }: Matc
       open={shareOpen}
       onClose={() => setShareOpen(false)}
       type="match"
-      data={{ match, highlight }}
+      data={{ match, highlight, deltas }}
     />
     </>
   );
