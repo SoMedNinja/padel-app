@@ -537,9 +537,6 @@ export default function MexicanaTournament({
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Turnering</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Stöd för Americano (rättvisa) och Mexicano (jämna matcher).
-          </Typography>
         </Box>
         {activeTournament && (
           <Chip

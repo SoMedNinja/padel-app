@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import MexicanaTournament from "../Components/MexicanaTournament";
 import { useStore } from "../store/useStore";
 import { useProfiles } from "../hooks/useProfiles";
@@ -49,6 +49,14 @@ export default function TournamentPage() {
     (profilesError as Error | undefined)?.message ||
     (matchesError as Error | undefined)?.message ||
     "Något gick fel när turneringsdata hämtades.";
+
+  useEffect(() => {
+    // Note for non-coders: we add a body class so CSS can remove the global padding only on this page.
+    document.body.classList.add("tournament-page");
+    return () => {
+      document.body.classList.remove("tournament-page");
+    };
+  }, []);
 
   return (
     <PullToRefresh
