@@ -670,6 +670,7 @@ export default function PlayerSection({
 
   const resetAvatar = async () => {
     if (!avatarStorageId) return;
+    if (!window.confirm("Är du säker på att du vill återställa din profilbild?")) return;
     removeStoredAvatar(avatarStorageId);
     setAvatarUrl(null);
     setPendingAvatar(null);

@@ -5,7 +5,8 @@ import {
   FormControl,
   InputLabel,
   SelectChangeEvent,
-  Box
+  Box,
+  TextField
 } from "@mui/material";
 import { MatchFilter, MatchFilterType } from "../types";
 

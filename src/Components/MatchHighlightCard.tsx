@@ -50,6 +50,7 @@ export default function MatchHighlightCard({ highlight, match, onDismiss }: Matc
       <IconButton
         size="small"
         onClick={onDismiss}
+        aria-label="Stäng"
         sx={{
           position: 'absolute',
           top: 8,

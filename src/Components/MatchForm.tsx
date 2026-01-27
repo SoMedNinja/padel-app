@@ -102,6 +102,8 @@ export default function MatchForm({
   }, [eloPlayers]);
 
   const resetWizard = () => {
+    const hasProgress = team1.some(id => id !== "") || team2.some(id => id !== "") || pool.length > 0;
+    if (hasProgress && !window.confirm("Är du säker på att du vill rensa matchen och börja om?")) return;
     setStep(0);
     setTeam1(["", ""]);
     setTeam2(["", ""]);
@@ -933,7 +935,7 @@ export default function MatchForm({
           <Box sx={{ display: "flex", alignItems: "center", mb: 2, justifyContent: "space-between" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {step > 0 && (
-                <IconButton onClick={() => setStep(step === 10 ? 0 : prev => prev - 1)} size="small">
+                <IconButton onClick={() => setStep(step === 10 ? 0 : prev => prev - 1)} size="small" aria-label="Gå tillbaka">
                   <ArrowBackIcon />
                 </IconButton>
               )}
@@ -956,7 +958,7 @@ export default function MatchForm({
               </Button>
             )}
             {step > 0 && (
-              <IconButton onClick={resetWizard} size="small" color="error">
+              <IconButton onClick={resetWizard} size="small" color="error" aria-label="Stäng och rensa">
                 <CloseIcon />
               </IconButton>
             )}
@@ -1314,7 +1316,7 @@ export default function MatchForm({
                 Match
               </Button>
               {recapMode === "evening" && (
-                <IconButton size="small" onClick={() => setShowRecap(false)}>
+                <IconButton size="small" onClick={() => setShowRecap(false)} aria-label="Stäng">
                   <CloseIcon />
                 </IconButton>
               )}
