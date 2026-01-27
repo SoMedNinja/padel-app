@@ -169,24 +169,33 @@ export default function EloLeaderboard({ players = [], matches = [], profiles = 
               <Typography variant="body2" sx={{ fontWeight: 600 }}>laddar data…</Typography>
             </Box>
           )}
-          <Table sx={{ minWidth: 650 }}>
-            <TableHead sx={{ bgcolor: 'grey.50' }}>
-              <TableRow>
-                <TableCell onClick={() => toggleSort("name")} sx={{ cursor: 'pointer', fontWeight: 700 }}>Spelare</TableCell>
-                <TableCell onClick={() => toggleSort("elo")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">ELO</TableCell>
-                <TableCell onClick={() => toggleSort("games")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Matcher</TableCell>
-                <TableCell onClick={() => toggleSort("wins")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinster</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="center">Streak</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="center">Trend</TableCell>
-                <TableCell onClick={() => toggleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst %</TableCell>
+          {/* Note for non-coders: we render rows in a grid so the virtual scroll transforms work reliably. */}
+          <Table component="div" sx={{ minWidth: 650 }}>
+            <TableHead component="div" sx={{ bgcolor: 'grey.50' }}>
+              <TableRow
+                component="div"
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(220px, 1.6fr) repeat(6, minmax(80px, 1fr))',
+                  alignItems: 'center',
+                }}
+              >
+                <TableCell component="div" onClick={() => toggleSort("name")} sx={{ cursor: 'pointer', fontWeight: 700 }}>Spelare</TableCell>
+                <TableCell component="div" onClick={() => toggleSort("elo")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>ELO</TableCell>
+                <TableCell component="div" onClick={() => toggleSort("games")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>Matcher</TableCell>
+                <TableCell component="div" onClick={() => toggleSort("wins")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>Vinster</TableCell>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center' }}>Streak</TableCell>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center' }}>Trend</TableCell>
+                <TableCell component="div" onClick={() => toggleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>Vinst %</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody sx={{ position: 'relative', height: totalSize }}>
+            <TableBody component="div" sx={{ position: 'relative', height: totalSize }}>
               {/* Note for non-coders: the table only draws rows you can see to stay fast on big leaderboards. */}
               {virtualItems.map((virtualItem) => {
                 const p = sortedPlayers[virtualItem.index];
                 return (
                   <TableRow
+                    component="div"
                     key={p.name}
                     ref={measureElement(virtualItem.index)}
                     data-index={virtualItem.index}
@@ -196,12 +205,13 @@ export default function EloLeaderboard({ players = [], matches = [], profiles = 
                       top: 0,
                       left: 0,
                       width: '100%',
-                      display: 'table',
-                      tableLayout: 'fixed',
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(220px, 1.6fr) repeat(6, minmax(80px, 1fr))',
+                      alignItems: 'center',
                       transform: `translateY(${virtualItem.start}px)`,
                     }}
                   >
-                    <TableCell>
+                    <TableCell component="div">
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Avatar
                           sx={{ width: 32, height: 32 }}
@@ -211,14 +221,14 @@ export default function EloLeaderboard({ players = [], matches = [], profiles = 
                         <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
                       </Box>
                     </TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
-                    <TableCell align="center">{p.wins + p.losses}</TableCell>
-                    <TableCell align="center">{p.wins}</TableCell>
-                    <TableCell align="center">{getStreak(p)}</TableCell>
-                    <TableCell align="center">
+                    <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center' }}>{p.wins + p.losses}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center' }}>{p.wins}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center' }}>{getStreak(p)}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center' }}>
                       <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
                     </TableCell>
-                    <TableCell align="center">{winPct(p.wins, p.losses)}%</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center' }}>{winPct(p.wins, p.losses)}%</TableCell>
                   </TableRow>
                 );
               })}
