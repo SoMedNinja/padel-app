@@ -39,20 +39,22 @@ const GSLogo = () => (
 );
 
 const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { tournament: Tournament; results: any[]; profileMap: Record<string, string>; variant?: number }) => {
-  const topCount = variant === 1 ? 5 : 3;
+  const topCount = variant === 1 ? 8 : 3;
   const topPlayers = results.slice(0, topCount);
   const winner = topPlayers[0];
   const winnerId = winner?.profile_id || winner?.id || '';
 
   const themes = [
-    { bg: 'linear-gradient(180deg, #ff8f00 0%, #ff6f00 100%)', color: 'white', accent: '#ffca28' }, // Classic Gold
-    { bg: '#1a1a1a', color: 'white', accent: '#4caf50' }, // Dark Stats
-    { bg: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)', color: 'white', accent: '#00d2ff' }, // Modern Blue
-    { bg: '#f5f5f5', color: '#333', accent: '#d32f2f' }, // Newspaper Clean
-    { bg: 'linear-gradient(45deg, #12c2e9, #c471ed, #f64f59)', color: 'white', accent: '#fff' }, // Vibrant
+    { bg: 'linear-gradient(180deg, #ff8f00 0%, #ff6f00 100%)', color: 'white', accent: '#ffca28', font: 'Inter' }, // Classic Gold
+    { bg: '#1a1a1a', color: 'white', accent: '#4caf50', font: 'Inter' }, // Dark Stats
+    { bg: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)', color: 'white', accent: '#00d2ff', font: 'Inter' }, // Modern Blue
+    { bg: 'white', color: '#1a1a1a', accent: '#1a1a1a', font: 'Playfair Display', border: '40px solid #f5f5f5' }, // Magazine
+    { bg: 'linear-gradient(45deg, #12c2e9, #c471ed, #f64f59)', color: 'white', accent: '#fff', font: 'Inter' }, // Vibrant
   ];
 
   const theme = themes[variant % themes.length];
+  const isMagazine = variant === 3;
+  const isStats = variant === 1;
 
   return (
     <Box
@@ -69,82 +71,119 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
         textAlign: 'center',
         position: 'relative',
         overflow: 'hidden',
+        fontFamily: theme.font || 'inherit',
+        border: theme.border || 'none'
       }}
     >
-      {variant === 0 && (
-        <>
-          <Box sx={{ position: 'absolute', top: -100, left: -100, width: 500, height: 500, borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
-          <Box sx={{ position: 'absolute', bottom: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'rgba(0,0,0,0.05)' }} />
-        </>
-      )}
+      {isMagazine ? (
+        <Box sx={{ width: '100%', height: '100%', textAlign: 'left', p: 4, display: 'flex', flexDirection: 'column' }}>
+           <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 180, mb: -4, color: theme.accent, opacity: 0.1, position: 'absolute', top: 40, right: 40 }}>CHAMP</Typography>
+           <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140, mb: 0, lineHeight: 0.9 }}>MÄSTAREN</Typography>
+           <Typography variant="h2" sx={{ fontWeight: 500, fontStyle: 'italic', mb: 8 }}>{tournament.name}</Typography>
 
-      <Stack spacing={variant === 1 ? 2 : 4} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
-        <EmojiEvents sx={{ fontSize: variant === 1 ? 80 : 120, color: theme.accent, filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.2))' }} />
+           <Box sx={{ mt: 'auto' }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 1 }}>Vinnare</Typography>
+              <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120, color: theme.accent, mb: 4 }}>
+                {profileMap[winnerId] || 'Okänd'}
+              </Typography>
 
-        <Box>
-          <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, textShadow: variant === 3 ? 'none' : '0 4px 8px rgba(0,0,0,0.2)' }}>
-            Mästare
-          </Typography>
-          <Typography variant="h4" sx={{ opacity: 0.9, fontWeight: 700 }}>
-            {tournament.name}
-          </Typography>
-        </Box>
-
-        <Box sx={{
-          bgcolor: variant === 3 ? 'transparent' : 'white',
-          color: variant === 3 ? theme.color : (variant === 0 ? '#ff6f00' : '#1a237e'),
-          p: 4,
-          borderRadius: 4,
-          width: '85%',
-          boxShadow: variant === 3 ? 'none' : '0 20px 40px rgba(0,0,0,0.2)',
-          border: variant === 3 ? `4px solid ${theme.accent}` : 'none'
-        }}>
-          <Typography variant="h1" sx={{ fontWeight: 900, mb: 1 }}>
-            {profileMap[winnerId] || 'Okänd spelare'}
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700, opacity: 0.7, textTransform: 'uppercase' }}>
-            {winner.points_for ?? winner.totalPoints} Poäng • {winner.wins} Vinster
-          </Typography>
-        </Box>
-
-        {topPlayers.length > 1 && (
-           <Box sx={{ width: '100%', mt: 2 }}>
-             <Typography variant="h5" sx={{ fontWeight: 800, mb: 2, opacity: 0.6, textTransform: 'uppercase' }}>
-               {variant === 1 ? 'Fullständig Tabell' : 'Topplista'}
-             </Typography>
-             {variant === 1 ? (
-               <Stack spacing={1} sx={{ width: '80%', mx: 'auto' }}>
-                 {results.slice(0, 8).map((res, i) => (
-                    <Box key={res.profile_id || res.id} sx={{ display: 'flex', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
-                      <Typography variant="h5" sx={{ fontWeight: 800 }}>{i + 1}. {profileMap[res.profile_id || res.id] || 'Okänd'}</Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 800, color: theme.accent }}>{res.points_for ?? res.totalPoints}p</Typography>
-                    </Box>
-                 ))}
-               </Stack>
-             ) : (
-               <Stack direction="row" spacing={4} justifyContent="center">
-                 {topPlayers.map((res, i) => {
-                    const pid = res.profile_id || res.id || '';
-                    if (i === 0) return null; // Skip winner if already shown big
-                    return (
-                      <Box key={pid} sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" sx={{ fontWeight: 800, color: theme.accent }}>{i + 1}:a</Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{profileMap[pid] || 'Okänd'}</Typography>
-                        <Typography variant="body1" sx={{ opacity: 0.7 }}>{res.points_for ?? res.totalPoints}p</Typography>
-                      </Box>
-                    );
-                 })}
-               </Stack>
-             )}
+              <Grid container spacing={4}>
+                 <Grid size={{ xs: 4 }}>
+                    <Typography variant="h6" sx={{ opacity: 0.6 }}>Poäng</Typography>
+                    <Typography variant="h3" sx={{ fontWeight: 800 }}>{winner.points_for ?? winner.totalPoints}</Typography>
+                 </Grid>
+                 <Grid size={{ xs: 4 }}>
+                    <Typography variant="h6" sx={{ opacity: 0.6 }}>Vinster</Typography>
+                    <Typography variant="h3" sx={{ fontWeight: 800 }}>{winner.wins}</Typography>
+                 </Grid>
+                 <Grid size={{ xs: 4 }}>
+                    <Typography variant="h6" sx={{ opacity: 0.6 }}>Datum</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }}>{new Date(tournament.completed_at || '').toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })}</Typography>
+                 </Grid>
+              </Grid>
            </Box>
-        )}
-
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-            {new Date(tournament.completed_at || '').toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
-          </Typography>
         </Box>
-      </Stack>
+      ) : (
+        <Stack spacing={4} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
+          <EmojiEvents sx={{ fontSize: isStats ? 80 : 120, color: theme.accent, filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.2))' }} />
+
+          <Box>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1 }}>
+              Mästare
+            </Typography>
+            <Typography variant="h4" sx={{ opacity: 0.9, fontWeight: 700 }}>
+              {tournament.name}
+            </Typography>
+          </Box>
+
+          {!isStats && (
+            <Box sx={{
+              bgcolor: 'white',
+              color: '#ff6f00',
+              p: 4,
+              borderRadius: 4,
+              width: '85%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            }}>
+              <Typography variant="h1" sx={{ fontWeight: 900, mb: 1 }}>
+                {profileMap[winnerId] || 'Okänd spelare'}
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 700, opacity: 0.7, textTransform: 'uppercase' }}>
+                {winner.points_for ?? winner.totalPoints} Poäng • {winner.wins} Vinster
+              </Typography>
+            </Box>
+          )}
+
+          <Box sx={{ width: '100%', mt: 2 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 2, opacity: 0.6, textTransform: 'uppercase' }}>
+              {isStats ? 'Sluttabell' : 'Topplista'}
+            </Typography>
+            {isStats ? (
+              <Stack spacing={1} sx={{ width: '90%', mx: 'auto' }}>
+                {results.slice(0, 8).map((res, i) => (
+                   <Box key={res.profile_id || res.id} sx={{ display: 'flex', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: i === 0 ? `2px solid ${theme.accent}` : 'none' }}>
+                     <Typography variant="h5" sx={{ fontWeight: 800 }}>{i + 1}. {profileMap[res.profile_id || res.id] || 'Okänd'}</Typography>
+                     <Typography variant="h5" sx={{ fontWeight: 800, color: theme.accent }}>{res.points_for ?? res.totalPoints}p</Typography>
+                   </Box>
+                ))}
+              </Stack>
+            ) : (
+              <Stack direction="row" spacing={4} justifyContent="center" alignItems="flex-end">
+                {topPlayers.map((res, i) => {
+                   const pid = res.profile_id || res.id || '';
+                   const isWinner = i === 0;
+                   return (
+                     <Box key={pid} sx={{ textAlign: 'center', order: i === 0 ? 2 : (i === 1 ? 1 : 3) }}>
+                       <Box sx={{
+                         height: isWinner ? 120 : (i === 1 ? 80 : 60),
+                         width: 80,
+                         bgcolor: theme.accent,
+                         mx: 'auto',
+                         borderRadius: '8px 8px 0 0',
+                         display: 'flex',
+                         flexDirection: 'column',
+                         justifyContent: 'center',
+                         mb: 1,
+                         opacity: isWinner ? 1 : 0.6
+                       }}>
+                         <Typography variant="h4" sx={{ fontWeight: 900, color: theme.bg }}>{i + 1}</Typography>
+                       </Box>
+                       <Typography variant="h5" sx={{ fontWeight: 700 }}>{profileMap[pid] || 'Okänd'}</Typography>
+                       <Typography variant="body1" sx={{ opacity: 0.7 }}>{res.points_for ?? res.totalPoints}p</Typography>
+                     </Box>
+                   );
+                })}
+              </Stack>
+            )}
+          </Box>
+
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+              {new Date(tournament.completed_at || '').toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </Typography>
+          </Box>
+        </Stack>
+      )}
     </Box>
   );
 };
@@ -154,14 +193,15 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
   const team2Names = Array.isArray(match.team2) ? match.team2 : [match.team2];
 
   const themes = [
-    { bg: 'linear-gradient(180deg, #1a237e 0%, #0d47a1 100%)', color: 'white', accent: '#ffca28' }, // Classic Blue
-    { bg: '#0f172a', color: 'white', accent: '#38ef7d' }, // Dark Stats
-    { bg: '#f80759', color: 'white', accent: '#fff' }, // Bold Pink
-    { bg: 'white', color: '#1a237e', accent: '#1a237e', border: '20px solid #1a237e' }, // Modern Minimal
-    { bg: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', color: 'white', accent: '#fff' }, // Emerald
+    { bg: 'linear-gradient(180deg, #1a237e 0%, #0d47a1 100%)', color: 'white', accent: '#ffca28', font: 'Inter' }, // Classic Blue
+    { bg: '#0f172a', color: 'white', accent: '#38ef7d', font: 'Inter' }, // Dark Stats
+    { bg: '#f80759', color: 'white', accent: '#fff', font: 'Inter' }, // Bold Pink
+    { bg: 'white', color: '#1a237e', accent: '#1a237e', border: '40px solid #1a237e', font: 'Playfair Display' }, // Magazine
+    { bg: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', color: 'white', accent: '#fff', font: 'Inter' }, // Emerald
   ];
 
   const theme = themes[variant % themes.length];
+  const isMagazine = variant === 3;
 
   return (
     <Box
@@ -179,94 +219,130 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
         position: 'relative',
         overflow: 'hidden',
         border: theme.border || 'none',
+        fontFamily: theme.font || 'inherit'
       }}
     >
-      {variant === 0 && (
-        <>
-          <Box sx={{ position: 'absolute', top: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-          <Box sx={{ position: 'absolute', bottom: -50, left: -50, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-        </>
-      )}
+      {isMagazine ? (
+        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', p: 4 }}>
+           <Typography variant="h1" sx={{
+             fontSize: 160,
+             fontWeight: 900,
+             lineHeight: 0.8,
+             textAlign: 'left',
+             textTransform: 'uppercase',
+             opacity: 0.1,
+             position: 'absolute',
+             top: 40,
+             left: 40,
+             zIndex: 0
+           }}>
+             Padel<br/>Prestige<br/>Ära
+           </Typography>
 
-      <Stack spacing={6} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
-        {variant !== 3 && <GSLogo />}
+           <Stack spacing={4} sx={{ zIndex: 1, mt: 'auto', textAlign: 'left', width: '100%' }}>
+             <Typography variant="h2" sx={{ fontWeight: 900, color: theme.accent, textTransform: 'uppercase', letterSpacing: '-0.02em' }}>
+               {highlight.title}
+             </Typography>
 
-        <Box>
-          <Typography variant={variant === 2 ? "h1" : "h2"} sx={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1, color: theme.accent }}>
-            {highlight.title}
-          </Typography>
-          <Typography variant="h5" sx={{ opacity: 0.8, fontWeight: 500 }}>
-            {new Date(match.created_at).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </Typography>
+             <Box sx={{ borderLeft: `12px solid ${theme.accent}`, pl: 4, py: 2 }}>
+               <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120 }}>
+                 {match.team1_sets} – {match.team2_sets}
+               </Typography>
+               <Typography variant="h4" sx={{ fontWeight: 500, opacity: 0.8 }}>
+                 {team1Names.join(' & ')} vs {team2Names.join(' & ')}
+               </Typography>
+             </Box>
+
+             <Typography variant="h3" sx={{ fontStyle: 'italic', fontWeight: 400, maxWidth: '80%' }}>
+               "{highlight.description}"
+             </Typography>
+
+             <Typography variant="h5" sx={{ mt: 4, fontWeight: 800, textTransform: 'uppercase' }}>
+               {new Date(match.created_at).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+             </Typography>
+           </Stack>
         </Box>
+      ) : (
+        <Stack spacing={6} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
+          <GSLogo />
 
-        <Stack direction={variant === 3 ? "column" : "row"} spacing={4} alignItems="center" justifyContent="center" sx={{ width: '100%' }}>
-          <Box sx={{ flex: 1, textAlign: variant === 3 ? 'center' : 'right' }}>
-            {team1Names.map((name, i) => (
-              <Box key={i}>
-                <Typography variant="h3" sx={{ fontWeight: 800 }}>{name}</Typography>
-                {variant === 1 && deltas[match.team1_ids[i] || ''] !== undefined && (
-                  <Typography variant="h5" sx={{ color: theme.accent, fontWeight: 700 }}>
-                    {deltas[match.team1_ids[i] || ''] >= 0 ? '+' : ''}{Math.round(deltas[match.team1_ids[i] || ''])} ELO
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-
-          <Box sx={{
-            bgcolor: variant === 3 ? 'transparent' : 'white',
-            color: variant === 3 ? theme.color : '#0d47a1',
-            p: 2,
-            borderRadius: 2,
-            minWidth: 180,
-            border: variant === 3 ? `8px solid ${theme.accent}` : 'none'
-          }}>
-            <Typography variant="h1" sx={{ fontWeight: 900, lineHeight: 1 }}>
-              {match.team1_sets} – {match.team2_sets}
+          <Box>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1, color: theme.accent }}>
+              {highlight.title}
+            </Typography>
+            <Typography variant="h5" sx={{ opacity: 0.8, fontWeight: 500 }}>
+              {new Date(match.created_at).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
             </Typography>
           </Box>
 
-          <Box sx={{ flex: 1, textAlign: variant === 3 ? 'center' : 'left' }}>
-            {team2Names.map((name, i) => (
-              <Box key={i}>
-                <Typography variant="h3" sx={{ fontWeight: 800 }}>{name}</Typography>
-                {variant === 1 && deltas[match.team2_ids[i] || ''] !== undefined && (
-                  <Typography variant="h5" sx={{ color: theme.accent, fontWeight: 700 }}>
-                    {deltas[match.team2_ids[i] || ''] >= 0 ? '+' : ''}{Math.round(deltas[match.team2_ids[i] || ''])} ELO
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-        </Stack>
+          <Stack direction="row" spacing={4} alignItems="center" justifyContent="center" sx={{ width: '100%' }}>
+            <Box sx={{ flex: 1, textAlign: 'right' }}>
+              {team1Names.map((name, i) => (
+                <Box key={i}>
+                  <Typography variant="h3" sx={{ fontWeight: 800 }}>{name}</Typography>
+                  {deltas[match.team1_ids[i] || ''] !== undefined && (
+                    <Typography variant="h5" sx={{ color: theme.accent, fontWeight: 700 }}>
+                      {deltas[match.team1_ids[i] || ''] >= 0 ? '+' : ''}{Math.round(deltas[match.team1_ids[i] || ''])} ELO
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Box>
 
-        <Typography variant="h4" sx={{ maxWidth: '85%', fontStyle: 'italic', opacity: 0.9, fontWeight: 500 }}>
-          "{highlight.description}"
-        </Typography>
+            <Box sx={{
+              bgcolor: 'white',
+              color: '#0d47a1',
+              p: 2,
+              borderRadius: 2,
+              minWidth: 180,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+            }}>
+              <Typography variant="h1" sx={{ fontWeight: 900, lineHeight: 1 }}>
+                {match.team1_sets} – {match.team2_sets}
+              </Typography>
+            </Box>
 
-        {variant === 0 && (
+            <Box sx={{ flex: 1, textAlign: 'left' }}>
+              {team2Names.map((name, i) => (
+                <Box key={i}>
+                  <Typography variant="h3" sx={{ fontWeight: 800 }}>{name}</Typography>
+                  {deltas[match.team2_ids[i] || ''] !== undefined && (
+                    <Typography variant="h5" sx={{ color: theme.accent, fontWeight: 700 }}>
+                      {deltas[match.team2_ids[i] || ''] >= 0 ? '+' : ''}{Math.round(deltas[match.team2_ids[i] || ''])} ELO
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          </Stack>
+
+          <Typography variant="h4" sx={{ maxWidth: '85%', fontStyle: 'italic', opacity: 0.9, fontWeight: 500 }}>
+            "{highlight.description}"
+          </Typography>
+
           <Box sx={{ mt: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
               Padel, Prestige & Ära
             </Typography>
           </Box>
-        )}
-      </Stack>
+        </Stack>
+      )}
     </Box>
   );
 };
 
 const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number }) => {
   const themes = [
-    { bg: 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)', color: 'white', accent: '#00d2ff' },
-    { bg: '#fdfdfd', color: '#1a1a1a', accent: '#d32f2f' },
-    { bg: 'linear-gradient(135deg, #00b09b 0%, #96c93d 100%)', color: 'white', accent: '#fff' },
-    { bg: '#1a237e', color: 'white', accent: '#ffca28' },
-    { bg: 'linear-gradient(135deg, #f80759 0%, #bc4e9c 100%)', color: 'white', accent: '#fff' },
+    { bg: 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)', color: 'white', accent: '#00d2ff', font: 'Inter' }, // Classic
+    { bg: '#fdfdfd', color: '#1a1a1a', accent: '#d32f2f', font: 'Inter', border: '2px solid #eee' }, // Stats Clean
+    { bg: '#000', color: 'white', accent: '#38ef7d', font: 'Inter' }, // Cyber
+    { bg: 'white', color: '#1a1a1a', accent: '#ff4081', font: 'Playfair Display', border: '40px solid #1a1a1a' }, // Magazine
+    { bg: 'linear-gradient(45deg, #8e2de2, #4a00e0)', color: 'white', accent: '#00f2fe', font: 'Inter' }, // Neon
   ];
 
   const theme = themes[variant % themes.length];
+  const isMagazine = variant === 3;
+  const isDetailed = variant === 1;
 
   return (
     <Box
@@ -282,66 +358,130 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
         p: 6,
         textAlign: 'center',
         position: 'relative',
+        fontFamily: theme.font || 'inherit',
+        border: theme.border || 'none'
       }}
     >
-      <Stack spacing={variant === 1 ? 4 : 6} alignItems="center" sx={{ width: '100%' }}>
-        {variant === 0 && <GSLogo />}
-        <Box>
-          <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme.accent }}>
-            Match-recap
-          </Typography>
-          <Typography variant="h1" sx={{ fontWeight: 900, mb: 1, fontSize: 120 }}>
-            {data.scoreline}
-          </Typography>
-        </Box>
+      {isMagazine ? (
+        <Box sx={{ width: '100%', height: '100%', textAlign: 'left', p: 4, display: 'flex', flexDirection: 'column' }}>
+          <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 180, mb: -4, color: theme.accent, opacity: 0.8 }}>RECAP</Typography>
+          <Typography variant="h2" sx={{ fontWeight: 900, fontSize: 100, mb: 4 }}>MATCHDAY</Typography>
 
-        <Grid container spacing={4} sx={{ width: '100%' }}>
-          <Grid size={{ xs: 6 }}>
-            <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag A</Typography>
-            {data.teamA.players.map((p: any) => (
-              <Box key={p.id} sx={{ mb: 2 }}>
-                <Typography variant="h3" sx={{ fontWeight: 700 }}>{p.name}</Typography>
-                <Typography variant="h5" sx={{ opacity: 0.8 }}>{p.elo} ELO ({p.delta >= 0 ? '+' : ''}{p.delta})</Typography>
-              </Box>
-            ))}
-          </Grid>
-          <Grid size={{ xs: 6 }}>
-            <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag B</Typography>
-            {data.teamB.players.map((p: any) => (
-              <Box key={p.id} sx={{ mb: 2 }}>
-                <Typography variant="h3" sx={{ fontWeight: 700 }}>{p.name}</Typography>
-                <Typography variant="h5" sx={{ opacity: 0.8 }}>{p.elo} ELO ({p.delta >= 0 ? '+' : ''}{p.delta})</Typography>
-              </Box>
-            ))}
-          </Grid>
-        </Grid>
+          <Box sx={{ mt: 'auto', borderTop: '8px solid black', pt: 4 }}>
+             <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140 }}>{data.scoreline}</Typography>
+             <Typography variant="h4" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Resultat</Typography>
 
-        <Box sx={{
-          bgcolor: variant === 1 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
-          p: 3,
-          borderRadius: 4,
-          width: '100%',
-          border: variant === 1 ? '2px solid #ddd' : 'none'
-        }}>
-           <Typography variant="h4" sx={{ fontWeight: 700 }}>
-             Fairness: {data.fairness}% • Vinstchans A: {Math.round(data.winProbability * 100)}%
-           </Typography>
+             <Stack direction="row" spacing={8} sx={{ mb: 4 }}>
+                <Box>
+                  <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>Lag A</Typography>
+                  {data.teamA.players.map((p: any) => <Typography key={p.id} variant="h3" sx={{ fontWeight: 800 }}>{p.name}</Typography>)}
+                </Box>
+                <Box>
+                  <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>Lag B</Typography>
+                  {data.teamB.players.map((p: any) => <Typography key={p.id} variant="h3" sx={{ fontWeight: 800 }}>{p.name}</Typography>)}
+                </Box>
+             </Stack>
+
+             <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', color: theme.accent }}>
+               {new Date(data.createdAt).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+             </Typography>
+          </Box>
         </Box>
-      </Stack>
+      ) : (
+        <Stack spacing={isDetailed ? 3 : 6} alignItems="center" sx={{ width: '100%' }}>
+          <GSLogo />
+          <Box>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme.accent }}>
+              Match-recap
+            </Typography>
+            <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140 }}>
+              {data.scoreline}
+            </Typography>
+          </Box>
+
+          <Grid container spacing={4} sx={{ width: '100%' }}>
+            <Grid size={{ xs: 6 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag A</Typography>
+              {data.teamA.players.map((p: any) => (
+                <Box key={p.id} sx={{ mb: 2 }}>
+                  <Typography variant="h3" sx={{ fontWeight: 700 }}>{p.name}</Typography>
+                  <Typography variant="h5" sx={{ color: theme.accent, fontWeight: 700 }}>
+                    {p.delta >= 0 ? '+' : ''}{p.delta} ELO
+                  </Typography>
+                  {isDetailed && (
+                    <Typography variant="body1" sx={{ opacity: 0.6 }}>Rating: {p.elo}</Typography>
+                  )}
+                </Box>
+              ))}
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag B</Typography>
+              {data.teamB.players.map((p: any) => (
+                <Box key={p.id} sx={{ mb: 2 }}>
+                  <Typography variant="h3" sx={{ fontWeight: 700 }}>{p.name}</Typography>
+                  <Typography variant="h5" sx={{ color: theme.accent, fontWeight: 700 }}>
+                    {p.delta >= 0 ? '+' : ''}{p.delta} ELO
+                  </Typography>
+                  {isDetailed && (
+                    <Typography variant="body1" sx={{ opacity: 0.6 }}>Rating: {p.elo}</Typography>
+                  )}
+                </Box>
+              ))}
+            </Grid>
+          </Grid>
+
+          <Stack direction="row" spacing={2} sx={{ width: '100%', justifyContent: 'center' }}>
+            <Box sx={{
+              bgcolor: 'rgba(255,255,255,0.1)',
+              p: 2,
+              borderRadius: 2,
+              flex: 1,
+              border: isDetailed ? `2px solid ${theme.accent}` : 'none'
+            }}>
+               <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Fairness</Typography>
+               <Typography variant="h4" sx={{ fontWeight: 900 }}>{data.fairness}%</Typography>
+            </Box>
+            <Box sx={{
+              bgcolor: 'rgba(255,255,255,0.1)',
+              p: 2,
+              borderRadius: 2,
+              flex: 1,
+              border: isDetailed ? `2px solid ${theme.accent}` : 'none'
+            }}>
+               <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Vinstchans Lag A</Typography>
+               <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round(data.winProbability * 100)}%</Typography>
+            </Box>
+            {isDetailed && (
+              <Box sx={{
+                bgcolor: 'rgba(255,255,255,0.1)',
+                p: 2,
+                borderRadius: 2,
+                flex: 1,
+                border: `2px solid ${theme.accent}`
+              }}>
+                 <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Serve A</Typography>
+                 <Typography variant="h4" sx={{ fontWeight: 900 }}>{data.team1ServesFirst ? 'JA' : 'NEJ'}</Typography>
+              </Box>
+            )}
+          </Stack>
+        </Stack>
+      )}
     </Box>
   );
 };
 
 const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: number }) => {
   const themes = [
-    { bg: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)', color: 'white', accent: '#00d2ff' },
-    { bg: '#1a1a1a', color: 'white', accent: '#4caf50' },
-    { bg: 'white', color: '#1a237e', accent: '#d32f2f' },
-    { bg: 'linear-gradient(135deg, #373b44 0%, #4286f4 100%)', color: 'white', accent: '#fff' },
-    { bg: '#d32f2f', color: 'white', accent: '#ffca28' },
+    { bg: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)', color: 'white', accent: '#00d2ff', font: 'Inter' }, // Classic
+    { bg: '#0f172a', color: 'white', accent: '#38ef7d', font: 'Inter' }, // Dashboard
+    { bg: '#f5f5f5', color: '#1a1a1a', accent: '#d32f2f', font: 'Inter' }, // Facts
+    { bg: 'white', color: '#1a1a1a', accent: '#1a1a1a', font: 'Playfair Display', border: '40px solid #f5f5f5' }, // Magazine
+    { bg: 'linear-gradient(45deg, #f12711, #f5af19)', color: 'white', accent: '#fff', font: 'Inter' }, // Fire
   ];
 
   const theme = themes[variant % themes.length];
+  const isFacts = variant === 2;
+  const isMagazine = variant === 3;
 
   return (
     <Box
@@ -357,55 +497,138 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
         p: 6,
         textAlign: 'center',
         position: 'relative',
+        fontFamily: theme.font || 'inherit',
+        border: theme.border || 'none'
       }}
     >
-      <Stack spacing={6} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
-        {variant !== 2 && <GSLogo />}
-        <Box>
-          <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme.accent }}>
-            Kvällsrecap
-          </Typography>
-          <Typography variant="h4" sx={{ opacity: 0.9, fontWeight: 700 }}>{data.dateLabel}</Typography>
-        </Box>
+      {isMagazine ? (
+        <Box sx={{ width: '100%', height: '100%', textAlign: 'left', p: 4, display: 'flex', flexDirection: 'column' }}>
+           <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120, mb: 2, textTransform: 'uppercase' }}>{data.dateLabel}</Typography>
+           <Typography variant="h4" sx={{ fontWeight: 500, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 8 }}>Kvällens sammanfattning</Typography>
 
-        <Stack direction="row" spacing={8}>
+           <Grid container spacing={4}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2, color: theme.accent }}>Mästaren</Typography>
+                <Typography variant="h2" sx={{ fontWeight: 900 }}>{data.mvp?.name}</Typography>
+                <Typography variant="h4" sx={{ opacity: 0.6 }}>{data.mvp?.wins} vinster</Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2, color: theme.accent }}>Statistik</Typography>
+                <Typography variant="h3" sx={{ fontWeight: 800 }}>{data.matches} Matcher</Typography>
+                <Typography variant="h3" sx={{ fontWeight: 800 }}>{data.totalSets} Sets</Typography>
+              </Grid>
+           </Grid>
+
+           <Box sx={{ mt: 'auto', borderTop: '4px solid black', pt: 4 }}>
+             <Typography variant="h4" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2 }}>Fun Facts</Typography>
+             <Stack direction="row" spacing={4}>
+                <Box>
+                   <Typography variant="body1" sx={{ opacity: 0.6 }}>Mest rotationer</Typography>
+                   <Typography variant="h5" sx={{ fontWeight: 800 }}>{data.funFacts?.mostRotations[0]?.name}</Typography>
+                </Box>
+                <Box>
+                   <Typography variant="body1" sx={{ opacity: 0.6 }}>Starkast ikväll</Typography>
+                   <Typography variant="h5" sx={{ fontWeight: 800 }}>{data.funFacts?.strongest[0]?.name}</Typography>
+                </Box>
+             </Stack>
+           </Box>
+        </Box>
+      ) : isFacts ? (
+        <Stack spacing={4} sx={{ width: '100%' }}>
+          <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme.accent }}>Highlights</Typography>
+
+          <Grid container spacing={3}>
+             <Grid size={{ xs: 12 }}>
+                <Paper sx={{ p: 4, borderRadius: 4, textAlign: 'center', bgcolor: 'white' }}>
+                   <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800 }}>KVÄLLENS MVP</Typography>
+                   <Typography variant="h2" sx={{ fontWeight: 900, color: theme.accent }}>{data.mvp?.name}</Typography>
+                   <Typography variant="h4" sx={{ fontWeight: 700 }}>{data.mvp?.wins} Vinster • {Math.round((data.mvp?.winRate || 0) * 100)}% Winrate</Typography>
+                </Paper>
+             </Grid>
+             <Grid size={{ xs: 6 }}>
+                <Paper sx={{ p: 3, borderRadius: 4, bgcolor: 'white', height: '100%' }}>
+                   <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800 }}>MEST ROTATIONER</Typography>
+                   {data.funFacts?.mostRotations.slice(0, 3).map((p: any, i: number) => (
+                     <Box key={p.id} sx={{ mb: 1, textAlign: 'left' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{i+1}. {p.name}</Typography>
+                        <Typography variant="body2">{p.rotations} olika partners</Typography>
+                     </Box>
+                   ))}
+                </Paper>
+             </Grid>
+             <Grid size={{ xs: 6 }}>
+                <Paper sx={{ p: 3, borderRadius: 4, bgcolor: 'white', height: '100%' }}>
+                   <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800 }}>STARKAST</Typography>
+                   {data.funFacts?.strongest.slice(0, 3).map((p: any, i: number) => (
+                     <Box key={p.id} sx={{ mb: 1, textAlign: 'left' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{i+1}. {p.name}</Typography>
+                        <Typography variant="body2">{Math.round(p.winRate * 100)}% Winrate</Typography>
+                     </Box>
+                   ))}
+                </Paper>
+             </Grid>
+             {data.funFacts?.marathon && (
+               <Grid size={{ xs: 12 }}>
+                 <Paper sx={{ p: 2, borderRadius: 4, bgcolor: theme.accent, color: 'white' }}>
+                    <Typography variant="h5" sx={{ fontWeight: 900 }}>MARATON-KAMPEN</Typography>
+                    <Typography variant="h4">{data.funFacts.marathon.name} spelade flest set ({data.funFacts.marathon.sets})</Typography>
+                 </Paper>
+               </Grid>
+             )}
+          </Grid>
+          <Typography variant="h6" sx={{ fontWeight: 800, opacity: 0.4 }}>{data.dateLabel}</Typography>
+        </Stack>
+      ) : (
+        <Stack spacing={6} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
+          <GSLogo />
           <Box>
-            <Typography variant="h1" sx={{ fontWeight: 900 }}>{data.matches}</Typography>
-            <Typography variant="h5" sx={{ opacity: 0.7, fontWeight: 800 }}>MATCHER</Typography>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme.accent }}>
+              Kvällsrecap
+            </Typography>
+            <Typography variant="h4" sx={{ opacity: 0.9, fontWeight: 700 }}>{data.dateLabel}</Typography>
           </Box>
-          <Box>
-            <Typography variant="h1" sx={{ fontWeight: 900 }}>{data.totalSets}</Typography>
-            <Typography variant="h5" sx={{ opacity: 0.7, fontWeight: 800 }}>SETS</Typography>
+
+          <Stack direction="row" spacing={8}>
+            <Box>
+              <Typography variant="h1" sx={{ fontWeight: 900 }}>{data.matches}</Typography>
+              <Typography variant="h5" sx={{ opacity: 0.7, fontWeight: 800 }}>MATCHER</Typography>
+            </Box>
+            <Box>
+              <Typography variant="h1" sx={{ fontWeight: 900 }}>{data.totalSets}</Typography>
+              <Typography variant="h5" sx={{ opacity: 0.7, fontWeight: 800 }}>SETS</Typography>
+            </Box>
+          </Stack>
+
+          <Box sx={{
+            bgcolor: 'white',
+            color: '#1a237e',
+            p: 6,
+            borderRadius: 4,
+            width: '85%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.6, mb: 1, textTransform: 'uppercase' }}>Kvällens MVP</Typography>
+            <Typography variant="h1" sx={{ fontWeight: 900 }}>
+              {data.mvp?.name || '—'}
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 700, opacity: 0.7 }}>
+              {data.mvp?.wins} Vinster • {Math.round((data.mvp?.winRate || 0) * 100)}% Vinstchans
+            </Typography>
+          </Box>
+
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, mb: 3, opacity: 0.6, textTransform: 'uppercase' }}>Topplista vinster</Typography>
+            <Stack direction="row" spacing={4} justifyContent="center">
+               {data.leaders.slice(0, 3).map((p: any, i: number) => (
+                 <Box key={p.id || i} sx={{ minWidth: 150 }}>
+                   <Typography variant="h3" sx={{ fontWeight: 900, color: theme.accent }}>{p.wins} V</Typography>
+                   <Typography variant="h5" sx={{ fontWeight: 700 }}>{p.name}</Typography>
+                 </Box>
+               ))}
+            </Stack>
           </Box>
         </Stack>
-
-        <Box sx={{
-          bgcolor: variant === 2 ? 'transparent' : 'white',
-          color: variant === 2 ? theme.color : '#1a237e',
-          p: 6,
-          borderRadius: 4,
-          width: '85%',
-          boxShadow: variant === 2 ? 'none' : '0 20px 40px rgba(0,0,0,0.2)',
-          border: variant === 2 ? `8px solid ${theme.accent}` : 'none'
-        }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.6, mb: 1, textTransform: 'uppercase' }}>Kvällens MVP</Typography>
-          <Typography variant="h1" sx={{ fontWeight: 900 }}>
-            {data.mvp?.name || '—'}
-          </Typography>
-        </Box>
-
-        <Box sx={{ width: '100%' }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 3, opacity: 0.6, textTransform: 'uppercase' }}>Topplista vinster</Typography>
-          <Stack direction="row" spacing={4} justifyContent="center">
-             {data.leaders.slice(0, 3).map((p: any, i: number) => (
-               <Box key={p.id || i} sx={{ minWidth: 150 }}>
-                 <Typography variant="h3" sx={{ fontWeight: 900, color: theme.accent }}>{p.wins} V</Typography>
-                 <Typography variant="h5" sx={{ fontWeight: 700 }}>{p.name}</Typography>
-               </Box>
-             ))}
-          </Stack>
-        </Box>
-      </Stack>
+      )}
     </Box>
   );
 };

@@ -207,18 +207,21 @@ export default function MatchForm({
       return;
     }
 
-    const stats: Record<string, EveningRecapLeader> = {};
+    const stats: Record<string, EveningRecapLeader & { partners: Set<string>; opponentElos: number[] }> = {};
     let totalSets = 0;
 
     eveningMatches.forEach(match => {
-      const team1Ids = (match.team1_ids || []) as (string | null)[];
-      const team2Ids = (match.team2_ids || []) as (string | null)[];
+      const team1Ids = (match.team1_ids || []) as string[];
+      const team2Ids = (match.team2_ids || []) as string[];
       const team1Sets = Number(match.team1_sets || 0);
       const team2Sets = Number(match.team2_sets || 0);
       const team1Won = team1Sets > team2Sets;
       totalSets += team1Sets + team2Sets;
 
-      const recordTeam = (teamIds: (string | null)[], didWin: boolean, setsFor: number, setsAgainst: number) => {
+      const team1Elo = getTeamAverageElo(team1Ids, eloMap);
+      const team2Elo = getTeamAverageElo(team2Ids, eloMap);
+
+      const recordTeam = (teamIds: string[], opponentIds: string[], opponentElo: number, didWin: boolean, setsFor: number, setsAgainst: number) => {
         teamIds.forEach(id => {
           if (!id || id === GUEST_ID) return;
           if (!stats[id]) {
@@ -230,6 +233,11 @@ export default function MatchForm({
               losses: 0,
               setsFor: 0,
               setsAgainst: 0,
+              rotations: 0,
+              avgEloOpponents: 0,
+              winRate: 0,
+              partners: new Set(),
+              opponentElos: [],
             };
           }
           stats[id].games += 1;
@@ -237,14 +245,26 @@ export default function MatchForm({
           stats[id].losses += didWin ? 0 : 1;
           stats[id].setsFor += setsFor;
           stats[id].setsAgainst += setsAgainst;
+          stats[id].opponentElos.push(opponentElo);
+
+          teamIds.forEach(partnerId => {
+            if (partnerId && partnerId !== id) {
+              stats[id].partners.add(partnerId);
+            }
+          });
         });
       };
 
-      recordTeam(team1Ids, team1Won, team1Sets, team2Sets);
-      recordTeam(team2Ids, !team1Won, team2Sets, team1Sets);
+      recordTeam(team1Ids, team2Ids, team2Elo, team1Won, team1Sets, team2Sets);
+      recordTeam(team2Ids, team1Ids, team1Elo, !team1Won, team2Sets, team1Sets);
     });
 
-    const players = Object.values(stats);
+    const players = Object.values(stats).map(p => ({
+      ...p,
+      rotations: p.partners.size,
+      avgEloOpponents: p.opponentElos.length ? p.opponentElos.reduce((a, b) => a + b, 0) / p.opponentElos.length : 0,
+      winRate: p.games ? p.wins / p.games : 0,
+    }));
     const mvp = players
       .slice()
       .sort((a, b) => {
@@ -260,6 +280,10 @@ export default function MatchForm({
       .sort((a, b) => b.wins - a.wins)
       .slice(0, 3);
 
+    const mostRotations = [...players].sort((a, b) => b.rotations - a.rotations).slice(0, 3);
+    const strongest = players.filter(p => p.games >= 2).sort((a, b) => b.winRate - a.winRate).slice(0, 3);
+    const marathon = [...players].sort((a, b) => (b.setsFor + b.setsAgainst) - (a.setsFor + a.setsAgainst))[0] || null;
+
     setEveningRecap({
       dateLabel: now.toLocaleDateString("sv-SE", {
         weekday: "long",
@@ -270,6 +294,11 @@ export default function MatchForm({
       totalSets,
       mvp,
       leaders,
+      funFacts: {
+        mostRotations,
+        strongest,
+        marathon: marathon ? { name: marathon.name, sets: marathon.setsFor + marathon.setsAgainst } : null
+      }
     });
   };
 
@@ -328,6 +357,7 @@ export default function MatchForm({
         averageElo: Math.round(teamBElo),
         players: teamBPlayers,
       },
+      team1ServesFirst: true, // Standard for now
     };
 
     setMatchRecap(recap);
