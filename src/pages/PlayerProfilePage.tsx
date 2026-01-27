@@ -5,20 +5,15 @@ import Heatmap from "../Components/Heatmap";
 import FilterBar from "../Components/FilterBar";
 import { useStore } from "../store/useStore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../supabaseClient";
 import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { PostgrestError } from "@supabase/supabase-js";
 import { queryKeys } from "../utils/queryKeys";
 import { useEloStats } from "../hooks/useEloStats";
 import { filterMatches } from "../utils/filters";
-
-type TournamentResultRow = TournamentResult & {
-  mexicana_tournaments?: { tournament_type?: string | null } | null;
-};
+import { tournamentService } from "../services/tournamentService";
 
 export default function PlayerProfilePage() {
   const queryClient = useQueryClient();
@@ -36,19 +31,7 @@ export default function PlayerProfilePage() {
     refetch: refetchTournamentResults,
   } = useQuery({
     queryKey: queryKeys.tournamentResults(),
-    queryFn: async () => {
-      const { data, error } = (await supabase
-        .from("mexicana_results")
-        .select("*, mexicana_tournaments(tournament_type)")) as {
-        data: TournamentResultRow[] | null;
-        error: PostgrestError | null;
-      };
-      if (error) throw error;
-      return (data || []).map((row) => ({
-        ...row,
-        tournament_type: row.mexicana_tournaments?.tournament_type || "mexicano",
-      })) as TournamentResult[];
-    },
+    queryFn: () => tournamentService.getTournamentResultsWithTypes(),
   });
 
   const filteredMatches = useMemo(
@@ -119,11 +102,32 @@ export default function PlayerProfilePage() {
                 onChange={(_, newValue) => setActiveTab(newValue)}
                 variant="scrollable"
                 scrollButtons="auto"
-                sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+                allowScrollButtonsMobile
+                sx={{
+                  mb: 3,
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  borderRadius: '12px 12px 0 0',
+                  px: 1,
+                  '& .MuiTab-root': {
+                    minWidth: 120,
+                    fontWeight: 600,
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      color: 'primary.main',
+                      bgcolor: 'rgba(211, 47, 47, 0.04)',
+                    },
+                  },
+                  '& .MuiTabs-indicator': {
+                    height: 3,
+                    borderRadius: '3px 3px 0 0',
+                  },
+                }}
               >
-                <Tab label="Spelare" />
-                <Tab label="ELO-utveckling" />
-                <Tab label="Lagkombinationer" />
+                <Tab label="Översikt" />
+                <Tab label="ELO-Trend" />
+                <Tab label="Lagkamrater" />
                 <Tab label="Meriter" />
               </Tabs>
 

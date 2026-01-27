@@ -54,13 +54,15 @@ export default function AdminPage() {
   }
 
   return (
-    <section id="admin" className="page-section">
-      <AdminPanel
-        user={user}
-        profiles={profiles}
-        onProfileUpdate={handleProfileUpdate}
-        onProfileDelete={handleProfileDelete}
-      />
-    </section>
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <Box id="admin" component="section">
+        <AdminPanel
+          user={user}
+          profiles={profiles}
+          onProfileUpdate={handleProfileUpdate}
+          onProfileDelete={handleProfileDelete}
+        />
+      </Box>
+    </Container>
   );
 }

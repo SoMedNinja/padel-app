@@ -70,6 +70,35 @@ export const getMatchWeight = (match: Match) => {
 
 export { ELO_BASELINE };
 
+export const getEloExplanation = (
+  delta: number,
+  playerElo: number,
+  teamAverageElo: number,
+  opponentAverageElo: number,
+  matchWeight: number,
+  didWin: boolean,
+  games: number
+) => {
+  if (delta === 0) return "Ingen ELO-förändring.";
+
+  const expected = getExpectedScore(teamAverageElo, opponentAverageElo);
+  const prob = Math.round((isFinite(expected) ? expected : 0.5) * 100);
+  const weight = getPlayerWeight(playerElo, teamAverageElo);
+  const k = getKFactor(games);
+
+  const lines = [
+    `Resultat: ${didWin ? "Vinst" : "Förlust"} (${delta > 0 ? "+" : ""}${delta} ELO)`,
+    `Vinstchans: ${prob}%`,
+    `Matchvikt: ${matchWeight}x (K=${k})`,
+    `Spelarvikt: ${weight.toFixed(2)}x (relativt laget)`
+  ];
+
+  if (didWin && prob < 40) lines.push("💪 Bonus för vinst mot starkare motstånd!");
+  if (!didWin && prob > 60) lines.push("⚠️ Större avdrag vid förlust som favorit.");
+
+  return lines.join("\n");
+};
+
 export const buildPlayerDelta = ({
   playerElo,
   playerGames,

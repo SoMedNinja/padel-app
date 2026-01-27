@@ -47,11 +47,21 @@ import {
   getWinProbability,
   getFairnessScore,
 } from "../utils/rotation";
-import { Match, PlayerStats, Profile } from "../types";
+import {
+  Match,
+  PlayerStats,
+  Profile,
+  AppUser,
+  MatchRecap,
+  EveningRecap,
+  MatchSuggestion,
+  MatchRecapPlayer,
+  EveningRecapLeader,
+} from "../types";
 
 
 interface MatchFormProps {
-  user: any;
+  user: AppUser;
   profiles: Profile[];
   matches: Match[];
   eloPlayers: PlayerStats[];
@@ -69,9 +79,9 @@ export default function MatchForm({
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [pool, setPool] = useState<string[]>([]);
-  const [matchSuggestion, setMatchSuggestion] = useState<any>(null);
-  const [matchRecap, setMatchRecap] = useState<any>(null);
-  const [eveningRecap, setEveningRecap] = useState<any>(null);
+  const [matchSuggestion, setMatchSuggestion] = useState<MatchSuggestion | null>(null);
+  const [matchRecap, setMatchRecap] = useState<MatchRecap | null>(null);
+  const [eveningRecap, setEveningRecap] = useState<EveningRecap | null>(null);
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
   const [showExtraScores, setShowExtraScores] = useState(false);
@@ -195,7 +205,7 @@ export default function MatchForm({
       return;
     }
 
-    const stats: Record<string, any> = {};
+    const stats: Record<string, EveningRecapLeader> = {};
     let totalSets = 0;
 
     eveningMatches.forEach(match => {
@@ -243,7 +253,7 @@ export default function MatchForm({
         return b.games - a.games;
       })[0];
 
-    const leaders = players
+    const leaders = (players as EveningRecapLeader[])
       .slice()
       .sort((a, b) => b.wins - a.wins)
       .slice(0, 3);
@@ -448,8 +458,8 @@ export default function MatchForm({
       return `🌙 Kvällsrecap (${eveningRecap.dateLabel}): ${eveningRecap.matches} matcher, ${eveningRecap.totalSets} sets. MVP: ${mvpName}.`;
     }
     if (!matchRecap) return "";
-    const teamA = matchRecap.teamA.players.map((player: any) => player.name).join(" & ");
-    const teamB = matchRecap.teamB.players.map((player: any) => player.name).join(" & ");
+    const teamA = matchRecap.teamA.players.map((player: MatchRecapPlayer) => player.name).join(" & ");
+    const teamB = matchRecap.teamB.players.map((player: MatchRecapPlayer) => player.name).join(" & ");
     const winner = matchRecap.teamAWon ? teamA : teamB;
     return `🎾 Matchen: ${teamA} vs ${teamB} (${matchRecap.scoreline}). Vinnare: ${winner}.`;
   }, [eveningRecap, matchRecap, recapMode]);
@@ -464,7 +474,7 @@ export default function MatchForm({
         `MVP: ${mvpName}`,
         "Topp vinster:",
         ...eveningRecap.leaders.map(
-          (player: any) => `${player.name} · ${player.wins} vinster`
+          (player: EveningRecapLeader) => `${player.name} · ${player.wins} vinster`
         ),
       ];
     }
@@ -476,12 +486,12 @@ export default function MatchForm({
         `Resultat: ${matchRecap.scoreline}`,
         `Lag A (${teamALabel})`,
         ...matchRecap.teamA.players.map(
-          (player: any) =>
+          (player: MatchRecapPlayer) =>
             `${player.name} · ELO ${player.elo} ${player.delta >= 0 ? "+" : ""}${player.delta}`
         ),
         `Lag B (${teamBLabel})`,
         ...matchRecap.teamB.players.map(
-          (player: any) =>
+          (player: MatchRecapPlayer) =>
             `${player.name} · ELO ${player.elo} ${player.delta >= 0 ? "+" : ""}${player.delta}`
         ),
         `Fairness ${matchRecap.fairness}% · Vinstchans Lag A ${Math.round(matchRecap.winProbability * 100)}%`,
@@ -716,7 +726,7 @@ export default function MatchForm({
         const columnGap = 40;
         const columnWidth = (contentWidth - columnGap) / 2;
 
-        const drawTeamColumn = (title: string, players: any[], x: number, y: number) => {
+        const drawTeamColumn = (title: string, players: MatchRecapPlayer[], x: number, y: number) => {
           drawRoundedRect(x, y, columnWidth, 360, 24, palette.bg, palette.border);
           ctx.fillStyle = palette.text;
           ctx.font = "bold 28px Inter, system-ui, sans-serif";
@@ -1201,9 +1211,9 @@ export default function MatchForm({
                       sx={{ mb: 1 }}
                     />
 
-                    {matchSuggestion.mode === "rotation" ? (
+                    {matchSuggestion.mode === "rotation" && matchSuggestion.rounds ? (
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        {matchSuggestion.rounds.map((round: any) => (
+                        {matchSuggestion.rounds.map((round) => (
                           <Paper key={round.round} variant="outlined" sx={{ p: 2 }}>
                             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                               <Typography variant="subtitle2" fontWeight={800}>Runda {round.round}</Typography>
@@ -1353,7 +1363,7 @@ export default function MatchForm({
                     <GroupsIcon fontSize="small" /> Topp vinster
                   </Typography>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                    {eveningRecap.leaders.map((player: any) => (
+                            {eveningRecap.leaders.map((player: EveningRecapLeader) => (
                       <Paper key={player.id} variant="outlined" sx={{ px: 2, py: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <ProfileName
                           name={player.name}

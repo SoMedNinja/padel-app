@@ -20,12 +20,18 @@ import {
   Chip,
   IconButton,
   Stack,
+  Grid,
+  Avatar,
+  Tooltip,
 } from "@mui/material";
 import {
   Save as SaveIcon,
   Delete as DeleteIcon,
   CheckCircle as ApproveIcon,
   Cancel as RevokeIcon,
+  AdminPanelSettings as AdminIcon,
+  People as PeopleIcon,
+  HourglassEmpty as PendingIcon,
 } from "@mui/icons-material";
 
 interface AdminPanelProps {
@@ -114,94 +120,171 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     }
   };
 
+  const stats = useMemo(() => {
+    const total = sortedProfiles.length;
+    const pending = sortedProfiles.filter(p => !p.is_approved).length;
+    const admins = sortedProfiles.filter(p => p.is_admin).length;
+    return { total, pending, admins };
+  }, [sortedProfiles]);
+
   return (
-    <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h5" sx={{ fontWeight: 800 }}>Administration</Typography>
-      <Typography variant="body2" color="text.secondary">
-        Godkänn användare innan de får åtkomst till appen. Du kan även uppdatera namn eller ta bort profiler.
-      </Typography>
+    <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <Box>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>Administration</Typography>
+        <Typography variant="body1" color="text.secondary">
+          Hantera användare, godkänn nya medlemmar och administrera behörigheter.
+        </Typography>
+      </Box>
 
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
-        <Table sx={{ minWidth: 650 }}>
-          <TableHead sx={{ bgcolor: 'grey.50' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Admin</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">Åtgärder</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sortedProfiles.map(profile => {
-              const currentName = editNames[profile.id] ?? profile.name ?? "";
-              const hasNameChange = currentName.trim() !== (profile.name ?? "");
-              const isSelf = profile.id === user?.id;
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <Card variant="outlined" sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
+                <PeopleIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="h4" fontWeight={800}>{stats.total}</Typography>
+                <Typography variant="body2">Totala användare</Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <Card variant="outlined" sx={{ bgcolor: stats.pending > 0 ? 'warning.light' : 'success.light', color: stats.pending > 0 ? 'warning.contrastText' : 'success.contrastText' }}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
+                {stats.pending > 0 ? <PendingIcon /> : <ApproveIcon />}
+              </Avatar>
+              <Box>
+                <Typography variant="h4" fontWeight={800}>{stats.pending}</Typography>
+                <Typography variant="body2">Väntar på godkännande</Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <Card variant="outlined">
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: 'primary.main', color: '#fff' }}>
+                <AdminIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="h4" fontWeight={800} color="primary.main">{stats.admins}</Typography>
+                <Typography variant="body2" color="text.secondary">Administratörer</Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-              return (
-                <TableRow key={profile.id} hover>
-                  <TableCell>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <TextField
-                        size="small"
-                        value={currentName}
-                        onChange={(e) => handleNameChange(profile.id, e.target.value)}
-                        sx={{ minWidth: 200 }}
-                      />
-                      {isSelf && <Chip label="Du" size="small" variant="outlined" />}
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={profile.is_admin ? "Ja" : "Nej"}
-                      size="small"
-                      color={profile.is_admin ? "primary" : "default"}
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={profile.is_approved ? "Godkänd" : "Väntar"}
-                      size="small"
-                      color={profile.is_approved ? "success" : "warning"}
-                      sx={{ fontWeight: 600 }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={profile.is_approved ? <RevokeIcon /> : <ApproveIcon />}
-                        onClick={() => toggleApproval(profile)}
-                        disabled={toggleId === profile.id}
-                      >
-                        {profile.is_approved ? "Återkalla" : "Godkänn"}
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        startIcon={<SaveIcon />}
-                        onClick={() => saveName(profile)}
-                        disabled={!hasNameChange || savingId === profile.id}
-                      >
-                        Spara
-                      </Button>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => deleteProfile(profile)}
-                        disabled={deleteId === profile.id || isSelf}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Card variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden' }}>
+        <TableContainer sx={{ overflow: 'auto' }}>
+          <Table sx={{ minWidth: 800 }}>
+            <TableHead sx={{ bgcolor: 'grey.50' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700, pl: 3 }}>Användare</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Roll & Status</TableCell>
+                <TableCell sx={{ fontWeight: 700, pr: 3 }} align="right">Åtgärder</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedProfiles.map(profile => {
+                const currentName = editNames[profile.id] ?? profile.name ?? "";
+                const hasNameChange = currentName.trim() !== (profile.name ?? "") && currentName.trim() !== "";
+                const isSelf = profile.id === user?.id;
+
+                return (
+                  <TableRow key={profile.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    <TableCell sx={{ pl: 3 }}>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Avatar src={profile.avatar_url || ''}>{profile.name?.charAt(0)}</Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            variant="standard"
+                            placeholder="Namn"
+                            value={currentName}
+                            onChange={(e) => handleNameChange(profile.id, e.target.value)}
+                            sx={{
+                              '& .MuiInput-root': { fontWeight: 600 },
+                              maxWidth: 250
+                            }}
+                            InputProps={{
+                              endAdornment: hasNameChange && (
+                                <Tooltip title="Spara namn">
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    onClick={() => saveName(profile)}
+                                    disabled={savingId === profile.id}
+                                  >
+                                    <SaveIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            ID: {profile.id.slice(0, 8)}...
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1}>
+                        <Chip
+                          label={profile.is_admin ? "Admin" : "Spelare"}
+                          size="small"
+                          icon={profile.is_admin ? <AdminIcon sx={{ fontSize: '1rem !important' }} /> : undefined}
+                          color={profile.is_admin ? "primary" : "default"}
+                          variant="outlined"
+                        />
+                        <Chip
+                          label={profile.is_approved ? "Godkänd" : "Väntar"}
+                          size="small"
+                          color={profile.is_approved ? "success" : "warning"}
+                          variant={profile.is_approved ? "filled" : "outlined"}
+                          sx={{ fontWeight: 600 }}
+                        />
+                        {isSelf && <Chip label="Du" size="small" variant="filled" color="secondary" sx={{ fontWeight: 700 }} />}
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="right" sx={{ pr: 3 }}>
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant={profile.is_approved ? "outlined" : "contained"}
+                          color={profile.is_approved ? "inherit" : "primary"}
+                          startIcon={profile.is_approved ? <RevokeIcon /> : <ApproveIcon />}
+                          onClick={() => toggleApproval(profile)}
+                          disabled={toggleId === profile.id}
+                        >
+                          {profile.is_approved ? "Återkalla" : "Godkänn"}
+                        </Button>
+                        <Tooltip title="Radera profil">
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => deleteProfile(profile)}
+                              disabled={deleteId === profile.id || isSelf}
+                              sx={{ border: '1px solid', borderColor: 'divider' }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
     </Box>
   );
 }

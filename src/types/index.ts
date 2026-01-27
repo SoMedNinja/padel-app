@@ -110,3 +110,61 @@ export interface AppUser extends Profile {
   email?: string | null;
   user_metadata?: Record<string, any>;
 }
+
+export interface MatchRecapPlayer {
+  id: string;
+  name: string;
+  elo: number;
+  delta: number;
+}
+
+export interface MatchRecapTeam {
+  ids: string[];
+  averageElo: number;
+  players: MatchRecapPlayer[];
+}
+
+export interface MatchRecap {
+  createdAt: string;
+  scoreline: string;
+  teamAWon: boolean;
+  fairness: number;
+  winProbability: number;
+  teamA: MatchRecapTeam;
+  teamB: MatchRecapTeam;
+}
+
+export interface EveningRecapLeader {
+  id: string;
+  name: string;
+  games: number;
+  wins: number;
+  losses: number;
+  setsFor: number;
+  setsAgainst: number;
+}
+
+export interface EveningRecap {
+  dateLabel: string;
+  matches: number;
+  totalSets: number;
+  mvp: EveningRecapLeader | null;
+  leaders: EveningRecapLeader[];
+}
+
+export interface MatchSuggestionRound {
+  round: number;
+  teamA: string[];
+  teamB: string[];
+  rest: string[];
+}
+
+export interface MatchSuggestion {
+  mode: "single" | "rotation";
+  fairness: number;
+  winProbability?: number;
+  teamA?: string[];
+  teamB?: string[];
+  rounds?: MatchSuggestionRound[];
+  targetGames?: number;
+}
