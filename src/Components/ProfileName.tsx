@@ -1,4 +1,5 @@
 import React from "react";
+import { Box, Chip } from "@mui/material";
 import { getBadgeIconById, getBadgeTierLabelById } from "../utils/badges";
 import { stripBadgeLabelFromName } from "../utils/profileName";
 
@@ -13,20 +14,36 @@ export default function ProfileName({ name, badgeId, className = "" }: ProfileNa
   const tier = getBadgeTierLabelById(badgeId || null);
   // Note for non-coders: we clean the name so it doesn't repeat the badge text next to the badge icon.
   const displayName = badgeId ? stripBadgeLabelFromName(name, badgeId) : name;
+  // Note for non-coders: a Chip is a small "tag" UI element that groups the icon + tier so it looks like a badge.
+  const badgeLabel = icon ? `${icon}${tier ? ` ${tier}` : ""}` : "";
   if (!icon) {
     return <span className={className}>{displayName}</span>;
   }
 
   return (
-    <span className={`profile-name ${className}`.trim()}>
-      <span className="profile-name-text">{displayName}</span>
-      <span
+    <Box
+      component="span"
+      className={`profile-name ${className}`.trim()}
+      sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}
+    >
+      <Box component="span" className="profile-name-text">
+        {displayName}
+      </Box>
+      <Chip
         className="profile-name-badge"
         aria-label={`Visad merit ${tier ? `${tier} ` : ""}${icon}`}
-      >
-        <span className="profile-name-emoji" aria-hidden="true">{icon}</span>
-        {tier && <span className="profile-name-tier" aria-hidden="true">{tier}</span>}
-      </span>
-    </span>
+        label={badgeLabel}
+        size="small"
+        variant="outlined"
+        sx={{
+          fontWeight: 700,
+          fontSize: "0.65rem",
+          height: 22,
+          "& .MuiChip-label": {
+            px: 0.75,
+          },
+        }}
+      />
+    </Box>
   );
 }
