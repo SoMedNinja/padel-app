@@ -16,7 +16,16 @@ import {
   FormControlLabel,
   IconButton,
   Alert,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from "@mui/material";
+// Note for non-coders: these imports bring in ready-made table UI pieces so the browser
+// recognizes names like TableContainer and can render the standings tables.
 import {
   Add as AddIcon,
   PlayArrow as StartIcon,
