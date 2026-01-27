@@ -370,6 +370,26 @@ export default function MexicanaTournament({
     if (!activeTournament || isGuest) return;
     setIsSaving(true);
 
+    const roundScorePayload = rounds
+      .filter(round => Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score))
+      .map(round => ({
+        id: round.id,
+        team1_score: Number(round.team1_score),
+        team2_score: Number(round.team2_score),
+      }));
+    // Note for non-coders: this saves the round scores in the database so the finished
+    // tournament can show the same numbers later, even after refreshing the page.
+    if (roundScorePayload.length) {
+      const { error: roundScoreError } = await supabase
+        .from("mexicana_rounds")
+        .upsert(roundScorePayload);
+      if (roundScoreError) {
+        toast.error(roundScoreError.message);
+        setIsSaving(false);
+        return;
+      }
+    }
+
     // Sync to matches
     const matchPayload = rounds.map(round => ({
       team1: idsToNames(round.team1_ids, profileMap),

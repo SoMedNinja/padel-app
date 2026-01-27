@@ -69,6 +69,9 @@ import {
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
 } from "@mui/icons-material";
+import { alpha } from "@mui/material/styles";
+// Note for non-coders: alpha is a helper that makes a color transparent so highlight
+// backgrounds are soft instead of solid blocks.
 import "./PlayerSection.css";
 
 const percent = (wins: number, losses: number) => {
