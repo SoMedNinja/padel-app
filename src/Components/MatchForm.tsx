@@ -12,6 +12,7 @@ import {
   Paper,
   IconButton,
   Divider,
+  ButtonBase,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -806,25 +807,30 @@ export default function MatchForm({
 
           return (
             <Grid key={p.id} size={{ xs: 4, sm: 3 }}>
-              <Paper
+              <ButtonBase
+                component={Paper}
                 elevation={isSelected ? 4 : 1}
+                aria-pressed={isSelected}
+                aria-label={`Välj ${p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}`}
+                disabled={isExcluded}
                 sx={{
                   p: 1.5,
+                  width: '100%',
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  cursor: isExcluded ? "not-allowed" : "pointer",
                   bgcolor: isSelected ? "primary.light" : "background.paper",
                   color: isSelected ? "primary.contrastText" : "text.primary",
                   opacity: isExcluded ? 0.5 : 1,
                   border: isSelected ? "2px solid" : "1px solid",
                   borderColor: isSelected ? "primary.main" : "divider",
                   transition: "all 0.2s",
+                  borderRadius: 1,
                   "&:hover": {
                     bgcolor: isExcluded ? "" : isSelected ? "primary.light" : "action.hover",
                   },
                 }}
-                onClick={() => !isExcluded && onSelect(p.id)}
+                onClick={() => onSelect(p.id)}
               >
                 <Avatar
                   src={p.avatar_url || ""}
@@ -861,7 +867,7 @@ export default function MatchForm({
                     }}
                   />
                 )}
-              </Paper>
+              </ButtonBase>
             </Grid>
           );
         })}

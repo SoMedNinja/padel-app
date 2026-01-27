@@ -19,6 +19,7 @@ import {
   TableHead,
   TableRow,
   Paper,
+  TableSortLabel,
 } from "@mui/material";
 import { InfoOutlined } from "@mui/icons-material";
 
@@ -180,13 +181,23 @@ export default function EloLeaderboard({ players = [], matches = [], profiles = 
                   alignItems: 'center',
                 }}
               >
-                <TableCell component="div" onClick={() => toggleSort("name")} sx={{ cursor: 'pointer', fontWeight: 700 }}>Spelare</TableCell>
-                <TableCell component="div" onClick={() => toggleSort("elo")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>ELO</TableCell>
-                <TableCell component="div" onClick={() => toggleSort("games")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>Matcher</TableCell>
-                <TableCell component="div" onClick={() => toggleSort("wins")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>Vinster</TableCell>
+                <TableCell component="div" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "name"} direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("name")}>Spelare</TableSortLabel>
+                </TableCell>
+                <TableCell component="div" sortDirection={sortKey === "elo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                  <TableSortLabel active={sortKey === "elo"} direction={sortKey === "elo" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("elo")}>ELO</TableSortLabel>
+                </TableCell>
+                <TableCell component="div" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                  <TableSortLabel active={sortKey === "games"} direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("games")}>Matcher</TableSortLabel>
+                </TableCell>
+                <TableCell component="div" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                  <TableSortLabel active={sortKey === "wins"} direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("wins")}>Vinster</TableSortLabel>
+                </TableCell>
                 <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center' }}>Streak</TableCell>
                 <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center' }}>Trend</TableCell>
-                <TableCell component="div" onClick={() => toggleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>Vinst %</TableCell>
+                <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                  <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("winPct")}>Vinst %</TableSortLabel>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody component="div" sx={{ position: 'relative', height: totalSize }}>
