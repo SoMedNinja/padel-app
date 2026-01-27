@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -37,7 +37,6 @@ import {
   scorePlayersForMvp,
   EVENING_MIN_GAMES
 } from "../utils/mvp";
-import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
 import { Match, Profile, TournamentResult, PlayerStats } from "../types";
@@ -108,11 +107,12 @@ const formatChartTimestamp = (value: string | number, includeTime = false) => {
   return new Intl.DateTimeFormat("sv-SE", options).format(date);
 };
 
-const getPlayerOptionLabel = (profile: Profile) => {
+const renderPlayerOptionLabel = (profile: Profile | null | undefined): ReactNode => {
   if (!profile) return "Okänd";
-  const badgeLabel = getBadgeLabelById(profile.featured_badge_id || null);
   const baseName = getProfileDisplayName(profile);
-  return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
+  // Note for non-coders: we pass the plain name and the badge separately so the UI can
+  // show the badge as its own little tag instead of text glued onto the name.
+  return <ProfileName name={baseName} badgeId={profile.featured_badge_id} />;
 };
 
 const normalizeTeam = (team: any): string[] =>
@@ -718,7 +718,7 @@ export default function PlayerSection({
                 <MenuItem value="all">Alla</MenuItem>
                 {selectablePlayers.map(player => (
                   <MenuItem key={player.id} value={player.id}>
-                    {getPlayerOptionLabel(player)}
+                    {renderPlayerOptionLabel(player)}
                   </MenuItem>
                 ))}
               </TextField>
@@ -1063,7 +1063,7 @@ export function HeadToHeadSection({
               >
                 {selectablePlayers.map(player => (
                   <MenuItem key={player.id} value={player.id}>
-                    {getPlayerOptionLabel(player)}
+                    {renderPlayerOptionLabel(player)}
                   </MenuItem>
                 ))}
               </TextField>
