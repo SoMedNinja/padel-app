@@ -237,6 +237,10 @@ export default function MexicanaTournament({
     }
   };
 
+  const hasValidRoundNumber = (value: unknown) => typeof value === "number" && Number.isFinite(value);
+  // Note for non-coders: the database requires a round number for every saved round,
+  // so this helper prevents us from sending empty or invalid values.
+
   const startTournament = async () => {
     if (!activeTournamentId || isGuest) return;
 
@@ -256,6 +260,13 @@ export default function MexicanaTournament({
         resting_ids: r.resting_ids.map(id => id === GUEST_ID ? null : id),
         mode: 'americano',
       }));
+
+      const missingRoundNumber = roundsPayload.some(round => !hasValidRoundNumber(round.round_number));
+      if (missingRoundNumber) {
+        toast.error("Kan inte starta turneringen eftersom en rond saknar nummer.");
+        setIsSaving(false);
+        return;
+      }
 
       const { error: roundError } = await supabase
         .from("mexicana_rounds")
@@ -304,6 +315,11 @@ export default function MexicanaTournament({
 
     setIsSaving(true);
     const nextRoundNumber = rounds.length + 1;
+    if (!hasValidRoundNumber(nextRoundNumber)) {
+      toast.error("Kan inte spara rond utan ett giltigt nummer.");
+      setIsSaving(false);
+      return;
+    }
 
     const activeIds = new Set([...recordingRound.team1_ids, ...recordingRound.team2_ids]);
     const restingIds = participants.filter(id => !activeIds.has(id));
@@ -380,9 +396,25 @@ export default function MexicanaTournament({
     // Note for non-coders: this saves the round scores in the database so the finished
     // tournament can show the same numbers later, even after refreshing the page.
     if (roundScorePayload.length) {
-      const { error: roundScoreError } = await supabase
-        .from("mexicana_rounds")
-        .upsert(roundScorePayload);
+      const missingRoundIds = roundScorePayload.some(round => !round.id);
+      if (missingRoundIds) {
+        toast.error("Kan inte spara resultat eftersom en rond saknar ID.");
+        setIsSaving(false);
+        return;
+      }
+
+      const updateResults = await Promise.all(
+        roundScorePayload.map(round =>
+          supabase
+            .from("mexicana_rounds")
+            .update({
+              team1_score: round.team1_score,
+              team2_score: round.team2_score,
+            })
+            .eq("id", round.id)
+        )
+      );
+      const roundScoreError = updateResults.find(result => result.error)?.error;
       if (roundScoreError) {
         toast.error(roundScoreError.message);
         setIsSaving(false);
