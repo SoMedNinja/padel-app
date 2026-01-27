@@ -2,8 +2,6 @@ import { GUEST_ID } from "./guest";
 import {
   getIdDisplayName,
   getProfileDisplayName,
-  makeNameToIdMap,
-  makeProfileMap,
   resolveTeamIds,
 } from "./profileMap";
 import { Match, Profile, PlayerStats } from "../types";
@@ -100,17 +98,26 @@ export const buildPlayerDelta = ({
 };
 
 export function calculateElo(matches: Match[], profiles: Profile[] = []): PlayerStats[] {
+  return calculateEloWithStats(matches, profiles).players;
+}
+
+export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []): {
+  players: PlayerStats[];
+  eloDeltaByMatch: Record<string, Record<string, number>>;
+  eloRatingByMatch: Record<string, Record<string, number>>;
+} {
   const players: Record<string, PlayerStats> = {};
-  const profileMap = makeProfileMap(profiles);
-  const nameToIdMap = makeNameToIdMap(profiles);
-  const avatarMap = profiles.reduce((acc, profile) => {
-    acc[profile.id] = profile.avatar_url || null;
-    return acc;
-  }, {} as Record<string, string | null>);
-  const badgeMap = profiles.reduce((acc, profile) => {
-    acc[profile.id] = profile.featured_badge_id || null;
-    return acc;
-  }, {} as Record<string, string | null>);
+  const profileMap = new Map<string, Profile>();
+  const nameToIdMap = new Map<string, string>();
+  const avatarMap: Record<string, string | null> = {};
+  const badgeMap: Record<string, string | null> = {};
+
+  profiles.forEach(p => {
+    profileMap.set(p.id, p);
+    nameToIdMap.set(getProfileDisplayName(p), p.id);
+    avatarMap[p.id] = p.avatar_url || null;
+    badgeMap[p.id] = p.featured_badge_id || null;
+  });
 
   const ensurePlayer = (id: string, name = "Okänd", avatarUrl: string | null = null, featuredBadgeId: string | null = null) => {
     if (id === GUEST_ID) return;
@@ -165,11 +172,18 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
 
   const resolveName = (id: string) => getIdDisplayName(id, profileMap);
 
-  const sortedMatches = [...matches].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
+  // Pre-calculate timestamps once for efficient sorting
+  const matchesWithTime = matches.map(m => {
+    const timestamp = new Date(m.created_at).getTime();
+    return { m, t: Number.isNaN(timestamp) ? 0 : timestamp };
+  });
 
-  sortedMatches.forEach(m => {
+  matchesWithTime.sort((a, b) => a.t - b.t);
+
+  const eloDeltaByMatch: Record<string, Record<string, number>> = {};
+  const eloRatingByMatch: Record<string, Record<string, number>> = {};
+
+  matchesWithTime.forEach(({ m, t: historyStamp }) => {
     const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
     const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
     [...t1, ...t2].forEach(id => ensurePlayer(id, resolveName(id), null, badgeMap[id]));
@@ -186,8 +200,9 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
     const team1Won = m.team1_sets > m.team2_sets;
     const marginMultiplier = getMarginMultiplier(m.team1_sets, m.team2_sets);
     const matchWeight = getMatchWeight(m);
-    const timestamp = new Date(m.created_at).getTime();
-    const historyStamp = Number.isNaN(timestamp) ? 0 : timestamp;
+
+    const matchDeltas: Record<string, number> = {};
+    const matchRatings: Record<string, number> = {};
 
     t1Active.forEach(id => {
       const player = players[id];
@@ -215,6 +230,9 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
         elo: player.elo,
         matchId: m.id,
       });
+
+      matchDeltas[id] = delta;
+      matchRatings[id] = player.elo;
     });
 
     t2Active.forEach(id => {
@@ -243,13 +261,19 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
         elo: player.elo,
         matchId: m.id,
       });
+
+      matchDeltas[id] = delta;
+      matchRatings[id] = player.elo;
     });
+
+    eloDeltaByMatch[m.id] = matchDeltas;
+    eloRatingByMatch[m.id] = matchRatings;
 
     recordPartners(t1Active, team1Won);
     recordPartners(t2Active, !team1Won);
   });
 
-  return Object.values(players).map(player => {
+  const finalPlayers = Object.values(players).map(player => {
     // player.history is already sorted by timestamp because sortedMatches was sorted.
     const recentResults = player.history.map(entry => entry.result);
     const bestPartnerEntry = Object.entries(player.partners)
@@ -275,4 +299,10 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
 
     return { ...player, recentResults, bestPartner };
   });
+
+  return {
+    players: finalPlayers,
+    eloDeltaByMatch,
+    eloRatingByMatch
+  };
 }

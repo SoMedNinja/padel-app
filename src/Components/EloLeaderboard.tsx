@@ -2,9 +2,8 @@ import { useMemo, useState } from "react";
 import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
-import { Match, PlayerStats, Profile } from "../types";
+import { Match, PlayerStats } from "../types";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
-import { calculateElo } from "../utils/elo";
 import {
   Tooltip,
   IconButton,
@@ -30,36 +29,44 @@ const winPct = (wins: number, losses: number) =>
 interface EloLeaderboardProps {
   players?: PlayerStats[];
   matches?: Match[];
-  profiles?: Profile[];
 }
 
-export default function EloLeaderboard({ players = [], matches = [], profiles = [] }: EloLeaderboardProps) {
+export default function EloLeaderboard({ players = [], matches = [] }: EloLeaderboardProps) {
   const [sortKey, setSortKey] = useState<string>("elo");
   const [asc, setAsc] = useState<boolean>(false);
 
-  const filteredPlayers = useMemo(() => {
-    if (!matches.length || !profiles.length) return [];
-    // Note for non-coders: this recalculates win/loss stats for the current filter only.
-    return calculateElo(matches, profiles);
-  }, [matches, profiles]);
-
-  const filteredStatsById = useMemo(() => {
-    return new Map(filteredPlayers.map(player => [player.id, player]));
-  }, [filteredPlayers]);
-
   const mergedPlayers = useMemo(() => {
+    if (!players.length) return [];
+
+    // If no matches, return players with zeroed win/loss stats
+    if (!matches.length) {
+      return players.map(p => ({
+        ...p,
+        wins: 0,
+        losses: 0,
+        games: 0,
+        recentResults: [],
+      }));
+    }
+
+    // Optimization: avoid intermediate array and perform single pass for stats
+    const matchIds = new Set<string>();
+    for (const m of matches) {
+      matchIds.add(m.id);
+    }
+
     return players.map(player => {
-      const filtered = filteredStatsById.get(player.id);
+      // Derive filtered stats from existing chronological history
+      const filteredHistory = player.history.filter(h => matchIds.has(h.matchId));
       return {
         ...player,
-        // Note for non-coders: keep the all-time ELO, but swap in filtered wins/losses.
-        wins: filtered?.wins ?? 0,
-        losses: filtered?.losses ?? 0,
-        games: filtered?.games ?? 0,
-        recentResults: filtered?.recentResults ?? [],
+        wins: filteredHistory.filter(h => h.result === "W").length,
+        losses: filteredHistory.filter(h => h.result === "L").length,
+        games: filteredHistory.length,
+        recentResults: filteredHistory.map(h => h.result),
       };
     });
-  }, [players, filteredStatsById]);
+  }, [matches, players]);
 
   const hasUnknownPlayers = mergedPlayers.some(player => !player.name || player.name === "Okänd");
   const showLoadingOverlay = !mergedPlayers.length || hasUnknownPlayers;

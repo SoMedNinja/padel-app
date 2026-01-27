@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useMatches } from "./useMatches";
 import { useProfiles } from "./useProfiles";
-import { calculateElo } from "../utils/elo";
+import { calculateEloWithStats } from "../utils/elo";
 import { Match, PlayerStats, Profile } from "../types";
 
 export interface EloStats {
@@ -22,21 +22,9 @@ export function useEloStats(): EloStats {
       return { eloPlayers: [], eloDeltaByMatch: {}, eloRatingByMatch: {} };
     }
 
-    const players = calculateElo(allMatches, profiles);
-    const deltas: Record<string, Record<string, number>> = {};
-    const ratings: Record<string, Record<string, number>> = {};
+    const { players, eloDeltaByMatch, eloRatingByMatch } = calculateEloWithStats(allMatches, profiles);
 
-    players.forEach(player => {
-      player.history.forEach(entry => {
-        if (!deltas[entry.matchId]) deltas[entry.matchId] = {};
-        if (!ratings[entry.matchId]) ratings[entry.matchId] = {};
-
-        deltas[entry.matchId][player.id] = entry.delta;
-        ratings[entry.matchId][player.id] = entry.elo;
-      });
-    });
-
-    return { eloPlayers: players, eloDeltaByMatch: deltas, eloRatingByMatch: ratings };
+    return { eloPlayers: players, eloDeltaByMatch, eloRatingByMatch };
   }, [allMatches, profiles, isLoadingMatches, isLoadingProfiles]);
 
   return {
