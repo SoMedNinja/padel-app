@@ -9,6 +9,19 @@ const toAppUser = (authUser: User, profile?: Profile | null): AppUser => ({
   ...(profile ?? {}),
 });
 
+const getMetadataName = (authUser: User) => {
+  const rawName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || "";
+  return typeof rawName === "string" ? rawName.trim() : "";
+};
+
+const getMetadataAvatar = (authUser: User) => {
+  const rawAvatar = authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null;
+  return typeof rawAvatar === "string" ? rawAvatar : null;
+};
+
+const isAvatarColumnMissing = (error?: { message?: string } | null) =>
+  error?.message?.includes("avatar_url") && error.message.includes("schema cache");
+
 // Note for non-coders: this hook keeps login info and player profile data in sync in one place.
 export const useAuthProfile = () => {
   const { setUser, setIsGuest } = useStore();
@@ -40,6 +53,9 @@ export const useAuthProfile = () => {
         return;
       }
 
+      const metadataName = getMetadataName(authUser);
+      const metadataAvatar = getMetadataAvatar(authUser);
+
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -50,13 +66,90 @@ export const useAuthProfile = () => {
         // PGRST116 means no profile found - this is normal for new users
         if (error.code !== "PGRST116") {
           setErrorMessage(error.message);
+          setUser({ ...authUser } as AppUser);
+          return;
         }
+
+        if (metadataName || metadataAvatar) {
+          // Note for non-coders: if we already know your name/photo from login data,
+          // we save it right away so you don't see the setup screen every time.
+          const payload: Profile = { id: authUser.id, name: metadataName || "" };
+          if (metadataAvatar) {
+            payload.avatar_url = metadataAvatar;
+          }
+          let { data: createdProfile, error: createError } = await supabase
+            .from("profiles")
+            .upsert(payload, { onConflict: "id" })
+            .select()
+            .single();
+
+          if (createError && isAvatarColumnMissing(createError) && payload.avatar_url) {
+            ({ data: createdProfile, error: createError } = await supabase
+              .from("profiles")
+              .upsert({ id: authUser.id, name: payload.name }, { onConflict: "id" })
+              .select()
+              .single());
+          }
+
+          if (createError) {
+            setErrorMessage(createError.message);
+            setUser({ ...authUser } as AppUser);
+            return;
+          }
+
+          setIsGuest(false);
+          setUser(toAppUser(authUser, createdProfile));
+          return;
+        }
+
         setUser({ ...authUser } as AppUser);
         return;
       }
 
+      const profileName =
+        (profile as Profile | { full_name?: string })?.name?.trim() ||
+        (profile as { full_name?: string })?.full_name?.trim() ||
+        "";
+      const resolvedName = profileName || metadataName;
+      const resolvedAvatar = profile?.avatar_url || metadataAvatar || null;
+      const needsProfileUpdate =
+        (!!resolvedName && !profile?.name) || (!!resolvedAvatar && !profile?.avatar_url);
+
+      if (needsProfileUpdate) {
+        // Note for non-coders: we fill in missing profile details from login info so
+        // returning players don't have to retype their name or photo.
+        const payload: Profile = { id: authUser.id, name: resolvedName || "" };
+        if (resolvedAvatar) {
+          payload.avatar_url = resolvedAvatar;
+        }
+        let { data: updatedProfile, error: updateError } = await supabase
+          .from("profiles")
+          .upsert(payload, { onConflict: "id" })
+          .select()
+          .single();
+        if (updateError && isAvatarColumnMissing(updateError) && payload.avatar_url) {
+          ({ data: updatedProfile, error: updateError } = await supabase
+            .from("profiles")
+            .upsert({ id: authUser.id, name: payload.name }, { onConflict: "id" })
+            .select()
+            .single());
+        }
+
+        if (!updateError) {
+          setIsGuest(false);
+          setUser(toAppUser(authUser, updatedProfile));
+          return;
+        }
+      }
+
       setIsGuest(false);
-      setUser(toAppUser(authUser, profile));
+      setUser(
+        toAppUser(authUser, {
+          ...profile,
+          name: resolvedName || profile?.name || "",
+          avatar_url: resolvedAvatar ?? profile?.avatar_url,
+        })
+      );
     },
     [setIsGuest, setUser]
   );
