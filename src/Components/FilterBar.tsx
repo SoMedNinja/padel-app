@@ -6,8 +6,10 @@ import {
   InputLabel,
   SelectChangeEvent,
   Box,
-  TextField
+  TextField,
+  Button
 } from "@mui/material";
+import { Close as CloseIcon } from "@mui/icons-material";
 import { MatchFilter, MatchFilterType } from "../types";
 
 interface FilterBarProps {
@@ -42,7 +44,7 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
   };
 
   return (
-    <Box className="filter-bar" sx={{ mb: 2, display: "flex", justifyContent: "flex-start" }}>
+    <Box className="filter-bar" sx={{ mb: 2, display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
       <FormControl size="small" sx={{ minWidth: 160, mt: 1 }}>
         <InputLabel
           id="filter-select-label"
@@ -82,6 +84,16 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           <MenuItem value="range">Datumintervall</MenuItem>
         </Select>
       </FormControl>
+      {filter.type !== "all" && (
+        <Button
+          size="small"
+          onClick={() => setFilter({ type: "all" })}
+          startIcon={<CloseIcon />}
+          sx={{ mt: 1, textTransform: "none", fontWeight: 700, borderRadius: "12px" }}
+        >
+          Rensa filter
+        </Button>
+      )}
       {filter.type === "range" && (
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}>
           <TextField

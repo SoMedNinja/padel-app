@@ -65,6 +65,7 @@ export default function MatchHighlightCard({ highlight, match, onDismiss, deltas
           <IconButton
             size="small"
             onClick={() => setShareOpen(true)}
+            aria-label="Dela match-höjdpunkt"
             sx={{
               opacity: 0.6,
               '&:hover': { opacity: 1 }
@@ -77,6 +78,7 @@ export default function MatchHighlightCard({ highlight, match, onDismiss, deltas
           <IconButton
             size="small"
             onClick={onDismiss}
+            aria-label="Stäng höjdpunkt"
             sx={{
               opacity: 0.6,
               '&:hover': { opacity: 1 }

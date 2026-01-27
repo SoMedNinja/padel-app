@@ -219,6 +219,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                                     color="primary"
                                     onClick={() => saveName(profile)}
                                     disabled={savingId === profile.id}
+                                    aria-label="Spara namnändring"
                                   >
                                     <SaveIcon fontSize="small" />
                                   </IconButton>
@@ -270,6 +271,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                               color="error"
                               onClick={() => deleteProfile(profile)}
                               disabled={deleteId === profile.id || isSelf}
+                              aria-label={`Radera profilen för ${profile.name}`}
                               sx={{ border: '1px solid', borderColor: 'divider' }}
                             >
                               <DeleteIcon fontSize="small" />

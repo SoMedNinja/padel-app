@@ -304,7 +304,12 @@ export default function History({
                         </Button>
                       )}
                       {canDelete(m) && (
-                        <IconButton size="small" color="error" onClick={() => deleteMatch(m.id)}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => deleteMatch(m.id)}
+                          aria-label="Radera match"
+                        >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       )}
@@ -426,7 +431,10 @@ export default function History({
                                 </Typography>
                                 {explanation && (
                                   <Tooltip title={<Box component="pre" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{explanation}</Box>} arrow>
-                                    <InfoIcon sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }} />
+                                    <InfoIcon
+                                      sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }}
+                                      aria-label="ELO-förklaring"
+                                    />
                                   </Tooltip>
                                 )}
                               </Stack>

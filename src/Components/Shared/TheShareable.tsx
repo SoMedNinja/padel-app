@@ -461,7 +461,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
     >
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>The Shareable</Typography>
-        <IconButton onClick={onClose} size="small">
+        <IconButton onClick={onClose} size="small" aria-label="Stäng">
           <Close />
         </IconButton>
       </Box>
@@ -525,13 +525,20 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
 
       <DialogActions sx={{ p: 2, flexDirection: 'column', gap: 2 }}>
         <Stack direction="row" spacing={2} sx={{ width: '100%' }} justifyContent="center">
-          <IconButton onClick={() => setVariant(prev => Math.max(0, prev - 1))} disabled={variant === 0}>
+          <IconButton
+            onClick={() => setVariant(prev => Math.max(0, prev - 1))}
+            disabled={variant === 0}
+            aria-label="Föregående mall"
+          >
             <ChevronLeft />
           </IconButton>
           <Typography variant="body2" sx={{ alignSelf: 'center', fontWeight: 700 }}>
             Mall {variant + 1} / 5
           </Typography>
-          <IconButton onClick={() => setVariant(prev => Math.min(4, prev + 1))} disabled={variant === 4}>
+          <IconButton
+            onClick={() => setVariant(prev => prev + 1)}
+            aria-label="Nästa mall"
+          >
             <ChevronRight />
           </IconButton>
         </Stack>
