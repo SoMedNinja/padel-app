@@ -13,6 +13,7 @@ import {
   IconButton,
   Divider,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   ArrowBack as ArrowBackIcon,
   Close as CloseIcon,
@@ -1319,7 +1320,16 @@ export default function MatchForm({
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {recapMode === "evening" && eveningRecap ? (
               <>
-                <Paper variant="outlined" sx={{ p: 2, textAlign: "center", bgcolor: "primary.light", color: "primary.contrastText" }}>
+                {/* Note for non-coders: A softer background makes the recap text easier to read. */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    textAlign: "center",
+                    bgcolor: (theme) => alpha(theme.palette.primary.light, 0.2),
+                    color: "text.primary",
+                  }}
+                >
                   <Typography variant="h6" fontWeight={800}>{eveningRecap.dateLabel}</Typography>
                   <Typography variant="body2">{eveningRecap.matches} matcher · {eveningRecap.totalSets} sets</Typography>
                   <Box sx={{ mt: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
