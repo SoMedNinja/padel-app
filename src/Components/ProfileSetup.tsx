@@ -124,6 +124,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     const trimmed = cleanedName;
     // Note for non-coders: we clean the name here so badge tags aren't saved as part of it.
     if (!trimmed) return alert("Spelarnamn krävs.");
+    if (trimmed.length > 50) return alert("Spelarnamn får vara max 50 tecken.");
     if (!user?.id) return;
 
     setSaving(true);
@@ -187,6 +188,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Skriv ditt namn"
+                    slotProps={{ htmlInput: { maxLength: 50 } }}
                   />
 
                   <Stack direction="row" spacing={1}>

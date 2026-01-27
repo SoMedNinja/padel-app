@@ -3,14 +3,10 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // Prefer env values so each environment can point at its own database.
 const envSupabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const envSupabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-// Note for non-coders: these defaults keep local/demo mode working when env vars are missing.
-const defaultSupabaseUrl = "https://hiasgpbuqhiwutpgugjk.supabase.co";
-const defaultSupabaseAnonKey =
-  "sb_publishable_HmVbNlWyuBw6PFEJCtmTUg_EQG25c3F";
-const supabaseUrl = envSupabaseUrl || defaultSupabaseUrl;
-const supabaseAnonKey = envSupabaseAnonKey || defaultSupabaseAnonKey;
+const supabaseUrl = envSupabaseUrl || "";
+const supabaseAnonKey = envSupabaseAnonKey || "";
 
-const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+const isSupabaseConfigured = Boolean(envSupabaseUrl && envSupabaseAnonKey);
 const missingSupabaseMessage =
   "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
 
