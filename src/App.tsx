@@ -75,7 +75,8 @@ export default function App() {
   // Check if profile setup is needed (require a non-empty name).
   // Note for non-coders: we look for a name in both the profile record and the login metadata so
   // returning users don't get stuck on the setup screen if their name was saved elsewhere.
-  const profileName = user?.name?.trim() || "";
+  // Note for non-coders: some older profiles store the name under "full_name", so we check both fields.
+  const profileName = user?.name?.trim() || user?.full_name?.trim() || "";
   const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name || "";
   const resolvedName = profileName || metadataName.trim();
   const hasValidName = resolvedName.length > 0;
