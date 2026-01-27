@@ -79,8 +79,10 @@ export default function Heatmap({
     return map;
   }, [profiles]);
   const eloMap = useMemo(() => {
-    // Note for non-coders: the global filter changes match stats, but we keep all-time ELO values here.
-    return new Map<string, number>(allEloPlayers.map(player => [player.name, player.elo]));
+    // Note for non-coders: we store all-time ELO by name, and normalize names so filters don't affect it.
+    return new Map<string, number>(
+      allEloPlayers.map(player => [normalizeProfileName(player.name), player.elo])
+    );
   }, [allEloPlayers]);
 
   const sortedProfileNames = useMemo(() => {
@@ -163,7 +165,10 @@ export default function Heatmap({
   let rows = Object.values(combos).map((c) => {
     const avgElo = c.players.length
       ? Math.round(
-        c.players.reduce((sum, name) => sum + (eloMap.get(name) ?? ELO_BASELINE), 0) / c.players.length
+        c.players.reduce(
+          (sum, name) => sum + (eloMap.get(normalizeProfileName(name)) ?? ELO_BASELINE),
+          0
+        ) / c.players.length
       )
       : ELO_BASELINE;
     const serveFirstWinPct = c.serveFirstGames
