@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { getProfileDisplayName } from "../utils/profileMap";
+import { stripBadgeLabelFromName } from "../utils/profileName";
 import { Profile } from "../types";
 import {
   Box,
@@ -55,7 +56,11 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
   };
 
   const saveName = async (profile: Profile) => {
-    const nextName = (editNames[profile.id] ?? profile.name ?? "").trim();
+    const nextName = stripBadgeLabelFromName(
+      editNames[profile.id] ?? profile.name ?? "",
+      profile.featured_badge_id
+    );
+    // Note for non-coders: this strips any badge tag so the database only stores the plain name.
     if (!nextName) return alert("Ange ett namn.");
 
     setSavingId(profile.id);

@@ -28,6 +28,7 @@ import {
   resolveTeamIds,
   resolveTeamNames
 } from "../utils/profileMap";
+import { stripBadgeLabelFromName } from "../utils/profileName";
 import {
   getPartnerSynergy,
   getToughestOpponent
@@ -444,9 +445,12 @@ export default function PlayerSection({
 
   const handleNameSave = async () => {
     if (!user?.id) return;
+    const cleanedName = stripBadgeLabelFromName(editedName, playerProfile?.featured_badge_id);
+    // Note for non-coders: this keeps badge tags out of the saved name since badges are stored separately.
+    if (!cleanedName) return alert("Spelarnamn krävs.");
     const { data, error } = await supabase
       .from("profiles")
-      .update({ name: editedName })
+      .update({ name: cleanedName })
       .eq("id", user.id)
       .select()
       .single();
