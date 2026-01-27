@@ -69,6 +69,7 @@ import {
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
 } from "@mui/icons-material";
+import { alpha } from "@mui/material/styles";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
@@ -880,7 +881,16 @@ export default function PlayerSection({
             <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Synergi & Rivalitet (30d)</Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'success.light', color: 'success.contrastText' }}>
+                {/* Note for non-coders: We use a lighter tinted background so the text is easier to read. */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: (theme) => alpha(theme.palette.success.light, 0.25),
+                    color: "text.primary",
+                  }}
+                >
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Bästa Partner</Typography>
                   {(() => {
                     const synergy = getPartnerSynergy(matches, playerName);
@@ -897,7 +907,16 @@ export default function PlayerSection({
                 </Paper>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
+                {/* Note for non-coders: This lighter red keeps the warning feel without hurting contrast. */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: (theme) => alpha(theme.palette.error.light, 0.2),
+                    color: "text.primary",
+                  }}
+                >
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Tuffaste Motståndare</Typography>
                   {(() => {
                     const rival = getToughestOpponent(matches, playerName);
