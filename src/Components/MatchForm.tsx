@@ -924,6 +924,7 @@ export default function MatchForm({
             key={s}
             variant={value === s ? "contained" : "outlined"}
             onClick={() => onChange(s)}
+            aria-label={`Välj resultat: ${s}`}
             sx={{
               minWidth: 50,
               height: 50,
@@ -953,6 +954,7 @@ export default function MatchForm({
           <Button
             variant="outlined"
             onClick={() => setShowExtraScores(true)}
+            aria-label="Visa fler poängalternativ"
             sx={{
               minWidth: 50,
               height: 50,
@@ -990,14 +992,17 @@ export default function MatchForm({
               </Typography>
             </Box>
             {step === 0 && (
-              <Button
-                startIcon={<BalanceIcon />}
-                size="small"
-                variant="outlined"
-                onClick={() => setStep(10)}
-              >
-                Matchmaker
-              </Button>
+              <Tooltip title="Generera jämna lag eller rotationsschema baserat på ELO" arrow>
+                <Button
+                  startIcon={<BalanceIcon />}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setStep(10)}
+                  aria-label="Öppna Matchmaker för att skapa lag eller rotationer"
+                >
+                  Matchmaker
+                </Button>
+              </Tooltip>
             )}
             {step > 0 && (
               <IconButton onClick={resetWizard} size="small" color="error" aria-label="Stäng och rensa">

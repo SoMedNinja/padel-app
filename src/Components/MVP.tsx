@@ -69,13 +69,17 @@ export default function MVP({
           <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
             {titleEmoji} {title}
             <Tooltip title={explanation} arrow>
-              <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
+              <IconButton
+                size="small"
+                sx={{ ml: 0.5, opacity: 0.6 }}
+                aria-label={`Information om ${title}`}
+              >
                 <InfoOutlined fontSize="small" />
               </IconButton>
             </Tooltip>
           </Box>
           <Typography variant="body2" color="text.secondary">
-            inte tillräckligt många spelade matcher
+            Inte tillräckligt många spelade matcher
           </Typography>
         </CardContent>
       </Card>
@@ -90,7 +94,11 @@ export default function MVP({
         <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
           {titleEmoji} {title}
           <Tooltip title={explanation} arrow>
-            <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
+            <IconButton
+              size="small"
+              sx={{ ml: 0.5, opacity: 0.6 }}
+              aria-label={`Information om ${title}`}
+            >
               <InfoOutlined fontSize="small" />
             </IconButton>
           </Tooltip>

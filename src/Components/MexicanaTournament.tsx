@@ -883,7 +883,10 @@ export default function MexicanaTournament({
                   <Box sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: 'divider' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Tidigare matcher ({rounds.length})</Typography>
-                      <IconButton onClick={() => setShowPreviousGames(!showPreviousGames)}>
+                      <IconButton
+                        onClick={() => setShowPreviousGames(!showPreviousGames)}
+                        aria-label={showPreviousGames ? "Dölj tidigare matcher" : "Visa tidigare matcher"}
+                      >
                         {showPreviousGames ? <HideIcon /> : <ViewIcon />}
                       </IconButton>
                     </Box>

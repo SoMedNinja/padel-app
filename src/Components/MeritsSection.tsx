@@ -112,7 +112,10 @@ export default function MeritsSection({
         <Box sx={{ mb: 6 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>Upplåsta</Typography>
-            <IconButton onClick={() => setIsEarnedExpanded(!isEarnedExpanded)}>
+            <IconButton
+              onClick={() => setIsEarnedExpanded(!isEarnedExpanded)}
+              aria-label={isEarnedExpanded ? "Dölj upplåsta meriter" : "Visa upplåsta meriter"}
+            >
               {isEarnedExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
           </Box>
@@ -179,7 +182,10 @@ export default function MeritsSection({
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>På väg</Typography>
-            <IconButton onClick={() => setIsLockedExpanded(!isLockedExpanded)}>
+            <IconButton
+              onClick={() => setIsLockedExpanded(!isLockedExpanded)}
+              aria-label={isLockedExpanded ? "Dölj låsta meriter" : "Visa låsta meriter"}
+            >
               {isLockedExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
           </Box>
