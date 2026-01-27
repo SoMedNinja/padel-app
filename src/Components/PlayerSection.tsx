@@ -39,8 +39,8 @@ import {
   EVENING_MIN_GAMES
 } from "../utils/mvp";
 import ProfileName from "./ProfileName";
-import { supabase } from "../supabaseClient";
 import { Match, Profile, TournamentResult, PlayerStats } from "../types";
+import { profileService } from "../services/profileService";
 import {
   Box,
   Typography,
@@ -448,17 +448,12 @@ export default function PlayerSection({
     const cleanedName = stripBadgeLabelFromName(editedName, playerProfile?.featured_badge_id);
     // Note for non-coders: this keeps badge tags out of the saved name since badges are stored separately.
     if (!cleanedName) return alert("Spelarnamn krävs.");
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ name: cleanedName })
-      .eq("id", user.id)
-      .select()
-      .single();
-    if (error) {
-      alert(error.message);
-    } else {
+    try {
+      const data = await profileService.updateProfile(user.id, { name: cleanedName });
       setIsEditingName(false);
       onProfileUpdate?.(data);
+    } catch (error: any) {
+      alert(error.message || "Kunde inte uppdatera namnet.");
     }
   };
 
@@ -606,15 +601,11 @@ export default function PlayerSection({
 
     if (stored) {
       setAvatarUrl(stored);
-      supabase
-        .from("profiles")
-        .update({ avatar_url: stored })
-        .eq("id", user.id)
-        .select()
-        .single()
-        .then(({ data }) => {
+      profileService.updateProfile(user.id, { avatar_url: stored })
+        .then((data) => {
           if (data) onProfileUpdate?.(data);
-        });
+        })
+        .catch(err => console.error("Failed to sync avatar to DB", err));
     }
   }, [avatarStorageId, playerProfile?.avatar_url, user?.id, onProfileUpdate]);
 
@@ -645,15 +636,11 @@ export default function PlayerSection({
       setAvatarUrl(cropped);
       setPendingAvatar(null);
       if (user?.id) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .update({ avatar_url: cropped })
-          .eq("id", user.id)
-          .select();
-        if (error) {
+        try {
+          const data = await profileService.updateProfile(user.id, { avatar_url: cropped });
+          onProfileUpdate?.(data);
+        } catch (error: any) {
           alert(error.message || "Kunde inte spara profilbilden.");
-        } else if (data?.length) {
-          onProfileUpdate?.(data[0]);
         }
       }
     } catch (error: any) {
@@ -675,15 +662,11 @@ export default function PlayerSection({
     setAvatarUrl(null);
     setPendingAvatar(null);
     if (user?.id) {
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({ avatar_url: null })
-        .eq("id", user.id)
-        .select();
-      if (error) {
+      try {
+        const data = await profileService.updateProfile(user.id, { avatar_url: null });
+        onProfileUpdate?.(data);
+      } catch (error: any) {
         alert(error.message || "Kunde inte återställa profilbilden.");
-      } else if (data?.length) {
-        onProfileUpdate?.(data[0]);
       }
     }
   };

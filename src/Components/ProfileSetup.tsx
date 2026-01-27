@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { supabase } from "../supabaseClient";
 import Avatar from "./Avatar";
+import { profileService } from "../services/profileService";
 import {
   cropAvatarImage,
   getStoredAvatar,
@@ -92,11 +92,12 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
       setAvatarUrl(cropped);
       setPendingAvatar(null);
       if (user?.id) {
-        const { error } = await supabase
-          .from("profiles")
-          .upsert({ id: user.id, avatar_url: cropped }, { onConflict: "id" });
-        if (error && !isAvatarColumnMissing(error)) {
-          alert(error.message || "Kunde inte spara profilbilden.");
+        try {
+          await profileService.upsertProfile({ id: user.id, avatar_url: cropped });
+        } catch (error: any) {
+          if (!isAvatarColumnMissing(error)) {
+            alert(error.message || "Kunde inte spara profilbilden.");
+          }
         }
       }
     } catch (error) {
@@ -128,27 +129,28 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     if (!user?.id) return;
 
     setSaving(true);
-    const payload = { id: user.id, name: trimmed };
+    const payload: any = { id: user.id, name: trimmed };
     if (avatarUrl) {
       payload.avatar_url = avatarUrl;
     }
-    let { data, error } = await supabase
-      .from("profiles")
-      .upsert(payload, { onConflict: "id" })
-      .select()
-      .single();
-    if (error && isAvatarColumnMissing(error) && payload.avatar_url) {
-      ({ data, error } = await supabase
-        .from("profiles")
-        .upsert({ id: user.id, name: trimmed }, { onConflict: "id" })
-        .select()
-        .single());
+
+    try {
+      let data;
+      try {
+        data = await profileService.upsertProfile(payload);
+      } catch (error: any) {
+        if (isAvatarColumnMissing(error) && payload.avatar_url) {
+          data = await profileService.upsertProfile({ id: user.id, name: trimmed });
+        } else {
+          throw error;
+        }
+      }
+      onComplete?.(data || { name: trimmed, avatar_url: avatarUrl });
+    } catch (error: any) {
+      alert(error.message || "Kunde inte spara profilen.");
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    if (error) return alert(error.message);
-
-    onComplete?.(data || { name: trimmed, avatar_url: avatarUrl });
   };
 
   return (

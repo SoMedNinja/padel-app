@@ -8,7 +8,8 @@ import AppRoutes from "./AppRoutes";
 import { useRealtime } from "./hooks/useRealtime";
 import ScrollToTop from "./Components/ScrollToTop";
 import { useAuthProfile } from "./hooks/useAuthProfile";
-import { Container, Box, Typography, CircularProgress, Alert, Button, Stack } from "@mui/material";
+import { Container, Box, Typography, CircularProgress, Button, Stack } from "@mui/material";
+import AppAlert from "./Components/Shared/AppAlert";
 
 export default function App() {
   const { user, setUser, isGuest, setIsGuest } = useStore();
@@ -37,18 +38,16 @@ export default function App() {
     return (
       <Container maxWidth="sm">
         <Box sx={{ mt: 8 }}>
-          <Alert
+          <AppAlert
             severity="error"
-            action={
-              <Stack direction="row" spacing={1}>
-                <Button color="inherit" size="small" onClick={refresh}>
-                  Försök igen
-                </Button>
-              </Stack>
-            }
           >
-            {errorMessage}
-          </Alert>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Typography variant="body2">{errorMessage}</Typography>
+              <Button color="inherit" size="small" onClick={refresh}>
+                Försök igen
+              </Button>
+            </Box>
+          </AppAlert>
           <Button
             fullWidth
             variant="text"
@@ -65,7 +64,7 @@ export default function App() {
   if (!user && !isGuest) {
     return (
       <Auth
-        onAuth={(_authUser) => {
+        onAuth={() => {
           setIsGuest(false);
           // Note for non-coders: we re-check the saved profile so we can reuse your existing name.
           refresh();

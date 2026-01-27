@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { supabase } from "../supabaseClient";
+import { profileService } from "../services/profileService";
 import { getProfileDisplayName } from "../utils/profileMap";
 import { stripBadgeLabelFromName } from "../utils/profileName";
 import { Profile } from "../types";
@@ -64,33 +64,27 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     if (!nextName) return alert("Ange ett namn.");
 
     setSavingId(profile.id);
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ name: nextName })
-      .eq("id", profile.id)
-      .select();
-
-    setSavingId(null);
-    if (error) return alert(error.message);
-    if (!data?.length) return alert("Kunde inte uppdatera profilen.");
-
-    onProfileUpdate?.(data[0]);
+    try {
+      const data = await profileService.updateProfile(profile.id, { name: nextName });
+      onProfileUpdate?.(data);
+    } catch (error: any) {
+      alert(error.message || "Kunde inte uppdatera profilen.");
+    } finally {
+      setSavingId(null);
+    }
   };
 
   const toggleApproval = async (profile: Profile) => {
     const nextApproved = profile.is_approved !== true;
     setToggleId(profile.id);
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ is_approved: nextApproved })
-      .eq("id", profile.id)
-      .select();
-
-    setToggleId(null);
-    if (error) return alert(error.message);
-    if (!data?.length) return alert("Kunde inte uppdatera profilen.");
-
-    onProfileUpdate?.(data[0]);
+    try {
+      const data = await profileService.updateProfile(profile.id, { is_approved: nextApproved });
+      onProfileUpdate?.(data);
+    } catch (error: any) {
+      alert(error.message || "Kunde inte uppdatera profilen.");
+    } finally {
+      setToggleId(null);
+    }
   };
 
   const deleteProfile = async (profile: Profile) => {
@@ -104,22 +98,20 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     if (!confirmed) return;
 
     setDeleteId(profile.id);
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
+    try {
+      const data = await profileService.updateProfile(profile.id, {
         is_deleted: true,
         name: "deleted user",
         is_approved: false,
         is_admin: false,
         avatar_url: null,
-      })
-      .eq("id", profile.id)
-      .select();
-    setDeleteId(null);
-    if (error) return alert(error.message);
-    if (!data?.length) return alert("Kunde inte uppdatera profilen.");
-
-    onProfileDelete?.(data[0]);
+      });
+      onProfileDelete?.(data);
+    } catch (error: any) {
+      alert(error.message || "Kunde inte radera profilen.");
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   return (

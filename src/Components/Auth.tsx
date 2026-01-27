@@ -10,9 +10,9 @@ import {
   TextField,
   Button,
   Stack,
-  Alert,
   Container,
 } from "@mui/material";
+import AppAlert from "./Shared/AppAlert";
 import {
   Login as LoginIcon,
   PersonAdd as SignupIcon,
@@ -149,7 +149,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
               autoComplete={isSignup ? "new-password" : "current-password"}
             />
 
-            {notice && <Alert severity="info" sx={{ py: 0 }}>{notice}</Alert>}
+            {notice && <AppAlert severity="info" sx={{ py: 0 }}>{notice}</AppAlert>}
 
             <Button
               fullWidth
