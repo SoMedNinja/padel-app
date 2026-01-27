@@ -15,6 +15,12 @@ export default function App() {
   const { isLoading, errorMessage, refresh } = useAuthProfile();
 
   useRealtime();
+  // Note for non-coders: we sign out locally first so the browser forgets the login right away.
+  const handleSignOut = async () => {
+    await supabase.auth.signOut({ scope: "local" });
+    setIsGuest(false);
+    setUser(null);
+  };
 
   if (isLoading) {
     return (
@@ -47,11 +53,7 @@ export default function App() {
             fullWidth
             variant="text"
             sx={{ mt: 2 }}
-            onClick={() => {
-              supabase.auth.signOut();
-              setIsGuest(false);
-              setUser(null);
-            }}
+            onClick={handleSignOut}
           >
             Återgå till inloggningssidan
           </Button>
@@ -110,7 +112,7 @@ export default function App() {
             <Button variant="contained" onClick={refresh}>
               Uppdatera status
             </Button>
-            <Button variant="outlined" onClick={() => supabase.auth.signOut()}>
+            <Button variant="outlined" onClick={handleSignOut}>
               Logga ut
             </Button>
           </Stack>
