@@ -36,7 +36,7 @@ export default function Dashboard() {
     checkAndResetDismissed
   } = useStore();
 
-  const { eloPlayers, allMatches, profiles, isLoading: isLoadingElo } = useEloStats();
+  const { eloPlayers, allMatches, profiles, isLoading: isLoadingElo, eloDeltaByMatch } = useEloStats();
 
   const {
     data: tournamentResults = [] as TournamentResult[],
@@ -138,6 +138,7 @@ export default function Dashboard() {
                 highlight={highlight}
                 match={highlightMatch}
                 onDismiss={() => dismissMatch(highlight.matchId, highlight.matchDate)}
+                deltas={eloDeltaByMatch[highlightMatch.id]}
               />
             )}
             {!filteredMatches.length ? (
