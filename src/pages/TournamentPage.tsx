@@ -1,55 +1,33 @@
 import React, { useEffect } from "react";
 import MexicanaTournament from "../Components/MexicanaTournament";
 import { useStore } from "../store/useStore";
-import { useProfiles } from "../hooks/useProfiles";
-import { useMatches } from "../hooks/useMatches";
-import { calculateElo } from "../utils/elo";
 import { useQueryClient } from "@tanstack/react-query";
 import PullToRefresh from "react-simple-pull-to-refresh";
-import { Match, Profile } from "../types";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useEloStats } from "../hooks/useEloStats";
 import { Box, Button, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
 import AppAlert from "../Components/Shared/AppAlert";
 import { queryKeys } from "../utils/queryKeys";
 
 export default function TournamentPage() {
   const { user, isGuest } = useStore();
-  const {
-    data: profiles = [] as Profile[],
-    refetch: refetchProfiles,
-    isLoading: isLoadingProfiles,
-    isError: isProfilesError,
-    error: profilesError,
-  } = useProfiles();
-  const {
-    data: matches = [] as Match[],
-    refetch: refetchMatches,
-    isLoading: isLoadingMatches,
-    isError: isMatchesError,
-    error: matchesError,
-  } = useMatches({ type: "all" });
+  const { eloPlayers, profiles, isLoading } = useEloStats();
   const queryClient = useQueryClient();
-
-  const allEloPlayers = calculateElo(matches, profiles);
 
   const handleTournamentSync = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() });
   };
 
   const handleRefresh = usePullToRefresh([
-    refetchProfiles,
-    refetchMatches,
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
     () => queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() }),
     () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails() }),
     () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() }),
   ]);
 
-  const isLoading = isLoadingProfiles || isLoadingMatches;
-  const hasError = isProfilesError || isMatchesError;
-  const errorMessage =
-    (profilesError as Error | undefined)?.message ||
-    (matchesError as Error | undefined)?.message ||
-    "Något gick fel när turneringsdata hämtades.";
+  const hasError = false; // useEloStats doesn't expose error yet
+  const errorMessage = "Något gick fel när turneringsdata hämtades.";
 
   useEffect(() => {
     // Note for non-coders: we add a body class so CSS can remove the global padding only on this page.
@@ -106,7 +84,7 @@ export default function TournamentPage() {
           <MexicanaTournament
             user={isGuest ? null : user}
             profiles={profiles}
-            eloPlayers={allEloPlayers}
+            eloPlayers={eloPlayers}
             isGuest={isGuest}
             onTournamentSync={handleTournamentSync}
           />

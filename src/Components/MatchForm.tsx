@@ -102,9 +102,9 @@ export default function MatchForm({
     return map;
   }, [eloPlayers]);
 
-  const resetWizard = () => {
+  const resetWizard = (silent = false) => {
     const hasProgress = team1.some(id => id !== "") || team2.some(id => id !== "") || pool.length > 0;
-    if (hasProgress && !window.confirm("Är du säker på att du vill rensa matchen och börja om?")) return;
+    if (!silent && hasProgress && !window.confirm("Är du säker på att du vill rensa matchen och börja om?")) return;
     setStep(0);
     setTeam1(["", ""]);
     setTeam2(["", ""]);
@@ -377,7 +377,7 @@ export default function MatchForm({
 
     createRecap(team1, team2, scoreA, scoreB);
     buildEveningRecap(matches, newMatch);
-    resetWizard();
+    resetWizard(true);
     setRecapMode("evening");
     setShowRecap(true);
     setIsSubmitting(false);
