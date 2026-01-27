@@ -1,24 +1,24 @@
 import { Match, MatchFilter } from "../types";
 
-const getDateRange = (filter: MatchFilter) => {
+const getDateRangeISO = (filter: MatchFilter) => {
   if (filter.type === "last7") {
     const start = new Date();
     start.setDate(start.getDate() - 7);
-    return { start, end: new Date() };
+    return { start: start.toISOString(), end: new Date().toISOString() };
   }
   if (filter.type === "last30") {
     const start = new Date();
     start.setDate(start.getDate() - 30);
-    return { start, end: new Date() };
+    return { start: start.toISOString(), end: new Date().toISOString() };
   }
   if (filter.type === "range") {
     // Note for non-coders: We only filter once a "från" date exists so the list stays empty until then.
     if (!filter.startDate) return null;
     const start = new Date(filter.startDate);
     const end = filter.endDate ? new Date(filter.endDate) : new Date();
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
-    return { start, end };
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start: start.toISOString(), end: end.toISOString() };
   }
   return null;
 };
@@ -38,13 +38,15 @@ export function filterMatches(matches: Match[], filter: MatchFilter): Match[] {
   if (filter.type === "tournaments") {
     return matches.filter(m => !!m.source_tournament_id);
   }
-  const range = getDateRange(filter);
+  const range = getDateRangeISO(filter);
   if (range) {
+    const { start, end } = range;
     return matches.filter(match => {
-      const date = match.created_at ? new Date(match.created_at) : null;
-      if (!date || Number.isNaN(date.valueOf())) return false;
-      if (range.start && date < range.start) return false;
-      if (range.end && date > range.end) return false;
+      const dateStr = match.created_at;
+      if (!dateStr) return false;
+      // Pre-calculated ISO strings allow for fast lexicographical comparison
+      if (start && dateStr < start) return false;
+      if (end && dateStr > end) return false;
       return true;
     });
   }
