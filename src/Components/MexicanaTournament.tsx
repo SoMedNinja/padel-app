@@ -125,6 +125,13 @@ export default function MexicanaTournament({
   const [recordingRound, setRecordingRound] = useState<any>(null);
   const [showPreviousGames, setShowPreviousGames] = useState(false);
 
+  const activeTournament = useMemo(
+    () => tournaments.find(t => t.id === activeTournamentId) || null,
+    [tournaments, activeTournamentId]
+  );
+
+  const tournamentMode = activeTournament?.tournament_type || "americano";
+
   const nextRoundToPlay = useMemo(() => {
     if (tournamentMode !== 'americano') return null;
     return rounds.find(r => !Number.isFinite(r.team1_score) || !Number.isFinite(r.team2_score));
@@ -138,13 +145,6 @@ export default function MexicanaTournament({
   }, [profiles]);
 
   const profileMap = useMemo(() => makeProfileMap(selectableProfiles), [selectableProfiles]);
-
-  const activeTournament = useMemo(
-    () => tournaments.find(t => t.id === activeTournamentId) || null,
-    [tournaments, activeTournamentId]
-  );
-
-  const tournamentMode = activeTournament?.tournament_type || "americano";
 
   const { standings } = useMemo(() => {
     return getTournamentState(rounds, participants);

@@ -71,7 +71,7 @@ export default function EloTrend({ players = [] }) {
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>ELO Trend (senaste året)</Typography>
 
-      <Box sx={{ width: "100%", height: 350 }}>
+      <Box sx={{ width: "100%", height: 350, minWidth: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}

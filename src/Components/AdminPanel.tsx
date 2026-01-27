@@ -137,7 +137,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
       </Box>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Card variant="outlined" sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
@@ -150,7 +150,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Card variant="outlined" sx={{ bgcolor: stats.pending > 0 ? 'warning.light' : 'success.light', color: stats.pending > 0 ? 'warning.contrastText' : 'success.contrastText' }}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
@@ -163,7 +163,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Card variant="outlined">
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'primary.main', color: '#fff' }}>
