@@ -1,5 +1,6 @@
 import React from "react";
 import { getBadgeIconById, getBadgeTierLabelById } from "../utils/badges";
+import { stripBadgeLabelFromName } from "../utils/profileName";
 
 interface ProfileNameProps {
   name: string;
@@ -10,13 +11,15 @@ interface ProfileNameProps {
 export default function ProfileName({ name, badgeId, className = "" }: ProfileNameProps) {
   const icon = getBadgeIconById(badgeId || null);
   const tier = getBadgeTierLabelById(badgeId || null);
+  // Note for non-coders: we clean the name so it doesn't repeat the badge text next to the badge icon.
+  const displayName = badgeId ? stripBadgeLabelFromName(name, badgeId) : name;
   if (!icon) {
-    return <span className={className}>{name}</span>;
+    return <span className={className}>{displayName}</span>;
   }
 
   return (
     <span className={`profile-name ${className}`.trim()}>
-      <span className="profile-name-text">{name}</span>
+      <span className="profile-name-text">{displayName}</span>
       <span
         className="profile-name-badge"
         aria-label={`Visad merit ${tier ? `${tier} ` : ""}${icon}`}

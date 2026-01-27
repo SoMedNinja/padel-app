@@ -3,6 +3,7 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "../supabaseClient";
 import { useStore } from "../store/useStore";
 import { AppUser, Profile } from "../types";
+import { stripBadgeLabelFromName } from "../utils/profileName";
 
 const toAppUser = (authUser: User, profile?: Profile | null): AppUser => ({
   ...authUser,
@@ -110,10 +111,17 @@ export const useAuthProfile = () => {
         (profile as Profile | { full_name?: string })?.name?.trim() ||
         (profile as { full_name?: string })?.full_name?.trim() ||
         "";
-      const resolvedName = profileName || metadataName;
+      const cleanedProfileName = stripBadgeLabelFromName(
+        profileName,
+        profile?.featured_badge_id
+      );
+      // Note for non-coders: this keeps badge tags stored separately from the actual player name.
+      const resolvedName = cleanedProfileName || metadataName;
       const resolvedAvatar = profile?.avatar_url || metadataAvatar || null;
       const needsProfileUpdate =
-        (!!resolvedName && !profile?.name) || (!!resolvedAvatar && !profile?.avatar_url);
+        (!!resolvedName && !profile?.name) ||
+        (!!resolvedAvatar && !profile?.avatar_url) ||
+        (!!profile?.featured_badge_id && profile?.name !== cleanedProfileName);
 
       if (needsProfileUpdate) {
         // Note for non-coders: we fill in missing profile details from login info so
