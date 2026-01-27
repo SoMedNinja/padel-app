@@ -64,16 +64,24 @@ export function useVirtualWindow({
   }, [sizes]);
 
   const virtualItems = useMemo<VirtualItem[]>(() => {
-    if (itemCount === 0) return [];
-    let startIndex = 0;
-    while (startIndex < itemCount && offsets[startIndex] + sizes[startIndex] < scrollTop) {
-      startIndex += 1;
-    }
-    let endIndex = startIndex;
+    if (itemCount === 0 || !offsets.length) return [];
+
+    // Note for non-coders: Use binary search (O(log N)) instead of linear scan (O(N))
+    // to find the range of visible items, which is much faster as the list grows.
+    const binarySearch = (comparison: (idx: number) => boolean) => {
+      let low = 0;
+      let high = itemCount - 1;
+      while (low <= high) {
+        const mid = (low + high) >> 1;
+        if (comparison(mid)) low = mid + 1;
+        else high = mid - 1;
+      }
+      return low;
+    };
+
+    let startIndex = binarySearch((idx) => offsets[idx] + (sizes[idx] ?? estimateSize) <= scrollTop);
     const viewportBottom = scrollTop + viewportHeight;
-    while (endIndex < itemCount && offsets[endIndex] < viewportBottom) {
-      endIndex += 1;
-    }
+    let endIndex = binarySearch((idx) => offsets[idx] < viewportBottom);
 
     startIndex = Math.max(0, startIndex - overscan);
     endIndex = Math.min(itemCount, endIndex + overscan);
@@ -87,7 +95,7 @@ export function useVirtualWindow({
       });
     }
     return items;
-  }, [itemCount, offsets, overscan, scrollTop, sizes, viewportHeight]);
+  }, [itemCount, offsets, overscan, scrollTop, sizes, viewportHeight, estimateSize]);
 
   const measureElement = useCallback(
     (index: number) => (node: HTMLElement | null) => {

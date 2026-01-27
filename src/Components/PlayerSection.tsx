@@ -147,10 +147,25 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: P
   const monthlyMvpDays: Record<string, number> = {};
   if (matchEntries.length) {
     const sortedEntries = [...matchEntries].sort((a, b) => a.time - b.time);
+    const playerMap = new Map(allEloPlayers.map(p => [p.id, p]));
+
+    // Optimization: Pre-map match deltas to avoid re-searching player history in every window step
+    const matchDeltaMap = new Map<string, Map<string, { delta: number, result: string }>>();
+    allEloPlayers.forEach(p => {
+      p.history.forEach(h => {
+        if (!matchDeltaMap.has(h.matchId)) matchDeltaMap.set(h.matchId, new Map());
+        matchDeltaMap.get(h.matchId)!.set(p.id, { delta: h.delta, result: h.result });
+      });
+    });
+
     const startDate = new Date(sortedEntries[0].dateKey);
     const latestMatchDate = new Date(sortedEntries[sortedEntries.length - 1].dateKey);
     const today = new Date();
     const endDate = latestMatchDate > today ? latestMatchDate : today;
+
+    // Optimization: use a rolling window approach O(M + D*P) instead of O(D*P*M)
+    const rollingStats = new Map<string, { wins: number; games: number; eloGain: number }>();
+    allEloPlayers.forEach(p => rollingStats.set(p.id, { wins: 0, games: 0, eloGain: 0 }));
 
     let windowStartIndex = 0;
     let windowEndIndex = 0;
@@ -164,21 +179,76 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: P
       const dayEndTime = new Date(`${dateKey}T23:59:59.999Z`).getTime();
       const cutoff = dayEndTime - 30 * 24 * 60 * 60 * 1000;
 
+      // Add matches entering the 30-day window
       while (windowEndIndex < sortedEntries.length && sortedEntries[windowEndIndex].time <= dayEndTime) {
+        const m = sortedEntries[windowEndIndex].match;
+        matchDeltaMap.get(m.id)?.forEach(({ delta, result }, pid) => {
+          const s = rollingStats.get(pid);
+          if (s) {
+            s.games++;
+            s.eloGain += delta;
+            if (result === "W") s.wins++;
+          }
+        });
         windowEndIndex += 1;
       }
 
+      // Remove matches leaving the 30-day window
       while (windowStartIndex < windowEndIndex && sortedEntries[windowStartIndex].time <= cutoff) {
+        const m = sortedEntries[windowStartIndex].match;
+        matchDeltaMap.get(m.id)?.forEach(({ delta, result }, pid) => {
+          const s = rollingStats.get(pid);
+          if (s) {
+            s.games--;
+            s.eloGain -= delta;
+            if (result === "W") s.wins--;
+          }
+        });
         windowStartIndex += 1;
       }
 
-      const rollingMatches = sortedEntries
-        .slice(windowStartIndex, windowEndIndex)
-        .map(entry => entry.match);
-      const results = scorePlayersForMvp(rollingMatches, allEloPlayers, 0);
-      const winner = getMvpWinner(results);
-      if (!winner) continue;
-      monthlyMvpDays[winner.name] = (monthlyMvpDays[winner.name] || 0) + 1;
+      // Find winner for this rolling window day
+      let bestScore = -Infinity;
+      let winnerName = "";
+      let bestEloGain = -Infinity;
+      let bestEloNet = -Infinity;
+      let bestWins = -Infinity;
+
+      rollingStats.forEach((s, pid) => {
+        if (s.games === 0) return;
+
+        const winRate = s.wins / s.games;
+        const score = s.eloGain + winRate * 15 + s.games * 0.5;
+        const player = playerMap.get(pid);
+        if (!player) return;
+
+        let isBetter = false;
+        if (score > bestScore + 0.001) isBetter = true;
+        else if (Math.abs(score - bestScore) <= 0.001) {
+          if (s.eloGain > bestEloGain + 0.001) isBetter = true;
+          else if (Math.abs(s.eloGain - bestEloGain) <= 0.001) {
+            if (player.elo > bestEloNet) isBetter = true;
+            else if (player.elo === bestEloNet) {
+              if (s.wins > bestWins) isBetter = true;
+              else if (s.wins === bestWins) {
+                if (!winnerName || player.name.localeCompare(winnerName) < 0) isBetter = true;
+              }
+            }
+          }
+        }
+
+        if (isBetter) {
+          bestScore = score;
+          winnerName = player.name;
+          bestEloGain = s.eloGain;
+          bestEloNet = player.elo;
+          bestWins = s.wins;
+        }
+      });
+
+      if (winnerName) {
+        monthlyMvpDays[winnerName] = (monthlyMvpDays[winnerName] || 0) + 1;
+      }
     }
   }
 

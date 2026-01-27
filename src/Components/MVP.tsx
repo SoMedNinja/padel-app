@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { getLatestMatchDate } from "../utils/stats";
 import {
   getMvpWinner,
@@ -24,34 +24,38 @@ export default function MVP({
   mode,
   title,
 }: MVPProps) {
-  if (!matches.length) return null;
+  const mvp = useMemo(() => {
+    if (!matches.length) return null;
 
-  let relevantMatches = matches;
+    let relevantMatches = matches;
 
-  if (mode === "evening") {
-    const latestDate = getLatestMatchDate(matches);
-    if (!latestDate) return null;
+    if (mode === "evening") {
+      const latestDate = getLatestMatchDate(matches);
+      if (!latestDate) return null;
 
-    relevantMatches = matches.filter(
-      m => m.created_at?.slice(0, 10) === latestDate
-    );
-  }
+      relevantMatches = matches.filter(
+        m => m.created_at?.slice(0, 10) === latestDate
+      );
+    }
 
-  if (mode === "30days") {
-    const latestTimestamp = matches.reduce((max, match) => {
-      const timestamp = new Date(match.created_at).getTime();
-      return Number.isNaN(timestamp) ? max : Math.max(max, timestamp);
-    }, 0);
-    const cutoff = latestTimestamp - 30 * 24 * 60 * 60 * 1000;
-    relevantMatches = matches.filter(
-      m => new Date(m.created_at).getTime() > cutoff
-    );
-  }
+    if (mode === "30days") {
+      // Optimization: calculate latest timestamp efficiently
+      let latestTimestamp = 0;
+      for (let i = 0; i < matches.length; i++) {
+        const timestamp = new Date(matches[i].created_at).getTime();
+        if (timestamp > latestTimestamp) latestTimestamp = timestamp;
+      }
+      const cutoff = latestTimestamp - 30 * 24 * 60 * 60 * 1000;
+      relevantMatches = matches.filter(
+        m => new Date(m.created_at).getTime() > cutoff
+      );
+    }
 
-  const minGames = mode === "evening" ? EVENING_MIN_GAMES : MONTH_MIN_GAMES;
+    const minGames = mode === "evening" ? EVENING_MIN_GAMES : MONTH_MIN_GAMES;
 
-  const results = scorePlayersForMvp(relevantMatches, players, minGames);
-  const mvp = getMvpWinner(results);
+    const results = scorePlayersForMvp(relevantMatches, players, minGames);
+    return getMvpWinner(results);
+  }, [matches, players, mode]);
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
   const explanation = mode === "evening"
