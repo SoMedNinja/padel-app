@@ -178,43 +178,46 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
             </Box>
           )}
           {/* Note for non-coders: we render rows in a grid so the virtual scroll transforms work reliably. */}
-          <Table component="div" sx={{ minWidth: 650 }}>
-            <TableHead component="div" sx={{ bgcolor: 'grey.50' }}>
+          <Table component="div" sx={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
+            <TableHead component="div" sx={{ bgcolor: 'grey.50', display: 'block', width: '100%', borderBottom: '1px solid', borderColor: 'divider' }}>
               <TableRow
                 component="div"
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(220px, 1.6fr) repeat(6, minmax(80px, 1fr))',
+                  gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
                   alignItems: 'center',
+                  width: '100%',
+                  minHeight: 56,
                 }}
               >
-                <TableCell component="div" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                <TableCell component="div" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "name"} direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("name")}>Spelare</TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sortDirection={sortKey === "elo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                <TableCell component="div" sortDirection={sortKey === "elo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "elo"} direction={sortKey === "elo" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("elo")}>ELO</TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                <TableCell component="div" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "games"} direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("games")}>Matcher</TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                <TableCell component="div" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "wins"} direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("wins")}>Vinster</TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center' }}>Streak</TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center' }}>Trend</TableCell>
-                <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center' }}>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Streak</TableCell>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Trend</TableCell>
+                <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("winPct")}>Vinst %</TableSortLabel>
                 </TableCell>
               </TableRow>
             </TableHead>
-            <TableBody component="div" sx={{ position: 'relative', height: totalSize }}>
+            <TableBody component="div" sx={{ position: 'relative', height: Math.max(totalSize, 100), display: 'block', width: '100%' }}>
               {/* Note for non-coders: the table only draws rows you can see to stay fast on big leaderboards. */}
               {virtualItems.map((virtualItem) => {
                 const p = sortedPlayers[virtualItem.index];
+                if (!p) return null;
                 return (
                   <TableRow
                     component="div"
-                    key={p.name}
+                    key={p.id || p.name}
                     ref={measureElement(virtualItem.index)}
                     data-index={virtualItem.index}
                     hover
@@ -224,12 +227,15 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                       left: 0,
                       width: '100%',
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(220px, 1.6fr) repeat(6, minmax(80px, 1fr))',
+                      gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
                       alignItems: 'center',
                       transform: `translateY(${virtualItem.start}px)`,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      minHeight: 56,
                     }}
                   >
-                    <TableCell component="div">
+                    <TableCell component="div" sx={{ borderBottom: 'none' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Avatar
                           sx={{ width: 32, height: 32 }}
@@ -239,14 +245,14 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                         <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
                       </Box>
                     </TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center' }}>{p.wins + p.losses}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center' }}>{p.wins}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center' }}>{getStreak(p)}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center' }}>
+                    <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{getStreak(p)}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>
                       <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
                     </TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center' }}>{winPct(p.wins, p.losses)}%</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
                   </TableRow>
                 );
               })}

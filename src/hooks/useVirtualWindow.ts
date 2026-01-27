@@ -42,11 +42,15 @@ export function useVirtualWindow({
     };
   }, []);
 
-  const sizes = useMemo(() => {
+  const [sizes, setSizes] = useState<number[]>([]);
+
+  useLayoutEffect(() => {
+    // Note for non-coders: we track row heights as they render so the scrollbar stays accurate.
+    // We use sizesVersion to trigger re-calculation when a new height is measured.
     const list = Array.from({ length: itemCount }, (_, index) => {
       return itemSizes.current.get(index) ?? estimateSize;
     });
-    return list;
+    setSizes(list);
   }, [estimateSize, itemCount, sizesVersion]);
 
   const { totalSize, offsets } = useMemo(() => {

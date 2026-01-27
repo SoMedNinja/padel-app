@@ -1,6 +1,27 @@
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter } from "../types";
 
+const getDateRange = (filter: MatchFilter) => {
+  if (filter.type === "last7") {
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    return { start, end: new Date() };
+  }
+  if (filter.type === "last30") {
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return { start, end: new Date() };
+  }
+  if (filter.type === "range" && (filter.startDate || filter.endDate)) {
+    const start = filter.startDate ? new Date(filter.startDate) : null;
+    const end = filter.endDate ? new Date(filter.endDate) : null;
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  return null;
+};
+
 export const matchService = {
   async getMatches(filter?: MatchFilter): Promise<Match[]> {
     let query = supabase
@@ -17,7 +38,7 @@ export const matchService = {
         query = query.not("source_tournament_id", "is", null);
       }
 
-      const range = this.getDateRange(filter);
+      const range = getDateRange(filter);
       if (range?.start) {
         query = query.gte("created_at", range.start.toISOString());
       }
@@ -62,24 +83,4 @@ export const matchService = {
     if (error) throw error;
   },
 
-  getDateRange(filter: MatchFilter) {
-    if (filter.type === "last7") {
-      const start = new Date();
-      start.setDate(start.getDate() - 7);
-      return { start, end: new Date() };
-    }
-    if (filter.type === "last30") {
-      const start = new Date();
-      start.setDate(start.getDate() - 30);
-      return { start, end: new Date() };
-    }
-    if (filter.type === "range" && (filter.startDate || filter.endDate)) {
-      const start = filter.startDate ? new Date(filter.startDate) : null;
-      const end = filter.endDate ? new Date(filter.endDate) : null;
-      if (start) start.setHours(0, 0, 0, 0);
-      if (end) end.setHours(23, 59, 59, 999);
-      return { start, end };
-    }
-    return null;
-  }
 };
