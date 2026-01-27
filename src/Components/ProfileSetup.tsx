@@ -24,6 +24,7 @@ import {
   Save as SaveIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material";
+import { stripBadgeLabelFromName } from "../utils/profileName";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [name, setName] = useState(initialName);
@@ -104,7 +105,8 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const trimmed = name.trim();
+    const trimmed = stripBadgeLabelFromName(name, null);
+    // Note for non-coders: we clean the name here so badge tags aren't saved as part of it.
     if (!trimmed) return alert("Spelarnamn krävs.");
     if (!user?.id) return;
 
