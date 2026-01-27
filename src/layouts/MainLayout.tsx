@@ -48,6 +48,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
     setIsMenuOpen(prev => !prev);
   }, []);
 
+  // Note for non-coders: clearing the local session stops the browser from auto-logging in on refresh.
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut({ scope: "local" });
+    setUser(null);
+    setIsGuest(false);
+  }, [setIsGuest, setUser]);
+
   const handleFabClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -56,13 +63,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
     setAnchorEl(null);
   };
 
-  const handleAuthAction = () => {
+  const handleAuthAction = async () => {
     closeMenu();
     if (isGuest) {
       setIsGuest(false);
     } else {
-      supabase.auth.signOut();
-      setUser(null);
+      await handleSignOut();
     }
   };
 
