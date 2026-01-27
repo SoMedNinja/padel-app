@@ -26,6 +26,12 @@ export interface Round {
   mode?: "americano" | "mexicano";
   round_number?: number;
 }
+// Note for non-coders: some rounds are just "suggestions" that haven't been saved yet,
+// so they can exist without a round number. Saved rounds always include one.
+
+export interface RoundWithNumber extends Round {
+  round_number: number;
+}
 
 // Get the complete state of the tournament from rounds and participants
 export const getTournamentState = (rounds: Round[], participants: string[]) => {
@@ -250,7 +256,7 @@ export const pickMexicanoTeams = (activePlayers: string[], standings: Record<str
  */
 
 export const generateAmericanoRounds = (participants: string[]) => {
-  const rounds: Round[] = [];
+  const rounds: RoundWithNumber[] = [];
   const playerCount = participants.length;
 
   // Deterministic round count
@@ -266,7 +272,7 @@ export const generateAmericanoRounds = (participants: string[]) => {
   const currentRounds: Round[] = [];
   for (let i = 0; i < roundCount; i++) {
     const suggestion = getNextSuggestion(currentRounds, participants, 'americano');
-    const newRound: Round = {
+    const newRound: RoundWithNumber = {
       ...suggestion,
       round_number: i + 1,
       mode: 'americano'
