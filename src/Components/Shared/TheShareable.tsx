@@ -9,8 +9,9 @@ import {
   IconButton,
   Stack,
   CircularProgress,
+  Paper,
 } from '@mui/material';
-import { Close, Download, Share, EmojiEvents, SportsTennis, ChevronLeft, ChevronRight, Star, TrendingUp, LocalFireDepartment, Groups } from '@mui/icons-material';
+import { Close, Download, EmojiEvents, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { toPng } from 'html-to-image';
 import { Match, Tournament, TournamentResult } from '../../types';
 import { MatchHighlight } from '../../utils/highlights';
@@ -51,7 +52,7 @@ const safeFormatDate = (dateStr: string | undefined, options: Intl.DateTimeForma
 
 const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { tournament: Tournament; results: any[]; profileMap: Record<string, string>; variant?: number }) => {
   const topCount = variant === 1 ? 8 : 3;
-  const topPlayers = results.slice(0, topCount);
+  const topPlayers = Array.isArray(results) ? results.slice(0, topCount) : [];
   const winner = topPlayers[0];
   const winnerId = winner?.profile_id || winner?.id || '';
 
@@ -63,7 +64,7 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
     { bg: 'linear-gradient(45deg, #12c2e9, #c471ed, #f64f59)', color: 'white', accent: '#fff', font: 'Inter' }, // Vibrant
   ];
 
-  const theme = themes[variant % themes.length];
+  const theme = themes[variant % themes.length] || themes[0];
   const isMagazine = variant === 3;
   const isStats = variant === 1;
 
@@ -88,13 +89,13 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
     >
       {isMagazine ? (
         <Box sx={{ width: '100%', height: '100%', textAlign: 'left', p: 4, display: 'flex', flexDirection: 'column' }}>
-           <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 180, mb: -4, color: theme?.accent, opacity: 0.1, position: 'absolute', top: 40, right: 40 }}>CHAMP</Typography>
+           <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 180, mb: -4, color: theme?.accent || 'primary.main', opacity: 0.1, position: 'absolute', top: 40, right: 40 }}>CHAMP</Typography>
            <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140, mb: 0, lineHeight: 0.9 }}>MÄSTAREN</Typography>
-           <Typography variant="h2" sx={{ fontWeight: 500, fontStyle: 'italic', mb: 8 }}>{tournament?.name}</Typography>
+           <Typography variant="h2" sx={{ fontWeight: 500, fontStyle: 'italic', mb: 8 }}>{tournament?.name || 'Turnering'}</Typography>
 
            <Box sx={{ mt: 'auto' }}>
               <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 1 }}>Vinnare</Typography>
-              <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120, color: theme?.accent, mb: 4 }}>
+              <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120, color: theme?.accent || 'primary.main', mb: 4 }}>
                 {profileMap?.[winnerId] || 'Okänd'}
               </Typography>
 
@@ -118,14 +119,14 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
         </Box>
       ) : (
         <Stack spacing={4} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
-          <EmojiEvents sx={{ fontSize: isStats ? 80 : 120, color: theme.accent, filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.2))' }} />
+          <EmojiEvents sx={{ fontSize: isStats ? 80 : 120, color: theme?.accent || 'gold', filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.2))' }} />
 
           <Box>
             <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1 }}>
               Mästare
             </Typography>
             <Typography variant="h4" sx={{ opacity: 0.9, fontWeight: 700 }}>
-              {tournament?.name}
+              {tournament?.name || 'Turnering'}
             </Typography>
           </Box>
 
@@ -153,24 +154,24 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
             </Typography>
             {isStats ? (
               <Stack spacing={1} sx={{ width: '90%', mx: 'auto' }}>
-                {results?.slice(0, 8).map((res, i) => (
-                   <Box key={res.profile_id || res.id} sx={{ display: 'flex', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: i === 0 ? `2px solid ${theme?.accent}` : 'none' }}>
-                     <Typography variant="h5" sx={{ fontWeight: 800 }}>{i + 1}. {profileMap?.[res.profile_id || res.id] || 'Okänd'}</Typography>
-                     <Typography variant="h5" sx={{ fontWeight: 800, color: theme?.accent }}>{res.points_for ?? res.totalPoints ?? 0}p</Typography>
+                {topPlayers.map((res, i) => (
+                   <Box key={res?.profile_id || res?.id || i} sx={{ display: 'flex', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: i === 0 ? `2px solid ${theme?.accent || 'transparent'}` : 'none' }}>
+                     <Typography variant="h5" sx={{ fontWeight: 800 }}>{i + 1}. {profileMap?.[res?.profile_id || res?.id] || 'Okänd'}</Typography>
+                     <Typography variant="h5" sx={{ fontWeight: 800, color: theme?.accent || 'inherit' }}>{res?.points_for ?? res?.totalPoints ?? 0}p</Typography>
                    </Box>
                 ))}
               </Stack>
             ) : (
               <Stack direction="row" spacing={4} justifyContent="center" alignItems="flex-end">
                 {topPlayers.map((res, i) => {
-                   const pid = res.profile_id || res.id || '';
+                   const pid = res?.profile_id || res?.id || '';
                    const isWinner = i === 0;
                    return (
-                     <Box key={pid} sx={{ textAlign: 'center', order: i === 0 ? 2 : (i === 1 ? 1 : 3) }}>
+                     <Box key={pid || i} sx={{ textAlign: 'center', order: i === 0 ? 2 : (i === 1 ? 1 : 3) }}>
                        <Box sx={{
                          height: isWinner ? 120 : (i === 1 ? 80 : 60),
                          width: 80,
-                         bgcolor: theme.accent,
+                         bgcolor: theme?.accent || 'grey.500',
                          mx: 'auto',
                          borderRadius: '8px 8px 0 0',
                          display: 'flex',
@@ -179,10 +180,10 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
                          mb: 1,
                          opacity: isWinner ? 1 : 0.6
                        }}>
-                         <Typography variant="h4" sx={{ fontWeight: 900, color: theme.bg }}>{i + 1}</Typography>
+                         <Typography variant="h4" sx={{ fontWeight: 900, color: theme?.bg || '#000' }}>{i + 1}</Typography>
                        </Box>
                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{profileMap?.[pid] || 'Okänd'}</Typography>
-                       <Typography variant="body1" sx={{ opacity: 0.7 }}>{res.points_for ?? res.totalPoints ?? 0}p</Typography>
+                       <Typography variant="body1" sx={{ opacity: 0.7 }}>{res?.points_for ?? res?.totalPoints ?? 0}p</Typography>
                      </Box>
                    );
                 })}
@@ -202,8 +203,8 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
 };
 
 const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: Match; highlight: MatchHighlight; variant?: number; deltas?: Record<string, number> }) => {
-  const team1Names = Array.isArray(match.team1) ? match.team1 : [match.team1];
-  const team2Names = Array.isArray(match.team2) ? match.team2 : [match.team2];
+  const team1Names = Array.isArray(match?.team1) ? match.team1 : [match?.team1 || 'Lag A'];
+  const team2Names = Array.isArray(match?.team2) ? match.team2 : [match?.team2 || 'Lag B'];
 
   const themes = [
     { bg: 'linear-gradient(180deg, #1a237e 0%, #0d47a1 100%)', color: 'white', accent: '#ffca28', font: 'Inter' }, // Classic Blue
@@ -213,7 +214,7 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
     { bg: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', color: 'white', accent: '#fff', font: 'Inter' }, // Emerald
   ];
 
-  const theme = themes[variant % themes.length];
+  const theme = themes[variant % themes.length] || themes[0];
   const isMagazine = variant === 3;
 
   return (
@@ -253,11 +254,11 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
            </Typography>
 
            <Stack spacing={4} sx={{ zIndex: 1, mt: 'auto', textAlign: 'left', width: '100%' }}>
-             <Typography variant="h2" sx={{ fontWeight: 900, color: theme?.accent, textTransform: 'uppercase', letterSpacing: '-0.02em' }}>
-               {highlight?.title}
+             <Typography variant="h2" sx={{ fontWeight: 900, color: theme?.accent || 'primary.main', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>
+               {highlight?.title || 'Match'}
              </Typography>
 
-             <Box sx={{ borderLeft: `12px solid ${theme?.accent}`, pl: 4, py: 2 }}>
+             <Box sx={{ borderLeft: `12px solid ${theme?.accent || 'primary.main'}`, pl: 4, py: 2 }}>
                <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120 }}>
                  {match?.team1_sets ?? 0} – {match?.team2_sets ?? 0}
                </Typography>
@@ -267,7 +268,7 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
              </Box>
 
              <Typography variant="h3" sx={{ fontStyle: 'italic', fontWeight: 400, maxWidth: '80%' }}>
-               "{highlight?.description}"
+               "{highlight?.description || ''}"
              </Typography>
 
              <Typography variant="h5" sx={{ mt: 4, fontWeight: 800, textTransform: 'uppercase' }}>
@@ -280,8 +281,8 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
           <GSLogo />
 
           <Box>
-            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1, color: theme?.accent }}>
-              {highlight?.title}
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1, color: theme?.accent || 'inherit' }}>
+              {highlight?.title || 'Match'}
             </Typography>
             <Typography variant="h5" sx={{ opacity: 0.8, fontWeight: 500 }}>
               {safeFormatDate(match?.created_at, { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -290,16 +291,20 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
 
           <Stack direction="row" spacing={4} alignItems="center" justifyContent="center" sx={{ width: '100%' }}>
             <Box sx={{ flex: 1, textAlign: 'right' }}>
-              {team1Names.map((name, i) => (
-                <Box key={i}>
-                  <Typography variant="h3" sx={{ fontWeight: 800 }}>{name}</Typography>
-                  {match?.team1_ids?.[i] !== undefined && deltas?.[match.team1_ids[i] || ''] !== undefined && (
-                    <Typography variant="h5" sx={{ color: theme?.accent, fontWeight: 700 }}>
-                      {deltas[match.team1_ids[i] || ''] >= 0 ? '+' : ''}{Math.round(deltas[match.team1_ids[i] || ''])} ELO
-                    </Typography>
-                  )}
-                </Box>
-              ))}
+              {team1Names.map((name, i) => {
+                const pid = match?.team1_ids?.[i];
+                const deltaValue = pid ? deltas?.[pid] : undefined;
+                return (
+                  <Box key={i}>
+                    <Typography variant="h3" sx={{ fontWeight: 800 }}>{name || '—'}</Typography>
+                    {deltaValue !== undefined && (
+                      <Typography variant="h5" sx={{ color: theme?.accent || 'inherit', fontWeight: 700 }}>
+                        {deltaValue >= 0 ? '+' : ''}{Math.round(deltaValue)} ELO
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
 
             <Box sx={{
@@ -311,26 +316,30 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
               boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
             }}>
               <Typography variant="h1" sx={{ fontWeight: 900, lineHeight: 1 }}>
-                {match.team1_sets} – {match.team2_sets}
+                {match?.team1_sets ?? 0} – {match?.team2_sets ?? 0}
               </Typography>
             </Box>
 
             <Box sx={{ flex: 1, textAlign: 'left' }}>
-              {team2Names.map((name, i) => (
-                <Box key={i}>
-                  <Typography variant="h3" sx={{ fontWeight: 800 }}>{name}</Typography>
-                  {match?.team2_ids?.[i] !== undefined && deltas?.[match.team2_ids[i] || ''] !== undefined && (
-                    <Typography variant="h5" sx={{ color: theme?.accent, fontWeight: 700 }}>
-                      {deltas[match.team2_ids[i] || ''] >= 0 ? '+' : ''}{Math.round(deltas[match.team2_ids[i] || ''])} ELO
-                    </Typography>
-                  )}
-                </Box>
-              ))}
+              {team2Names.map((name, i) => {
+                const pid = match?.team2_ids?.[i];
+                const deltaValue = pid ? deltas?.[pid] : undefined;
+                return (
+                  <Box key={i}>
+                    <Typography variant="h3" sx={{ fontWeight: 800 }}>{name || '—'}</Typography>
+                    {deltaValue !== undefined && (
+                      <Typography variant="h5" sx={{ color: theme?.accent || 'inherit', fontWeight: 700 }}>
+                        {deltaValue >= 0 ? '+' : ''}{Math.round(deltaValue)} ELO
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
           </Stack>
 
           <Typography variant="h4" sx={{ maxWidth: '85%', fontStyle: 'italic', opacity: 0.9, fontWeight: 500 }}>
-            "{highlight.description}"
+            "{highlight?.description || ''}"
           </Typography>
 
           <Box sx={{ mt: 4 }}>
@@ -353,7 +362,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
     { bg: 'linear-gradient(45deg, #8e2de2, #4a00e0)', color: 'white', accent: '#00f2fe', font: 'Inter' }, // Neon
   ];
 
-  const theme = themes[variant % themes.length];
+  const theme = themes[variant % themes.length] || themes[0];
   const isMagazine = variant === 3;
   const isDetailed = variant === 1;
 
@@ -377,11 +386,11 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
     >
       {isMagazine ? (
         <Box sx={{ width: '100%', height: '100%', textAlign: 'left', p: 4, display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 180, mb: -4, color: theme?.accent, opacity: 0.8 }}>RECAP</Typography>
+          <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 180, mb: -4, color: theme?.accent || 'primary.main', opacity: 0.8 }}>RECAP</Typography>
           <Typography variant="h2" sx={{ fontWeight: 900, fontSize: 100, mb: 4 }}>MATCHDAY</Typography>
 
           <Box sx={{ mt: 'auto', borderTop: '8px solid black', pt: 4 }}>
-             <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140 }}>{data?.scoreline}</Typography>
+             <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140 }}>{data?.scoreline || '0–0'}</Typography>
              <Typography variant="h4" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 2 }}>Resultat</Typography>
 
              <Stack direction="row" spacing={8} sx={{ mb: 4 }}>
@@ -395,7 +404,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
                 </Box>
              </Stack>
 
-             <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', color: theme?.accent }}>
+             <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', color: theme?.accent || 'primary.main' }}>
                {safeFormatDate(data?.createdAt, { weekday: 'long', day: 'numeric', month: 'long' })}
              </Typography>
           </Box>
@@ -404,11 +413,11 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
         <Stack spacing={isDetailed ? 3 : 6} alignItems="center" sx={{ width: '100%' }}>
           <GSLogo />
           <Box>
-            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme?.accent }}>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme?.accent || 'inherit' }}>
               Match-recap
             </Typography>
             <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140 }}>
-              {data?.scoreline}
+              {data?.scoreline || '0–0'}
             </Typography>
           </Box>
 
@@ -418,7 +427,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
               {data?.teamA?.players?.map((p: any, i: number) => (
                 <Box key={p?.id || i} sx={{ mb: 2 }}>
                   <Typography variant="h3" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
-                  <Typography variant="h5" sx={{ color: theme?.accent, fontWeight: 700 }}>
+                  <Typography variant="h5" sx={{ color: theme?.accent || 'inherit', fontWeight: 700 }}>
                     {(p?.delta ?? 0) >= 0 ? '+' : ''}{p?.delta ?? 0} ELO
                   </Typography>
                   {isDetailed && (
@@ -432,7 +441,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
               {data?.teamB?.players?.map((p: any, i: number) => (
                 <Box key={p?.id || i} sx={{ mb: 2 }}>
                   <Typography variant="h3" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
-                  <Typography variant="h5" sx={{ color: theme?.accent, fontWeight: 700 }}>
+                  <Typography variant="h5" sx={{ color: theme?.accent || 'inherit', fontWeight: 700 }}>
                     {(p?.delta ?? 0) >= 0 ? '+' : ''}{p?.delta ?? 0} ELO
                   </Typography>
                   {isDetailed && (
@@ -449,7 +458,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
               p: 2,
               borderRadius: 2,
               flex: 1,
-              border: isDetailed ? `2px solid ${theme?.accent}` : 'none'
+              border: isDetailed ? `2px solid ${theme?.accent || 'transparent'}` : 'none'
             }}>
                <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Fairness</Typography>
                <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.fairness ?? 0}%</Typography>
@@ -459,7 +468,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
               p: 2,
               borderRadius: 2,
               flex: 1,
-              border: isDetailed ? `2px solid ${theme?.accent}` : 'none'
+              border: isDetailed ? `2px solid ${theme?.accent || 'transparent'}` : 'none'
             }}>
                <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Vinstchans Lag A</Typography>
                <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round((data?.winProbability ?? 0) * 100)}%</Typography>
@@ -470,7 +479,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
                 p: 2,
                 borderRadius: 2,
                 flex: 1,
-                border: `2px solid ${theme?.accent}`
+                border: `2px solid ${theme?.accent || 'transparent'}`
               }}>
                  <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Serve A</Typography>
                  <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.team1ServesFirst ? 'JA' : 'NEJ'}</Typography>
@@ -492,7 +501,7 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
     { bg: 'linear-gradient(45deg, #f12711, #f5af19)', color: 'white', accent: '#fff', font: 'Inter' }, // Fire
   ];
 
-  const theme = themes[variant % themes.length];
+  const theme = themes[variant % themes.length] || themes[0];
   const isFacts = variant === 2;
   const isMagazine = variant === 3;
 
@@ -516,17 +525,17 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
     >
       {isMagazine ? (
         <Box sx={{ width: '100%', height: '100%', textAlign: 'left', p: 4, display: 'flex', flexDirection: 'column' }}>
-           <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120, mb: 2, textTransform: 'uppercase' }}>{data?.dateLabel}</Typography>
+           <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120, mb: 2, textTransform: 'uppercase' }}>{data?.dateLabel || 'Recap'}</Typography>
            <Typography variant="h4" sx={{ fontWeight: 500, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 8 }}>Kvällens sammanfattning</Typography>
 
            <Grid container spacing={4}>
               <Grid size={{ xs: 6 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2, color: theme?.accent }}>Mästaren</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2, color: theme?.accent || 'primary.main' }}>Mästaren</Typography>
                 <Typography variant="h2" sx={{ fontWeight: 900 }}>{data?.mvp?.name || '—'}</Typography>
                 <Typography variant="h4" sx={{ opacity: 0.6 }}>{data?.mvp?.wins ?? 0} vinster</Typography>
               </Grid>
               <Grid size={{ xs: 6 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2, color: theme?.accent }}>Statistik</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2, color: theme?.accent || 'primary.main' }}>Statistik</Typography>
                 <Typography variant="h3" sx={{ fontWeight: 800 }}>{data?.matches ?? 0} Matcher</Typography>
                 <Typography variant="h3" sx={{ fontWeight: 800 }}>{data?.totalSets ?? 0} Sets</Typography>
               </Grid>
@@ -548,13 +557,13 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
         </Box>
       ) : isFacts ? (
         <Stack spacing={4} sx={{ width: '100%' }}>
-          <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme?.accent }}>Highlights</Typography>
+          <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme?.accent || 'inherit' }}>Highlights</Typography>
 
           <Grid container spacing={3}>
              <Grid size={{ xs: 12 }}>
                 <Paper sx={{ p: 4, borderRadius: 4, textAlign: 'center', bgcolor: 'white' }}>
                    <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800 }}>KVÄLLENS MVP</Typography>
-                   <Typography variant="h2" sx={{ fontWeight: 900, color: theme?.accent }}>{data?.mvp?.name || '—'}</Typography>
+                   <Typography variant="h2" sx={{ fontWeight: 900, color: theme?.accent || 'primary.main' }}>{data?.mvp?.name || '—'}</Typography>
                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{data?.mvp?.wins ?? 0} Vinster • {Math.round((data?.mvp?.winRate || 0) * 100)}% Winrate</Typography>
                 </Paper>
              </Grid>
@@ -562,9 +571,9 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
                 <Paper sx={{ p: 3, borderRadius: 4, bgcolor: 'white', height: '100%' }}>
                    <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800 }}>MEST ROTATIONER</Typography>
                    {data?.funFacts?.mostRotations?.slice(0, 3).map((p: any, i: number) => (
-                     <Box key={p.id || i} sx={{ mb: 1, textAlign: 'left' }}>
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{i+1}. {p.name}</Typography>
-                        <Typography variant="body2">{p.rotations} olika partners</Typography>
+                     <Box key={p?.id || i} sx={{ mb: 1, textAlign: 'left' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{i+1}. {p?.name || '—'}</Typography>
+                        <Typography variant="body2">{p?.rotations ?? 0} olika partners</Typography>
                      </Box>
                    ))}
                 </Paper>
@@ -573,9 +582,9 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
                 <Paper sx={{ p: 3, borderRadius: 4, bgcolor: 'white', height: '100%' }}>
                    <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800 }}>STARKAST</Typography>
                    {data?.funFacts?.strongest?.slice(0, 3).map((p: any, i: number) => (
-                     <Box key={p.id || i} sx={{ mb: 1, textAlign: 'left' }}>
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{i+1}. {p.name}</Typography>
-                        <Typography variant="body2">{Math.round((p.winRate || 0) * 100)}% Winrate</Typography>
+                     <Box key={p?.id || i} sx={{ mb: 1, textAlign: 'left' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{i+1}. {p?.name || '—'}</Typography>
+                        <Typography variant="body2">{Math.round((p?.winRate || 0) * 100)}% Winrate</Typography>
                      </Box>
                    ))}
                 </Paper>
@@ -589,16 +598,16 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
                </Grid>
              )}
           </Grid>
-          <Typography variant="h6" sx={{ fontWeight: 800, opacity: 0.4 }}>{data?.dateLabel}</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 800, opacity: 0.4 }}>{data?.dateLabel || '—'}</Typography>
         </Stack>
       ) : (
         <Stack spacing={6} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
           <GSLogo />
           <Box>
-            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme?.accent }}>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', mb: 1, color: theme?.accent || 'inherit' }}>
               Kvällsrecap
             </Typography>
-            <Typography variant="h4" sx={{ opacity: 0.9, fontWeight: 700 }}>{data?.dateLabel}</Typography>
+            <Typography variant="h4" sx={{ opacity: 0.9, fontWeight: 700 }}>{data?.dateLabel || '—'}</Typography>
           </Box>
 
           <Stack direction="row" spacing={8}>
@@ -633,9 +642,9 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
             <Typography variant="h4" sx={{ fontWeight: 800, mb: 3, opacity: 0.6, textTransform: 'uppercase' }}>Topplista vinster</Typography>
             <Stack direction="row" spacing={4} justifyContent="center">
                {data?.leaders?.slice(0, 3).map((p: any, i: number) => (
-                 <Box key={p.id || i} sx={{ minWidth: 150 }}>
-                   <Typography variant="h3" sx={{ fontWeight: 900, color: theme?.accent }}>{p.wins} V</Typography>
-                   <Typography variant="h5" sx={{ fontWeight: 700 }}>{p.name}</Typography>
+                 <Box key={p?.id || i} sx={{ minWidth: 150 }}>
+                   <Typography variant="h3" sx={{ fontWeight: 900, color: theme?.accent || 'inherit' }}>{p?.wins ?? 0} V</Typography>
+                   <Typography variant="h5" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
                  </Box>
                ))}
             </Stack>
