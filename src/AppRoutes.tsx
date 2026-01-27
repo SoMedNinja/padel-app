@@ -17,7 +17,7 @@ export default function AppRoutes() {
       <Route path="/grabbarnas-serie" element={<Dashboard />} />
       <Route path="/dashboard" element={<Navigate to="/grabbarnas-serie" replace />} />
       <Route path="/history" element={<HistoryPage />} />
-      <Route path="/tournament" element={<TournamentPage />} />
+      {!isGuest && <Route path="/tournament" element={<TournamentPage />} />}
       <Route path="/profile" element={<Navigate to="/" replace />} />
       <Route path="/mexicana" element={<Navigate to="/tournament" replace />} />
       {!isGuest && <Route path="/single-game" element={<SingleGamePage />} />}

@@ -215,10 +215,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
             <ListItemText>Enkel match</ListItemText>
           </MenuItem>
         )}
-        <MenuItem onClick={() => { navigate("/tournament"); handleFabClose(); }}>
-          <ListItemIcon><TrophyIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Turnering</ListItemText>
-        </MenuItem>
+        {!isGuest && (
+          <MenuItem onClick={() => { navigate("/tournament"); handleFabClose(); }}>
+            {/* Note for non-coders: guests don't see the tournament option since they can't create one. */}
+            <ListItemIcon><TrophyIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Turnering</ListItemText>
+          </MenuItem>
+        )}
       </Menu>
 
       <BottomNav

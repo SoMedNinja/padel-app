@@ -157,8 +157,9 @@ export default function PlayerProfilePage() {
 
               {activeTab === 2 && (
                 <Box id="team-combos" component="section">
+                  {/* Note for non-coders: the global filter now updates which matches feed these combos. */}
                   <Heatmap
-                    matches={allMatches}
+                    matches={filteredMatches}
                     profiles={profiles}
                     eloPlayers={eloPlayers}
                     currentUserOnly={user?.id}

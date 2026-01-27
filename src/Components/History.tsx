@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getIdDisplayName,
@@ -34,7 +34,6 @@ import {
   Save as SaveIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
-import { useVirtualWindow } from "../hooks/useVirtualWindow";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -87,17 +86,17 @@ export default function History({
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
+  const [visibleCount, setVisibleCount] = useState<number>(10);
+
+  useEffect(() => {
+    // Note for non-coders: we reset pagination when the match list changes.
+    setVisibleCount(10);
+  }, [matches.length]);
 
   const sortedMatches = useMemo(
     () => [...matches].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [matches]
   );
-
-  const { parentRef, totalSize, virtualItems, measureElement } = useVirtualWindow({
-    itemCount: sortedMatches.length,
-    estimateSize: 320,
-  });
-
 
   if (!matches.length) return <Typography>Inga matcher ännu.</Typography>;
 
@@ -256,218 +255,208 @@ export default function History({
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Tidigare matcher</Typography>
           <Typography variant="caption" color="text.secondary">
-            Visar {sortedMatches.length} matcher. Senaste först.
+            Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher. Senaste först.
           </Typography>
         </Box>
       </Box>
 
-      {/* Note for non-coders: the list only renders nearby cards so big histories stay fast. */}
-      <Box ref={parentRef} sx={{ maxHeight: { xs: 620, md: 760 }, overflow: 'auto', pr: { xs: 0, sm: 1 } }}>
-        <Box sx={{ height: totalSize, position: 'relative' }}>
-          {virtualItems.map(virtualItem => {
-            const m = sortedMatches[virtualItem.index];
-            const teamAEntries = buildTeamEntries(m, "team1", "team1_ids");
-            const teamBEntries = buildTeamEntries(m, "team2", "team2_ids");
-            const date = m.created_at?.slice(0, 10);
-            const isEditing = editingId === m.id;
+      <Stack spacing={2}>
+        {visibleMatches.map(m => {
+          const teamAEntries = buildTeamEntries(m, "team1", "team1_ids");
+          const teamBEntries = buildTeamEntries(m, "team2", "team2_ids");
+          const date = m.created_at?.slice(0, 10);
+          const isEditing = editingId === m.id;
 
-            const tournamentType = m.source_tournament_type || "standalone";
-            const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
+          const tournamentType = m.source_tournament_type || "standalone";
+          const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
 
-            const matchDeltas = eloDeltaByMatch[m.id] || {};
+          const matchDeltas = eloDeltaByMatch[m.id] || {};
 
-            return (
-              <Box
-                key={m.id}
-                ref={measureElement(virtualItem.index)}
-                data-index={virtualItem.index}
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualItem.start}px)`,
-                  pb: 2,
-                }}
-              >
-                <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
-                  <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                    <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Chip label={typeLabel} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, mr: 1 }} />
-                        <Typography variant="caption" color="text.secondary">
-                          {isEditing ? (
-                            <TextField
-                              type="datetime-local"
-                              size="small"
-                              value={edit?.created_at || ""}
-                              onChange={(e) => setEdit(prev => prev ? { ...prev, created_at: e.target.value } : prev)}
-                              sx={{ mt: 1 }}
-                            />
-                          ) : (
-                            `Datum: ${date}`
-                          )}
-                        </Typography>
-                      </Box>
-                      {!isEditing && (
-                        <Stack direction="row" spacing={1}>
-                          {canEdit && (
-                            <Button size="small" startIcon={<EditIcon />} onClick={() => startEdit(m)}>
-                              Ändra
-                            </Button>
-                          )}
-                          {canDelete(m) && (
-                            <IconButton size="small" color="error" onClick={() => deleteMatch(m.id)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          )}
-                        </Stack>
+          return (
+            <Card key={m.id} variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box>
+                    <Chip label={typeLabel} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, mr: 1 }} />
+                    <Typography variant="caption" color="text.secondary">
+                      {isEditing ? (
+                        <TextField
+                          type="datetime-local"
+                          size="small"
+                          value={edit?.created_at || ""}
+                          onChange={(e) => setEdit(prev => prev ? { ...prev, created_at: e.target.value } : prev)}
+                          sx={{ mt: 1 }}
+                        />
+                      ) : (
+                        `Datum: ${date}`
                       )}
-                    </Box>
+                    </Typography>
+                  </Box>
+                  {!isEditing && (
+                    <Stack direction="row" spacing={1}>
+                      {canEdit && (
+                        <Button size="small" startIcon={<EditIcon />} onClick={() => startEdit(m)}>
+                          Ändra
+                        </Button>
+                      )}
+                      {canDelete(m) && (
+                        <IconButton size="small" color="error" onClick={() => deleteMatch(m.id)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Stack>
+                  )}
+                </Box>
 
-                    <Grid container spacing={3}>
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
-                        {isEditing ? (
-                          <Stack spacing={1} sx={{ mt: 1 }}>
-                            <TextField
-                              select
-                              label="Typ"
-                              size="small"
-                              value={edit?.score_type || "sets"}
-                              onChange={(e) => setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
-                            >
-                              <MenuItem value="sets">Set</MenuItem>
-                              <MenuItem value="points">Poäng</MenuItem>
-                            </TextField>
-                            {edit?.score_type === "points" && (
-                              <TextField
-                                label="Mål"
-                                type="number"
-                                size="small"
-                                value={edit?.score_target ?? ""}
-                                onChange={(e) => setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
-                              />
-                            )}
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <TextField
-                                type="number"
-                                size="small"
-                                value={edit?.team1_sets ?? 0}
-                                onChange={(e) => setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
-                              />
-                              <Typography>–</Typography>
-                              <TextField
-                                type="number"
-                                size="small"
-                                value={edit?.team2_sets ?? 0}
-                                onChange={(e) => setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
-                              />
-                            </Stack>
-                          </Stack>
-                        ) : (
-                          <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatScore(m)}</Typography>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
+                    {isEditing ? (
+                      <Stack spacing={1} sx={{ mt: 1 }}>
+                        <TextField
+                          select
+                          label="Typ"
+                          size="small"
+                          value={edit?.score_type || "sets"}
+                          onChange={(e) => setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
+                        >
+                          <MenuItem value="sets">Set</MenuItem>
+                          <MenuItem value="points">Poäng</MenuItem>
+                        </TextField>
+                        {edit?.score_type === "points" && (
+                          <TextField
+                            label="Mål"
+                            type="number"
+                            size="small"
+                            value={edit?.score_target ?? ""}
+                            onChange={(e) => setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
+                          />
                         )}
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag A</Typography>
-                        {isEditing ? (
-                          <Stack spacing={1} sx={{ mt: 1 }}>
-                            {edit?.team1_ids.map((value, index) => (
-                              <TextField
-                                key={`team1-${index}`}
-                                select
-                                size="small"
-                                value={value || ""}
-                                onChange={(e) => updateTeam("team1_ids", index, e.target.value)}
-                              >
-                                <MenuItem value="">Välj spelare</MenuItem>
-                                {playerOptions.map(option => (
-                                  <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
-                                ))}
-                              </TextField>
-                            ))}
-                          </Stack>
-                        ) : (
-                          <List disablePadding sx={{ mt: 1 }}>
-                            {teamAEntries.map(entry => {
-                              const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                              const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
-                              return (
-                                <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
-                                  <ListItemText
-                                    primary={entry.name}
-                                    secondary={`ELO: ${formatElo(currentElo)}`}
-                                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                    secondaryTypographyProps={{ variant: 'caption' }}
-                                  />
-                                  <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                    {formatDelta(delta)}
-                                  </Typography>
-                                </ListItem>
-                              );
-                            })}
-                          </List>
-                        )}
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 4 }}>
-                        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag B</Typography>
-                        {isEditing ? (
-                          <Stack spacing={1} sx={{ mt: 1 }}>
-                            {edit?.team2_ids.map((value, index) => (
-                              <TextField
-                                key={`team2-${index}`}
-                                select
-                                size="small"
-                                value={value || ""}
-                                onChange={(e) => updateTeam("team2_ids", index, e.target.value)}
-                              >
-                                <MenuItem value="">Välj spelare</MenuItem>
-                                {playerOptions.map(option => (
-                                  <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
-                                ))}
-                              </TextField>
-                            ))}
-                          </Stack>
-                        ) : (
-                          <List disablePadding sx={{ mt: 1 }}>
-                            {teamBEntries.map(entry => {
-                              const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                              const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
-                              return (
-                                <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
-                                  <ListItemText
-                                    primary={entry.name}
-                                    secondary={`ELO: ${formatElo(currentElo)}`}
-                                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                    secondaryTypographyProps={{ variant: 'caption' }}
-                                  />
-                                  <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                    {formatDelta(delta)}
-                                  </Typography>
-                                </ListItem>
-                              );
-                            })}
-                          </List>
-                        )}
-                      </Grid>
-                    </Grid>
-
-                    {isEditing && (
-                      <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
-                        <Button variant="contained" startIcon={<SaveIcon />} onClick={() => saveEdit(m.id)}>Spara</Button>
-                        <Button variant="outlined" startIcon={<CloseIcon />} onClick={cancelEdit}>Avbryt</Button>
-                      </Box>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={edit?.team1_sets ?? 0}
+                            onChange={(e) => setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
+                          />
+                          <Typography>–</Typography>
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={edit?.team2_sets ?? 0}
+                            onChange={(e) => setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
+                          />
+                        </Stack>
+                      </Stack>
+                    ) : (
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatScore(m)}</Typography>
                     )}
-                  </CardContent>
-                </Card>
-              </Box>
-            );
-          })}
+                  </Grid>
+
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag A</Typography>
+                    {isEditing ? (
+                      <Stack spacing={1} sx={{ mt: 1 }}>
+                        {edit?.team1_ids.map((value, index) => (
+                          <TextField
+                            key={`team1-${index}`}
+                            select
+                            size="small"
+                            value={value || ""}
+                            onChange={(e) => updateTeam("team1_ids", index, e.target.value)}
+                          >
+                            <MenuItem value="">Välj spelare</MenuItem>
+                            {playerOptions.map(option => (
+                              <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                            ))}
+                          </TextField>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <List disablePadding sx={{ mt: 1 }}>
+                        {teamAEntries.map(entry => {
+                          const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                          const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                          return (
+                            <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
+                              <ListItemText
+                                primary={entry.name}
+                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                {formatDelta(delta)}
+                              </Typography>
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
+                  </Grid>
+
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag B</Typography>
+                    {isEditing ? (
+                      <Stack spacing={1} sx={{ mt: 1 }}>
+                        {edit?.team2_ids.map((value, index) => (
+                          <TextField
+                            key={`team2-${index}`}
+                            select
+                            size="small"
+                            value={value || ""}
+                            onChange={(e) => updateTeam("team2_ids", index, e.target.value)}
+                          >
+                            <MenuItem value="">Välj spelare</MenuItem>
+                            {playerOptions.map(option => (
+                              <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                            ))}
+                          </TextField>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <List disablePadding sx={{ mt: 1 }}>
+                        {teamBEntries.map(entry => {
+                          const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                          const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                          return (
+                            <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
+                              <ListItemText
+                                primary={entry.name}
+                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                {formatDelta(delta)}
+                              </Typography>
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
+                  </Grid>
+                </Grid>
+
+                {isEditing && (
+                  <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
+                    <Button variant="contained" startIcon={<SaveIcon />} onClick={() => saveEdit(m.id)}>Spara</Button>
+                    <Button variant="outlined" startIcon={<CloseIcon />} onClick={cancelEdit}>Avbryt</Button>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </Stack>
+
+      {canLoadMore && (
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+          <Button variant="outlined" onClick={() => setVisibleCount(count => count + 10)}>
+            Visa fler matcher
+          </Button>
         </Box>
-      </Box>
+      )}
 
       <Typography variant="caption" color="text.secondary" sx={{ mt: 4, display: 'block', textAlign: 'center' }}>
         * Rättigheter styrs av databasen (RLS). Endast administratörer kan redigera matcher.
@@ -475,3 +464,5 @@ export default function History({
     </Box>
   );
 }
+  const visibleMatches = sortedMatches.slice(0, visibleCount);
+  const canLoadMore = visibleCount < sortedMatches.length;

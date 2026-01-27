@@ -370,7 +370,7 @@ do $$
 begin
   alter table mexicana_tournaments
     add constraint tournaments_status_valid
-    check (status in ('draft', 'active', 'completed'));
+    check (status in ('draft', 'in_progress', 'completed', 'abandoned'));
 exception
   when duplicate_object then null;
 end $$;

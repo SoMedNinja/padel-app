@@ -79,6 +79,7 @@ export default function Heatmap({
     return map;
   }, [profiles]);
   const eloMap = useMemo(() => {
+    // Note for non-coders: we always use the all-time ELO values, even if matches are filtered.
     return new Map<string, number>(eloPlayers.map(player => [player.name, player.elo]));
   }, [eloPlayers]);
 

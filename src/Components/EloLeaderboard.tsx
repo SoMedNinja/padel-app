@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
-import { PlayerStats } from "../types";
+import { Match, PlayerStats, Profile } from "../types";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
+import { calculateElo } from "../utils/elo";
 import {
   Tooltip,
   IconButton,
@@ -27,16 +28,42 @@ const winPct = (wins: number, losses: number) =>
 
 interface EloLeaderboardProps {
   players?: PlayerStats[];
+  matches?: Match[];
+  profiles?: Profile[];
 }
 
-export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
+export default function EloLeaderboard({ players = [], matches = [], profiles = [] }: EloLeaderboardProps) {
   const [sortKey, setSortKey] = useState<string>("elo");
   const [asc, setAsc] = useState<boolean>(false);
 
-  const hasUnknownPlayers = players.some(player => !player.name || player.name === "Okänd");
-  const showLoadingOverlay = !players.length || hasUnknownPlayers;
+  const filteredPlayers = useMemo(() => {
+    if (!matches.length || !profiles.length) return [];
+    // Note for non-coders: this recalculates win/loss stats for the current filter only.
+    return calculateElo(matches, profiles);
+  }, [matches, profiles]);
 
-  const visiblePlayers = players.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
+  const filteredStatsById = useMemo(() => {
+    return new Map(filteredPlayers.map(player => [player.id, player]));
+  }, [filteredPlayers]);
+
+  const mergedPlayers = useMemo(() => {
+    return players.map(player => {
+      const filtered = filteredStatsById.get(player.id);
+      return {
+        ...player,
+        // Note for non-coders: keep the all-time ELO, but swap in filtered wins/losses.
+        wins: filtered?.wins ?? 0,
+        losses: filtered?.losses ?? 0,
+        games: filtered?.games ?? 0,
+        recentResults: filtered?.recentResults ?? [],
+      };
+    });
+  }, [players, filteredStatsById]);
+
+  const hasUnknownPlayers = mergedPlayers.some(player => !player.name || player.name === "Okänd");
+  const showLoadingOverlay = !mergedPlayers.length || hasUnknownPlayers;
+
+  const visiblePlayers = mergedPlayers.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
 
   const sortedPlayers = [...visiblePlayers].sort((a, b) => {
     if (sortKey === "name") {
