@@ -375,50 +375,55 @@ export interface PlayerBadgeStats {
   mexicanoWins: number;
 }
 
-export const buildPlayerBadgeStats = (
+/**
+ * Builds badge stats for all players in a single pass over matches.
+ * Performance: O(M + P) instead of O(M * P)
+ */
+export const buildAllPlayersBadgeStats = (
   matches: Match[] = [],
   profiles: Profile[] = [],
-  playerId: string | null,
   nameToIdMap: Map<string, string> | Record<string, string> = {},
   tournamentResults: any[] = []
-): PlayerBadgeStats | null => {
-  if (!playerId) return null;
-
+): Record<string, PlayerBadgeStats> => {
   const safeMatches = Array.isArray(matches) ? matches : [];
   const safeProfiles = Array.isArray(profiles) ? profiles : [];
   const mapObj = nameToIdMap instanceof Map ? nameToIdMap : new Map(Object.entries(nameToIdMap));
 
   const eloMap: Record<string, EloMapEntry> = {};
+  const statsMap: Record<string, PlayerBadgeStats> = {};
+  const partnerSets: Record<string, Set<string>> = {};
+  const opponentSets: Record<string, Set<string>> = {};
+
+  // Initialize for all profiles
   safeProfiles.forEach(profile => {
     eloMap[profile.id] = { elo: ELO_BASELINE, games: 0 };
+    statsMap[profile.id] = {
+      matchesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      currentWinStreak: 0,
+      bestWinStreak: 0,
+      firstWinVsHigherEloAt: null,
+      biggestUpsetEloGap: 0,
+      currentElo: ELO_BASELINE,
+      matchesLast30Days: 0,
+      marathonMatches: 0,
+      quickWins: 0,
+      closeWins: 0,
+      cleanSheets: 0,
+      nightOwlMatches: 0,
+      earlyBirdMatches: 0,
+      uniquePartners: 0,
+      uniqueOpponents: 0,
+      tournamentsPlayed: 0,
+      tournamentWins: 0,
+      tournamentPodiums: 0,
+      americanoWins: 0,
+      mexicanoWins: 0
+    };
+    partnerSets[profile.id] = new Set();
+    opponentSets[profile.id] = new Set();
   });
-
-  const stats: PlayerBadgeStats = {
-    matchesPlayed: 0,
-    wins: 0,
-    losses: 0,
-    currentWinStreak: 0,
-    bestWinStreak: 0,
-    firstWinVsHigherEloAt: null,
-    biggestUpsetEloGap: 0,
-    currentElo: ELO_BASELINE,
-    matchesLast30Days: 0,
-    marathonMatches: 0,
-    quickWins: 0,
-    closeWins: 0,
-    cleanSheets: 0,
-    nightOwlMatches: 0,
-    earlyBirdMatches: 0,
-    uniquePartners: 0,
-    uniqueOpponents: 0,
-    tournamentsPlayed: 0,
-    tournamentWins: 0,
-    tournamentPodiums: 0,
-    americanoWins: 0,
-    mexicanoWins: 0
-  };
-  const partnerSet = new Set<string>();
-  const opponentSet = new Set<string>();
 
   const sortedMatches = [...safeMatches].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -452,24 +457,54 @@ export const buildPlayerBadgeStats = (
     const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
     const matchWeight = getMatchWeight(match);
 
-    const isTeam1 = team1.includes(playerId);
-    const isTeam2 = team2.includes(playerId);
+    const matchDate = match.created_at ? new Date(match.created_at) : null;
+    const setsA = Number(match.team1_sets);
+    const setsB = Number(match.team2_sets);
+    const maxSets = Math.max(setsA, setsB);
+    const margin = Math.abs(setsA - setsB);
+    const scoreType = match.score_type || "sets";
 
-    if (isTeam1 || isTeam2) {
-      const playerPreElo = eloMap[playerId]?.elo ?? ELO_BASELINE;
+    // Helper to update individual player stats
+    const updateStats = (id: string, isTeam1: boolean) => {
+      // Create stats object if it doesn't exist (e.g. for players not in initial profiles list)
+      if (!statsMap[id]) {
+        statsMap[id] = {
+          matchesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          currentWinStreak: 0,
+          bestWinStreak: 0,
+          firstWinVsHigherEloAt: null,
+          biggestUpsetEloGap: 0,
+          currentElo: ELO_BASELINE,
+          matchesLast30Days: 0,
+          marathonMatches: 0,
+          quickWins: 0,
+          closeWins: 0,
+          cleanSheets: 0,
+          nightOwlMatches: 0,
+          earlyBirdMatches: 0,
+          uniquePartners: 0,
+          uniqueOpponents: 0,
+          tournamentsPlayed: 0,
+          tournamentWins: 0,
+          tournamentPodiums: 0,
+          americanoWins: 0,
+          mexicanoWins: 0
+        };
+        partnerSets[id] = new Set();
+        opponentSets[id] = new Set();
+      }
+
+      const stats = statsMap[id];
+      const playerPreElo = eloMap[id]?.elo ?? ELO_BASELINE;
       const opponentAvg = isTeam1 ? e2 : e1;
-      const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
-      const matchDate = match.created_at ? new Date(match.created_at) : null;
-      const setsA = Number(match.team1_sets);
-      const setsB = Number(match.team2_sets);
-      const maxSets = Math.max(setsA, setsB);
-      const margin = Math.abs(setsA - setsB);
-      const scoreType = match.score_type || "sets";
+      const playerWon = (isTeam1 && team1Won) || (!isTeam1 && !team1Won);
 
       const playerTeam = isTeam1 ? team1 : team2;
       const opponentTeam = isTeam1 ? team2 : team1;
-      playerTeam.filter(id => id && id !== playerId).forEach(id => partnerSet.add(id));
-      opponentTeam.forEach(id => opponentSet.add(id));
+      playerTeam.filter(pid => pid && pid !== id).forEach(pid => partnerSets[id].add(pid));
+      opponentTeam.forEach(pid => opponentSets[id].add(pid));
 
       if (scoreType === "sets") {
         if (maxSets >= 6) stats.marathonMatches += 1;
@@ -493,10 +528,10 @@ export const buildPlayerBadgeStats = (
         stats.wins += 1;
         stats.currentWinStreak += 1;
         stats.bestWinStreak = Math.max(stats.bestWinStreak, stats.currentWinStreak);
-        if (opponentAvg > playerPreElo && !stats.firstWinVsHigherEloAt) {
-          stats.firstWinVsHigherEloAt = match.created_at || null;
-          stats.biggestUpsetEloGap = Math.round(opponentAvg - playerPreElo);
-        } else if (opponentAvg > playerPreElo) {
+        if (opponentAvg > playerPreElo) {
+          if (!stats.firstWinVsHigherEloAt) {
+            stats.firstWinVsHigherEloAt = match.created_at || null;
+          }
           stats.biggestUpsetEloGap = Math.max(
             stats.biggestUpsetEloGap,
             Math.round(opponentAvg - playerPreElo)
@@ -506,8 +541,12 @@ export const buildPlayerBadgeStats = (
         stats.losses += 1;
         stats.currentWinStreak = 0;
       }
-    }
+    };
 
+    team1.forEach(id => updateStats(id, true));
+    team2.forEach(id => updateStats(id, false));
+
+    // Update ELO for next matches
     team1.forEach(id => {
       const player = eloMap[id];
       const playerK = getKFactor(player.games);
@@ -533,22 +572,48 @@ export const buildPlayerBadgeStats = (
     });
   });
 
-  stats.currentElo = Math.round(eloMap[playerId]?.elo ?? ELO_BASELINE);
-  stats.uniquePartners = partnerSet.size;
-  stats.uniqueOpponents = opponentSet.size;
-
   const tournamentEntries = Array.isArray(tournamentResults) ? tournamentResults : [];
-  const playerTournamentResults = tournamentEntries.filter(
-    (entry: any) => entry?.profile_id === playerId
-  );
-  const tournamentIds = new Set(playerTournamentResults.map((entry: any) => entry.tournament_id));
-  stats.tournamentsPlayed = tournamentIds.size;
-  stats.tournamentWins = playerTournamentResults.filter((entry: any) => entry.rank === 1).length;
-  stats.tournamentPodiums = playerTournamentResults.filter((entry: any) => entry.rank <= 3).length;
-  stats.americanoWins = playerTournamentResults.filter((entry: any) => entry.rank === 1 && entry.tournament_type === 'americano').length;
-  stats.mexicanoWins = playerTournamentResults.filter((entry: any) => entry.rank === 1 && entry.tournament_type === 'mexicano').length;
+  const tournamentResultsByPlayer: Record<string, any[]> = {};
 
-  return stats;
+  // Group tournament results by player for O(T) pass
+  tournamentEntries.forEach(entry => {
+    if (entry?.profile_id) {
+      if (!tournamentResultsByPlayer[entry.profile_id]) {
+        tournamentResultsByPlayer[entry.profile_id] = [];
+      }
+      tournamentResultsByPlayer[entry.profile_id].push(entry);
+    }
+  });
+
+  // Finalize stats in O(P) pass
+  Object.keys(statsMap).forEach(id => {
+    const stats = statsMap[id];
+    stats.currentElo = Math.round(eloMap[id]?.elo ?? ELO_BASELINE);
+    stats.uniquePartners = partnerSets[id].size;
+    stats.uniqueOpponents = opponentSets[id].size;
+
+    const playerTournamentResults = tournamentResultsByPlayer[id] || [];
+    const tournamentIds = new Set(playerTournamentResults.map((entry: any) => entry.tournament_id));
+    stats.tournamentsPlayed = tournamentIds.size;
+    stats.tournamentWins = playerTournamentResults.filter((entry: any) => entry.rank === 1).length;
+    stats.tournamentPodiums = playerTournamentResults.filter((entry: any) => entry.rank <= 3).length;
+    stats.americanoWins = playerTournamentResults.filter((entry: any) => entry.rank === 1 && entry.tournament_type === 'americano').length;
+    stats.mexicanoWins = playerTournamentResults.filter((entry: any) => entry.rank === 1 && entry.tournament_type === 'mexicano').length;
+  });
+
+  return statsMap;
+};
+
+export const buildPlayerBadgeStats = (
+  matches: Match[] = [],
+  profiles: Profile[] = [],
+  playerId: string | null,
+  nameToIdMap: Map<string, string> | Record<string, string> = {},
+  tournamentResults: any[] = []
+): PlayerBadgeStats | null => {
+  if (!playerId) return null;
+  const allStats = buildAllPlayersBadgeStats(matches, profiles, nameToIdMap, tournamentResults);
+  return allStats[playerId] || null;
 };
 
 export const buildPlayerBadges = (

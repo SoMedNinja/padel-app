@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  buildPlayerBadgeStats,
+  buildAllPlayersBadgeStats,
   buildPlayerBadges,
 } from "../utils/badges";
 import { makeNameToIdMap } from "../utils/profileMap";
@@ -88,11 +88,7 @@ export default function MeritsSection({
   };
 
   const allPlayerStats = useMemo(() => {
-    const statsMap: Record<string, any> = {};
-    profiles.forEach(profile => {
-      statsMap[profile.id] = buildPlayerBadgeStats(matches, profiles, profile.id, nameToIdMap, tournamentResults);
-    });
-    return statsMap;
+    return buildAllPlayersBadgeStats(matches, profiles, nameToIdMap, tournamentResults);
   }, [matches, profiles, nameToIdMap, tournamentResults]);
 
   const badgeStats = useMemo(
