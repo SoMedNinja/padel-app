@@ -11,7 +11,7 @@ const missingSupabaseMessage =
   "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
 
 const createMockQuery = (): any => {
-  const response = { data: null, error: new Error(missingSupabaseMessage) };
+  const response = { data: [], error: null };
   return {
     select: () => createMockQuery(),
     insert: () => createMockQuery(),
@@ -36,7 +36,7 @@ const createMockQuery = (): any => {
 const createMockSupabase = (): any => ({
   // Note for non-coders: this mock makes missing setup obvious without crashing the whole app.
   auth: {
-    getUser: () => Promise.resolve({ data: { user: null }, error: new Error(missingSupabaseMessage) }),
+    getUser: () => Promise.resolve({ data: { user: null }, error: null }),
     onAuthStateChange: () => ({
       data: { subscription: { unsubscribe: () => {} } },
     }),
@@ -44,6 +44,7 @@ const createMockSupabase = (): any => ({
     signInWithPassword: () => Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
     resetPasswordForEmail: () => Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
     signOut: () => Promise.resolve({ error: new Error(missingSupabaseMessage) }),
+    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
   },
   from: () => createMockQuery(),
   channel: () => {

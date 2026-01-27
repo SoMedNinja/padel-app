@@ -34,8 +34,10 @@ import {
   CheckCircle as CompleteIcon,
   Visibility as ViewIcon,
   VisibilityOff as HideIcon,
+  Share as ShareIcon,
 } from "@mui/icons-material";
 import { toast } from "sonner";
+import TheShareable from "./Shared/TheShareable";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { useTournaments, useTournamentDetails } from "../hooks/useTournamentData";
 import { useQueryClient } from "@tanstack/react-query";
@@ -105,6 +107,7 @@ export default function MexicanaTournament({
 }: MexicanaTournamentProps) {
   const queryClient = useQueryClient();
   const [activeTournamentId, setActiveTournamentId] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
   const { data: tournaments = [], isLoading: isLoadingTournaments } = useTournaments();
   const { data: tournamentData, isLoading: isLoadingDetails } = useTournamentDetails(activeTournamentId);
 
@@ -1010,11 +1013,36 @@ export default function MexicanaTournament({
               ))}
             </Stack>
 
-            <Button variant="outlined" fullWidth sx={{ mt: 4 }} onClick={() => setActiveTournamentId("")}>
-              Tillbaka till alla turneringar
-            </Button>
+            <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+              <Button variant="outlined" fullWidth onClick={() => setActiveTournamentId("")}>
+                Tillbaka
+              </Button>
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<ShareIcon />}
+                onClick={() => setShareOpen(true)}
+              >
+                Dela resultat
+              </Button>
+            </Stack>
           </CardContent>
         </Card>
+      )}
+
+      {activeTournament && (
+        <TheShareable
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          type="tournament"
+          data={{
+            tournament: activeTournament,
+            results: sortedStandings,
+            profileMap: Object.fromEntries(
+              selectableProfiles.map(p => [p.id, getProfileDisplayName(p)])
+            )
+          }}
+        />
       )}
 
       <Card variant="outlined" sx={{ borderRadius: 3 }}>

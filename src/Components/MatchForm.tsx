@@ -23,6 +23,7 @@ import {
   Balance as BalanceIcon,
   CheckCircle as CheckCircleIcon,
   PersonAdd as PersonAddIcon,
+  Share as ShareIcon,
 } from "@mui/icons-material";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
@@ -58,6 +59,7 @@ import {
   MatchRecapPlayer,
   EveningRecapLeader,
 } from "../types";
+import TheShareable from "./Shared/TheShareable";
 
 
 interface MatchFormProps {
@@ -85,7 +87,7 @@ export default function MatchForm({
   const [recapMode, setRecapMode] = useState("evening");
   const [showRecap, setShowRecap] = useState(true);
   const [showExtraScores, setShowExtraScores] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectablePlayers = useMemo(() => {
@@ -1430,35 +1432,31 @@ export default function MatchForm({
                 Fairness: {matchRecap.fairness}% · Vinstchans Lag A: {Math.round(matchRecap.winProbability * 100)}%
               </Typography>
             )}
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={exportRecapImage}
-                disabled={isExporting}
-                sx={{ flex: 1 }}
-              >
-                {isExporting ? "Exporterar..." : "Spara som bild"}
-              </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => {
-                  if (!navigator.clipboard) {
-                    toast.error("Kopiering stöds inte.");
-                    return;
-                  }
-                  navigator.clipboard.writeText(recapSummary);
-                  toast.success("Sammanfattning kopierad!");
-                }}
-                sx={{ flex: 1 }}
-              >
-                Kopiera text
-              </Button>
-            </Box>
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              startIcon={<ShareIcon />}
+              onClick={() => setShareOpen(true)}
+              sx={{ py: 1.5, borderRadius: 2, fontWeight: 700 }}
+            >
+              Dela recap
+            </Button>
           </Box>
         </Paper>
       )}
+
+      <TheShareable
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        type={recapMode === "evening" ? "recap-evening" : "recap-match"}
+        data={{
+          recap: recapMode === "evening" ? eveningRecap : matchRecap,
+          profileMap: Object.fromEntries(
+            selectablePlayers.map(p => [p.id, getProfileDisplayName(p)])
+          )
+        }}
+      />
     </Box>
   );
 }
