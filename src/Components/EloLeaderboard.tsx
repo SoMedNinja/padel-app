@@ -190,7 +190,7 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                 zIndex: 1
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>laddar data…</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>Laddar data…</Typography>
             </Box>
           )}
           {/* Note for non-coders: we render rows in a grid so the virtual scroll transforms work reliably. */}

@@ -1,3 +1,11 @@
 ## 2025-01-27 - [Accessibility: Paper with onClick]
 **Learning:** Using `Paper` with `onClick` for interactive elements (like cards) makes them inaccessible to keyboard users and screen readers.
 **Action:** Replace `Paper` with `onClick` with `ButtonBase` (using `component={Paper}`) to ensure the element is focusable and responds to keyboard events (Space/Enter). Add `aria-label` and `aria-pressed` for better screen reader feedback.
+
+## 2025-05-15 - [A11y & UI Consistency Audit]
+**Learning:** Icon-only buttons without  were widespread across MexicanaTournament, Merits, and MVP sections. Inconsistent sentence casing in loading/empty states (e.g., "laddar data...") can make the UI feel unpolished.
+**Action:** Always verify  on new  or  components. Enforce Sentence case for all UI strings and labels. Use  to provide additional context for advanced features like "Matchmaker".
+
+## 2025-05-15 - [A11y & UI Consistency Audit]
+**Learning:** Icon-only buttons without `aria-label` were widespread across MexicanaTournament, Merits, and MVP sections. Inconsistent sentence casing in loading/empty states (e.g., "laddar data...") can make the UI feel unpolished.
+**Action:** Always verify `aria-label` on new `IconButton` or `InfoIcon` components. Enforce Sentence case for all UI strings and labels. Use `Tooltip` to provide additional context for advanced features like "Matchmaker".
