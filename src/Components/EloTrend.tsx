@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -11,61 +12,62 @@ import { getPlayerColor } from "../utils/colors";
 import { Typography, Box, Paper } from "@mui/material";
 
 export default function EloTrend({ players = [] }) {
-  if (!players.length) return null;
+  const { data, playerNames } = useMemo(() => {
+    if (!players.length) return { data: [], playerNames: [] };
 
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const oneYearAgoISO = oneYearAgo.toISOString();
 
-  // 1️⃣ Samla alla datum senaste året
-  const dateSet = new Set();
-  players.forEach(p => {
-    if (!p.history) return;
-    p.history.forEach(h => {
-      const d = new Date(h.date);
-      if (d >= oneYearAgo) dateSet.add(h.date);
-    });
-  });
-
-  const dates = Array.from(dateSet).sort(
-    (a, b) => new Date(a) - new Date(b)
-  );
-  if (!dates.length) return null;
-
-  // 2️⃣ Bygg grafdata (Optimerad: O(D * P))
-  // Eftersom p.history redan är sorterad kronologiskt i elo.ts kan vi använda en pekar-baserad approach.
-  const playerHistoryIndices = new Map();
-  players.forEach(p => playerHistoryIndices.set(p.id, 0));
-
-  const data = dates.map(date => {
-    const row = { date };
-
+    // 1️⃣ Samla alla datum senaste året (Använd ISO-strängar för snabbare jämförelse)
+    const dateSet = new Set<string>();
     players.forEach(p => {
-      if (p.name === "Gäst") return;
-
-      // Hitta senaste ELO fram till detta datumet utan att filtrera om hela historiken
-      // p.history antas vara sorterad.
-      let lastElo = p.startElo ?? 1000;
-      const history = p.history || [];
-
-      // Vi kan optimera ytterligare genom att inte starta från 0 varje gång,
-      // men för enkelhetens skull och givet att P*D är litet räcker detta.
-      // Men låt oss göra det rätt:
-      let currentIndex = playerHistoryIndices.get(p.id);
-      while (currentIndex < history.length && history[currentIndex].date <= date) {
-        lastElo = history[currentIndex].elo;
-        currentIndex++;
-      }
-      playerHistoryIndices.set(p.id, currentIndex);
-
-      row[p.name] = lastElo;
+      if (!p.history) return;
+      p.history.forEach(h => {
+        if (h.date >= oneYearAgoISO) dateSet.add(h.date);
+      });
     });
 
-    return row;
-  });
+    const dates = Array.from(dateSet).sort();
+    if (!dates.length) return { data: [], playerNames: [] };
 
-  const playerNames = players
-    .map(p => p.name)
-    .filter(name => name !== "Gäst");
+    // 2️⃣ Bygg grafdata (Optimerad: O(D * P))
+    // Eftersom p.history redan är sorterad kronologiskt i elo.ts kan vi använda en pekar-baserad approach.
+    const playerHistoryIndices = new Map();
+    players.forEach(p => playerHistoryIndices.set(p.id, 0));
+
+    const chartData = dates.map(date => {
+      const row: any = { date };
+
+      players.forEach(p => {
+        if (p.name === "Gäst") return;
+
+        // Hitta senaste ELO fram till detta datumet utan att filtrera om hela historiken
+        // p.history antas vara sorterad.
+        let lastElo = p.startElo ?? 1000;
+        const history = p.history || [];
+
+        let currentIndex = playerHistoryIndices.get(p.id);
+        while (currentIndex < history.length && history[currentIndex].date <= date) {
+          lastElo = history[currentIndex].elo;
+          currentIndex++;
+        }
+        playerHistoryIndices.set(p.id, currentIndex);
+
+        row[p.name] = lastElo;
+      });
+
+      return row;
+    });
+
+    const names = players
+      .map(p => p.name)
+      .filter(name => name !== "Gäst");
+
+    return { data: chartData, playerNames: names };
+  }, [players]);
+
+  if (!data.length) return null;
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>

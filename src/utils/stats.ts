@@ -28,11 +28,14 @@ export function getWinnersAndLosers(match: Match) {
 }
 
 export function getLatestMatchDate(matches: Match[]) {
-  return matches
-    .map(m => m.created_at?.slice(0, 10))
-    .filter(Boolean)
-    .sort()
-    .pop();
+  if (!matches.length) return undefined;
+  // Optimization: use a single pass to find the latest date
+  let latest = "";
+  for (let i = 0; i < matches.length; i++) {
+    const date = matches[i].created_at?.slice(0, 10);
+    if (date && date > latest) latest = date;
+  }
+  return latest || undefined;
 }
 
 export function getRecentResults(matches: Match[], playerName: string, limit = 5): ("W" | "L")[] {
@@ -42,7 +45,8 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
         normalizeTeam(m.team1).includes(playerName) ||
         normalizeTeam(m.team2).includes(playerName)
     )
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    // Optimization: ISO strings can be compared lexicographically
+    .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0))
     .slice(-limit)
     .map(m => {
       const team1 = normalizeTeam(m.team1);

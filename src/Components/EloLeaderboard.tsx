@@ -56,24 +56,36 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
     }
 
     return players.map(player => {
-      // Derive filtered stats from existing chronological history
-      const filteredHistory = player.history.filter(h => matchIds.has(h.matchId));
+      // Optimization: calculate all stats in a single pass over history
+      let wins = 0;
+      let losses = 0;
+      const recentResults: ("W" | "L")[] = [];
+
+      for (let i = 0; i < player.history.length; i++) {
+        const h = player.history[i];
+        if (matchIds.has(h.matchId)) {
+          if (h.result === "W") wins++;
+          else losses++;
+          recentResults.push(h.result);
+        }
+      }
+
       return {
         ...player,
-        wins: filteredHistory.filter(h => h.result === "W").length,
-        losses: filteredHistory.filter(h => h.result === "L").length,
-        games: filteredHistory.length,
-        recentResults: filteredHistory.map(h => h.result),
+        wins,
+        losses,
+        games: recentResults.length,
+        recentResults,
       };
     });
   }, [matches, players]);
 
-  const hasUnknownPlayers = mergedPlayers.some(player => !player.name || player.name === "Okänd");
+  const hasUnknownPlayers = useMemo(() => mergedPlayers.some(player => !player.name || player.name === "Okänd"), [mergedPlayers]);
   const showLoadingOverlay = !mergedPlayers.length || hasUnknownPlayers;
 
-  const visiblePlayers = mergedPlayers.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
+  const visiblePlayers = useMemo(() => mergedPlayers.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd"), [mergedPlayers]);
 
-  const sortedPlayers = [...visiblePlayers].sort((a, b) => {
+  const sortedPlayers = useMemo(() => [...visiblePlayers].sort((a, b) => {
     if (sortKey === "name") {
       const aVal = a.name.toLowerCase();
       const bVal = b.name.toLowerCase();
@@ -103,7 +115,7 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
     }
 
     return asc ? valA - valB : valB - valA;
-  });
+  }), [visiblePlayers, sortKey, asc]);
 
   const { parentRef, totalSize, virtualItems, measureElement } = useVirtualWindow({
     itemCount: sortedPlayers.length,
