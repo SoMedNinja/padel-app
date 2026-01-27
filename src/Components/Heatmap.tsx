@@ -32,7 +32,7 @@ const normalizeServeFlag = (value: any) => {
 interface HeatmapProps {
   matches?: Match[];
   profiles?: Profile[];
-  eloPlayers?: PlayerStats[];
+  allEloPlayers?: PlayerStats[];
   currentUserOnly?: string;
 }
 
@@ -50,7 +50,7 @@ interface Combo {
 export default function Heatmap({
   matches = [],
   profiles = [],
-  eloPlayers = [],
+  allEloPlayers = [],
   currentUserOnly
 }: HeatmapProps) {
   const [sortKey, setSortKey] = useState<string>("games");
@@ -79,9 +79,9 @@ export default function Heatmap({
     return map;
   }, [profiles]);
   const eloMap = useMemo(() => {
-    // Note for non-coders: we always use the all-time ELO values, even if matches are filtered.
-    return new Map<string, number>(eloPlayers.map(player => [player.name, player.elo]));
-  }, [eloPlayers]);
+    // Note for non-coders: the global filter changes match stats, but we keep all-time ELO values here.
+    return new Map<string, number>(allEloPlayers.map(player => [player.name, player.elo]));
+  }, [allEloPlayers]);
 
   const sortedProfileNames = useMemo(() => {
     return profiles

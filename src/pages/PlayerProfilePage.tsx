@@ -157,11 +157,11 @@ export default function PlayerProfilePage() {
 
               {activeTab === 2 && (
                 <Box id="team-combos" component="section">
-                  {/* Note for non-coders: the global filter now updates which matches feed these combos. */}
+                  {/* Note for non-coders: the global filter updates match stats, but we keep all-time ELO for Snitt-ELO. */}
                   <Heatmap
                     matches={filteredMatches}
                     profiles={profiles}
-                    eloPlayers={eloPlayers}
+                    allEloPlayers={eloPlayers}
                     currentUserOnly={user?.id}
                   />
                 </Box>
