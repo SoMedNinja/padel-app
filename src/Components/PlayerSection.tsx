@@ -791,9 +791,14 @@ export default function PlayerSection({
                 <Button variant="outlined" size="small" onClick={() => setIsEditingName(false)}>Avbryt</Button>
               </Stack>
             ) : (
-              <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
-                <ProfileName name={playerName} badgeId={selectedBadgeId} />
-              </Typography>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5 }}>
+                  <ProfileName name={playerName} badgeId={selectedBadgeId} />
+                </Typography>
+                <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
+                  ELO {currentEloDisplay}
+                </Typography>
+              </Box>
             )}
 
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -868,7 +873,6 @@ export default function PlayerSection({
             { label: "Vinster", value: filteredStats ? filteredStats.wins : 0 },
             { label: "Förluster", value: filteredStats ? filteredStats.losses : 0 },
             { label: "Vinst %", value: `${filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%` },
-            { label: "ELO", value: currentEloDisplay },
             { label: "ELO +/- (30d)", value: formatEloDelta(last30DaysDelta), color: getEloDeltaClass(last30DaysDelta) },
             { label: "ELO +/- (Pass)", value: formatEloDelta(lastSessionDelta), color: getEloDeltaClass(lastSessionDelta) },
             { label: "Form (L5)", value: `${recentFormStats.wins}V - ${recentFormStats.losses}F` },
