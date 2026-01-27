@@ -38,6 +38,17 @@ const GSLogo = () => (
   </Box>
 );
 
+const safeFormatDate = (dateStr: string | undefined, options: Intl.DateTimeFormatOptions) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('sv-SE', options);
+  } catch (e) {
+    return '—';
+  }
+};
+
 const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { tournament: Tournament; results: any[]; profileMap: Record<string, string>; variant?: number }) => {
   const topCount = variant === 1 ? 8 : 3;
   const topPlayers = results.slice(0, topCount);
@@ -98,7 +109,9 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
                  </Grid>
                  <Grid size={{ xs: 4 }}>
                     <Typography variant="h6" sx={{ opacity: 0.6 }}>Datum</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 800 }}>{new Date(tournament?.completed_at || '').toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })}</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                      {safeFormatDate(tournament?.completed_at, { month: 'short', day: 'numeric' })}
+                    </Typography>
                  </Grid>
               </Grid>
            </Box>
@@ -179,7 +192,7 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
 
           <Box sx={{ mt: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-              {new Date(tournament.completed_at || '').toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
+              {safeFormatDate(tournament?.completed_at, { year: 'numeric', month: 'long', day: 'numeric' })}
             </Typography>
           </Box>
         </Stack>
@@ -258,7 +271,7 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
              </Typography>
 
              <Typography variant="h5" sx={{ mt: 4, fontWeight: 800, textTransform: 'uppercase' }}>
-               {new Date(match?.created_at || '').toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+               {safeFormatDate(match?.created_at, { weekday: 'long', day: 'numeric', month: 'long' })}
              </Typography>
            </Stack>
         </Box>
@@ -271,7 +284,7 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
               {highlight?.title}
             </Typography>
             <Typography variant="h5" sx={{ opacity: 0.8, fontWeight: 500 }}>
-              {new Date(match?.created_at || '').toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+              {safeFormatDate(match?.created_at, { weekday: 'long', day: 'numeric', month: 'long' })}
             </Typography>
           </Box>
 
@@ -374,16 +387,16 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
              <Stack direction="row" spacing={8} sx={{ mb: 4 }}>
                 <Box>
                   <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>Lag A</Typography>
-                  {data?.teamA?.players?.map((p: any) => <Typography key={p.id} variant="h3" sx={{ fontWeight: 800 }}>{p.name}</Typography>)}
+                  {data?.teamA?.players?.map((p: any, i: number) => <Typography key={p?.id || i} variant="h3" sx={{ fontWeight: 800 }}>{p?.name || '—'}</Typography>)}
                 </Box>
                 <Box>
                   <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>Lag B</Typography>
-                  {data?.teamB?.players?.map((p: any) => <Typography key={p.id} variant="h3" sx={{ fontWeight: 800 }}>{p.name}</Typography>)}
+                  {data?.teamB?.players?.map((p: any, i: number) => <Typography key={p?.id || i} variant="h3" sx={{ fontWeight: 800 }}>{p?.name || '—'}</Typography>)}
                 </Box>
              </Stack>
 
              <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', color: theme?.accent }}>
-               {new Date(data?.createdAt || '').toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+               {safeFormatDate(data?.createdAt, { weekday: 'long', day: 'numeric', month: 'long' })}
              </Typography>
           </Box>
         </Box>
@@ -402,28 +415,28 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
           <Grid container spacing={4} sx={{ width: '100%' }}>
             <Grid size={{ xs: 6 }}>
               <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag A</Typography>
-              {data?.teamA?.players?.map((p: any) => (
-                <Box key={p.id} sx={{ mb: 2 }}>
-                  <Typography variant="h3" sx={{ fontWeight: 700 }}>{p.name}</Typography>
+              {data?.teamA?.players?.map((p: any, i: number) => (
+                <Box key={p?.id || i} sx={{ mb: 2 }}>
+                  <Typography variant="h3" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
                   <Typography variant="h5" sx={{ color: theme?.accent, fontWeight: 700 }}>
-                    {(p.delta ?? 0) >= 0 ? '+' : ''}{p.delta ?? 0} ELO
+                    {(p?.delta ?? 0) >= 0 ? '+' : ''}{p?.delta ?? 0} ELO
                   </Typography>
                   {isDetailed && (
-                    <Typography variant="body1" sx={{ opacity: 0.6 }}>Rating: {p.elo ?? 0}</Typography>
+                    <Typography variant="body1" sx={{ opacity: 0.6 }}>Rating: {p?.elo ?? 0}</Typography>
                   )}
                 </Box>
               ))}
             </Grid>
             <Grid size={{ xs: 6 }}>
               <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag B</Typography>
-              {data?.teamB?.players?.map((p: any) => (
-                <Box key={p.id} sx={{ mb: 2 }}>
-                  <Typography variant="h3" sx={{ fontWeight: 700 }}>{p.name}</Typography>
+              {data?.teamB?.players?.map((p: any, i: number) => (
+                <Box key={p?.id || i} sx={{ mb: 2 }}>
+                  <Typography variant="h3" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
                   <Typography variant="h5" sx={{ color: theme?.accent, fontWeight: 700 }}>
-                    {(p.delta ?? 0) >= 0 ? '+' : ''}{p.delta ?? 0} ELO
+                    {(p?.delta ?? 0) >= 0 ? '+' : ''}{p?.delta ?? 0} ELO
                   </Typography>
                   {isDetailed && (
-                    <Typography variant="body1" sx={{ opacity: 0.6 }}>Rating: {p.elo ?? 0}</Typography>
+                    <Typography variant="body1" sx={{ opacity: 0.6 }}>Rating: {p?.elo ?? 0}</Typography>
                   )}
                 </Box>
               ))}
@@ -571,7 +584,7 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
                <Grid size={{ xs: 12 }}>
                  <Paper sx={{ p: 2, borderRadius: 4, bgcolor: theme?.accent || '#000', color: 'white' }}>
                     <Typography variant="h5" sx={{ fontWeight: 900 }}>MARATON-KAMPEN</Typography>
-                    <Typography variant="h4">{data.funFacts.marathon.name} spelade flest set ({data.funFacts.marathon.sets})</Typography>
+                    <Typography variant="h4">{data?.funFacts?.marathon?.name || '—'} spelade flest set ({data?.funFacts?.marathon?.sets || 0})</Typography>
                  </Paper>
                </Grid>
              )}
@@ -760,6 +773,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
           </Typography>
           <IconButton
             onClick={() => setVariant(prev => prev + 1)}
+            disabled={variant >= 4}
             aria-label="Nästa mall"
           >
             <ChevronRight />
