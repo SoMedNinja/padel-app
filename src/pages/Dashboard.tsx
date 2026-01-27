@@ -7,6 +7,7 @@ import FilterBar from "../Components/FilterBar";
 import { Box, Skeleton, Stack, Container, CircularProgress, Typography, Button, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import AppAlert from "../Components/Shared/AppAlert";
+import EmptyState from "../Components/Shared/EmptyState";
 import { useStore } from "../store/useStore";
 
 import { useEloStats } from "../hooks/useEloStats";
@@ -140,9 +141,12 @@ export default function Dashboard() {
               />
             )}
             {!filteredMatches.length ? (
-              <AppAlert severity="info" sx={{ mb: 2 }}>
-                Inga matcher ännu. Lägg in din första match för att se statistik.
-              </AppAlert>
+              <EmptyState
+                title="Inga matcher ännu"
+                description="Lägg in din första match för att börja se statistik och klättra på rankingen!"
+                actionLabel="Registrera match"
+                onAction={() => window.location.hash = "#match-form"} // Simple jump
+              />
             ) : (
               <>
                 <Grid container spacing={2} sx={{ mb: 3 }}>

@@ -7,16 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-
-// Färger per spelare
-const playerColors = {
-  Deniz: "#1f77b4",
-  "Svag Rojan": "#ff7f0e",
-  Parth: "#2ca02c",
-  Rustam: "#d62728",
-  Robert: "#9467bd",
-  Gäst: "#7f7f7f"
-};
+import { getPlayerColor } from "../utils/colors";
+import { Typography, Box, Paper } from "@mui/material";
 
 export default function EloTrend({ players = [] }) {
   if (!players.length) return null;
@@ -39,29 +31,33 @@ export default function EloTrend({ players = [] }) {
   );
   if (!dates.length) return null;
 
-  // 2️⃣ Bygg grafdata
+  // 2️⃣ Bygg grafdata (Optimerad: O(D * P))
+  // Eftersom p.history redan är sorterad kronologiskt i elo.ts kan vi använda en pekar-baserad approach.
+  const playerHistoryIndices = new Map();
+  players.forEach(p => playerHistoryIndices.set(p.id, 0));
+
   const data = dates.map(date => {
     const row = { date };
 
     players.forEach(p => {
       if (p.name === "Gäst") return;
 
-      let elo = p.startElo ?? 1000;
-      if (p.history?.length) {
-        const historyUpToDate = p.history
-          .filter(h => h.date <= date)
-          .sort((a, b) => {
-            const timeDiff = a.timestamp - b.timestamp;
-            if (timeDiff !== 0) return timeDiff;
-            return a.matchId.localeCompare(b.matchId);
-          });
+      // Hitta senaste ELO fram till detta datumet utan att filtrera om hela historiken
+      // p.history antas vara sorterad.
+      let lastElo = p.startElo ?? 1000;
+      const history = p.history || [];
 
-        if (historyUpToDate.length) {
-          elo = historyUpToDate.at(-1).elo;
-        }
+      // Vi kan optimera ytterligare genom att inte starta från 0 varje gång,
+      // men för enkelhetens skull och givet att P*D är litet räcker detta.
+      // Men låt oss göra det rätt:
+      let currentIndex = playerHistoryIndices.get(p.id);
+      while (currentIndex < history.length && history[currentIndex].date <= date) {
+        lastElo = history[currentIndex].elo;
+        currentIndex++;
       }
+      playerHistoryIndices.set(p.id, currentIndex);
 
-      row[p.name] = elo;
+      row[p.name] = lastElo;
     });
 
     return row;
@@ -72,57 +68,75 @@ export default function EloTrend({ players = [] }) {
     .filter(name => name !== "Gäst");
 
   return (
-    <div style={{ width: "100%", marginTop: 24 }}>
-      <h2>ELO Trend (senaste året)</h2>
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>ELO Trend (senaste året)</Typography>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart
-          data={data}
-          margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis domain={[900, "dataMax + 20"]} />
-          <Tooltip />
-
-          {playerNames.map(name => (
-            <Line
-              key={name}
-              type="monotone"
-              dataKey={(row) => row[name]}
-              name={name}
-              stroke={playerColors[name] || "#000"}
-              strokeWidth={2}
-              dot={false}
+      <Box sx={{ width: "100%", height: 350, minWidth: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={data}
+            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+            <XAxis
+              dataKey="date"
+              tickFormatter={(val) => new Date(val).toLocaleDateString("sv-SE", { month: 'short', day: 'numeric' })}
+              style={{ fontSize: '0.75rem' }}
             />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+            <YAxis
+              domain={['auto', 'auto']}
+              style={{ fontSize: '0.75rem' }}
+            />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              labelFormatter={(val) => new Date(val).toLocaleDateString("sv-SE", { dateStyle: 'medium' })}
+            />
+
+            {playerNames.map(name => (
+              <Line
+                key={name}
+                type="monotone"
+                dataKey={(row) => row[name]}
+                name={name}
+                stroke={getPlayerColor(name)}
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 6 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </Box>
 
       {/* ✅ EN enda legend (manuell) */}
-      <div style={{ marginTop: 12 }}>
+      <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
         {playerNames.map(name => (
-          <span
+          <Box
             key={name}
-            style={{
-              marginRight: 16,
+            sx={{
               display: "inline-flex",
-              alignItems: "center"
+              alignItems: "center",
+              bgcolor: 'grey.50',
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider'
             }}
           >
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                backgroundColor: playerColors[name] || "#000",
-                display: "inline-block",
-                marginRight: 6
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: getPlayerColor(name),
+                mr: 1
               }}
             />
-            {name}
-          </span>
+            <Typography variant="caption" sx={{ fontWeight: 700 }}>{name}</Typography>
+          </Box>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Paper>
   );
 }

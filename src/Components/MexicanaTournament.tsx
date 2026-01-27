@@ -57,6 +57,8 @@ import {
 } from "../utils/tournamentLogic";
 import { Profile, PlayerStats, TournamentRound } from "../types";
 import { queryKeys } from "../utils/queryKeys";
+import EmptyState from "./Shared/EmptyState";
+import { EmojiEvents as TrophyIcon } from "@mui/icons-material";
 
 const POINTS_OPTIONS = [16, 21, 24, 31];
 const SCORE_TARGET_DEFAULT = 24;
@@ -126,6 +128,18 @@ export default function MexicanaTournament({
   const [recordingRound, setRecordingRound] = useState<any>(null);
   const [showPreviousGames, setShowPreviousGames] = useState(false);
 
+  const activeTournament = useMemo(
+    () => tournaments.find(t => t.id === activeTournamentId) || null,
+    [tournaments, activeTournamentId]
+  );
+
+  const tournamentMode = activeTournament?.tournament_type || "americano";
+
+  const nextRoundToPlay = useMemo(() => {
+    if (tournamentMode !== 'americano') return null;
+    return rounds.find(r => !Number.isFinite(r.team1_score) || !Number.isFinite(r.team2_score));
+  }, [rounds, tournamentMode]);
+
   // Add Guest to selectable profiles
   const selectableProfiles = useMemo(() => {
     const hasGuest = profiles.some(p => p.id === GUEST_ID);
@@ -134,13 +148,6 @@ export default function MexicanaTournament({
   }, [profiles]);
 
   const profileMap = useMemo(() => makeProfileMap(selectableProfiles), [selectableProfiles]);
-
-  const activeTournament = useMemo(
-    () => tournaments.find(t => t.id === activeTournamentId) || null,
-    [tournaments, activeTournamentId]
-  );
-
-  const tournamentMode = activeTournament?.tournament_type || "americano";
 
   const { standings } = useMemo(() => {
     return getTournamentState(rounds, participants);
@@ -770,50 +777,96 @@ export default function MexicanaTournament({
 
                 {tournamentMode === 'americano' && (
                   <Box sx={{ mb: 4 }}>
-                    <Typography variant="body2" sx={{ mb: 2 }}>Alla ronder är förutbestämda. Fyll i poäng allt eftersom ni spelar.</Typography>
-                    <Stack spacing={2}>
+                    <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+                      Americano: Alla spelar med alla. Fyll i poäng för respektive rond nedan.
+                    </Typography>
+
+                    {nextRoundToPlay && (
+                      <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                        <Typography variant="subtitle2" fontWeight={800}>Nästa att spela: Rond {nextRoundToPlay.round_number}</Typography>
+                        <Typography variant="body2">
+                          {idsToNames(nextRoundToPlay.team1_ids, profileMap).join(" & ")} vs {idsToNames(nextRoundToPlay.team2_ids, profileMap).join(" & ")}
+                        </Typography>
+                      </Alert>
+                    )}
+
+                    <Stack spacing={2.5}>
                       {rounds.map(round => {
                         const isPlayed = Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score);
+                        const isNext = nextRoundToPlay?.id === round.id;
+
                         return (
-                          <Paper key={round.id} variant="outlined" sx={{ p: 2, bgcolor: isPlayed ? 'action.hover' : 'background.paper' }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Rond {round.round_number}</Typography>
+                          <Paper
+                            key={round.id}
+                            variant="outlined"
+                            sx={{
+                              p: 2.5,
+                              bgcolor: isPlayed ? 'rgba(0,0,0,0.02)' : 'background.paper',
+                              border: isNext ? 2 : 1,
+                              borderColor: isNext ? 'primary.main' : 'divider',
+                              boxShadow: isNext ? '0 4px 12px rgba(211, 47, 47, 0.1)' : 'none',
+                              position: 'relative',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: isPlayed ? 'text.secondary' : 'text.primary' }}>
+                                  ROND {round.round_number}
+                                </Typography>
+                                {isPlayed && <Chip label="Spelad" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800 }} />}
+                                {isNext && <Chip label="PÅGÅR" size="small" color="primary" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800 }} />}
+                              </Stack>
                               {round.resting_ids && round.resting_ids.length > 0 && (
-                                <Chip label={`Vilar: ${idsToNames(round.resting_ids, profileMap).join(", ")}`} size="small" variant="outlined" />
+                                <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                                  Vilar: {idsToNames(round.resting_ids, profileMap).join(", ")}
+                                </Typography>
                               )}
                             </Box>
 
-                            <Grid container spacing={2} alignItems="center">
+                            <Grid container spacing={3} alignItems="center">
                               <Grid size={{ xs: 5 }}>
-                                <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>{idsToNames(round.team1_ids, profileMap).join(" & ")}</Typography>
+                                <Box sx={{ mb: 1.5, textAlign: 'center' }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 700, minHeight: '3em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {idsToNames(round.team1_ids, profileMap).join(" & ")}
+                                  </Typography>
+                                </Box>
                                 <TextField
                                   fullWidth
                                   type="number"
                                   size="small"
+                                  placeholder="0"
                                   value={round.team1_score ?? ""}
                                   onChange={e => handleScoreChangeInList(round.id, 'team1_score', e.target.value)}
+                                  inputProps={{ style: { textAlign: 'center', fontWeight: 800, fontSize: '1.1rem' } }}
                                 />
                               </Grid>
                               <Grid size={{ xs: 2 }} sx={{ textAlign: 'center' }}>
-                                <Typography sx={{ fontWeight: 700 }}>–</Typography>
+                                <Typography sx={{ fontWeight: 900, color: 'text.disabled' }}>VS</Typography>
                               </Grid>
                               <Grid size={{ xs: 5 }}>
-                                <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>{idsToNames(round.team2_ids, profileMap).join(" & ")}</Typography>
+                                <Box sx={{ mb: 1.5, textAlign: 'center' }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 700, minHeight: '3em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {idsToNames(round.team2_ids, profileMap).join(" & ")}
+                                  </Typography>
+                                </Box>
                                 <TextField
                                   fullWidth
                                   type="number"
                                   size="small"
+                                  placeholder="0"
                                   value={round.team2_score ?? ""}
                                   onChange={e => handleScoreChangeInList(round.id, 'team2_score', e.target.value)}
+                                  inputProps={{ style: { textAlign: 'center', fontWeight: 800, fontSize: '1.1rem' } }}
                                 />
                               </Grid>
                             </Grid>
 
                             <Button
-                              variant="outlined"
+                              variant={isPlayed ? "text" : "contained"}
                               size="small"
                               fullWidth
-                              sx={{ mt: 2 }}
+                              sx={{ mt: 2.5, py: 1, fontWeight: 700 }}
                               onClick={() => updateRoundInDb(round.id, round.team1_score, round.team2_score)}
                               disabled={isSaving || !Number.isFinite(round.team1_score) || !Number.isFinite(round.team2_score)}
                             >
@@ -995,44 +1048,52 @@ export default function MexicanaTournament({
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Historik</Typography>
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
-            <Table size="small">
-              <TableHead sx={{ bgcolor: 'grey.50' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Turnering</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Typ</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Datum</TableCell>
-                  <TableCell align="right"></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {tournaments.map(t => (
-                  <TableRow key={t.id} hover>
-                    <TableCell sx={{ fontWeight: 600 }}>{t.name}</TableCell>
-                    <TableCell sx={{ textTransform: 'capitalize' }}>{t.tournament_type}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={getTournamentStatusLabel(t.status)}
-                        size="small"
-                        color={t.status === 'completed' ? 'success' : 'default'}
-                        sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                      />
-                    </TableCell>
-                    <TableCell>{formatDate(t.scheduled_at)}</TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
-                        <IconButton size="small" color="error" onClick={() => deleteTournament(t)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+            {tournaments.length === 0 ? (
+              <EmptyState
+                title="Inga turneringar ännu"
+                description="Starta en ny Americano eller Mexicana för att samla gänget!"
+                icon={<TrophyIcon sx={{ fontSize: 48 }} />}
+              />
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: 'grey.50' }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>Turnering</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Typ</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Datum</TableCell>
+                      <TableCell align="right"></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {tournaments.map(t => (
+                      <TableRow key={t.id} hover>
+                        <TableCell sx={{ fontWeight: 600 }}>{t.name}</TableCell>
+                        <TableCell sx={{ textTransform: 'capitalize' }}>{t.tournament_type}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={getTournamentStatusLabel(t.status)}
+                            size="small"
+                            color={t.status === 'completed' ? 'success' : 'default'}
+                            sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                          />
+                        </TableCell>
+                        <TableCell>{formatDate(t.scheduled_at)}</TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
+                            <IconButton size="small" color="error" onClick={() => deleteTournament(t)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
         </CardContent>
       </Card>
       </>

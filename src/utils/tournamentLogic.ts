@@ -33,8 +33,14 @@ export interface RoundWithNumber extends Round {
   round_number: number;
 }
 
+export interface TournamentState {
+  standings: Record<string, TournamentPlayerStats>;
+  teammatesFaced: Record<string, Record<string, number>>;
+  opponentsFaced: Record<string, Record<string, number>>;
+}
+
 // Get the complete state of the tournament from rounds and participants
-export const getTournamentState = (rounds: Round[], participants: string[]) => {
+export const getTournamentState = (rounds: Round[], participants: string[]): TournamentState => {
   const standings: Record<string, TournamentPlayerStats> = {};
   const teammatesFaced: Record<string, Record<string, number>> = {};
   const opponentsFaced: Record<string, Record<string, number>> = {};

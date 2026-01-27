@@ -5,7 +5,7 @@ import {
   buildPlayerBadges,
 } from "../utils/badges";
 import { makeNameToIdMap } from "../utils/profileMap";
-import { supabase } from "../supabaseClient";
+import { profileService } from "../services/profileService";
 import {
   Box,
   Typography,
@@ -67,19 +67,9 @@ export default function MeritsSection({
     setSelectedBadgeId(nextBadgeId);
 
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({ featured_badge_id: nextBadgeId })
-        .eq("id", user.id)
-        .select();
-
-      if (error) {
-        toast.error(error.message || "Kunde inte uppdatera visad merit.");
-        setSelectedBadgeId(playerProfile?.featured_badge_id || null);
-      } else if (data?.length) {
-        onProfileUpdate?.(data[0]);
-      }
-    } catch (error) {
+      const data = await profileService.updateProfile(user.id, { featured_badge_id: nextBadgeId });
+      onProfileUpdate?.(data);
+    } catch (error: any) {
       toast.error(error?.message || "Kunde inte uppdatera visad merit.");
       setSelectedBadgeId(playerProfile?.featured_badge_id || null);
     } finally {

@@ -10,8 +10,10 @@ import {
   resolveTeamNames,
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { Match, Profile } from "../types";
+import { Match, Profile, PlayerStats } from "../types";
 import { matchService } from "../services/matchService";
+import { getEloExplanation, getMatchWeight } from "../utils/elo";
+import { InfoOutlined as InfoIcon } from "@mui/icons-material";
 import {
   Box,
   Typography,
@@ -27,6 +29,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  Tooltip,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -50,6 +53,7 @@ interface HistoryProps {
   eloRatingByMatch?: Record<string, Record<string, number>>;
   profiles?: Profile[];
   user: any;
+  allEloPlayers?: PlayerStats[];
 }
 
 interface EditState {
@@ -72,7 +76,8 @@ export default function History({
   eloDeltaByMatch = {},
   eloRatingByMatch = {},
   profiles = [],
-  user
+  user,
+  allEloPlayers = []
 }: HistoryProps) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
@@ -376,6 +381,37 @@ export default function History({
                         {teamAEntries.map(entry => {
                           const delta = entry.id ? matchDeltas[entry.id] : undefined;
                           const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+
+                          let explanation = "";
+                          if (entry.id && typeof delta === 'number') {
+                            const preElo = (currentElo || 1000) - delta;
+                            const t1Ids = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
+                            const t2Ids = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
+                            const getAvg = (ids: (string | null)[]) => {
+                              const active = ids.filter(id => id && id !== GUEST_ID);
+                              if (!active.length) return 1000;
+                              return active.reduce((sum, id) => {
+                                const playerElo = eloRatingByMatch[m.id]?.[id!] || 1000;
+                                const playerDelta = eloDeltaByMatch[m.id]?.[id!] || 0;
+                                return sum + (playerElo - playerDelta);
+                              }, 0) / active.length;
+                            };
+                            const avgA = getAvg(t1Ids);
+                            const avgB = getAvg(t2Ids);
+                            const matchWeight = getMatchWeight(m);
+                            const playerStats = allEloPlayers.find(p => p.id === entry.id);
+
+                            explanation = getEloExplanation(
+                              delta,
+                              preElo,
+                              avgA,
+                              avgB,
+                              matchWeight,
+                              m.team1_sets > m.team2_sets,
+                              playerStats?.games || 0
+                            );
+                          }
+
                           return (
                             <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
                               <ListItemText
@@ -384,9 +420,16 @@ export default function History({
                                 primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                                 secondaryTypographyProps={{ variant: 'caption' }}
                               />
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                {formatDelta(delta)}
-                              </Typography>
+                              <Stack direction="row" spacing={0.5} alignItems="center">
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                  {formatDelta(delta)}
+                                </Typography>
+                                {explanation && (
+                                  <Tooltip title={<Box component="pre" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{explanation}</Box>} arrow>
+                                    <InfoIcon sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }} />
+                                  </Tooltip>
+                                )}
+                              </Stack>
                             </ListItem>
                           );
                         })}
@@ -418,6 +461,37 @@ export default function History({
                         {teamBEntries.map(entry => {
                           const delta = entry.id ? matchDeltas[entry.id] : undefined;
                           const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+
+                          let explanation = "";
+                          if (entry.id && typeof delta === 'number') {
+                            const preElo = (currentElo || 1000) - delta;
+                            const t1Ids = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
+                            const t2Ids = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
+                            const getAvg = (ids: (string | null)[]) => {
+                              const active = ids.filter(id => id && id !== GUEST_ID);
+                              if (!active.length) return 1000;
+                              return active.reduce((sum, id) => {
+                                const playerElo = eloRatingByMatch[m.id]?.[id!] || 1000;
+                                const playerDelta = eloDeltaByMatch[m.id]?.[id!] || 0;
+                                return sum + (playerElo - playerDelta);
+                              }, 0) / active.length;
+                            };
+                            const avgA = getAvg(t1Ids);
+                            const avgB = getAvg(t2Ids);
+                            const matchWeight = getMatchWeight(m);
+                            const playerStats = allEloPlayers.find(p => p.id === entry.id);
+
+                            explanation = getEloExplanation(
+                              delta,
+                              preElo,
+                              avgB, // Team B relative to Team A
+                              avgA,
+                              matchWeight,
+                              m.team2_sets > m.team1_sets,
+                              playerStats?.games || 0
+                            );
+                          }
+
                           return (
                             <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
                               <ListItemText
@@ -426,9 +500,16 @@ export default function History({
                                 primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                                 secondaryTypographyProps={{ variant: 'caption' }}
                               />
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                {formatDelta(delta)}
-                              </Typography>
+                              <Stack direction="row" spacing={0.5} alignItems="center">
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                  {formatDelta(delta)}
+                                </Typography>
+                                {explanation && (
+                                  <Tooltip title={<Box component="pre" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{explanation}</Box>} arrow>
+                                    <InfoIcon sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }} />
+                                  </Tooltip>
+                                )}
+                              </Stack>
                             </ListItem>
                           );
                         })}
