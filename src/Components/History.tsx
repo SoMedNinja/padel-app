@@ -249,6 +249,9 @@ export default function History({
     return "text.secondary";
   };
 
+  const visibleMatches = sortedMatches.slice(0, visibleCount);
+  const canLoadMore = visibleCount < sortedMatches.length;
+
   return (
     <Box id="match-history" component="section">
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
@@ -464,5 +467,3 @@ export default function History({
     </Box>
   );
 }
-  const visibleMatches = sortedMatches.slice(0, visibleCount);
-  const canLoadMore = visibleCount < sortedMatches.length;
