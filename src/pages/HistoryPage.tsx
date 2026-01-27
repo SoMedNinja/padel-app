@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
+import EmptyState from "../Components/Shared/EmptyState";
 import { Box, Button, Skeleton, Stack, Container, Typography, Alert } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
@@ -14,7 +15,7 @@ export default function HistoryPage() {
   const queryClient = useQueryClient();
   const { matchFilter, setMatchFilter, user, isGuest } = useStore();
 
-  const { allMatches, profiles, isLoading, eloDeltaByMatch, eloRatingByMatch } = useEloStats();
+  const { allMatches, profiles, isLoading, eloDeltaByMatch, eloRatingByMatch, eloPlayers } = useEloStats();
 
   const filteredMatches = useMemo(
     () => filterMatches(allMatches, matchFilter),
@@ -40,6 +41,11 @@ export default function HistoryPage() {
               <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
               <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
             </Stack>
+          ) : !filteredMatches.length ? (
+            <EmptyState
+              title="Ingen historik"
+              description="Inga matcher matchar ditt nuvarande filter. Prova att ändra filtret eller registrera en ny match."
+            />
           ) : (
             <History
               matches={filteredMatches}
@@ -47,6 +53,7 @@ export default function HistoryPage() {
               eloRatingByMatch={eloRatingByMatch}
               profiles={profiles}
               user={isGuest ? null : user}
+              allEloPlayers={eloPlayers}
             />
           )}
         </Box>
