@@ -69,7 +69,7 @@ import {
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
 } from "@mui/icons-material";
-import { alpha } from "@mui/material/styles";
+import "./PlayerSection.css";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
@@ -1066,8 +1066,8 @@ export function HeadToHeadSection({
               </TextField>
             </Stack>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: { xs: 2, sm: 4 }, flexWrap: 'wrap', mb: 6 }}>
-              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 3, flex: 1, minWidth: 140, bgcolor: 'grey.50' }}>
+            <div className="head-to-head-row">
+              <Paper variant="outlined" className="head-to-head-card">
                 <Avatar
                   sx={{ width: 64, height: 64, mx: 'auto', mb: 1 }}
                   src={playerAvatarUrl}
@@ -1080,11 +1080,11 @@ export function HeadToHeadSection({
                 <Typography variant="caption" color="text.secondary">Högst: {playerHighestElo}</Typography>
               </Paper>
 
-              <Typography variant="h4" sx={{ fontWeight: 900, color: 'divider' }}>
+              <Typography variant="h4" className="head-to-head-vs">
                 {mode === "against" ? "VS" : "&"}
               </Typography>
 
-              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 3, flex: 1, minWidth: 140, bgcolor: 'grey.50' }}>
+              <Paper variant="outlined" className="head-to-head-card">
                 <Avatar
                   sx={{ width: 64, height: 64, mx: 'auto', mb: 1 }}
                   src={opponentAvatarUrl}
@@ -1098,7 +1098,7 @@ export function HeadToHeadSection({
                 </Typography>
                 <Typography variant="caption" color="text.secondary">Högst: {opponentHighestElo}</Typography>
               </Paper>
-            </Box>
+            </div>
 
             <Grid container spacing={2}>
               {[
