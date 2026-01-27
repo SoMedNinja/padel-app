@@ -1083,7 +1083,12 @@ export default function MexicanaTournament({
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
                             <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
-                            <IconButton size="small" color="error" onClick={() => deleteTournament(t)}>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => deleteTournament(t)}
+                              aria-label={`Radera turneringen ${t.name}`}
+                            >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </Stack>

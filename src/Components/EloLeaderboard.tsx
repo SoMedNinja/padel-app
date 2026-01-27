@@ -150,7 +150,11 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>ELO-topplista</Typography>
           <Tooltip title="ELO är ett rankingsystem baserat på flertal faktorer - hur stark du är, hur starkt motståndet är, hur lång matchen är, med mera." arrow>
-            <IconButton size="small" sx={{ opacity: 0.6 }}>
+            <IconButton
+              size="small"
+              sx={{ opacity: 0.6 }}
+              aria-label="Information om ELO-ranking"
+            >
               <InfoOutlined fontSize="small" />
             </IconButton>
           </Tooltip>

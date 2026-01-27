@@ -710,7 +710,10 @@ export default function PlayerSection({
                   </MenuItem>
                 ))}
               </TextField>
-              <IconButton onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}>
+              <IconButton
+                onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}
+                aria-label={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"}
+              >
                 {isEloChartFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
               </IconButton>
             </Stack>
