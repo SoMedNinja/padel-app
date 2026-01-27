@@ -132,6 +132,7 @@ export interface MatchRecap {
   winProbability: number;
   teamA: MatchRecapTeam;
   teamB: MatchRecapTeam;
+  team1ServesFirst: boolean;
 }
 
 export interface EveningRecapLeader {
@@ -142,6 +143,9 @@ export interface EveningRecapLeader {
   losses: number;
   setsFor: number;
   setsAgainst: number;
+  rotations: number; // Number of unique partners
+  avgEloOpponents: number;
+  winRate: number;
 }
 
 export interface EveningRecap {
@@ -150,6 +154,11 @@ export interface EveningRecap {
   totalSets: number;
   mvp: EveningRecapLeader | null;
   leaders: EveningRecapLeader[];
+  funFacts: {
+    mostRotations: EveningRecapLeader[];
+    strongest: EveningRecapLeader[]; // Highest win rate (min 2 games)
+    marathon: { name: string; sets: number } | null;
+  };
 }
 
 export interface MatchSuggestionRound {
