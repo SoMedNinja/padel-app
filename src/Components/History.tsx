@@ -23,12 +23,10 @@ import {
   TextField,
   MenuItem,
   Stack,
-  Divider,
   IconButton,
   List,
   ListItem,
   ListItemText,
-  Paper,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -91,6 +89,7 @@ export default function History({
   const [visibleCount, setVisibleCount] = useState<number>(10);
 
   useEffect(() => {
+    // Note for non-coders: we reset pagination when the match list changes.
     setVisibleCount(10);
   }, [matches.length]);
 
@@ -98,7 +97,6 @@ export default function History({
     () => [...matches].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [matches]
   );
-
 
   if (!matches.length) return <Typography>Inga matcher ännu.</Typography>;
 
@@ -212,9 +210,6 @@ export default function History({
     }
   };
 
-  const visibleMatches = sortedMatches.slice(0, visibleCount);
-  const canLoadMore = visibleCount < sortedMatches.length;
-
   const formatScore = (match: Match) => {
     const scoreType = match.score_type || "sets";
     const score = `${match.team1_sets} – ${match.team2_sets}`;
@@ -253,6 +248,9 @@ export default function History({
     if (delta < 0) return "error.main";
     return "text.secondary";
   };
+
+  const visibleMatches = sortedMatches.slice(0, visibleCount);
+  const canLoadMore = visibleCount < sortedMatches.length;
 
   return (
     <Box id="match-history" component="section">
@@ -386,7 +384,7 @@ export default function History({
                             <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
                               <ListItemText
                                 primary={entry.name}
-                                secondary={`ELO: ${formatElo(currentElo)}`}
+                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
                                 primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                                 secondaryTypographyProps={{ variant: 'caption' }}
                               />
@@ -428,7 +426,7 @@ export default function History({
                             <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
                               <ListItemText
                                 primary={entry.name}
-                                secondary={`ELO: ${formatElo(currentElo)}`}
+                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
                                 primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                                 secondaryTypographyProps={{ variant: 'caption' }}
                               />

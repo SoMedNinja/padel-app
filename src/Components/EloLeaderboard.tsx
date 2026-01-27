@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
-import { PlayerStats } from "../types";
+import { Match, PlayerStats, Profile } from "../types";
+import { useVirtualWindow } from "../hooks/useVirtualWindow";
+import { calculateElo } from "../utils/elo";
 import {
   Tooltip,
   IconButton,
@@ -26,16 +28,42 @@ const winPct = (wins: number, losses: number) =>
 
 interface EloLeaderboardProps {
   players?: PlayerStats[];
+  matches?: Match[];
+  profiles?: Profile[];
 }
 
-export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
+export default function EloLeaderboard({ players = [], matches = [], profiles = [] }: EloLeaderboardProps) {
   const [sortKey, setSortKey] = useState<string>("elo");
   const [asc, setAsc] = useState<boolean>(false);
 
-  const hasUnknownPlayers = players.some(player => !player.name || player.name === "Okänd");
-  const showLoadingOverlay = !players.length || hasUnknownPlayers;
+  const filteredPlayers = useMemo(() => {
+    if (!matches.length || !profiles.length) return [];
+    // Note for non-coders: this recalculates win/loss stats for the current filter only.
+    return calculateElo(matches, profiles);
+  }, [matches, profiles]);
 
-  const visiblePlayers = players.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
+  const filteredStatsById = useMemo(() => {
+    return new Map(filteredPlayers.map(player => [player.id, player]));
+  }, [filteredPlayers]);
+
+  const mergedPlayers = useMemo(() => {
+    return players.map(player => {
+      const filtered = filteredStatsById.get(player.id);
+      return {
+        ...player,
+        // Note for non-coders: keep the all-time ELO, but swap in filtered wins/losses.
+        wins: filtered?.wins ?? 0,
+        losses: filtered?.losses ?? 0,
+        games: filtered?.games ?? 0,
+        recentResults: filtered?.recentResults ?? [],
+      };
+    });
+  }, [players, filteredStatsById]);
+
+  const hasUnknownPlayers = mergedPlayers.some(player => !player.name || player.name === "Okänd");
+  const showLoadingOverlay = !mergedPlayers.length || hasUnknownPlayers;
+
+  const visiblePlayers = mergedPlayers.filter(p => p.name && p.name !== "Gäst" && p.name !== "Okänd");
 
   const sortedPlayers = [...visiblePlayers].sort((a, b) => {
     if (sortKey === "name") {
@@ -67,6 +95,11 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
     }
 
     return asc ? valA - valB : valB - valA;
+  });
+
+  const { parentRef, totalSize, virtualItems, measureElement } = useVirtualWindow({
+    itemCount: sortedPlayers.length,
+    estimateSize: 56,
   });
 
   const toggleSort = (key: string) => {
@@ -115,7 +148,12 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
           </Tooltip>
         </Box>
 
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto', position: 'relative' }}>
+        <TableContainer
+          ref={parentRef}
+          component={Paper}
+          variant="outlined"
+          sx={{ borderRadius: 3, overflow: 'auto', position: 'relative', maxHeight: 480 }}
+        >
           {showLoadingOverlay && (
             <Box
               sx={{
@@ -143,29 +181,47 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
                 <TableCell onClick={() => toggleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst %</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {sortedPlayers.map(p => (
-                <TableRow key={p.name} hover>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar
-                        sx={{ width: 32, height: 32 }}
-                        src={p.avatarUrl || getStoredAvatar(p.id)}
-                        name={p.name}
-                      />
-                      <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
-                    </Box>
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
-                  <TableCell align="center">{p.wins + p.losses}</TableCell>
-                  <TableCell align="center">{p.wins}</TableCell>
-                  <TableCell align="center">{getStreak(p)}</TableCell>
-                  <TableCell align="center">
-                    <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
-                  </TableCell>
-                  <TableCell align="center">{winPct(p.wins, p.losses)}%</TableCell>
-                </TableRow>
-              ))}
+            <TableBody sx={{ position: 'relative', height: totalSize }}>
+              {/* Note for non-coders: the table only draws rows you can see to stay fast on big leaderboards. */}
+              {virtualItems.map((virtualItem) => {
+                const p = sortedPlayers[virtualItem.index];
+                return (
+                  <TableRow
+                    key={p.name}
+                    ref={measureElement(virtualItem.index)}
+                    data-index={virtualItem.index}
+                    hover
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      display: 'table',
+                      tableLayout: 'fixed',
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar
+                          sx={{ width: 32, height: 32 }}
+                          src={p.avatarUrl || getStoredAvatar(p.id)}
+                          name={p.name}
+                        />
+                        <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
+                    <TableCell align="center">{p.wins + p.losses}</TableCell>
+                    <TableCell align="center">{p.wins}</TableCell>
+                    <TableCell align="center">{getStreak(p)}</TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
+                    </TableCell>
+                    <TableCell align="center">{winPct(p.wins, p.losses)}%</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>

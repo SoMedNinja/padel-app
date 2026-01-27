@@ -1076,14 +1076,20 @@ export default function MatchForm({
                   <Grid container spacing={2} alignItems="center">
                     <Grid size={{ xs: 5 }}>
                       <Typography variant="h6" fontWeight={800}>{a}</Typography>
-                      <Typography variant="body2">{idsToNames(team1, profileMap)}</Typography>
+                      <Typography variant="body2">
+                        {/* Note for non-coders: we add separators so names don't run together. */}
+                        {idsToNames(team1, profileMap).join(" & ")}
+                      </Typography>
                     </Grid>
                     <Grid size={{ xs: 2 }}>
                       <Typography variant="h4" color="text.secondary">—</Typography>
                     </Grid>
                     <Grid size={{ xs: 5 }}>
                       <Typography variant="h6" fontWeight={800}>{b}</Typography>
-                      <Typography variant="body2">{idsToNames(team2, profileMap)}</Typography>
+                      <Typography variant="body2">
+                        {/* Note for non-coders: we add separators so names don't run together. */}
+                        {idsToNames(team2, profileMap).join(" & ")}
+                      </Typography>
                     </Grid>
                   </Grid>
                 </Paper>

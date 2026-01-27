@@ -174,16 +174,19 @@ export default function Dashboard() {
                     />
                   </Grid>
                 </Grid>
-                <EloLeaderboard players={eloPlayers} />
-                <Box id="head-to-head" component="section" sx={{ mt: 4 }}>
-                  <HeadToHeadSection
-                    user={isGuest ? null : user}
-                    profiles={profiles}
-                    matches={filteredMatches}
-                    allEloPlayers={eloPlayers}
-                    tournamentResults={tournamentResults}
-                  />
-                </Box>
+                <EloLeaderboard players={eloPlayers} matches={filteredMatches} profiles={profiles} />
+                {!isGuest && (
+                  <Box id="head-to-head" component="section" sx={{ mt: 4 }}>
+                    {/* Note for non-coders: guests can browse stats but don't see head-to-head comparisons. */}
+                    <HeadToHeadSection
+                      user={user}
+                      profiles={profiles}
+                      matches={filteredMatches}
+                      allEloPlayers={eloPlayers}
+                      tournamentResults={tournamentResults}
+                    />
+                  </Box>
+                )}
               </>
             )}
           </>
