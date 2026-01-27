@@ -10,8 +10,8 @@ import {
   resolveTeamNames,
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { supabase } from "../supabaseClient";
 import { Match, Profile } from "../types";
+import { matchService } from "../services/matchService";
 import {
   Box,
   Typography,
@@ -173,9 +173,8 @@ export default function History({
     const team1IdsForDb = edit.team1_ids.map(id => (id === GUEST_ID ? null : id));
     const team2IdsForDb = edit.team2_ids.map(id => (id === GUEST_ID ? null : id));
 
-    const { error } = await supabase
-      .from("matches")
-      .update({
+    try {
+      await matchService.updateMatch(matchId, {
         created_at: new Date(edit.created_at).toISOString(),
         team1: idsToNames(edit.team1_ids as string[], profileMap),
         team2: idsToNames(edit.team2_ids as string[], profileMap),
@@ -188,25 +187,22 @@ export default function History({
           edit.score_type === "points" && edit.score_target !== ""
             ? Number(edit.score_target)
             : null,
-      })
-      .eq("id", matchId);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+      });
       toast.success("Matchen har uppdaterats.");
       cancelEdit();
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte uppdatera matchen.");
     }
   };
 
   const deleteMatch = async (matchId: string) => {
     if (!window.confirm("Radera matchen?")) return;
 
-    const { error } = await supabase.from("matches").delete().eq("id", matchId);
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await matchService.deleteMatch(matchId);
       toast.success("Matchen har raderats.");
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte radera matchen.");
     }
   };
 

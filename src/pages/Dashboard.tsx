@@ -4,8 +4,9 @@ import MatchHighlightCard from "../Components/MatchHighlightCard";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import { HeadToHeadSection } from "../Components/PlayerSection";
 import FilterBar from "../Components/FilterBar";
-import { Box, Skeleton, Stack, Container, CircularProgress, Typography, Button, Alert, Grid } from "@mui/material";
+import { Box, Skeleton, Stack, Container, CircularProgress, Typography, Button, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
+import AppAlert from "../Components/Shared/AppAlert";
 import { useStore } from "../store/useStore";
 
 import { useEloStats } from "../hooks/useEloStats";
@@ -15,9 +16,8 @@ import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { findMatchHighlight } from "../utils/highlights";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
-import { supabase } from "../supabaseClient";
-import { PostgrestError } from "@supabase/supabase-js";
 import { filterMatches } from "../utils/filters";
+import { tournamentService } from "../services/tournamentService";
 
 type TournamentResultRow = TournamentResult & {
   mexicana_tournaments?: { tournament_type?: string | null } | null;
@@ -45,19 +45,7 @@ export default function Dashboard() {
     refetch: refetchTournamentResults,
   } = useQuery({
     queryKey: queryKeys.tournamentResults(),
-    queryFn: async () => {
-      const { data, error } = (await supabase
-        .from("mexicana_results")
-        .select("*, mexicana_tournaments(tournament_type)")) as {
-        data: TournamentResultRow[] | null;
-        error: PostgrestError | null;
-      };
-      if (error) throw error;
-      return (data || []).map((row) => ({
-        ...row,
-        tournament_type: row.mexicana_tournaments?.tournament_type || "mexicano",
-      })) as TournamentResult[];
-    },
+    queryFn: () => tournamentService.getTournamentResultsWithTypes(),
   });
 
   useScrollToFragment();
@@ -119,13 +107,14 @@ export default function Dashboard() {
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box id="dashboard" component="section">
         {hasError && (
-          <Alert severity="error" sx={{ mb: 2 }} action={
-            <Button color="inherit" size="small" onClick={handleRefresh}>
-              Försök igen
-            </Button>
-          }>
-            {errorMessage}
-          </Alert>
+          <AppAlert severity="error" sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Typography variant="body2">{errorMessage}</Typography>
+              <Button color="inherit" size="small" onClick={handleRefresh}>
+                Försök igen
+              </Button>
+            </Box>
+          </AppAlert>
         )}
         {isLoading ? (
           <Stack spacing={2} sx={{ mb: 2 }}>
@@ -151,9 +140,9 @@ export default function Dashboard() {
               />
             )}
             {!filteredMatches.length ? (
-              <Alert severity="info" sx={{ mb: 2 }}>
+              <AppAlert severity="info" sx={{ mb: 2 }}>
                 Inga matcher ännu. Lägg in din första match för att se statistik.
-              </Alert>
+              </AppAlert>
             ) : (
               <>
                 <Grid container spacing={2} sx={{ mb: 3 }}>

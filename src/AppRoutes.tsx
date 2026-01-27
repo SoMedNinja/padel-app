@@ -14,8 +14,8 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<PlayerProfilePage />} />
-      <Route path="/grabbarnas-serie" element={<Dashboard />} />
-      <Route path="/dashboard" element={<Navigate to="/grabbarnas-serie" replace />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
       <Route path="/history" element={<HistoryPage />} />
       {!isGuest && <Route path="/tournament" element={<TournamentPage />} />}
       <Route path="/profile" element={<Navigate to="/" replace />} />

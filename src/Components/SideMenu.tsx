@@ -33,7 +33,7 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
 
   const menuItems = [
     { text: "Hem", icon: <HomeIcon />, path: "/" },
-    { text: "Grabbarnas serie", icon: <TrophyIcon />, path: "/grabbarnas-serie" },
+    { text: "Grabbarnas serie", icon: <TrophyIcon />, path: "/dashboard" },
     { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
   ];
 

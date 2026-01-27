@@ -8,7 +8,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { Match, Profile } from "../types";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { Alert, Box, Button, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
+import { Box, Button, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
+import AppAlert from "../Components/Shared/AppAlert";
 import { queryKeys } from "../utils/queryKeys";
 
 export default function TournamentPage() {
@@ -74,23 +75,23 @@ export default function TournamentPage() {
     >
       <section id="mexicana" className="page-section">
         {isGuest && (
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <AppAlert severity="info" sx={{ mb: 2 }}>
             {/* Note for non-coders: guests can browse the schedule, but only signed-in users can save rounds. */}
             Logga in för att skapa eller spara turneringar. Som gäst kan du bara titta.
-          </Alert>
+          </AppAlert>
         )}
         {hasError && (
-          <Alert
+          <AppAlert
             severity="error"
             sx={{ mb: 2 }}
-            action={
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Typography variant="body2">{errorMessage}</Typography>
               <Button color="inherit" size="small" onClick={handleRefresh}>
                 Försök igen
               </Button>
-            }
-          >
-            {errorMessage}
-          </Alert>
+            </Box>
+          </AppAlert>
         )}
         {isLoading ? (
           <Stack spacing={2} sx={{ mb: 2 }}>

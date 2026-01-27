@@ -36,10 +36,11 @@ import {
   VisibilityOff as HideIcon,
 } from "@mui/icons-material";
 import { toast } from "sonner";
-import { supabase } from "../supabaseClient";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { useTournaments, useTournamentDetails } from "../hooks/useTournamentData";
 import { useQueryClient } from "@tanstack/react-query";
+import { tournamentService } from "../services/tournamentService";
+import { matchService } from "../services/matchService";
 import TournamentBracket from "./TournamentBracket";
 import {
   getProfileDisplayName,
@@ -179,9 +180,8 @@ export default function MexicanaTournament({
       return;
     }
     setIsSaving(true);
-    const { data, error } = await supabase
-      .from("mexicana_tournaments")
-      .insert({
+    try {
+      const data = await tournamentService.createTournament({
         name: newTournament.name.trim(),
         scheduled_at: newTournament.scheduled_at || null,
         location: newTournament.location || null,
@@ -189,16 +189,12 @@ export default function MexicanaTournament({
         tournament_type: newTournament.tournament_type,
         status: "draft",
         created_by: user.id,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       setActiveTournamentId(data.id);
       toast.success("Turneringen är skapad.");
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte skapa turneringen.");
     }
     setIsSaving(false);
   };
@@ -217,23 +213,22 @@ export default function MexicanaTournament({
       return;
     }
     setIsSaving(true);
-    await supabase.from("mexicana_participants").delete().eq("tournament_id", activeTournamentId);
-    const { error } = await supabase.from("mexicana_participants").insert(
-      participants.map(profileId => ({
-        tournament_id: activeTournamentId,
-        profile_id: profileId === GUEST_ID ? null : profileId,
-      }))
-    );
-    if (error) {
-        toast.error(error.message);
-        setIsSaving(false);
-        return false;
-    }
-    else {
+    try {
+      await tournamentService.deleteParticipants(activeTournamentId);
+      await tournamentService.createParticipants(
+        participants.map(profileId => ({
+          tournament_id: activeTournamentId,
+          profile_id: profileId === GUEST_ID ? null : profileId,
+        }))
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       toast.success("Roster sparad.");
       setIsSaving(false);
       return true;
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte spara roster.");
+      setIsSaving(false);
+      return false;
     }
   };
 
@@ -268,30 +263,25 @@ export default function MexicanaTournament({
         return;
       }
 
-      const { error: roundError } = await supabase
-        .from("mexicana_rounds")
-        .insert(roundsPayload);
-
-      if (roundError) {
-        toast.error(roundError.message);
+      try {
+        await tournamentService.createRounds(roundsPayload);
+      } catch (roundError: any) {
+        toast.error(roundError.message || "Kunde inte skapa ronder.");
         setIsSaving(false);
         return;
       }
     }
 
-    const { error } = await supabase
-      .from("mexicana_tournaments")
-      .update({ status: "in_progress" })
-      .eq("id", activeTournamentId);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await tournamentService.updateTournament(activeTournamentId, { status: "in_progress" });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       toast.success("Turneringen har startat.");
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte starta turneringen.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleRecordRound = () => {
@@ -329,9 +319,8 @@ export default function MexicanaTournament({
     const t2Ids = recordingRound.team2_ids.map((id: string) => id === GUEST_ID ? null : id);
     const rIds = restingIds.map(id => id === GUEST_ID ? null : id);
 
-    const { error } = await supabase
-      .from("mexicana_rounds")
-      .insert({
+    try {
+      await tournamentService.createRounds([{
         tournament_id: activeTournamentId,
         round_number: nextRoundNumber,
         team1_ids: t1Ids,
@@ -340,15 +329,15 @@ export default function MexicanaTournament({
         team1_score: s1,
         team2_score: s2,
         mode: recordingRound.mode,
-      });
-
-    if (error) toast.error(error.message);
-    else {
+      }]);
       queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       setRecordingRound(null);
       toast.success(`Rond ${nextRoundNumber} sparad.`);
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte spara rond.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const deleteTournament = async (tournament: any) => {
@@ -356,30 +345,33 @@ export default function MexicanaTournament({
     if (!window.confirm(`Ta bort turneringen "${tournament.name}"?`)) return;
     setIsSaving(true);
 
-    // Explicitly delete matches first to handle FK constraint if migration hasn't run yet
-    await supabase.from("matches").delete().eq("source_tournament_id", tournament.id);
-
-    const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournament.id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      // Explicitly delete matches first to handle FK constraint if migration hasn't run yet
+      await matchService.deleteMatchesByTournamentId(tournament.id);
+      await tournamentService.deleteTournament(tournament.id);
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
       toast.success("Turneringen borttagen.");
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte ta bort turneringen.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const markAbandoned = async () => {
     if (!activeTournamentId || isGuest) return;
     if (!window.confirm("Markera turneringen som avbruten?")) return;
     setIsSaving(true);
-    const { error } = await supabase.from("mexicana_tournaments").update({ status: "abandoned" }).eq("id", activeTournamentId);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      await tournamentService.updateTournament(activeTournamentId, { status: "abandoned" });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       toast.success("Turneringen avbruten.");
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte avbryta turneringen.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const completeTournament = async () => {
@@ -403,20 +395,17 @@ export default function MexicanaTournament({
         return;
       }
 
-      const updateResults = await Promise.all(
-        roundScorePayload.map(round =>
-          supabase
-            .from("mexicana_rounds")
-            .update({
+      try {
+        await Promise.all(
+          roundScorePayload.map(round =>
+            tournamentService.updateRound(round.id, {
               team1_score: round.team1_score,
               team2_score: round.team2_score,
             })
-            .eq("id", round.id)
-        )
-      );
-      const roundScoreError = updateResults.find(result => result.error)?.error;
-      if (roundScoreError) {
-        toast.error(roundScoreError.message);
+          )
+        );
+      } catch (roundScoreError: any) {
+        toast.error(roundScoreError.message || "Kunde inte spara ronder.");
         setIsSaving(false);
         return;
       }
@@ -438,9 +427,10 @@ export default function MexicanaTournament({
       created_by: user.id,
     }));
 
-    const { error: matchError } = await supabase.from("matches").insert(matchPayload);
-    if (matchError) {
-      toast.error(matchError.message);
+    try {
+      await matchService.createMatch(matchPayload);
+    } catch (matchError: any) {
+      toast.error(matchError.message || "Kunde inte synka matcher.");
       setIsSaving(false);
       return;
     }
@@ -456,26 +446,22 @@ export default function MexicanaTournament({
       losses: res.losses,
     }));
 
-    const { error: resultError } = await supabase.from("mexicana_results").insert(resultsPayload);
-    if (resultError) {
-      toast.error(resultError.message);
-      setIsSaving(false);
-      return;
-    }
-
-    const { error: tournamentError } = await supabase
-      .from("mexicana_tournaments")
-      .update({ status: "completed", completed_at: new Date().toISOString(), synced_to_matches: true })
-      .eq("id", activeTournament.id);
-
-    if (tournamentError) toast.error(tournamentError.message);
-    else {
+    try {
+      await tournamentService.createTournamentResults(resultsPayload);
+      await tournamentService.updateTournament(activeTournament.id, {
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        synced_to_matches: true
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResultsHistory() });
       onTournamentSync?.();
       toast.success("Turneringen slutförd.");
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte slutföra turneringen.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleScoreChange = (team: "team1_score" | "team2_score", val: string) => {
@@ -494,21 +480,18 @@ export default function MexicanaTournament({
   const updateRoundInDb = async (roundId: string, s1: any, s2: any) => {
     if (isGuest || !user?.id) return;
     setIsSaving(true);
-    const { error } = await supabase
-      .from("mexicana_rounds")
-      .update({
+    try {
+      await tournamentService.updateRound(roundId, {
         team1_score: Number(s1),
         team2_score: Number(s2),
-      })
-      .eq("id", roundId);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
       toast.success("Resultat sparat.");
+    } catch (error: any) {
+      toast.error(error.message || "Kunde inte spara resultat.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleScoreChangeInList = (roundId: string, team: "team1_score" | "team2_score", val: string) => {

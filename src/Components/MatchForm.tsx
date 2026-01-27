@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "../supabaseClient";
+import { matchService } from "../services/matchService";
 import {
   CircularProgress,
   Box,
@@ -344,7 +344,7 @@ export default function MatchForm({
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("matches").insert({
+      await matchService.createMatch({
         team1: idsToNames(team1, profileMap),
         team2: idsToNames(team2, profileMap),
         team1_ids: team1IdsForDb,
@@ -358,12 +358,6 @@ export default function MatchForm({
         team1_serves_first: true,
         created_by: user.id,
       });
-
-      if (error) {
-        toast.error(error.message);
-        setIsSubmitting(false);
-        return;
-      }
     } catch (error: any) {
       toast.error(error.message || "Kunde inte spara matchen.");
       setIsSubmitting(false);

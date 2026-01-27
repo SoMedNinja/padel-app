@@ -39,7 +39,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isDashboard = location.pathname === "/grabbarnas-serie";
+  const isDashboard = location.pathname === "/dashboard";
 
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
@@ -107,7 +107,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     fontSize: { xs: '1.1rem', sm: '1.25rem' }
                   }}
                 >
-                  {isDashboard ? "Grabbarnas serie" : "Padel app"}
+                    {isDashboard ? "Grabbarnas serie" : "Padel-app"}
                 </Typography>
                 {isDashboard && (
                   <Typography
@@ -119,7 +119,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                       textTransform: 'uppercase',
                     }}
                   >
-                    Padel, prestige & bragging rights
+                      Padel, prestige & ära
                   </Typography>
                 )}
               </Box>
