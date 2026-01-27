@@ -72,11 +72,15 @@ export default function App() {
     );
   }
 
-  // Check if profile setup is needed (require a non-empty name)
-  const hasValidName = user?.name && user.name.trim().length > 0;
+  // Check if profile setup is needed (require a non-empty name).
+  // Note for non-coders: we look for a name in both the profile record and the login metadata so
+  // returning users don't get stuck on the setup screen if their name was saved elsewhere.
+  const profileName = user?.name?.trim() || "";
+  const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name || "";
+  const resolvedName = profileName || metadataName.trim();
+  const hasValidName = resolvedName.length > 0;
   if (user && !hasValidName && !isGuest) {
-    // Try to get name from metadata as fallback for the setup field
-    const metadataName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+    // Note for non-coders: we prefill the setup form with any name we can find.
 
     return (
       <MainLayout>
