@@ -5,6 +5,11 @@
   text-align: center;
 }
 
+/* Note for non-coders: this removes the global padding only for the tournament page. */
+body.tournament-page #root {
+  padding: 0;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
