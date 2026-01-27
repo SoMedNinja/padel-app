@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
 import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
+import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import {
   AppBar,
   Toolbar,
@@ -147,6 +148,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
         isGuest={isGuest}
         handleAuthAction={handleAuthAction}
       />
+
+      <Container maxWidth="lg" sx={{ mt: 2 }}>
+        <SupabaseConfigBanner />
+      </Container>
 
       {isGuest && (
         <Container maxWidth="lg" sx={{ mt: 2 }}>

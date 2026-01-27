@@ -18,6 +18,10 @@ import {
   Slider,
   Container,
   Alert,
+  Stepper,
+  Step,
+  StepLabel,
+  Divider,
 } from "@mui/material";
 import {
   PhotoCamera as PhotoIcon,
@@ -40,6 +44,18 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
 
   const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
   const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+  // Note for non-coders: the stepper highlights what's left to finish the profile.
+  const cleanedName = stripBadgeLabelFromName(name, null).trim();
+  const hasName = Boolean(cleanedName);
+  const hasAvatar = Boolean(avatarUrl);
+  const activeStep = hasName ? (hasAvatar ? 2 : 1) : 0;
+  const steps = ["Ditt namn", "Profilbild", "Klar att köra"];
+  const stepDescriptions = [
+    "Ditt namn behövs för att visa resultat, statistik och topplistor.",
+    "En profilbild gör det lättare för andra att känna igen dig.",
+    "Allt ser bra ut! Spara för att börja spela.",
+  ];
 
   const isAvatarColumnMissing = (error) =>
     error?.message?.includes("avatar_url") && error.message.includes("schema cache");
@@ -105,7 +121,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const trimmed = stripBadgeLabelFromName(name, null);
+    const trimmed = cleanedName;
     // Note for non-coders: we clean the name here so badge tags aren't saved as part of it.
     if (!trimmed) return alert("Spelarnamn krävs.");
     if (!user?.id) return;
@@ -138,6 +154,17 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
         <CardContent sx={{ p: 4 }}>
+          <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 2 }}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {stepDescriptions[activeStep]}
+          </Typography>
+          <Divider sx={{ mb: 3 }} />
           <Typography variant="h5" sx={{ mb: 1, fontWeight: 800 }}>Skapa din profil</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
             Välj spelarnamn och lägg till en profilbild för att komma igång.

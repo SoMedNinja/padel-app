@@ -3,6 +3,9 @@ import { supabase } from "../supabaseClient";
 import { Match, MatchFilter } from "../types";
 import { queryKeys } from "../utils/queryKeys";
 
+// Note for non-coders: this keeps the last response visible while new filters load.
+const keepPreviousData = <T,>(previousData: T | undefined) => previousData;
+
 const getDateRange = (filter: MatchFilter) => {
   if (filter.type === "last7") {
     const start = new Date();
@@ -27,6 +30,7 @@ const getDateRange = (filter: MatchFilter) => {
 export const useMatches = (filter: MatchFilter) => {
   return useQuery({
     queryKey: queryKeys.matches(filter),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       let query = supabase
         .from("matches")

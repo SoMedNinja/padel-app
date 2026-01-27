@@ -5,6 +5,7 @@ import { useProfiles } from "../hooks/useProfiles";
 import { useMatches } from "../hooks/useMatches";
 import { calculateElo } from "../utils/elo";
 import { Match, Profile } from "../types";
+import { Alert, Box, Container, Typography } from "@mui/material";
 
 export default function SingleGamePage() {
   const { user, isGuest } = useStore();
@@ -13,7 +14,21 @@ export default function SingleGamePage() {
 
   const allEloPlayers = calculateElo(matches, profiles);
 
-  if (isGuest) return <div>Endast inloggade användare kan lägga till matcher.</div>;
+  if (isGuest) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 4 }}>
+        <Alert severity="info">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            Logga in för att lägga till matcher
+          </Typography>
+          <Box component="span">
+            {/* Note for non-coders: guests can browse stats, but saving a match needs a real account. */}
+            Som gäst kan du utforska statistiken, men du behöver ett konto för att spara matcher.
+          </Box>
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
     <div id="single-game">

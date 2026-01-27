@@ -5,6 +5,9 @@ import { queryKeys } from "../utils/queryKeys";
 
 const PAGE_SIZE = 20;
 
+// Note for non-coders: we keep earlier pages on screen while loading more.
+const keepPreviousData = <T,>(previousData: T | undefined) => previousData;
+
 const getDateRange = (filter: MatchFilter) => {
   if (filter.type === "last7") {
     const start = new Date();
@@ -29,6 +32,7 @@ const getDateRange = (filter: MatchFilter) => {
 export const useInfiniteMatches = (filter: MatchFilter) => {
   return useInfiniteQuery({
     queryKey: queryKeys.matchesInfinite(filter),
+    placeholderData: keepPreviousData,
     queryFn: async ({ pageParam }: { pageParam: string | null }) => {
       let query = supabase
         .from("matches")

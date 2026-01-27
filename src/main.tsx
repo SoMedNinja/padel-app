@@ -11,7 +11,9 @@ import "./index.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      // Note for non-coders: staleTime + gcTime keep cached data around so filters feel instant.
       staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
     },
   },
 });

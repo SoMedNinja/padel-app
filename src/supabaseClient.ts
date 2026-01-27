@@ -1,12 +1,12 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// Prefer env values, but fall back to defaults so local dev works out of the box.
-const supabaseUrl =
-  (import.meta as any).env.VITE_SUPABASE_URL || "https://hiasgpbuqhiwutpgugjk.supabase.co";
-const supabaseAnonKey =
-  (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "sb_publishable_HmVbNlWyuBw6PFEJCtmTUg_EQG25c3F";
+// Prefer env values so each environment can point at its own database.
+const envSupabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const envSupabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = envSupabaseUrl || "";
+const supabaseAnonKey = envSupabaseAnonKey || "";
 
-const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+const isSupabaseConfigured = Boolean(envSupabaseUrl && envSupabaseAnonKey);
 const missingSupabaseMessage =
   "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
 
@@ -34,6 +34,7 @@ const createMockQuery = (): any => {
 };
 
 const createMockSupabase = (): any => ({
+  // Note for non-coders: this mock makes missing setup obvious without crashing the whole app.
   auth: {
     getUser: () => Promise.resolve({ data: { user: null }, error: new Error(missingSupabaseMessage) }),
     onAuthStateChange: () => ({

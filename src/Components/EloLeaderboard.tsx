@@ -3,6 +3,7 @@ import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
 import { PlayerStats } from "../types";
+import { useVirtualWindow } from "../hooks/useVirtualWindow";
 import {
   Tooltip,
   IconButton,
@@ -69,6 +70,11 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
     return asc ? valA - valB : valB - valA;
   });
 
+  const { parentRef, totalSize, virtualItems, measureElement } = useVirtualWindow({
+    itemCount: sortedPlayers.length,
+    estimateSize: 56,
+  });
+
   const toggleSort = (key: string) => {
     if (key === sortKey) setAsc(!asc);
     else {
@@ -115,7 +121,12 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
           </Tooltip>
         </Box>
 
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto', position: 'relative' }}>
+        <TableContainer
+          ref={parentRef}
+          component={Paper}
+          variant="outlined"
+          sx={{ borderRadius: 3, overflow: 'auto', position: 'relative', maxHeight: 480 }}
+        >
           {showLoadingOverlay && (
             <Box
               sx={{
@@ -143,29 +154,47 @@ export default function EloLeaderboard({ players = [] }: EloLeaderboardProps) {
                 <TableCell onClick={() => toggleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst %</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {sortedPlayers.map(p => (
-                <TableRow key={p.name} hover>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar
-                        sx={{ width: 32, height: 32 }}
-                        src={p.avatarUrl || getStoredAvatar(p.id)}
-                        name={p.name}
-                      />
-                      <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
-                    </Box>
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
-                  <TableCell align="center">{p.wins + p.losses}</TableCell>
-                  <TableCell align="center">{p.wins}</TableCell>
-                  <TableCell align="center">{getStreak(p)}</TableCell>
-                  <TableCell align="center">
-                    <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
-                  </TableCell>
-                  <TableCell align="center">{winPct(p.wins, p.losses)}%</TableCell>
-                </TableRow>
-              ))}
+            <TableBody sx={{ position: 'relative', height: totalSize }}>
+              {/* Note for non-coders: the table only draws rows you can see to stay fast on big leaderboards. */}
+              {virtualItems.map((virtualItem) => {
+                const p = sortedPlayers[virtualItem.index];
+                return (
+                  <TableRow
+                    key={p.name}
+                    ref={measureElement(virtualItem.index)}
+                    data-index={virtualItem.index}
+                    hover
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      display: 'table',
+                      tableLayout: 'fixed',
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar
+                          sx={{ width: 32, height: 32 }}
+                          src={p.avatarUrl || getStoredAvatar(p.id)}
+                          name={p.name}
+                        />
+                        <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 700 }}>{Math.round(p.elo)}</TableCell>
+                    <TableCell align="center">{p.wins + p.losses}</TableCell>
+                    <TableCell align="center">{p.wins}</TableCell>
+                    <TableCell align="center">{getStreak(p)}</TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
+                    </TableCell>
+                    <TableCell align="center">{winPct(p.wins, p.losses)}%</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
