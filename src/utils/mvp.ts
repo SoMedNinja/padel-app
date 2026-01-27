@@ -40,13 +40,20 @@ export function scorePlayersForMvp(
   const matchIds = new Set(matches.map(m => m.id).filter(Boolean));
 
   return players.map(player => {
-    // Calculate stats for this period
-    const periodHistory = player.history.filter(h => matchIds.has(h.matchId));
-    const wins = periodHistory.filter(h => h.result === "W").length;
-    const games = periodHistory.length;
-    const periodEloGain = periodHistory.reduce((sum, h) => sum + (h.delta || 0), 0);
-    const winRate = games > 0 ? wins / games : 0;
+    let wins = 0;
+    let games = 0;
+    let periodEloGain = 0;
 
+    // Calculate stats for this period in a single pass
+    for (const h of player.history) {
+      if (matchIds.has(h.matchId)) {
+        games++;
+        if (h.result === "W") wins++;
+        periodEloGain += (h.delta || 0);
+      }
+    }
+
+    const winRate = games > 0 ? wins / games : 0;
     const score = calculateMvpScore(wins, games, periodEloGain);
 
     return {

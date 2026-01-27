@@ -250,9 +250,8 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
   });
 
   return Object.values(players).map(player => {
-    const recentResults = [...player.history]
-      .sort((a, b) => a.timestamp - b.timestamp)
-      .map(entry => entry.result);
+    // player.history is already sorted by timestamp because sortedMatches was sorted.
+    const recentResults = player.history.map(entry => entry.result);
     const bestPartnerEntry = Object.entries(player.partners)
       .map(([partnerId, stats]) => ({
         partnerId,
