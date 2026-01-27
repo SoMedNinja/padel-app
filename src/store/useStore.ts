@@ -48,13 +48,13 @@ export const useStore = create<AppState>()(
     {
       name: "padel-store",
       storage: createJSONStorage(() => localStorage),
-      // Only persist these fields
+      // Only persist these fields. Note: 'user' is deliberately not persisted to prevent
+      // persistent tampering of authorization flags (is_admin/is_approved) in localStorage.
+      // useAuthProfile will re-hydrate the user state from the authoritative Supabase session.
       partialize: (state) => ({
         matchFilter: state.matchFilter,
         dismissedMatchId: state.dismissedMatchId,
         lastSeenMatchDate: state.lastSeenMatchDate,
-        // We might want to persist user/isGuest as well if they were intended to be persistent
-        user: state.user,
         isGuest: state.isGuest,
       }),
     }
