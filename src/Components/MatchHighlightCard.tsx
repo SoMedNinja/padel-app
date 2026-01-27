@@ -1,8 +1,9 @@
-import React from "react";
-import { Box, Typography, IconButton, Paper, Stack } from "@mui/material";
-import { Close, Star, TrendingUp, LocalFireDepartment, Groups } from "@mui/icons-material";
+import React, { useState } from "react";
+import { Box, Typography, IconButton, Paper, Stack, Tooltip } from "@mui/material";
+import { Close, Star, TrendingUp, LocalFireDepartment, Groups, Share } from "@mui/icons-material";
 import { MatchHighlight } from "../utils/highlights";
 import { Match } from "../types";
+import TheShareable from "./Shared/TheShareable";
 
 interface MatchHighlightCardProps {
   highlight: MatchHighlight;
@@ -31,10 +32,12 @@ const getBackgroundColor = (reason: MatchHighlight['reason']) => {
 };
 
 export default function MatchHighlightCard({ highlight, match, onDismiss }: MatchHighlightCardProps) {
+  const [shareOpen, setShareOpen] = useState(false);
   const team1 = Array.isArray(match.team1) ? match.team1.join(' & ') : match.team1;
   const team2 = Array.isArray(match.team2) ? match.team2.join(' & ') : match.team2;
 
   return (
+    <>
     <Paper
       elevation={0}
       sx={{
@@ -47,20 +50,41 @@ export default function MatchHighlightCard({ highlight, match, onDismiss }: Matc
         overflow: 'hidden',
       }}
     >
-      <IconButton
-        size="small"
-        onClick={onDismiss}
-        aria-label="Stäng"
+      <Stack
+        direction="row"
+        spacing={0.5}
         sx={{
           position: 'absolute',
           top: 8,
           right: 8,
-          opacity: 0.6,
-          '&:hover': { opacity: 1 }
+          zIndex: 1
         }}
       >
-        <Close fontSize="small" />
-      </IconButton>
+        <Tooltip title="Dela">
+          <IconButton
+            size="small"
+            onClick={() => setShareOpen(true)}
+            sx={{
+              opacity: 0.6,
+              '&:hover': { opacity: 1 }
+            }}
+          >
+            <Share fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Stäng">
+          <IconButton
+            size="small"
+            onClick={onDismiss}
+            sx={{
+              opacity: 0.6,
+              '&:hover': { opacity: 1 }
+            }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
 
       <Stack direction="row" spacing={2} alignItems="center">
         <Box
@@ -90,5 +114,13 @@ export default function MatchHighlightCard({ highlight, match, onDismiss }: Matc
         </Box>
       </Stack>
     </Paper>
+
+    <TheShareable
+      open={shareOpen}
+      onClose={() => setShareOpen(false)}
+      type="match"
+      data={{ match, highlight }}
+    />
+    </>
   );
 }
