@@ -65,9 +65,10 @@ export default function App() {
   if (!user && !isGuest) {
     return (
       <Auth
-        onAuth={(authUser) => {
+        onAuth={(_authUser) => {
           setIsGuest(false);
-          setUser({ ...authUser } as any);
+          // Note for non-coders: we re-check the saved profile so we can reuse your existing name.
+          refresh();
         }}
         onGuest={() => setIsGuest(true)}
       />
