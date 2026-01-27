@@ -16,14 +16,13 @@ export default function SingleGamePage() {
   if (isGuest) return <div>Endast inloggade användare kan lägga till matcher.</div>;
 
   return (
-    <section id="single-game" className="page-section">
-      <h2>Enkel match</h2>
+    <div id="single-game">
       <MatchForm
         user={user}
         profiles={profiles}
         matches={matches}
         eloPlayers={allEloPlayers}
       />
-    </section>
+    </div>
   );
 }

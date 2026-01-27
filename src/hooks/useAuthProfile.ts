@@ -102,7 +102,7 @@ export const useAuthProfile = () => {
       clearLoadingTimeout();
       setIsLoading(false);
     }
-  }, [clearLoadingTimeout, startLoadingTimeout, syncProfile]);
+  }, [clearLoadingTimeout, startLoadingTimeout, syncProfile, setIsGuest, setUser]);
 
   useEffect(() => {
     let isMounted = true;

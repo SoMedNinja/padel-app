@@ -3,6 +3,23 @@ import { getProfileDisplayName, makeProfileMap, resolveTeamNames } from "../util
 import ProfileName from "./ProfileName";
 import { GUEST_NAME } from "../utils/guest";
 import { Match, Profile, PlayerStats } from "../types";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TextField,
+  MenuItem,
+  Chip,
+  Stack,
+} from "@mui/material";
 
 const ELO_BASELINE = 1000;
 const normalizeProfileName = (name: string) => name?.trim().toLowerCase();
@@ -204,83 +221,85 @@ export default function Heatmap({
   };
 
   return (
-    <div className="table-card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "12px" }}>
-        <h2 style={{ margin: 0 }}>Lag-kombinationer</h2>
-        {!currentUserOnly && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span className="muted">Filtrera spelare:</span>
-            <select
+    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Lagkombinationer</Typography>
+          {!currentUserOnly && (
+            <TextField
+              select
+              size="small"
+              label="Filtrera spelare"
               value={playerFilter}
               onChange={e => setPlayerFilter(e.target.value)}
-              style={{ margin: 0, width: "auto", minWidth: "160px" }}
+              sx={{ minWidth: 200 }}
             >
-              <option value="all">Alla spelare</option>
+              <MenuItem value="all">Alla spelare</MenuItem>
               {sortedProfileNames.map(name => (
-                <option key={name} value={name}>{name}</option>
+                <MenuItem key={name} value={name}>{name}</MenuItem>
               ))}
-            </select>
-          </div>
-        )}
-      </div>
-      <div className="table-scroll">
-        <div className="table-scroll-inner">
-          <table className="styled-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => handleSort("players")}>Lag</th>
-              <th className="sortable" onClick={() => handleSort("games")}>Matcher</th>
-              <th className="sortable" onClick={() => handleSort("wins")}>Vinster</th>
-              <th className="sortable" onClick={() => handleSort("winPct")}>Vinst %</th>
-              <th className="sortable" onClick={() => handleSort("serveFirstWinPct")}>Vinst % (startade med serve)</th>
-              <th className="sortable" onClick={() => handleSort("serveSecondWinPct")}>Vinst % (startade ej med serve)</th>
-              <th className="recent-results-column">Senaste 5</th>
-              <th className="sortable" onClick={() => handleSort("avgElo")}>Nuvarande snitt-ELO</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.players.join("-")}>
-                <td>
-                  <span className="team-names">
-                    {r.players.map((name, index) => (
-                      <span key={`${name}-${index}`} className="team-name">
-                        <ProfileName name={name} badgeId={badgeNameMap.get(name) || null} />
-                        {index < r.players.length - 1 && (
-                          <span className="team-separator"> & </span>
-                        )}
-                      </span>
-                    ))}
-                  </span>
-                </td>
-                <td>{r.games}</td>
-                <td>{r.wins}</td>
-                <td>{r.winPct}%</td>
-                <td>{r.serveFirstWinPct === null ? "-" : `${r.serveFirstWinPct}%`}</td>
-                <td>{r.serveSecondWinPct === null ? "-" : `${r.serveSecondWinPct}%`}</td>
-                <td className="recent-results-cell">
-                  {r.recentResults?.length ? (
-                    <span className="table-results">
-                      {r.recentResults.map((result, index) => (
-                        <span
-                          key={`${result}-${index}`}
-                          className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
-                        >
-                          {result}
-                        </span>
+            </TextField>
+          )}
+        </Box>
+
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
+          <Table sx={{ minWidth: 800 }}>
+            <TableHead sx={{ bgcolor: 'grey.50' }}>
+              <TableRow>
+                <TableCell onClick={() => handleSort("players")} sx={{ cursor: 'pointer', fontWeight: 700 }}>Lag</TableCell>
+                <TableCell onClick={() => handleSort("games")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Matcher</TableCell>
+                <TableCell onClick={() => handleSort("wins")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinster</TableCell>
+                <TableCell onClick={() => handleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst %</TableCell>
+                <TableCell onClick={() => handleSort("serveFirstWinPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst % (servade)</TableCell>
+                <TableCell onClick={() => handleSort("serveSecondWinPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst % (mottagning)</TableCell>
+                <TableCell sx={{ fontWeight: 700 }} align="center">Senaste 5</TableCell>
+                <TableCell onClick={() => handleSort("avgElo")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Snitt-ELO</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.players.join("-")} hover>
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                      {r.players.map((name, index) => (
+                        <Box key={`${name}-${index}`} sx={{ display: 'flex', alignItems: 'center' }}>
+                          <ProfileName name={name} badgeId={badgeNameMap.get(name) || null} />
+                          {index < r.players.length - 1 && (
+                            <Typography variant="body2" sx={{ mx: 0.5, opacity: 0.5 }}>&</Typography>
+                          )}
+                        </Box>
                       ))}
-                    </span>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-                <td>{r.avgElo}</td>
-              </tr>
-            ))}
-          </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+                    </Stack>
+                  </TableCell>
+                  <TableCell align="center">{r.games}</TableCell>
+                  <TableCell align="center">{r.wins}</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>{r.winPct}%</TableCell>
+                  <TableCell align="center">{r.serveFirstWinPct === null ? "-" : `${r.serveFirstWinPct}%`}</TableCell>
+                  <TableCell align="center">{r.serveSecondWinPct === null ? "-" : `${r.serveSecondWinPct}%`}</TableCell>
+                  <TableCell align="center">
+                    {r.recentResults?.length ? (
+                      <Stack direction="row" spacing={0.5} justifyContent="center">
+                        {r.recentResults.map((result, index) => (
+                          <Chip
+                            key={`${result}-${index}`}
+                            label={result}
+                            size="small"
+                            color={result === "V" ? "success" : "error"}
+                            sx={{ fontWeight: 800, width: 28, height: 28, '& .MuiChip-label': { px: 0 } }}
+                          />
+                        ))}
+                      </Stack>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>{r.avgElo}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </CardContent>
+    </Card>
   );
 }

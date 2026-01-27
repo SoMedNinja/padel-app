@@ -41,6 +41,34 @@ import { getBadgeLabelById } from "../utils/badges";
 import ProfileName from "./ProfileName";
 import { supabase } from "../supabaseClient";
 import { Match, Profile, TournamentResult, PlayerStats } from "../types";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Button,
+  TextField,
+  Stack,
+  Divider,
+  Slider,
+  IconButton,
+  Tooltip as MuiTooltip,
+  Paper,
+  Tab,
+  Tabs,
+  MenuItem,
+  Chip,
+} from "@mui/material";
+import {
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Close as CloseIcon,
+  PhotoCamera as PhotoIcon,
+  Delete as DeleteIcon,
+  Fullscreen as FullscreenIcon,
+  FullscreenExit as FullscreenExitIcon,
+} from "@mui/icons-material";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
@@ -272,7 +300,11 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
     const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
 
     total++;
-    playerWon ? wins++ : losses++;
+    if (playerWon) {
+      wins++;
+    } else {
+      losses++;
+    }
 
     let setsFor = isTeam1 ? s1 : s2;
     let setsAgainst = isTeam1 ? s2 : s1;
@@ -301,7 +333,7 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
   return { wins, losses, matches: total, avgSetDiff, totalSetsFor, totalSetsAgainst };
 };
 
-const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string, mode: string) => {
+const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string) => {
   if (!playerId || !opponentId) return { wins: 0, matches: 0 };
 
   const playerResults = tournamentResults.filter(r => r.profile_id === playerId);
@@ -394,7 +426,6 @@ export default function PlayerSection({
     () => profiles.find(profile => profile.id === user?.id),
     [profiles, user]
   );
-  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
 
   const playerName = playerProfile
     ? getProfileDisplayName(playerProfile)
@@ -458,13 +489,6 @@ export default function PlayerSection({
     const wins = recentForm.filter(result => result === "W").length;
     return { wins, losses: recentForm.length - wins };
   }, [recentForm]);
-
-  const recentEloDelta = useMemo(() => {
-    const history = filteredStats?.history ?? [];
-    if (history.length < 1) return 0;
-    // For filtered view, we want the total change over these matches
-    return history.reduce((sum, entry) => sum + entry.delta, 0);
-  }, [filteredStats]);
 
   const last30DaysDelta = useMemo(() => {
     const history = globalStats?.history ?? [];
@@ -584,7 +608,7 @@ export default function PlayerSection({
           if (data) onProfileUpdate?.(data);
         });
     }
-  }, [avatarStorageId, playerProfile?.avatar_url, user?.id]);
+  }, [avatarStorageId, playerProfile?.avatar_url, user?.id, onProfileUpdate]);
 
   useEffect(() => {
     setSelectedBadgeId(playerProfile?.featured_badge_id || null);
@@ -659,238 +683,241 @@ export default function PlayerSection({
 
   if (mode === "chart") {
     return (
-      <section className={`player-section player-chart${isEloChartFullscreen ? " is-fullscreen" : ""}`}>
-        <div className="player-chart-header">
-          <h3>ELO-utveckling (senaste året)</h3>
-          <div className="player-chart-controls">
-            <label className="chart-compare">
-              Jämför med
-              <select value={compareTarget} onChange={(event) => setCompareTarget(event.target.value)}>
-                <option value="none">Ingen</option>
-                <option value="all">Alla</option>
+      <Card
+        variant="outlined"
+        sx={{
+          borderRadius: 3,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+          ...(isEloChartFullscreen && {
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1300,
+            borderRadius: 0,
+            m: 0,
+            p: 2,
+          })
+        }}
+      >
+        <CardContent sx={{ height: isEloChartFullscreen ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>ELO-utveckling (senaste året)</Typography>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <TextField
+                select
+                size="small"
+                label="Jämför med"
+                value={compareTarget}
+                onChange={(e) => setCompareTarget(e.target.value)}
+                sx={{ minWidth: 160 }}
+              >
+                <MenuItem value="none">Ingen</MenuItem>
+                <MenuItem value="all">Alla</MenuItem>
                 {selectablePlayers.map(player => (
-                  <option key={player.id} value={player.id}>
+                  <MenuItem key={player.id} value={player.id}>
                     {getPlayerOptionLabel(player)}
-                  </option>
+                  </MenuItem>
                 ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="ghost-button chart-expand-button"
-              onClick={() => setIsEloChartFullscreen((prev) => !prev)}
-            >
-              <span aria-hidden="true">{isEloChartFullscreen ? "🗗" : "⛶"}</span>
-              {isEloChartFullscreen ? "Minimera" : "Maximera"}
-            </button>
-          </div>
-        </div>
-        {comparisonData.length ? (
-          <div className="player-chart-body">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
-                />
-                <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
-                <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
-                <Legend />
-                {comparisonNames.map((name, index) => (
-                  <Line
-                    key={name}
-                    type="monotone"
-                    dataKey={(row) => row[name]}
-                    name={name}
-                    stroke={chartPalette[index % chartPalette.length]}
-                    strokeWidth={3}
-                    dot={false}
+              </TextField>
+              <IconButton onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}>
+                {isEloChartFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+              </IconButton>
+            </Stack>
+          </Box>
+
+          <Box sx={{ height: isEloChartFullscreen ? '80vh' : 300, minHeight: 300, width: '100%', mt: 2 }}>
+            {comparisonData.length ? (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
                   />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <p className="muted">Spela matcher senaste året för att se ELO-utvecklingen.</p>
-        )}
-      </section>
+                  <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
+                  <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
+                  <Legend />
+                  {comparisonNames.map((name, index) => (
+                    <Line
+                      key={name}
+                      type="monotone"
+                      dataKey={(row) => row[name]}
+                      name={name}
+                      stroke={chartPalette[index % chartPalette.length]}
+                      strokeWidth={3}
+                      dot={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography color="text.secondary" align="center" sx={{ py: 8 }}>
+                Spela matcher senaste året för att se ELO-utvecklingen.
+              </Typography>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <section className="player-section">
-      <div className="player-header">
-        <div className="player-avatar-wrap">
+    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center', mb: 4 }}>
           <Avatar
-            className="player-avatar"
+            sx={{ width: 100, height: 100, fontSize: '2.5rem' }}
             src={avatarUrl}
             name={playerName}
-            alt="Profilbild"
           />
-        </div>
 
-        <div className="player-details">
-          {isEditingName ? (
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <input
-                type="text"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                style={{ margin: 0 }}
-              />
-              <button type="button" onClick={handleNameSave} style={{ marginTop: 0 }}>Spara</button>
-              <button type="button" className="ghost-button" onClick={() => setIsEditingName(false)}>Avbryt</button>
-            </div>
-          ) : (
-            <h3>
-              <ProfileName name={playerName} badgeId={selectedBadgeId} />
-            </h3>
-          )}
-
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-            <label className="ghost-button" style={{ margin: 0, padding: '8px 12px', fontSize: '14px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-              Byt profilbild
-              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
-            </label>
-            {!isEditingName && (
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => setIsEditingName(true)}
-                style={{ marginTop: 0, padding: '8px 12px', fontSize: '14px' }}
-              >
-                Ändra namn
-              </button>
+          <Box sx={{ flex: 1, minWidth: 240 }}>
+            {isEditingName ? (
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                <TextField
+                  size="small"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                />
+                <Button variant="contained" size="small" onClick={handleNameSave}>Spara</Button>
+                <Button variant="outlined" size="small" onClick={() => setIsEditingName(false)}>Avbryt</Button>
+              </Stack>
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
+                <ProfileName name={playerName} badgeId={selectedBadgeId} />
+              </Typography>
             )}
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={resetAvatar}
-              style={{ marginTop: 0, padding: '8px 12px', fontSize: '14px' }}
-            >
-              Återställ bild
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {pendingAvatar && (
-        <div className="avatar-cropper">
-          <div
-            className="avatar-crop-preview"
-            style={{ backgroundImage: `url(${pendingAvatar})`, backgroundSize: `${avatarZoom * 100}%` }}
-          />
-          <div className="avatar-crop-controls">
-            <label className="form-label">
-              Zoom
-              <input
-                type="range"
-                min="1"
-                max="2.5"
-                step="0.1"
-                value={avatarZoom}
-                onChange={(event) => setAvatarZoom(Number(event.target.value))}
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button
+                variant="outlined"
+                component="label"
+                size="small"
+                startIcon={<PhotoIcon />}
+              >
+                Byt bild
+                <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
+              </Button>
+              {!isEditingName && (
+                <Button variant="outlined" size="small" startIcon={<EditIcon />} onClick={() => setIsEditingName(true)}>
+                  Ändra namn
+                </Button>
+              )}
+              <Button variant="text" size="small" color="error" startIcon={<DeleteIcon />} onClick={resetAvatar}>
+                Återställ bild
+              </Button>
+            </Stack>
+          </Box>
+        </Box>
+
+        {pendingAvatar && (
+          <Box sx={{ p: 2, border: 1, borderColor: 'primary.light', borderRadius: 2, bgcolor: 'grey.50', mb: 4 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700 }}>Justera profilbild</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center' }}>
+              <Box
+                sx={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  border: 2,
+                  borderColor: 'primary.main',
+                  backgroundImage: `url(${pendingAvatar})`,
+                  backgroundSize: `${avatarZoom * 100}%`,
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  bgcolor: '#fff'
+                }}
               />
-            </label>
-            <div className="avatar-crop-actions">
-              <button type="button" onClick={saveAvatar} disabled={savingAvatar}>
-                {savingAvatar ? "Sparar..." : "Spara bild"}
-              </button>
-              <button type="button" className="ghost-button" onClick={cancelAvatar}>
-                Avbryt
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <Box sx={{ flex: 1, minWidth: 200 }}>
+                <Typography variant="caption">Zoom</Typography>
+                <Slider
+                  value={avatarZoom}
+                  min={1}
+                  max={2.5}
+                  step={0.1}
+                  onChange={(_, val) => setAvatarZoom(val as number)}
+                />
+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                  <Button variant="contained" size="small" onClick={saveAvatar} disabled={savingAvatar}>Använd</Button>
+                  <Button variant="text" size="small" onClick={cancelAvatar}>Avbryt</Button>
+                </Stack>
+              </Box>
+            </Box>
+          </Box>
+        )}
 
-      <div className="player-stats">
-        {tournamentMerits.map(merit => (
-          <div key={merit.label} className="stat-card">
-            <span className="stat-label">{merit.label}</span>
-            <span className="stat-value">{merit.count}</span>
-          </div>
-        ))}
-        <div className="stat-card">
-          <span className="stat-label">Matcher</span>
-          <span className="stat-value">{filteredStats ? filteredStats.wins + filteredStats.losses : 0}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Vinster</span>
-          <span className="stat-value">{filteredStats ? filteredStats.wins : 0}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Förluster</span>
-          <span className="stat-value">{filteredStats ? filteredStats.losses : 0}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Vinst %</span>
-          <span className="stat-value">{filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">ELO</span>
-          <span className="stat-value">{currentEloDisplay}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">ELO ändring (senaste 30 dagar)</span>
-          <span className={`stat-value ${getEloDeltaClass(last30DaysDelta)}`}>
-            {formatEloDelta(last30DaysDelta)}
-          </span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">ELO ändring (senaste spelkväll)</span>
-          <span className={`stat-value ${getEloDeltaClass(lastSessionDelta)}`}>
-            {formatEloDelta(lastSessionDelta)}
-          </span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Trend/Form (Senaste 5)</span>
-          <span className="stat-value">
-            {recentFormStats.wins}V - {recentFormStats.losses}F
-          </span>
-        </div>
-      </div>
+        <Grid container spacing={2}>
+          {tournamentMerits.map(merit => (
+            <Grid key={merit.label} size={{ xs: 6, sm: 4, md: 3 }}>
+              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{merit.label}</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800 }}>{merit.count}</Typography>
+              </Paper>
+            </Grid>
+          ))}
+          {[
+            { label: "Matcher", value: filteredStats ? filteredStats.wins + filteredStats.losses : 0 },
+            { label: "Vinster", value: filteredStats ? filteredStats.wins : 0 },
+            { label: "Förluster", value: filteredStats ? filteredStats.losses : 0 },
+            { label: "Vinst %", value: `${filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%` },
+            { label: "ELO", value: currentEloDisplay },
+            { label: "ELO +/- (30d)", value: formatEloDelta(last30DaysDelta), color: getEloDeltaClass(last30DaysDelta) },
+            { label: "ELO +/- (Pass)", value: formatEloDelta(lastSessionDelta), color: getEloDeltaClass(lastSessionDelta) },
+            { label: "Form (L5)", value: `${recentFormStats.wins}V - ${recentFormStats.losses}F` },
+          ].map(stat => (
+            <Grid key={stat.label} size={{ xs: 6, sm: 4, md: 3 }}>
+              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: stat.color === 'stat-delta-positive' ? 'success.main' : stat.color === 'stat-delta-negative' ? 'error.main' : 'inherit' }}>
+                  {stat.value}
+                </Typography>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
 
-      {mode === "overview" && (
-        <div className="player-synergy" style={{ marginTop: '2rem' }}>
-          <h3>Synergi & Rivalitet (Senaste 30 dagarna)</h3>
-          <div className="synergy-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginTop: '12px' }}>
-            <div className="stat-card">
-              <span className="stat-label">Bästa Partner</span>
-              {(() => {
-                const synergy = getPartnerSynergy(matches, playerName);
-                if (!synergy) return <span className="stat-value">—</span>;
-                return (
-                  <div>
-                    <span className="stat-value">{synergy.name}</span>
-                    <span className="muted" style={{ fontSize: '14px' }}>
-                      {synergy.wins} vinster på {synergy.games} matcher ({Math.round((synergy.wins / synergy.games) * 100)}%)
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Tuffaste Motståndare</span>
-              {(() => {
-                const rival = getToughestOpponent(matches, playerName);
-                if (!rival) return <span className="stat-value">—</span>;
-                return (
-                  <div>
-                    <span className="stat-value">{rival.name}</span>
-                    <span className="muted" style={{ fontSize: '14px' }}>
-                      {rival.losses} förluster på {rival.games} matcher ({Math.round((rival.losses / rival.games) * 100)}%)
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
-
-    </section>
+        {mode === "overview" && (
+          <Box sx={{ mt: 6 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Synergi & Rivalitet (30d)</Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'success.light', color: 'success.contrastText' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Bästa Partner</Typography>
+                  {(() => {
+                    const synergy = getPartnerSynergy(matches, playerName);
+                    if (!synergy) return <Typography variant="h6">—</Typography>;
+                    return (
+                      <Box>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{synergy.name}</Typography>
+                        <Typography variant="caption">
+                          {synergy.wins} vinster på {synergy.games} matcher ({Math.round((synergy.wins / synergy.games) * 100)}%)
+                        </Typography>
+                      </Box>
+                    );
+                  })()}
+                </Paper>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Tuffaste Motståndare</Typography>
+                  {(() => {
+                    const rival = getToughestOpponent(matches, playerName);
+                    if (!rival) return <Typography variant="h6">—</Typography>;
+                    return (
+                      <Box>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{rival.name}</Typography>
+                        <Typography variant="caption">
+                          {rival.losses} förluster på {rival.games} matcher ({Math.round((rival.losses / rival.games) * 100)}%)
+                        </Typography>
+                      </Box>
+                    );
+                  })()}
+                </Paper>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -951,8 +978,8 @@ export function HeadToHeadSection({
   );
 
   const tournamentH2H = useMemo(
-    () => buildHeadToHeadTournaments(tournamentResults, user?.id, resolvedOpponentId, mode),
-    [tournamentResults, user?.id, resolvedOpponentId, mode]
+    () => buildHeadToHeadTournaments(tournamentResults, user?.id, resolvedOpponentId),
+    [tournamentResults, user?.id, resolvedOpponentId]
   );
 
   const mvpSummary = useMemo(
@@ -985,163 +1012,145 @@ export function HeadToHeadSection({
   const opponentEveningMvps = mvpSummary.eveningMvpCounts[opponentName] || 0;
 
   return (
-    <div className="head-to-head table-card">
-      <h2>Head-to-head</h2>
+    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 4 }}>Head-to-head</Typography>
 
-      {selectablePlayers.length ? (
-        <>
-          <div className="head-to-head-controls">
-            <label>
-              Lägesval
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="against">Jag mot spelare</option>
-                <option value="together">Jag med spelare</option>
-              </select>
-            </label>
+        {selectablePlayers.length ? (
+          <>
+            <Stack direction="row" spacing={2} sx={{ mb: 4 }} flexWrap="wrap" useFlexGap>
+              <TextField
+                select
+                label="Lägesval"
+                size="small"
+                value={mode}
+                onChange={(e) => setMode(e.target.value)}
+                sx={{ minWidth: 200 }}
+              >
+                <MenuItem value="against">Jag mot spelare</MenuItem>
+                <MenuItem value="together">Jag med spelare</MenuItem>
+              </TextField>
 
-            <label>
-              Spelare
-              <select value={resolvedOpponentId} onChange={(e) => setOpponentId(e.target.value)}>
+              <TextField
+                select
+                label="Spelare"
+                size="small"
+                value={resolvedOpponentId}
+                onChange={(e) => setOpponentId(e.target.value)}
+                sx={{ minWidth: 200 }}
+              >
                 {selectablePlayers.map(player => (
-                  <option key={player.id} value={player.id}>
+                  <MenuItem key={player.id} value={player.id}>
                     {getPlayerOptionLabel(player)}
-                  </option>
+                  </MenuItem>
                 ))}
-              </select>
-            </label>
-          </div>
+              </TextField>
+            </Stack>
 
-          <div className="head-to-head-summary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
-            <div className="head-to-head-card" style={{ flex: 1, minWidth: '150px' }}>
-              <Avatar
-                className="head-to-head-avatar"
-                src={playerAvatarUrl}
-                name={playerName}
-                alt="Din profilbild"
-                sx={{ width: 80, height: 80, margin: '0 auto 12px' }}
-              />
-              <div style={{ textAlign: 'center' }}>
-                <strong>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: { xs: 2, sm: 4 }, flexWrap: 'wrap', mb: 6 }}>
+              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 3, flex: 1, minWidth: 140, bgcolor: 'grey.50' }}>
+                <Avatar
+                  sx={{ width: 64, height: 64, mx: 'auto', mb: 1 }}
+                  src={playerAvatarUrl}
+                  name={playerName}
+                />
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
                   <ProfileName name={playerName} badgeId={playerBadgeId} />
-                </strong>
-                <div className="muted" style={{ fontSize: '13px' }}>Du · ELO {currentPlayerElo}</div>
-                <div className="muted" style={{ fontSize: '12px' }}>Högst: {playerHighestElo}</div>
-              </div>
-            </div>
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Du • ELO {currentPlayerElo}</Typography>
+                <Typography variant="caption" color="text.secondary">Högst: {playerHighestElo}</Typography>
+              </Paper>
 
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-muted)', opacity: 0.5 }}>
-              {mode === "against" ? "VS" : "&"}
-            </div>
+              <Typography variant="h4" sx={{ fontWeight: 900, color: 'divider' }}>
+                {mode === "against" ? "VS" : "&"}
+              </Typography>
 
-            <div className="head-to-head-card" style={{ flex: 1, minWidth: '150px' }}>
-              <Avatar
-                className="head-to-head-avatar"
-                src={opponentAvatarUrl}
-                name={getProfileDisplayName(opponentProfile)}
-                alt="Motståndare"
-                sx={{ width: 80, height: 80, margin: '0 auto 12px' }}
-              />
-              <div style={{ textAlign: 'center' }}>
-                <strong>
-                  <ProfileName
-                    name={getProfileDisplayName(opponentProfile)}
-                    badgeId={opponentBadgeId}
-                  />
-                </strong>
-                <div className="muted" style={{ fontSize: '13px' }}>
-                  {mode === "against" ? "Motstånd" : "Partner"} · ELO {opponentElo}
-                </div>
-                <div className="muted" style={{ fontSize: '12px' }}>Högst: {opponentHighestElo}</div>
-              </div>
-            </div>
-          </div>
+              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 3, flex: 1, minWidth: 140, bgcolor: 'grey.50' }}>
+                <Avatar
+                  sx={{ width: 64, height: 64, mx: 'auto', mb: 1 }}
+                  src={opponentAvatarUrl}
+                  name={opponentName}
+                />
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                  <ProfileName name={opponentName} badgeId={opponentBadgeId} />
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  {mode === "against" ? "Motstånd" : "Partner"} • ELO {opponentElo}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">Högst: {opponentHighestElo}</Typography>
+              </Paper>
+            </Box>
 
-          <div className="player-stats">
-            <div className="stat-card">
-              <span className="stat-label">Matcher</span>
-              <span className="stat-value">{headToHead.matches}</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Vinster</span>
-              <span className="stat-value">{headToHead.wins}</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Förluster</span>
-              <span className="stat-value">{headToHead.losses}</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Vinst %</span>
-              <span className="stat-value">{percent(headToHead.wins, headToHead.losses)}%</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Snitt setdiff</span>
-              <span className={`stat-value ${headToHead.avgSetDiff > 0 ? 'positive' : headToHead.avgSetDiff < 0 ? 'negative' : ''}`}>
-                {headToHead.avgSetDiff > 0 ? '+' : ''}{headToHead.avgSetDiff.toFixed(1)}
-              </span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Senaste 5</span>
-              {recentResults.length ? (
-                <span className="stat-value head-to-head-results">
-                  {recentResults.map((result, index) => (
-                    <span
-                      key={`${result}-${index}`}
-                        className={`result-pill ${result === "V" ? "result-win" : "result-loss"}`}
-                    >
-                        {result}
-                    </span>
-                  ))}
-                </span>
-              ) : (
-                <span className="stat-value">-</span>
-              )}
-            </div>
-            <div className="stat-card stat-card-compare">
-              <span className="stat-label">Antal dagar som månadens MVP</span>
-              <div className="stat-compare">
-                <div className="stat-compare-item">
-                  <span className="stat-compare-name">Du</span>
-                  <span className="stat-compare-value">{formatMvpDays(playerMvpDays)}</span>
-                </div>
-                <div className="stat-compare-item">
-                  <span className="stat-compare-name">{opponentName}</span>
-                  <span className="stat-compare-value">
-                    {formatMvpDays(opponentMvpDays)}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="stat-card stat-card-compare">
-              <span className="stat-label">Turneringar</span>
-              <div className="stat-compare">
-                <div className="stat-compare-item">
-                  <span className="stat-compare-name">Gemensamma</span>
-                  <span className="stat-compare-value">{tournamentH2H.matches}</span>
-                </div>
-                <div className="stat-compare-item">
-                  <span className="stat-compare-name">Dina vinster</span>
-                  <span className="stat-compare-value">{tournamentH2H.wins}</span>
-                </div>
-              </div>
-            </div>
-            <div className="stat-card stat-card-compare">
-              <span className="stat-label">Antal kvällens MVP</span>
-              <div className="stat-compare">
-                <div className="stat-compare-item">
-                  <span className="stat-compare-name">Du</span>
-                  <span className="stat-compare-value">{playerEveningMvps}</span>
-                </div>
-                <div className="stat-compare-item">
-                  <span className="stat-compare-name">{opponentName}</span>
-                  <span className="stat-compare-value">{opponentEveningMvps}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <p className="muted">Lägg till fler spelare för head-to-head statistik.</p>
-      )}
-    </div>
+            <Grid container spacing={2}>
+              {[
+                { label: "Matcher", value: headToHead.matches },
+                { label: "Vinster", value: headToHead.wins },
+                { label: "Förluster", value: headToHead.losses },
+                { label: "Vinst %", value: `${percent(headToHead.wins, headToHead.losses)}%` },
+                {
+                  label: "Snitt setdiff",
+                  value: `${headToHead.avgSetDiff > 0 ? '+' : ''}${headToHead.avgSetDiff.toFixed(1)}`,
+                  color: headToHead.avgSetDiff > 0 ? 'success.main' : headToHead.avgSetDiff < 0 ? 'error.main' : 'inherit'
+                },
+              ].map(stat => (
+                <Grid key={stat.label} size={{ xs: 6, sm: 4, md: 2.4 }}>
+                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: stat.color || 'inherit' }}>{stat.value}</Typography>
+                  </Paper>
+                </Grid>
+              ))}
+
+              <Grid size={{ xs: 12 }}>
+                 <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste 5</Typography>
+                    {recentResults.length ? (
+                      <Stack direction="row" spacing={1} justifyContent="center">
+                        {recentResults.map((result, index) => (
+                          <Chip
+                            key={`${result}-${index}`}
+                            label={result}
+                            size="small"
+                            color={result === "V" ? "success" : "error"}
+                            sx={{ fontWeight: 800, width: 32 }}
+                          />
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Typography variant="h6">—</Typography>
+                    )}
+                 </Paper>
+              </Grid>
+
+              {[
+                { label: "Antal dagar som månadens MVP", val1: formatMvpDays(playerMvpDays), val2: formatMvpDays(opponentMvpDays) },
+                { label: "Turneringar (Gemensamma / Dina vinster)", val1: tournamentH2H.matches, val2: tournamentH2H.wins, labels: ["Gemensamma", "Dina vinster"] },
+                { label: "Antal kvällens MVP", val1: playerEveningMvps, val2: opponentEveningMvps },
+              ].map((comp, idx) => (
+                <Grid key={idx} size={{ xs: 12 }}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 2 }}>{comp.label}</Typography>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" color="text.secondary">{comp.labels ? comp.labels[0] : "Du"}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{comp.val1}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6 }} sx={{ textAlign: 'right' }}>
+                        <Typography variant="caption" color="text.secondary">{comp.labels ? comp.labels[1] : opponentName}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{comp.val2}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </>
+        ) : (
+          <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+            Lägg till fler spelare för head-to-head statistik.
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
   );
 }

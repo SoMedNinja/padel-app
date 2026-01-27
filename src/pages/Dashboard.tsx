@@ -4,29 +4,27 @@ import MatchHighlightCard from "../Components/MatchHighlightCard";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import { HeadToHeadSection } from "../Components/PlayerSection";
 import FilterBar from "../Components/FilterBar";
-import { Box, Skeleton, Stack } from "@mui/material";
+import { Box, Skeleton, Stack, Container, CircularProgress, Typography, Button, Alert, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
 
-import { useMatches } from "../hooks/useMatches";
-import { useProfiles } from "../hooks/useProfiles";
-import { usePadelData } from "../hooks/usePadelData";
-import { Match, Profile, TournamentResult } from "../types";
+import { useEloStats } from "../hooks/useEloStats";
+import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-import { calculateElo } from "../utils/elo";
 import { findMatchHighlight } from "../utils/highlights";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
-import { CircularProgress, Typography } from "@mui/material";
 import { supabase } from "../supabaseClient";
 import { PostgrestError } from "@supabase/supabase-js";
+import { filterMatches } from "../utils/filters";
 
 type TournamentResultRow = TournamentResult & {
   mexicana_tournaments?: { tournament_type?: string | null } | null;
 };
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const {
     matchFilter,
     setMatchFilter,
@@ -36,29 +34,14 @@ export default function Dashboard() {
     dismissMatch,
     checkAndResetDismissed
   } = useStore();
-  const {
-    data: profiles = [] as Profile[],
-    isLoading: isLoadingProfiles,
-    isError: isProfilesError,
-    error: profilesError,
-    refetch: refetchProfiles
-  } = useProfiles();
-  const {
-    data: matches = [] as Match[],
-    isLoading: isLoadingMatches,
-    isError: isMatchesError,
-    error: matchesError,
-    refetch: refetchMatches
-  } = useMatches(matchFilter);
-  const {
-    data: allMatches = [] as Match[],
-    isLoading: isLoadingAllMatches,
-    refetch: refetchAllMatches,
-  } = useMatches({ type: "all" });
+
+  const { eloPlayers, allMatches, profiles, isLoading: isLoadingElo } = useEloStats();
 
   const {
     data: tournamentResults = [] as TournamentResult[],
     isLoading: isLoadingTournamentResults,
+    isError: isTournamentResultsError,
+    error: tournamentResultsError,
     refetch: refetchTournamentResults,
   } = useQuery({
     queryKey: queryKeys.tournamentResults(),
@@ -80,36 +63,20 @@ export default function Dashboard() {
   useScrollToFragment();
 
   const handleRefresh = usePullToRefresh([
-    refetchProfiles,
-    refetchMatches,
-    refetchAllMatches,
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
     refetchTournamentResults,
   ]);
 
-  const { filteredMatches, playersWithTrend } = usePadelData(matches, matchFilter, profiles);
-  // Note for non-coders: we build a "global" ELO list from all matches so the leaderboard rating
-  // and other "current ELO" labels stay steady even when the filter shows a smaller slice of games.
-  const allEloPlayers = useMemo(
-    () => calculateElo(allMatches, profiles),
-    [allMatches, profiles]
-  );
-  const allEloMap = useMemo(
-    () => new Map(allEloPlayers.map(player => [player.id, player.elo])),
-    [allEloPlayers]
-  );
-  const leaderboardPlayers = useMemo(
-    () =>
-      playersWithTrend.map(player => ({
-        ...player,
-        elo: allEloMap.get(player.id) ?? player.elo,
-      })),
-    [allEloMap, playersWithTrend]
+  const filteredMatches = useMemo(
+    () => filterMatches(allMatches, matchFilter),
+    [allMatches, matchFilter]
   );
 
   const highlight = useMemo(() => {
-    if (!allMatches.length || !allEloPlayers.length) return null;
-    return findMatchHighlight(allMatches, allEloPlayers);
-  }, [allMatches, allEloPlayers]);
+    if (!allMatches.length || !eloPlayers.length) return null;
+    return findMatchHighlight(allMatches, eloPlayers);
+  }, [allMatches, eloPlayers]);
 
   useEffect(() => {
     if (highlight?.matchDate) {
@@ -127,11 +94,13 @@ export default function Dashboard() {
     if (!highlight) return null;
     return allMatches.find(m => m.id === highlight.matchId);
   }, [highlight, allMatches]);
-  const hasError = isProfilesError || isMatchesError;
+
+  const hasError = isTournamentResultsError;
   const errorMessage =
-    (profilesError as Error | undefined)?.message ||
-    (matchesError as Error | undefined)?.message ||
+    (tournamentResultsError as Error | undefined)?.message ||
     "Något gick fel när data hämtades.";
+
+  const isLoading = isLoadingElo || isLoadingTournamentResults;
 
   return (
     <PullToRefresh
@@ -147,72 +116,80 @@ export default function Dashboard() {
         </Box>
       }
     >
-    <section id="dashboard" className="page-section">
-      {hasError && (
-        <div className="notice-banner error" role="alert">
-          <span>{errorMessage}</span>
-          <button type="button" className="ghost-button" onClick={handleRefresh}>
-            Försök igen
-          </button>
-        </div>
-      )}
-      {(isLoadingProfiles || isLoadingMatches || isLoadingAllMatches || isLoadingTournamentResults) ? (
-        <Stack spacing={2} sx={{ mb: 2 }}>
-          {/* Note for non-coders: Stack is a layout helper that evenly spaces items vertically. */}
-          <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: "12px" }} />
-          <Box className="mvp-grid">
-            <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
-            <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
-          </Box>
-          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: "14px" }} />
-        </Stack>
-      ) : (
-        <>
-          <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
-          {showHighlight && highlight && highlightMatch && (
-            <MatchHighlightCard
-              highlight={highlight}
-              match={highlightMatch}
-              onDismiss={() => dismissMatch(highlight.matchId, highlight.matchDate)}
-            />
-          )}
-          {!filteredMatches.length ? (
-            <div className="notice-banner" role="status">
-              <span>Inga matcher ännu. Lägg in din första match för att se statistik.</span>
-            </div>
-          ) : (
-            <>
-              <div className="mvp-grid">
-                {/* Note for non-coders: MVP should use the full match history so its ELO gain totals
-                    match the global ELO calculation, even when the filter is showing fewer games. */}
-                <MVP
-                  matches={allMatches}
-                  players={allEloPlayers}
-                  mode="evening"
-                  title="Kvällens MVP"
-                />
-                <MVP
-                  matches={allMatches}
-                  players={allEloPlayers}
-                  mode="30days"
-                  title="Månadens MVP"
-                />
-              </div>
-              <EloLeaderboard players={leaderboardPlayers} />
-              <section id="head-to-head" className="page-section">
-                <HeadToHeadSection
-                  user={isGuest ? null : user}
-                  profiles={profiles}
-                  matches={filteredMatches}
-                  allEloPlayers={allEloPlayers}
-                  tournamentResults={tournamentResults}
-                />
-              </section>
-            </>
-          )}
-        </>
-      )}
-    </section>
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <Box id="dashboard" component="section">
+        {hasError && (
+          <Alert severity="error" sx={{ mb: 2 }} action={
+            <Button color="inherit" size="small" onClick={handleRefresh}>
+              Försök igen
+            </Button>
+          }>
+            {errorMessage}
+          </Alert>
+        )}
+        {isLoading ? (
+          <Stack spacing={2} sx={{ mb: 2 }}>
+            <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: "12px" }} />
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+              </Grid>
+            </Grid>
+            <Skeleton variant="rectangular" height={400} sx={{ borderRadius: "14px" }} />
+          </Stack>
+        ) : (
+          <>
+            <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+            {showHighlight && highlight && highlightMatch && (
+              <MatchHighlightCard
+                highlight={highlight}
+                match={highlightMatch}
+                onDismiss={() => dismissMatch(highlight.matchId, highlight.matchDate)}
+              />
+            )}
+            {!filteredMatches.length ? (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Inga matcher ännu. Lägg in din första match för att se statistik.
+              </Alert>
+            ) : (
+              <>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <MVP
+                      matches={allMatches}
+                      players={eloPlayers}
+                      mode="evening"
+                      title="Kvällens MVP"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <MVP
+                      matches={allMatches}
+                      players={eloPlayers}
+                      mode="30days"
+                      title="Månadens MVP"
+                    />
+                  </Grid>
+                </Grid>
+                <EloLeaderboard players={eloPlayers} />
+                <Box id="head-to-head" component="section" sx={{ mt: 4 }}>
+                  <HeadToHeadSection
+                    user={isGuest ? null : user}
+                    profiles={profiles}
+                    matches={filteredMatches}
+                    allEloPlayers={eloPlayers}
+                    tournamentResults={tournamentResults}
+                  />
+                </Box>
+              </>
+            )}
+          </>
+        )}
+      </Box>
+    </Container>
     </PullToRefresh>
   );
 }

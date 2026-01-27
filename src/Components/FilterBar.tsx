@@ -56,13 +56,13 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           }}
         >
           {/* Note for non-coders: This text is the heading users see above the filter dropdown. */}
-          globalt filter
+          Globalt filter
         </InputLabel>
         <Select
           labelId="filter-select-label"
           id="filter-select"
           value={filter.type}
-          label="globalt filter"
+          label="Globalt filter"
           onChange={handleChange}
           sx={{
             borderRadius: "12px",
@@ -82,26 +82,26 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
         </Select>
       </FormControl>
       {filter.type === "range" && (
-        <div className="filter-date-range" style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <label className="muted" htmlFor="filter-start-date">
-            Från
-          </label>
-          <input
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}>
+          <TextField
             id="filter-start-date"
+            label="Från"
             type="date"
+            size="small"
             value={filter.startDate || ""}
             onChange={(event) => handleDateChange("startDate", event.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
           />
-          <label className="muted" htmlFor="filter-end-date">
-            Till
-          </label>
-          <input
+          <TextField
             id="filter-end-date"
+            label="Till"
             type="date"
+            size="small"
             value={filter.endDate || ""}
             onChange={(event) => handleDateChange("endDate", event.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
           />
-        </div>
+        </Box>
       )}
     </Box>
   );

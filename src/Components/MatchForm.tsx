@@ -24,14 +24,12 @@ import {
 } from "@mui/icons-material";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
-  getPlayerWeight,
   getExpectedScore,
   getMarginMultiplier,
   getMatchWeight,
   buildPlayerDelta,
   ELO_BASELINE,
 } from "../utils/elo";
-import { getBadgeLabelById } from "../utils/badges";
 import {
   getIdDisplayName,
   getProfileDisplayName,
@@ -101,10 +99,6 @@ export default function MatchForm({
     });
     return map;
   }, [eloPlayers]);
-  const playerPool = useMemo(
-    () => Array.from(new Set([...pool, ...team1, ...team2].filter(Boolean))),
-    [pool, team1, team2]
-  );
 
   const resetWizard = () => {
     setStep(0);
@@ -166,13 +160,6 @@ export default function MatchForm({
     const newTeam = [...currentTeam];
     newTeam[index] = "";
     setTeam(newTeam);
-  };
-
-  const getPlayerOptionLabel = (player: Profile) => {
-    if (player.id === GUEST_ID) return GUEST_NAME;
-    const baseName = getProfileDisplayName(player);
-    const badgeLabel = getBadgeLabelById(player.featured_badge_id);
-    return badgeLabel ? `${baseName} ${badgeLabel}` : baseName;
   };
 
   const getBadgeIdForName = (name: string) => badgeNameMap.get(name) || null;
@@ -817,7 +804,7 @@ export default function MatchForm({
           const isExcluded = excludeIds.includes(p.id) && p.id !== GUEST_ID;
 
           return (
-            <Grid item xs={4} sm={3} key={p.id}>
+            <Grid key={p.id} size={{ xs: 4, sm: 3 }}>
               <Paper
                 elevation={isSelected ? 4 : 1}
                 sx={{
@@ -1086,14 +1073,14 @@ export default function MatchForm({
               <Box sx={{ textAlign: "center" }}>
                 <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: "grey.50" }}>
                   <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={5}>
+                    <Grid size={{ xs: 5 }}>
                       <Typography variant="h6" fontWeight={800}>{a}</Typography>
                       <Typography variant="body2">{idsToNames(team1, profileMap)}</Typography>
                     </Grid>
-                    <Grid item xs={2}>
+                    <Grid size={{ xs: 2 }}>
                       <Typography variant="h4" color="text.secondary">—</Typography>
                     </Grid>
-                    <Grid item xs={5}>
+                    <Grid size={{ xs: 5 }}>
                       <Typography variant="h6" fontWeight={800}>{b}</Typography>
                       <Typography variant="body2">{idsToNames(team2, profileMap)}</Typography>
                     </Grid>
@@ -1151,7 +1138,7 @@ export default function MatchForm({
                       )}
                     </Box>
                     <Grid container spacing={1} sx={{ mb: 3 }}>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Button
                           variant="contained"
                           fullWidth
@@ -1163,7 +1150,7 @@ export default function MatchForm({
                           Balansera lag
                         </Button>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Button
                           variant="contained"
                           fullWidth
@@ -1175,7 +1162,7 @@ export default function MatchForm({
                           Skapa rotation
                         </Button>
                       </Grid>
-                      <Grid item xs={12}>
+                      <Grid size={{ xs: 12 }}>
                         <Button
                           variant="outlined"
                           color="error"
@@ -1225,11 +1212,11 @@ export default function MatchForm({
                               </Button>
                             </Box>
                             <Grid container spacing={1}>
-                              <Grid item xs={6}>
+                              <Grid size={{ xs: 6 }}>
                                 <Typography variant="caption" color="text.secondary">Lag A</Typography>
                                 <Typography variant="body2" fontWeight={600}>{round.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
                               </Grid>
-                              <Grid item xs={6}>
+                              <Grid size={{ xs: 6 }}>
                                 <Typography variant="caption" color="text.secondary">Lag B</Typography>
                                 <Typography variant="body2" fontWeight={600}>{round.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
                               </Grid>
@@ -1245,11 +1232,11 @@ export default function MatchForm({
                     ) : (
                       <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50" }}>
                         <Grid container spacing={2} sx={{ mb: 2 }}>
-                          <Grid item xs={6}>
+                          <Grid size={{ xs: 6 }}>
                             <Typography variant="caption" color="text.secondary">Lag A</Typography>
                             <Typography variant="body1" fontWeight={600}>{matchSuggestion.teamA.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
                           </Grid>
-                          <Grid item xs={6}>
+                          <Grid size={{ xs: 6 }}>
                             <Typography variant="caption" color="text.secondary">Lag B</Typography>
                             <Typography variant="body1" fontWeight={600}>{matchSuggestion.teamB.map((id: string) => getIdDisplayName(id, profileMap)).join(" & ")}</Typography>
                           </Grid>
@@ -1380,7 +1367,7 @@ export default function MatchForm({
                     { title: "Lag A", won: matchRecap.teamAWon, players: matchRecap.teamA.players },
                     { title: "Lag B", won: !matchRecap.teamAWon, players: matchRecap.teamB.players }
                   ].map((team, idx) => (
-                    <Grid item xs={12} sm={6} key={idx}>
+                    <Grid key={idx} size={{ xs: 12, sm: 6 }}>
                       <Paper variant="outlined" sx={{ p: 1.5 }}>
                         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                           <Typography variant="subtitle2" fontWeight={800}>{team.title}</Typography>

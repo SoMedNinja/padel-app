@@ -1,28 +1,23 @@
+import { Avatar as MuiAvatar } from "@mui/material";
 import { getInitial } from "../utils/avatar";
 
-export default function Avatar({ name, src, alt, className = "", size }) {
-  const style = size ? { width: size, height: size } : undefined;
+export default function Avatar({ name, src, alt, className = "", size, sx = {} }) {
   const label = alt || name || "Avatar";
 
-  if (src) {
-    return (
-      <img
-        className={`avatar ${className}`.trim()}
-        style={style}
-        src={src}
-        alt={label}
-      />
-    );
-  }
+  const mergedSx = {
+    width: size || 40,
+    height: size || 40,
+    ...sx
+  };
 
   return (
-    <div
-      className={`avatar avatar-fallback ${className}`.trim()}
-      style={style}
-      role="img"
-      aria-label={label}
+    <MuiAvatar
+      alt={label}
+      src={src}
+      className={className}
+      sx={mergedSx}
     >
-      <span>{getInitial(name)}</span>
-    </div>
+      {getInitial(name)}
+    </MuiAvatar>
   );
 }

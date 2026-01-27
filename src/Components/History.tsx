@@ -12,7 +12,30 @@ import {
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { supabase } from "../supabaseClient";
 import { Match, Profile } from "../types";
-import { calculateElo, ELO_BASELINE } from "../utils/elo";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Chip,
+  Button,
+  TextField,
+  MenuItem,
+  Stack,
+  Divider,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  Paper,
+} from "@mui/material";
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Save as SaveIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -25,7 +48,8 @@ const toDateTimeInput = (value: string) => {
 
 interface HistoryProps {
   matches?: Match[];
-  globalMatches?: Match[];
+  eloDeltaByMatch?: Record<string, Record<string, number>>;
+  eloRatingByMatch?: Record<string, Record<string, number>>;
   profiles?: Profile[];
   user: any;
 }
@@ -45,7 +69,13 @@ interface TeamEntry {
   name: string;
 }
 
-export default function History({ matches = [], globalMatches = [], profiles = [], user }: HistoryProps) {
+export default function History({
+  matches = [],
+  eloDeltaByMatch = {},
+  eloRatingByMatch = {},
+  profiles = [],
+  user
+}: HistoryProps) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
   const playerOptions = useMemo(() => {
@@ -61,7 +91,6 @@ export default function History({ matches = [], globalMatches = [], profiles = [
   const [visibleCount, setVisibleCount] = useState<number>(10);
 
   useEffect(() => {
-    // Note for non-coders: when the match list changes, we reset to the first 10 cards.
     setVisibleCount(10);
   }, [matches.length]);
 
@@ -70,28 +99,8 @@ export default function History({ matches = [], globalMatches = [], profiles = [
     [matches]
   );
 
-  const { eloDeltaByMatch, eloRatingByMatch } = useMemo(() => {
-    // Note for non-coders: we use the full match list (when provided) so ratings stay global.
-    const eloMatches = globalMatches.length ? globalMatches : matches;
-    // Note for non-coders: we compute both the Elo change and the updated rating after each match.
-    const players = calculateElo(eloMatches, profiles);
-    const deltas: Record<string, Record<string, number>> = {};
-    const ratingsByMatch: Record<string, Record<string, number>> = {};
 
-    players.forEach(player => {
-      player.history.forEach(entry => {
-        if (!deltas[entry.matchId]) deltas[entry.matchId] = {};
-        if (!ratingsByMatch[entry.matchId]) ratingsByMatch[entry.matchId] = {};
-
-        deltas[entry.matchId][player.id] = entry.delta;
-        ratingsByMatch[entry.matchId][player.id] = entry.elo;
-      });
-    });
-
-    return { eloDeltaByMatch: deltas, eloRatingByMatch: ratingsByMatch };
-  }, [globalMatches, matches, profiles]);
-
-  if (!matches.length) return <div>Inga matcher ännu.</div>;
+  if (!matches.length) return <Typography>Inga matcher ännu.</Typography>;
 
   const canDelete = (m: Match) => {
     return user?.id && (m.created_by === user.id || user?.is_admin === true);
@@ -220,13 +229,11 @@ export default function History({ matches = [], globalMatches = [], profiles = [
     const ids = resolveTeamIds(match[idKey], match[teamKey], nameToIdMap);
     const names = resolveTeamNames(match[idKey], match[teamKey], profileMap);
 
-    // Create entries and filter out "Okänd"
     const entries = ids.map((id, index) => ({
       id,
       name: names[index] || getIdDisplayName(id, profileMap),
     })).filter(entry => entry.name !== "Okänd");
 
-    // Only keep the first two players per team
     return entries.slice(0, 2);
   };
 
@@ -240,25 +247,25 @@ export default function History({ matches = [], globalMatches = [], profiles = [
     return Math.round(elo).toString();
   };
 
-  const getDeltaClass = (delta?: number) => {
-    if (typeof delta !== "number") return "neutral";
-    if (delta > 0) return "positive";
-    if (delta < 0) return "negative";
-    return "neutral";
+  const getDeltaColor = (delta?: number) => {
+    if (typeof delta !== "number") return "text.secondary";
+    if (delta > 0) return "success.main";
+    if (delta < 0) return "error.main";
+    return "text.secondary";
   };
 
   return (
-    <div className="history-section">
-      <div className="history-header">
-        <div>
-          <h2>Tidigare matcher</h2>
-          <div className="muted">Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher</div>
-        </div>
-        <div className="history-header-note">
-          <span className="muted">Senaste matchen visas överst. Scrolla för att se äldre matcher.</span>
-        </div>
-      </div>
-      <div className="history-card-list">
+    <Box id="match-history" component="section">
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Tidigare matcher</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher. Senaste först.
+          </Typography>
+        </Box>
+      </Box>
+
+      <Stack spacing={2}>
         {visibleMatches.map(m => {
           const teamAEntries = buildTeamEntries(m, "team1", "team1_ids");
           const teamBEntries = buildTeamEntries(m, "team2", "team2_ids");
@@ -271,215 +278,194 @@ export default function History({ matches = [], globalMatches = [], profiles = [
           const matchDeltas = eloDeltaByMatch[m.id] || {};
 
           return (
-            <article className="history-card" key={m.id}>
-              <div className="history-card-header">
-                <div>
-                  <div className="history-card-title">{typeLabel}</div>
-                  <div className="history-card-meta">
+            <Card key={m.id} variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box>
+                    <Chip label={typeLabel} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, mr: 1 }} />
+                    <Typography variant="caption" color="text.secondary">
+                      {isEditing ? (
+                        <TextField
+                          type="datetime-local"
+                          size="small"
+                          value={edit?.created_at || ""}
+                          onChange={(e) => setEdit(prev => prev ? { ...prev, created_at: e.target.value } : prev)}
+                          sx={{ mt: 1 }}
+                        />
+                      ) : (
+                        `Datum: ${date}`
+                      )}
+                    </Typography>
+                  </Box>
+                  {!isEditing && (
+                    <Stack direction="row" spacing={1}>
+                      {canEdit && (
+                        <Button size="small" startIcon={<EditIcon />} onClick={() => startEdit(m)}>
+                          Ändra
+                        </Button>
+                      )}
+                      {canDelete(m) && (
+                        <IconButton size="small" color="error" onClick={() => deleteMatch(m.id)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Stack>
+                  )}
+                </Box>
+
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
                     {isEditing ? (
-                      <input
-                        type="datetime-local"
-                        aria-label="Matchdatum och tid"
-                        value={edit?.created_at || ""}
-                        onChange={(event) =>
-                          setEdit(prev => (prev ? { ...prev, created_at: event.target.value } : prev))
-                        }
-                      />
-                    ) : (
-                      <span>Datum: {date}</span>
-                    )}
-                  </div>
-                </div>
-                <span className="chip chip-neutral">{typeLabel}</span>
-              </div>
-
-              <div className="history-card-body">
-                <div className="history-card-score">
-                  <div className="history-card-label">Resultat</div>
-                  {isEditing ? (
-                    <div className="history-edit-score">
-                      <div className="history-score-type">
-                        <label>
-                          Typ
-                          <select
-                            value={edit?.score_type || "sets"}
-                            onChange={(event) =>
-                              setEdit(prev => (prev ? { ...prev, score_type: event.target.value } : prev))
-                            }
-                          >
-                            <option value="sets">Set</option>
-                            <option value="points">Poäng</option>
-                          </select>
-                        </label>
+                      <Stack spacing={1} sx={{ mt: 1 }}>
+                        <TextField
+                          select
+                          label="Typ"
+                          size="small"
+                          value={edit?.score_type || "sets"}
+                          onChange={(e) => setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
+                        >
+                          <MenuItem value="sets">Set</MenuItem>
+                          <MenuItem value="points">Poäng</MenuItem>
+                        </TextField>
                         {edit?.score_type === "points" && (
-                          <label>
-                            Mål
-                            <input
-                              type="number"
-                              min="1"
-                              value={edit?.score_target ?? ""}
-                              onChange={(event) =>
-                                setEdit(prev =>
-                                  prev ? { ...prev, score_target: event.target.value } : prev
-                                )
-                              }
-                            />
-                          </label>
+                          <TextField
+                            label="Mål"
+                            type="number"
+                            size="small"
+                            value={edit?.score_target ?? ""}
+                            onChange={(e) => setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
+                          />
                         )}
-                      </div>
-                      <div className="history-score-values">
-                        <input
-                          type="number"
-                          min="0"
-                          aria-label="Set Lag A"
-                          value={edit?.team1_sets ?? 0}
-                          onChange={(event) =>
-                            setEdit(prev => (prev ? { ...prev, team1_sets: event.target.value } : prev))
-                          }
-                        />
-                        <span>–</span>
-                        <input
-                          type="number"
-                          min="0"
-                          aria-label="Set Lag B"
-                          value={edit?.team2_sets ?? 0}
-                          onChange={(event) =>
-                            setEdit(prev => (prev ? { ...prev, team2_sets: event.target.value } : prev))
-                          }
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="history-card-score-value">{formatScore(m)}</div>
-                  )}
-                </div>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={edit?.team1_sets ?? 0}
+                            onChange={(e) => setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
+                          />
+                          <Typography>–</Typography>
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={edit?.team2_sets ?? 0}
+                            onChange={(e) => setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
+                          />
+                        </Stack>
+                      </Stack>
+                    ) : (
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatScore(m)}</Typography>
+                    )}
+                  </Grid>
 
-                <div className="history-card-team">
-                  <div className="history-card-label">Lag A</div>
-                  {isEditing ? (
-                    <div className="history-edit-team">
-                      {edit?.team1_ids.map((value, index) => (
-                        <select
-                          key={`team1-${index}`}
-                          aria-label={`Lag A spelare ${index + 1}`}
-                          value={value || ""}
-                          onChange={(event) => updateTeam("team1_ids", index, event.target.value)}
-                        >
-                          <option value="">Välj spelare</option>
-                          {playerOptions.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
-                      ))}
-                    </div>
-                  ) : (
-                    <ul className="history-team-list">
-                      {teamAEntries.map(entry => {
-                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                        const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
-                        return (
-                          <li key={`${m.id}-team1-${entry.name}`}>
-                            <div className="history-player-info">
-                              <span>{entry.name}</span>
-                              {/* Note for non-coders: this label shows the player's rating after this match. */}
-                              <span className="history-player-elo muted">ELO efter denna match {formatElo(currentElo)}</span>
-                            </div>
-                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag A</Typography>
+                    {isEditing ? (
+                      <Stack spacing={1} sx={{ mt: 1 }}>
+                        {edit?.team1_ids.map((value, index) => (
+                          <TextField
+                            key={`team1-${index}`}
+                            select
+                            size="small"
+                            value={value || ""}
+                            onChange={(e) => updateTeam("team1_ids", index, e.target.value)}
+                          >
+                            <MenuItem value="">Välj spelare</MenuItem>
+                            {playerOptions.map(option => (
+                              <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                            ))}
+                          </TextField>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <List disablePadding sx={{ mt: 1 }}>
+                        {teamAEntries.map(entry => {
+                          const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                          const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                          return (
+                            <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
+                              <ListItemText
+                                primary={entry.name}
+                                secondary={`ELO: ${formatElo(currentElo)}`}
+                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                {formatDelta(delta)}
+                              </Typography>
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
+                  </Grid>
 
-                <div className="history-card-team">
-                  <div className="history-card-label">Lag B</div>
-                  {isEditing ? (
-                    <div className="history-edit-team">
-                      {edit?.team2_ids.map((value, index) => (
-                        <select
-                          key={`team2-${index}`}
-                          aria-label={`Lag B spelare ${index + 1}`}
-                          value={value || ""}
-                          onChange={(event) => updateTeam("team2_ids", index, event.target.value)}
-                        >
-                          <option value="">Välj spelare</option>
-                          {playerOptions.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
-                      ))}
-                    </div>
-                  ) : (
-                    <ul className="history-team-list">
-                      {teamBEntries.map(entry => {
-                        const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                        const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
-                        return (
-                          <li key={`${m.id}-team2-${entry.name}`}>
-                            <div className="history-player-info">
-                              <span>{entry.name}</span>
-                              {/* Note for non-coders: this is the updated rating; the delta on the right is the change from before. */}
-                              <span className="history-player-elo muted">ELO efter denna match {formatElo(currentElo)}</span>
-                            </div>
-                            <span className={`elo-delta ${getDeltaClass(delta)}`}>{formatDelta(delta)}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </div>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag B</Typography>
+                    {isEditing ? (
+                      <Stack spacing={1} sx={{ mt: 1 }}>
+                        {edit?.team2_ids.map((value, index) => (
+                          <TextField
+                            key={`team2-${index}`}
+                            select
+                            size="small"
+                            value={value || ""}
+                            onChange={(e) => updateTeam("team2_ids", index, e.target.value)}
+                          >
+                            <MenuItem value="">Välj spelare</MenuItem>
+                            {playerOptions.map(option => (
+                              <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                            ))}
+                          </TextField>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <List disablePadding sx={{ mt: 1 }}>
+                        {teamBEntries.map(entry => {
+                          const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                          const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                          return (
+                            <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
+                              <ListItemText
+                                primary={entry.name}
+                                secondary={`ELO: ${formatElo(currentElo)}`}
+                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                secondaryTypographyProps={{ variant: 'caption' }}
+                              />
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                {formatDelta(delta)}
+                              </Typography>
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
+                  </Grid>
+                </Grid>
 
-              <div className="history-card-actions">
-                {isEditing ? (
-                  <div className="history-edit-actions">
-                    <button type="button" onClick={() => saveEdit(m.id)}>
-                      Spara
-                    </button>
-                    <button type="button" className="ghost-button" onClick={cancelEdit}>
-                      Avbryt
-                    </button>
-                  </div>
-                ) : (
-                  <div className="history-actions">
-                    {canEdit ? (
-                      <button type="button" onClick={() => startEdit(m)}>
-                        Redigera
-                      </button>
-                    ) : null}
-                    {canDelete(m) ? (
-                      <button type="button" onClick={() => deleteMatch(m.id)}>
-                        Radera
-                      </button>
-                    ) : !canEdit ? (
-                      <span style={{ opacity: 0.6 }}>—</span>
-                    ) : null}
-                  </div>
+                {isEditing && (
+                  <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
+                    <Button variant="contained" startIcon={<SaveIcon />} onClick={() => saveEdit(m.id)}>Spara</Button>
+                    <Button variant="outlined" startIcon={<CloseIcon />} onClick={cancelEdit}>Avbryt</Button>
+                  </Box>
                 )}
-              </div>
-
-            </article>
+              </CardContent>
+            </Card>
           );
         })}
-      </div>
+      </Stack>
 
-      {canLoadMore ? (
-        <div className="history-load-more">
-          {/* Note for non-coders: pressing this button reveals 10 more cards below. */}
-          <button type="button" onClick={() => setVisibleCount(count => count + 10)}>
-            Ladda fler matcher
-          </button>
-        </div>
-      ) : null}
+      {canLoadMore && (
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+          <Button variant="outlined" onClick={() => setVisibleCount(count => count + 10)}>
+            Visa fler matcher
+          </Button>
+        </Box>
+      )}
 
-      <p style={{ fontSize: 12, opacity: 0.7 }}>
-        * Rättigheter styrs av databasen (RLS). Endast admin kan redigera matcher.
-      </p>
-    </div>
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 4, display: 'block', textAlign: 'center' }}>
+        * Rättigheter styrs av databasen (RLS). Endast administratörer kan redigera matcher.
+      </Typography>
+    </Box>
   );
 }

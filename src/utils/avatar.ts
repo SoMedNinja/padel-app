@@ -11,7 +11,7 @@ const canUseStorage = () => {
     localStorage.setItem(testKey, "ok");
     localStorage.removeItem(testKey);
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 };
@@ -20,7 +20,7 @@ export const getStoredAvatar = (id: string | null | undefined) => {
   if (!id || !canUseStorage()) return null;
   try {
     return localStorage.getItem(`padel-avatar:${id}`);
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -30,7 +30,7 @@ export const setStoredAvatar = (id: string | null | undefined, value: string) =>
   try {
     localStorage.setItem(`padel-avatar:${id}`, value);
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 };
@@ -40,7 +40,7 @@ export const removeStoredAvatar = (id: string | null | undefined) => {
   try {
     localStorage.removeItem(`padel-avatar:${id}`);
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 };

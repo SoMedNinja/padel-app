@@ -2,6 +2,23 @@ import { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Stack,
+  Alert,
+  Container,
+} from "@mui/material";
+import {
+  Login as LoginIcon,
+  PersonAdd as SignupIcon,
+  HelpOutline as ResetIcon,
+  ArrowForward as GuestIcon,
+} from "@mui/icons-material";
 
 interface AuthProps {
   onAuth: (user: User) => void;
@@ -103,49 +120,84 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
   };
 
   return (
-    <div className="card">
-      <h2>{isSignup ? "Skapa konto" : "Logga in"}</h2>
+    <Container maxWidth="xs" sx={{ py: 8 }}>
+      <Card variant="outlined" sx={{ borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
+        <CardContent sx={{ p: 4 }}>
+          <Typography variant="h5" align="center" sx={{ mb: 4, fontWeight: 800, color: 'primary.main' }}>
+            {isSignup ? "Skapa konto" : "Logga in"}
+          </Typography>
 
-      <input
-        placeholder="Email"
-        onChange={e => setEmail(e.target.value)}
-        type="email"
-        autoComplete="email"
-      />
-      <input
-        placeholder="Lösenord"
-        type="password"
-        onChange={e => setPassword(e.target.value)}
-        autoComplete={isSignup ? "new-password" : "current-password"}
-      />
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              label="E-post"
+              variant="outlined"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              type="email"
+              autoComplete="email"
+            />
+            <TextField
+              fullWidth
+              label="Lösenord"
+              variant="outlined"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete={isSignup ? "new-password" : "current-password"}
+            />
 
-      <button onClick={submit} disabled={isSubmitting}>
-        {isSubmitting ? "Skickar..." : isSignup ? "Registrera" : "Logga in"}
-      </button>
-      {notice ? <p className="auth-notice">{notice}</p> : null}
+            {notice && <Alert severity="info" sx={{ py: 0 }}>{notice}</Alert>}
 
-      <button
-        type="button"
-        className="ghost-button"
-        onClick={() => setIsSignup(!isSignup)}
-      >
-        {isSignup ? "Har konto? Logga in" : "Ny spelare? Skapa konto"}
-      </button>
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              onClick={submit}
+              disabled={isSubmitting}
+              startIcon={isSignup ? <SignupIcon /> : <LoginIcon />}
+              sx={{ height: 48, fontWeight: 700 }}
+            >
+              {isSubmitting ? "Skickar..." : isSignup ? "Registrera" : "Logga in"}
+            </Button>
 
-      {!isSignup && (
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={handlePasswordReset}
-          disabled={isSubmitting}
-        >
-          Glömt lösenord?
-        </button>
-      )}
+            <Button
+              fullWidth
+              variant="text"
+              onClick={() => setIsSignup(!isSignup)}
+              sx={{ fontWeight: 600 }}
+            >
+              {isSignup ? "Har du redan ett konto? Logga in" : "Ny spelare? Skapa konto"}
+            </Button>
 
-      <button type="button" className="ghost-button" onClick={onGuest}>
-        Fortsätt som gäst
-      </button>
-    </div>
+            {!isSignup && (
+              <Button
+                fullWidth
+                variant="text"
+                size="small"
+                onClick={handlePasswordReset}
+                disabled={isSubmitting}
+                startIcon={<ResetIcon />}
+                sx={{ opacity: 0.7 }}
+              >
+                Glömt lösenord?
+              </Button>
+            )}
+
+            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={onGuest}
+                endIcon={<GuestIcon />}
+                sx={{ borderRadius: 2 }}
+              >
+                Fortsätt som gäst
+              </Button>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Container>
   );
 }

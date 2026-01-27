@@ -8,7 +8,7 @@ import {
 } from "../utils/mvp";
 import ProfileName from "./ProfileName";
 import { Match, PlayerStats } from "../types";
-import { Tooltip, IconButton } from "@mui/material";
+import { Tooltip, IconButton, Card, CardContent, Typography, Box } from "@mui/material";
 import { InfoOutlined } from "@mui/icons-material";
 
 interface MVPProps {
@@ -60,36 +60,42 @@ export default function MVP({
 
   if (!mvp) {
     return (
-      <div className="mvp">
-        <div className="mvp-title">
-          {titleEmoji} {title}
-          <Tooltip title={explanation} arrow>
-            <IconButton size="small" sx={{ ml: 0.5, p: 0.5, opacity: 0.6 }}>
-              <InfoOutlined fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
-        </div>
-        <div className="mvp-meta">inte tillräckligt många spelade matcher</div>
-      </div>
+      <Card variant="outlined" sx={{ textAlign: 'center', borderRadius: 3, bgcolor: 'background.paper' }}>
+        <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
+            {titleEmoji} {title}
+            <Tooltip title={explanation} arrow>
+              <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
+                <InfoOutlined fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Typography variant="body2" color="text.secondary">
+            inte tillräckligt många spelade matcher
+          </Typography>
+        </CardContent>
+      </Card>
     );
   }
 
   const winPct = Math.round(mvp.winRate * 100);
 
   return (
-    <div className="mvp">
-      <div className="mvp-title">
-        {titleEmoji} {title}
-        <Tooltip title={explanation} arrow>
-          <IconButton size="small" sx={{ ml: 0.5, p: 0.5, opacity: 0.6 }}>
-            <InfoOutlined fontSize="inherit" />
-          </IconButton>
-        </Tooltip>
-      </div>
-      <ProfileName className="mvp-name" name={mvp.name} badgeId={mvp.badgeId} />
-      <div className="mvp-meta">
-        {mvp.wins} vinster, {mvp.games} matcher, {winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
-      </div>
-    </div>
+    <Card variant="outlined" sx={{ textAlign: 'center', borderRadius: 3, bgcolor: 'background.paper', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+      <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
+          {titleEmoji} {title}
+          <Tooltip title={explanation} arrow>
+            <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
+              <InfoOutlined fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        <ProfileName name={mvp.name} badgeId={mvp.badgeId} />
+        <Typography variant="body2" color="text.secondary">
+          {mvp.wins} vinster, {mvp.games} matcher, {winPct}% vinst, ΔELO: {Math.round(mvp.periodEloGain)}
+        </Typography>
+      </CardContent>
+    </Card>
   );
 }

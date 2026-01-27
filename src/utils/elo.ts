@@ -201,7 +201,11 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
         matchWeight,
       });
       player.elo += delta;
-      team1Won ? player.wins++ : player.losses++;
+      if (team1Won) {
+        player.wins++;
+      } else {
+        player.losses++;
+      }
       player.games++;
       player.history.push({
         result: team1Won ? "W" : "L",
@@ -225,7 +229,11 @@ export function calculateElo(matches: Match[], profiles: Profile[] = []): Player
         matchWeight,
       });
       player.elo += delta;
-      team1Won ? player.losses++ : player.wins++;
+      if (team1Won) {
+        player.losses++;
+      } else {
+        player.wins++;
+      }
       player.games++;
       player.history.push({
         result: team1Won ? "L" : "W",

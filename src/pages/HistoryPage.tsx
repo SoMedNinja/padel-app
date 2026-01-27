@@ -1,96 +1,56 @@
-import React from "react";
+import React, { useMemo } from "react";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
-import { Box, Button, Skeleton, Stack } from "@mui/material";
+import { Box, Button, Skeleton, Stack, Container, Typography, Alert } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { useStore } from "../store/useStore";
-
-import { useInfiniteMatches } from "../hooks/useInfiniteMatches";
-import { useProfiles } from "../hooks/useProfiles";
-import { useMatches } from "../hooks/useMatches";
-import { Match, Profile } from "../types";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEloStats } from "../hooks/useEloStats";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { filterMatches } from "../utils/filters";
+import { queryKeys } from "../utils/queryKeys";
 
 export default function HistoryPage() {
+  const queryClient = useQueryClient();
   const { matchFilter, setMatchFilter, user, isGuest } = useStore();
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isError,
-    error,
-    refetch: refetchMatches
-  } = useInfiniteMatches(matchFilter);
-  const {
-    data: profiles = [] as Profile[],
-    isError: isProfilesError,
-    error: profilesError,
-    refetch: refetchProfiles
-  } = useProfiles();
-  const {
-    data: globalMatches = [] as Match[],
-    refetch: refetchAllMatches
-  } = useMatches({ type: "all" });
-  // Note for non-coders: we fetch the full match list here so Elo calculations stay global even if the view is filtered.
 
-  const filteredMatches = data?.pages.flat() || [];
+  const { allMatches, profiles, isLoading, eloDeltaByMatch, eloRatingByMatch } = useEloStats();
 
-  const handleRefresh = usePullToRefresh([refetchMatches, refetchProfiles, refetchAllMatches]);
+  const filteredMatches = useMemo(
+    () => filterMatches(allMatches, matchFilter),
+    [allMatches, matchFilter]
+  );
+
+  const handleRefresh = usePullToRefresh([
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
+  ]);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-    <section id="history" className="page-section">
-      <h2>Match-historik</h2>
-      {(isError || isProfilesError) && (
-        <div className="notice-banner error" role="alert">
-          <span>
-            {(error as Error | undefined)?.message ||
-              (profilesError as Error | undefined)?.message ||
-              "Något gick fel när historiken laddades."}
-          </span>
-          <button type="button" className="ghost-button" onClick={handleRefresh}>
-            Försök igen
-          </button>
-        </div>
-      )}
-      <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
-      {isLoading ? (
-        <Stack spacing={1.5}>
-          {/* Note for non-coders: Stack keeps consistent spacing between loading placeholders. */}
-          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: "14px" }} />
-        </Stack>
-      ) : (
-        <>
-          <History
-            matches={filteredMatches}
-            globalMatches={globalMatches}
-            profiles={profiles}
-            user={isGuest ? null : user}
-          />
-          {hasNextPage && (
-            <div className="load-more">
-              {/* Note for non-coders: MUI's Button auto-uses the theme colors and spacing. */}
-              <Button
-                type="button"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                variant="contained"
-              >
-                {isFetchingNextPage ? (
-                  <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-                    <Skeleton width={100} height={24} sx={{ display: "inline-block" }} />
-                  </Box>
-                ) : (
-                  "Visa fler matcher"
-                )}
-              </Button>
-            </div>
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        <Box id="history" component="section">
+          <Typography variant="h4" sx={{ mb: 3, fontWeight: 800 }}>Matchhistorik</Typography>
+
+          <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+
+          {isLoading ? (
+            <Stack spacing={2}>
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+            </Stack>
+          ) : (
+            <History
+              matches={filteredMatches}
+              eloDeltaByMatch={eloDeltaByMatch}
+              eloRatingByMatch={eloRatingByMatch}
+              profiles={profiles}
+              user={isGuest ? null : user}
+            />
           )}
-        </>
-      )}
-    </section>
+        </Box>
+      </Container>
     </PullToRefresh>
   );
 }

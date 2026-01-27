@@ -6,6 +6,26 @@ import {
 } from "../utils/badges";
 import { makeNameToIdMap } from "../utils/profileMap";
 import { supabase } from "../supabaseClient";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Button,
+  Stack,
+  Divider,
+  LinearProgress,
+  IconButton,
+  Chip,
+  Paper,
+} from "@mui/material";
+import {
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  EmojiEvents as TrophyIcon,
+  Star as StarIcon,
+} from "@mui/icons-material";
 
 const groupBadgesByType = (badges = []) => {
   const grouped = new Map();
@@ -94,132 +114,130 @@ export default function MeritsSection({
   );
 
   return (
-    <div className="badges-section table-card" style={{ marginTop: '2rem' }}>
-      <div className="badges-header">
-        <div>
-          <h3>Meriter</h3>
-          <p className="muted">
+    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Meriter</Typography>
+          <Typography variant="body2" color="text.secondary">
             {badgeSummary.totalEarned} av {badgeSummary.totalBadges} meriter upplåsta
-          </p>
-        </div>
-      </div>
+          </Typography>
+        </Box>
 
-      <div className="badge-group">
-        <div className="badge-group-header">
-          <div className="badge-group-title">Upplåsta</div>
-          <button
-            type="button"
-            className="badge-toggle badge-group-toggle"
-            onClick={() => setIsEarnedExpanded(prev => !prev)}
-          >
-            <span>{isEarnedExpanded ? "Minimera" : "Visa"}</span>
-            <span aria-hidden="true">{isEarnedExpanded ? "▴" : "▾"}</span>
-          </button>
-        </div>
-        {isEarnedExpanded && (
-          <>
-            {earnedBadgeGroups.length ? (
-              earnedBadgeGroups.map(group => (
-                <div key={`earned-${group.label}`} className="badge-type-group">
-                  <div className="badge-type-title">{group.label}</div>
-                  <div className="badges-grid">
-                    {group.items.map(badge => (
-                      <div
-                        key={badge.id}
-                        className={`badge-card badge-earned ${
-                          selectedBadgeId === badge.id ? "badge-selected" : ""
-                        }`}
-                      >
-                        <div className="badge-icon">
-                          <span>{badge.icon}</span>
-                          {badge.tier && <span className="badge-tier">{badge.tier}</span>}
-                        </div>
-                        <div className="badge-title">{badge.title}</div>
-                        <div className="badge-description">{badge.description}</div>
-                        {badge.meta && <div className="badge-meta">{badge.meta}</div>}
-                        <div className="badge-actions">
-                          <button
-                            type="button"
-                            className="badge-select"
-                            onClick={() => handleBadgeSelection(badge.id)}
-                            disabled={savingBadgeId === badge.id}
+        <Box sx={{ mb: 6 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Upplåsta</Typography>
+            <IconButton onClick={() => setIsEarnedExpanded(!isEarnedExpanded)}>
+              {isEarnedExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+          </Box>
+
+          {isEarnedExpanded && (
+            <Stack spacing={4}>
+              {earnedBadgeGroups.length ? (
+                earnedBadgeGroups.map(group => (
+                  <Box key={`earned-${group.label}`}>
+                    <Typography variant="overline" sx={{ fontWeight: 700, color: 'primary.main', mb: 2, display: 'block' }}>{group.label}</Typography>
+                    <Grid container spacing={1.5}>
+                      {group.items.map(badge => (
+                        <Grid key={badge.id} size={{ xs: 6, sm: 4, md: 4 }}>
+                          <Paper
+                            variant="outlined"
+                            sx={{
+                              p: 1.5,
+                              height: '100%',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 1,
+                              borderRadius: 2,
+                              bgcolor: '#f1f8f4',
+                              color: 'success.dark',
+                              border: 2,
+                              borderColor: selectedBadgeId === badge.id ? 'primary.main' : 'success.light',
+                              transition: 'all 0.2s',
+                            }}
                           >
-                            {selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="badges-grid">
-                <div className="badge-card badge-empty">
-                  <div className="badge-title">Inga upplåsta ännu</div>
-                  <div className="badge-description">
-                    Fortsätt spela för att låsa upp dina första badges.
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="h5">{badge.icon}</Typography>
+                              {badge.tier && <Chip label={badge.tier} size="small" variant="outlined" color="success" sx={{ fontWeight: 800, fontSize: '0.6rem', height: 20 }} />}
+                            </Box>
+                            <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>{badge.title}</Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>{badge.description}</Typography>
+                            {badge.meta && <Typography variant="caption" sx={{ fontWeight: 700, color: 'success.main' }}>{badge.meta}</Typography>}
+                            <Button
+                              variant={selectedBadgeId === badge.id ? "contained" : "outlined"}
+                              size="small"
+                              color="success"
+                              fullWidth
+                              onClick={() => handleBadgeSelection(badge.id)}
+                              disabled={savingBadgeId === badge.id}
+                              sx={{ mt: 1, fontWeight: 700 }}
+                            >
+                              {selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn"}
+                            </Button>
+                          </Paper>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                ))
+              ) : (
+                <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 2, bgcolor: 'grey.50' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Inga upplåsta ännu</Typography>
+                  <Typography variant="body2" color="text.secondary">Fortsätt spela för att låsa upp dina första badges.</Typography>
+                </Paper>
+              )}
+            </Stack>
+          )}
+        </Box>
 
-      <div className="badge-group">
-        <div className="badge-group-header">
-          <div className="badge-group-title">På väg</div>
-          <button
-            type="button"
-            className="badge-toggle badge-group-toggle"
-            onClick={() => setIsLockedExpanded(prev => !prev)}
-          >
-            <span>{isLockedExpanded ? "Minimera" : "Visa"}</span>
-            <span aria-hidden="true">{isLockedExpanded ? "▴" : "▾"}</span>
-          </button>
-        </div>
-        {isLockedExpanded && (
-          <>
-            {lockedBadgeGroups.map(group => (
-              <div key={`locked-${group.label}`} className="badge-type-group">
-                <div className="badge-type-title">{group.label}</div>
-                <div className="badges-grid">
-                  {group.items.map(badge => {
-                    const progress = badge.progress;
-                    const progressPercent = progress
-                      ? Math.round((progress.current / progress.target) * 100)
-                      : 0;
-                    return (
-                      <div key={badge.id} className="badge-card">
-                        <div className="badge-icon">
-                          <span>{badge.icon}</span>
-                          {badge.tier && <span className="badge-tier">{badge.tier}</span>}
-                        </div>
-                        <div className="badge-title">{badge.title}</div>
-                        <div className="badge-description">{badge.description}</div>
-                        {badge.meta && <div className="badge-meta">{badge.meta}</div>}
-                        {progress && (
-                          <div className="badge-progress">
-                            <div className="badge-progress-bar">
-                              <div
-                                className="badge-progress-fill"
-                                style={{ width: `${progressPercent}%` }}
-                              />
-                            </div>
-                            <span className="badge-progress-text">
-                              {progress.current}/{progress.target}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-      </div>
-    </div>
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>På väg</Typography>
+            <IconButton onClick={() => setIsLockedExpanded(!isLockedExpanded)}>
+              {isLockedExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+          </Box>
+
+          {isLockedExpanded && (
+            <Stack spacing={4}>
+              {lockedBadgeGroups.map(group => (
+                <Box key={`locked-${group.label}`}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', mb: 2, display: 'block' }}>{group.label}</Typography>
+                  <Grid container spacing={1.5}>
+                    {group.items.map(badge => {
+                      const progress = badge.progress;
+                      const progressPercent = progress
+                        ? Math.round((progress.current / progress.target) * 100)
+                        : 0;
+                      return (
+                        <Grid key={badge.id} size={{ xs: 6, sm: 4, md: 4 }}>
+                          <Paper variant="outlined" sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column', gap: 0.5, borderRadius: 2, bgcolor: 'grey.50', opacity: 0.8 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="h5" sx={{ filter: 'grayscale(1)' }}>{badge.icon}</Typography>
+                              {badge.tier && <Chip label={badge.tier} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 20 }} />}
+                            </Box>
+                            <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{badge.title}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>{badge.description}</Typography>
+                            {progress && (
+                              <Box sx={{ mt: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700 }}>{progress.current}/{progress.target}</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 700 }}>{progressPercent}%</Typography>
+                                </Box>
+                                <LinearProgress variant="determinate" value={progressPercent} sx={{ borderRadius: 1, height: 6 }} />
+                              </Box>
+                            )}
+                          </Paper>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
