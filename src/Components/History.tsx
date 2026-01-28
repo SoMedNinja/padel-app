@@ -36,7 +36,6 @@ import {
   Delete as DeleteIcon,
   Save as SaveIcon,
   Close as CloseIcon,
-  ContentCopy as CopyIcon,
 } from "@mui/icons-material";
 import { formatDate } from "../utils/format";
 
@@ -213,20 +212,6 @@ export default function History({
     }
   };
 
-  const copyMatchToClipboard = (m: Match) => {
-    const teamA = buildTeamEntries(m, "team1", "team1_ids").map(e => e.name).join(" & ");
-    const teamB = buildTeamEntries(m, "team2", "team2_ids").map(e => e.name).join(" & ");
-    const score = `${m.team1_sets}–${m.team2_sets}`;
-    const date = formatDate(m.created_at);
-    const text = `Padel-match (${date}): ${teamA} vs ${teamB} (${score})`;
-
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success("Resultat kopierat!");
-    }).catch(() => {
-      toast.error("Kunde inte kopiera.");
-    });
-  };
-
   const formatScore = (match: Match) => {
     const scoreType = match.score_type || "sets";
     const score = `${match.team1_sets} – ${match.team2_sets}`;
@@ -313,15 +298,6 @@ export default function History({
                   </Box>
                   {!isEditing && (
                     <Stack direction="row" spacing={1}>
-                      <Tooltip title="Kopiera resultat">
-                        <IconButton
-                          size="small"
-                          onClick={() => copyMatchToClipboard(m)}
-                          aria-label="Kopiera matchresultat"
-                        >
-                          <CopyIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
                       {canEdit && (
                         <Button size="small" startIcon={<EditIcon />} onClick={() => startEdit(m)}>
                           Ändra

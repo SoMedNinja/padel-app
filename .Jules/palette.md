@@ -18,6 +18,6 @@
 **Learning:** Hard input limits (maxLength) without visible counters lead to "dead" keyboard input that confuses users. Even in administrative views, high-density data requires visual anchors (like row highlights) to maintain user context.
 **Action:** Audit all configuration and management screens for hidden constraints. Ensure every `TextField` with `maxLength` has a corresponding `helperText` counter, and all user-centric tables use standard highlighting.
 
-## 2025-05-24 - [Micro-UX: Progressive Disclosure & Data Portability]
-**Learning:** For dense forms (like score selection), allowing users to collapse extra options ("Göm") keeps the UI tidy. Providing one-click "Copy to clipboard" for key data (like match results) significantly reduces user friction for sharing outside the app.
-**Action:** Use "Mer.../Göm" patterns for optional high-density inputs. Add a copy icon next to key data summaries in history/detail views using `navigator.clipboard`. Use `cursor: 'help'` on tooltipped headers to signal interactivity.
+## 2025-05-24 - [Micro-UX: Progressive Disclosure & Contextual Feedback]
+**Learning:** For dense forms (like score selection), allowing users to collapse extra options ("Göm") keeps the UI tidy and reduces cognitive load. Providing immediate, contextual loading feedback (like a spinner inside a button) for administrative actions prevents double-clicks and uncertainty.
+**Action:** Use "Mer.../Göm" patterns for optional high-density inputs. Always replace icons with a `CircularProgress` (size 16) in buttons during active async operations. Use `cursor: 'help'` on tooltipped headers to signal interactivity.
