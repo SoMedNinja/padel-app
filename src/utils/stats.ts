@@ -39,12 +39,19 @@ export function getLatestMatchDate(matches: Match[]) {
 }
 
 export function getRecentResults(matches: Match[], playerName: string, limit = 5): ("W" | "L")[] {
-  return matches
-    .filter(
-      m =>
-        normalizeTeam(m.team1).includes(playerName) ||
-        normalizeTeam(m.team2).includes(playerName)
-    )
+  // Optimization: filter and map in a single pass to avoid multiple array allocations
+  // Also avoid re-sorting if possible, but here we need the last N matches by time.
+  const relevantMatches = [];
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    const team1 = normalizeTeam(m.team1);
+    const team2 = normalizeTeam(m.team2);
+    if (team1.includes(playerName) || team2.includes(playerName)) {
+      relevantMatches.push(m);
+    }
+  }
+
+  return relevantMatches
     // Optimization: ISO strings can be compared lexicographically
     .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0))
     .slice(-limit)
@@ -89,11 +96,11 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
 
   export function getPartnerSynergy(matches: Match[], playerName: string) {
     const synergy: Record<string, { games: number; wins: number; eloGain: number }> = {};
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    // Optimization: use ISO string comparison instead of new Date() in loop
+    const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     matches.forEach(m => {
-      const matchDate = new Date(m.created_at).getTime();
-      if (matchDate < thirtyDaysAgo) return;
+      if (m.created_at < thirtyDaysAgoISO) return;
 
       const team1 = normalizeTeam(m.team1);
       const team2 = normalizeTeam(m.team2);
@@ -116,23 +123,41 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
       // Note: eloGain per partner is tricky without player stats, but we can track wins/games.
     });
 
-    const sorted = Object.entries(synergy).sort((a, b) => {
-      const winRateA = a[1].wins / a[1].games;
-      const winRateB = b[1].wins / b[1].games;
-      if (winRateB !== winRateA) return winRateB - winRateA;
-      return b[1].games - a[1].games;
-    });
+    // Optimization: find best partner in a single pass instead of sort()
+    let bestPartner = null;
+    let bestWinRate = -1;
+    let bestGames = -1;
 
-    return sorted[0] ? { name: sorted[0][0], ...sorted[0][1] } : null;
+    for (const name in synergy) {
+      const stats = synergy[name];
+      const winRate = stats.wins / stats.games;
+      let isBetter = false;
+
+      if (!bestPartner) {
+        isBetter = true;
+      } else if (winRate > bestWinRate) {
+        isBetter = true;
+      } else if (winRate === bestWinRate && stats.games > bestGames) {
+        isBetter = true;
+      }
+
+      if (isBetter) {
+        bestPartner = { name, ...stats };
+        bestWinRate = winRate;
+        bestGames = stats.games;
+      }
+    }
+
+    return bestPartner;
   }
 
   export function getToughestOpponent(matches: Match[], playerName: string) {
     const rivals: Record<string, { games: number; losses: number }> = {};
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    // Optimization: use ISO string comparison instead of new Date() in loop
+    const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     matches.forEach(m => {
-      const matchDate = new Date(m.created_at).getTime();
-      if (matchDate < thirtyDaysAgo) return;
+      if (m.created_at < thirtyDaysAgoISO) return;
 
       const team1 = normalizeTeam(m.team1);
       const team2 = normalizeTeam(m.team2);
@@ -152,12 +177,30 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
       });
     });
 
-    const sorted = Object.entries(rivals).sort((a, b) => {
-      const lossRateA = a[1].losses / a[1].games;
-      const lossRateB = b[1].losses / b[1].games;
-      if (lossRateB !== lossRateA) return lossRateB - lossRateA;
-      return b[1].games - a[1].games;
-    });
+    // Optimization: find toughest opponent in a single pass instead of sort()
+    let toughestRival = null;
+    let maxLossRate = -1;
+    let maxGames = -1;
 
-    return sorted[0] ? { name: sorted[0][0], ...sorted[0][1] } : null;
+    for (const name in rivals) {
+      const stats = rivals[name];
+      const lossRate = stats.losses / stats.games;
+      let isTougher = false;
+
+      if (!toughestRival) {
+        isTougher = true;
+      } else if (lossRate > maxLossRate) {
+        isTougher = true;
+      } else if (lossRate === maxLossRate && stats.games > maxGames) {
+        isTougher = true;
+      }
+
+      if (isTougher) {
+        toughestRival = { name, ...stats };
+        maxLossRate = lossRate;
+        maxGames = stats.games;
+      }
+    }
+
+    return toughestRival;
   }

@@ -13,3 +13,7 @@
 ## 2026-01-28 - [Single-Pass Search for Best Partner]
 **Learning:** Using `Object.entries().map().filter().sort()[0]` to find a single maximum item from a record results in multiple intermediate array allocations and an (N \log N)$ sort. For a hot-path calculation like ELO that runs on every match change, this adds unnecessary overhead.
 **Action:** Use a single-pass `for...in` loop to find the best item in (N)$ with zero extra allocations.
+
+## 2026-01-29 - [UTC vs Local Hour for Time-of-Day Badges]
+**Learning:** Extracting hours from ISO strings using `slice(11, 13)` returns the UTC hour, which can cause regressions if the application logic expects local time (e.g., for "Night Owl" badges).
+**Action:** While string sorting and date filtering should always use ISO strings for performance, continue using `new Date().getHours()` when local time is functionally required, but ensure the `Date` object is instantiated only once per loop iteration.
