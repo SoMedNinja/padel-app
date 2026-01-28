@@ -912,7 +912,7 @@ const RecapEveningTemplate = ({ data, variant = 0 }: { data: any; variant?: numb
               {data?.mvp?.name || '—'}
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 700, opacity: 0.7 }}>
-              {data?.mvp?.wins ?? 0} Vinster • {Math.round((data?.mvp?.winRate || 0) * 100)}% Vinstchans
+              {data?.mvp?.wins ?? 0} Vinster • {Math.round((data?.mvp?.winRate || 0) * 100)}% Vinstprocent
             </Typography>
           </Box>
 
