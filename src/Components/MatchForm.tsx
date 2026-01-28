@@ -13,6 +13,7 @@ import {
   IconButton,
   Divider,
   ButtonBase,
+  Tooltip,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -992,17 +993,20 @@ export default function MatchForm({
               </Typography>
             </Box>
             {step === 0 && (
-              <Tooltip title="Generera jämna lag eller rotationsschema baserat på ELO" arrow>
-                <Button
-                  startIcon={<BalanceIcon />}
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setStep(10)}
-                  aria-label="Öppna Matchmaker för att skapa lag eller rotationer"
-                >
-                  Matchmaker
-                </Button>
-              </Tooltip>
+              <>
+                {/* Note for non-coders: a tooltip is the small helper bubble that appears on hover. */}
+                <Tooltip title="Generera jämna lag eller rotationsschema baserat på ELO" arrow>
+                  <Button
+                    startIcon={<BalanceIcon />}
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setStep(10)}
+                    aria-label="Öppna Matchmaker för att skapa lag eller rotationer"
+                  >
+                    Matchmaker
+                  </Button>
+                </Tooltip>
+              </>
             )}
             {step > 0 && (
               <IconButton onClick={resetWizard} size="small" color="error" aria-label="Stäng och rensa">
