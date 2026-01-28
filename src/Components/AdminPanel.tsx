@@ -17,6 +17,7 @@ import {
   Paper,
   TextField,
   Button,
+  CircularProgress,
   Chip,
   IconButton,
   Stack,
@@ -268,7 +269,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                           size="small"
                           variant={profile.is_approved ? "outlined" : "contained"}
                           color={profile.is_approved ? "inherit" : "primary"}
-                          startIcon={profile.is_approved ? <RevokeIcon /> : <ApproveIcon />}
+                          startIcon={toggleId === profile.id ? <CircularProgress size={16} color="inherit" /> : (profile.is_approved ? <RevokeIcon /> : <ApproveIcon />)}
                           onClick={() => toggleApproval(profile)}
                           disabled={toggleId === profile.id}
                         >
