@@ -229,12 +229,21 @@ function findWeekHighlight(weekMatches: Match[], playersEnd: Record<string, Play
   return highlights[0] || null;
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Check for specific player request (test mode)
+    let targetPlayerId: string | null = null;
+    try {
+      const body = await req.json();
+      targetPlayerId = body.playerId || null;
+    } catch {
+      // No body or not JSON, proceed as normal
+    }
 
     const now = new Date();
     const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -263,17 +272,21 @@ Deno.serve(async () => {
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
     const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
 
-    const activePlayerIds = new Set<string>();
-    weeklyMatches.forEach(m => {
-      [...m.team1_ids, ...m.team2_ids].forEach(id => { if (id && id !== GUEST_ID) activePlayerIds.add(id); });
-    });
+    let activePlayerIds = new Set<string>();
+    if (targetPlayerId) {
+      activePlayerIds.add(targetPlayerId);
+    } else {
+      weeklyMatches.forEach(m => {
+        [...m.team1_ids, ...m.team2_ids].forEach(id => { if (id && id !== GUEST_ID) activePlayerIds.add(id); });
+      });
+    }
 
-    if (activePlayerIds.size === 0) return new Response(JSON.stringify({ message: "No activity" }), { status: 200 });
+    if (activePlayerIds.size === 0 && !targetPlayerId) return new Response(JSON.stringify({ message: "No activity" }), { status: 200 });
 
     const weeklyStats: Record<string, any> = {};
-    activePlayerIds.forEach(id => {
+    Array.from(activePlayerIds).forEach(id => {
       const pStart = eloStart[id] || { elo: ELO_BASELINE };
-      const pEnd = eloEnd[id];
+      const pEnd = eloEnd[id] || { elo: ELO_BASELINE, name: profiles.find(p => p.id === id)?.name || "Okänd" };
       const pMatches = weeklyMatches.filter(m => m.team1_ids.includes(id) || m.team2_ids.includes(id));
       const wins = pMatches.filter(m => {
         const isT1 = m.team1_ids.includes(id);
@@ -319,60 +332,125 @@ Deno.serve(async () => {
       if (!email) return { id, success: false, error: 'Email not found' };
       const stats = weeklyStats[id];
 
+      const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
+      const deltaSign = stats.eloDelta > 0 ? "+" : "";
+
       const html = `
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
-          <div style="background: #1976d2; padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Veckan i padel</h1>
-          </div>
-
-          <div style="padding: 20px; border: 1px solid #eee; border-top: none; border-radius: 0 0 8px 8px;">
-            <p style="font-size: 18px;">Hej <strong>${stats.name}</strong>!</p>
-            <p>Här är sammanfattningen för veckan som gått.</p>
-
-            <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h2 style="margin-top: 0; color: #1565c0; font-size: 20px;">Dina stats</h2>
-              <table style="width: 100%;">
-                <tr><td>🎾 <strong>Matcher:</strong></td><td style="text-align: right;">${stats.matchesPlayed}</td></tr>
-                <tr><td>📈 <strong>ELO-förändring:</strong></td><td style="text-align: right; color: ${stats.eloDelta >= 0 ? '#2e7d32' : '#d32f2f'};">${stats.eloDelta > 0 ? '+' : ''}${stats.eloDelta}</td></tr>
-                <tr><td>🏆 <strong>Vinstprocent:</strong></td><td style="text-align: right;">${stats.winRate}%</td></tr>
-                <tr><td>🔥 <strong>Nuvarande ELO:</strong></td><td style="text-align: right;">${stats.currentElo}</td></tr>
-              </table>
-            </div>
-
-            ${mvp ? `
-              <div style="background: #fff8e1; padding: 15px; border-radius: 8px; border: 1px solid #ffe082; margin-bottom: 20px; text-align: center;">
-                <span style="font-size: 24px;">🎖️</span>
-                <h3 style="margin: 5px 0; color: #f57f17;">Veckans MVP: ${mvp.name}</h3>
-                <p style="margin: 0; font-size: 0.9em;">Grym insats i veckan!</p>
-              </div>
-            ` : ''}
-
-            ${highlight ? `
-              <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h3 style="margin-top: 0; color: #333; font-size: 18px;">✨ ${highlight.title}</h3>
-                <p style="margin: 0;">${highlight.description}</p>
-              </div>
-            ` : ''}
-
-            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Dina resultat</h3>
-            <p>${stats.results.join(', ')}</p>
-
-            ${stats.partners.length > 0 ? `
-              <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Partners</h3>
-              <p>${stats.partners.map((p: any) => `${p.name} (${p.count})`).join(', ')}</p>
-            ` : ''}
-
-            <div style="margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px;">
-              <h3 style="margin-top: 0;">Topplistan just nu</h3>
-              <div style="font-family: monospace; white-space: pre-wrap;">${leaderboard.join('\n')}</div>
-            </div>
-
-            <p style="font-size: 12px; color: #999; margin-top: 40px; text-align: center;">
-              Detta är ett automatiskt utskick från Grabbarnas Serie.<br>
-              Vi ses på banan!
-            </p>
-          </div>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+          <style>
+            body { font-family: 'Inter', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a; }
+            h1, h2, h3 { font-family: 'Playfair Display', serif; }
+          </style>
+        </head>
+        <body>
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4; padding: 20px;">
+            <tr>
+              <td align="center">
+                <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color: #000000; padding: 40px 20px; text-align: center;">
+                      <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">Veckan i Padel</h1>
+                      <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
+                    </td>
+                  </tr>
+                  <!-- Intro -->
+                  <tr>
+                    <td style="padding: 40px 40px 20px 40px;">
+                      <h2 style="margin: 0; font-size: 28px; color: #000;">Hej ${stats.name}!</h2>
+                      <p style="font-size: 16px; color: #666; line-height: 1.6;">Här är din personliga sammanfattning av veckans matcher och prestationer på banan.</p>
+                    </td>
+                  </tr>
+                  <!-- Stats Grid -->
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <table width="100%" border="0" cellspacing="0" cellpadding="10" style="background-color: #fafafa; border-radius: 8px; border: 1px solid #eee;">
+                        <tr>
+                          <td width="50%" align="center" style="border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                            <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Matcher</p>
+                            <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #000;">${stats.matchesPlayed}</p>
+                          </td>
+                          <td width="50%" align="center" style="border-bottom: 1px solid #eee;">
+                            <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Vinstprocent</p>
+                            <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #000;">${stats.winRate}%</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td width="50%" align="center" style="border-right: 1px solid #eee;">
+                            <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">ELO Delta</p>
+                            <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: ${deltaColor};">${deltaSign}${stats.eloDelta}</p>
+                          </td>
+                          <td width="50%" align="center">
+                            <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Nuvarande ELO</p>
+                            <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #000;">${stats.currentElo}</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <!-- MVP Section -->
+                  ${mvp ? `
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <div style="background-color: #000; border-radius: 8px; padding: 30px; text-align: center; color: #fff;">
+                        <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
+                        <h3 style="margin: 10px 0; font-size: 32px; color: #fff;">${mvp.name}</h3>
+                        <p style="margin: 0; font-size: 14px; color: #999;">Grym insats i veckan!</p>
+                      </div>
+                    </td>
+                  </tr>
+                  ` : ""}
+                  <!-- Highlight Section -->
+                  ${highlight ? `
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <div style="border-left: 4px solid #000; padding: 10px 20px; background-color: #f9f9f9;">
+                        <h3 style="margin: 0; font-size: 20px; color: #000;">✨ ${highlight.title}</h3>
+                        <p style="margin: 10px 0 0 0; font-size: 16px; color: #444; line-height: 1.5;">${highlight.description}</p>
+                      </div>
+                    </td>
+                  </tr>
+                  ` : ""}
+                  <!-- Results Section -->
+                  ${stats.results.length > 0 ? `
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <h3 style="margin: 0 0 10px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Dina resultat</h3>
+                      <p style="margin: 0; font-size: 14px; color: #666;">${stats.results.join(', ')}</p>
+                    </td>
+                  </tr>
+                  ` : ""}
+                  <!-- Leaderboard Section -->
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Topplistan just nu</h3>
+                      <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                        ${leaderboard.map(line => `
+                          <tr>
+                            <td style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">${line}</td>
+                          </tr>
+                        `).join('')}
+                      </table>
+                    </td>
+                  </tr>
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color: #fafafa; padding: 30px; text-align: center; border-top: 1px solid #eee;">
+                      <p style="margin: 0; font-size: 12px; color: #999;">
+                        Detta är ett automatiskt utskick från Grabbarnas Serie.<br>
+                        Vi ses på banan!
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
       `;
 
       const response = await fetch('https://api.resend.com/emails', {
