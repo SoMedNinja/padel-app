@@ -15,6 +15,9 @@ import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { findMatchHighlight } from "../utils/highlights";
+import { useTournaments } from "../hooks/useTournamentData";
+import { useNavigate } from "react-router-dom";
+import { PlayArrow as PlayIcon } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
@@ -27,6 +30,7 @@ type TournamentResultRow = TournamentResult & {
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const {
     matchFilter,
     setMatchFilter,
@@ -57,6 +61,13 @@ export default function Dashboard() {
     queryKey: queryKeys.tournamentResults(),
     queryFn: () => padelData.tournaments.resultsWithTypes(),
   });
+
+  const { data: tournaments = [] } = useTournaments();
+
+  const activeTournament = useMemo(
+    () => tournaments.find(t => t.status === "in_progress"),
+    [tournaments]
+  );
 
   useScrollToFragment();
 
@@ -118,6 +129,33 @@ export default function Dashboard() {
     >
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box id="dashboard" component="section">
+        {activeTournament && (
+          <AppAlert
+            severity="info"
+            icon={<PlayIcon />}
+            sx={{
+              mb: 3,
+              cursor: 'pointer',
+              '&:hover': { bgcolor: 'info.light', color: 'info.contrastText' },
+              transition: 'all 0.2s',
+              border: 1,
+              borderColor: 'info.main',
+              boxShadow: '0 4px 12px rgba(2, 136, 209, 0.15)'
+            }}
+            onClick={() => navigate("/tournaments")}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Turnering pågår!</Typography>
+                <Typography variant="caption">"{activeTournament.name}" är live nu. Klicka för att se ställningen.</Typography>
+              </Box>
+              <Button size="small" variant="contained" color="info" sx={{ ml: 2, fontWeight: 700 }}>
+                Visa
+              </Button>
+            </Box>
+          </AppAlert>
+        )}
+
         {hasError && (
           <AppAlert severity="error" sx={{ mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>

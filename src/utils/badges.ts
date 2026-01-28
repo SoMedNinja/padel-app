@@ -9,6 +9,7 @@ import {
 import { GUEST_ID } from "./guest";
 import { resolveTeamIds } from "./profileMap";
 import { Match, Profile } from "../types";
+import { formatDate } from "./format";
 
 const normalizeTeam = (team: (string | null)[] | undefined) =>
   Array.isArray(team) ? team.filter((id): id is string => !!id && id !== GUEST_ID) : [];
@@ -22,17 +23,6 @@ const ensurePlayer = (map: Record<string, EloMapEntry>, id: string) => {
   if (!map[id]) {
     map[id] = { elo: ELO_BASELINE, games: 0 };
   }
-};
-
-const formatDate = (value: string | null | undefined) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("sv-SE", {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  }).format(date);
 };
 
 const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -108,7 +98,7 @@ const BADGE_DEFINITIONS: BadgeDefinition[] = [
     icon: "🎯",
     title: "Skräll",
     description: (target) => `Vinn mot ${target}+ ELO högre`,
-    thresholds: [25, 50, 100, 150],
+    thresholds: [25, 50, 100, 150, 200, 250],
     group: "Skräll",
     groupOrder: 7
   },
@@ -258,6 +248,7 @@ const UNIQUE_BADGE_DEFINITIONS = [
   { id: "clutch-pro", icon: "🧊", title: "Clutch-specialisten", description: "Flest nagelbitare (vinster med 1 set)", group: "Unika Meriter", groupOrder: 0 },
   { id: "social-butterfly", icon: "🦋", title: "Sociala fjärilen", description: "Flest unika partners", group: "Unika Meriter", groupOrder: 0 },
   { id: "monthly-giant", icon: "🐘", title: "Månadens gigant", description: "Flest matcher senaste 30 dagarna", group: "Unika Meriter", groupOrder: 0 },
+  { id: "the-wall", icon: "🧱", title: "Väggen", description: "Flest vinster med noll insläppta set", group: "Unika Meriter", groupOrder: 0 },
 ];
 
 const BADGE_ICON_MAP = BADGE_DEFINITIONS.reduce((acc, def) => {
@@ -677,6 +668,23 @@ export const buildPlayerBadges = (
         ? `Första gången: ${formatDate(stats.firstWinVsHigherEloAt)}`
         : "Sikta på en seger mot högre ELO.",
       progress: null
+    },
+    {
+      id: "giant-slayer-pro",
+      icon: "⚔️",
+      tier: "II",
+      title: "Stora Jättedödaren",
+      description: "Vinn mot ett lag med 200+ högre genomsnittlig ELO",
+      earned: stats.biggestUpsetEloGap >= 200,
+      group: "Jättedödare",
+      groupOrder: 26,
+      meta: stats.biggestUpsetEloGap >= 200
+        ? `Största skräll: +${stats.biggestUpsetEloGap} ELO`
+        : `Din största skräll hittills: +${stats.biggestUpsetEloGap} ELO`,
+      progress: {
+        current: Math.min(stats.biggestUpsetEloGap, 200),
+        target: 200
+      }
     }
   ];
 
@@ -699,6 +707,7 @@ export const buildPlayerBadges = (
             case "clutch-pro": val = s.closeWins; break;
             case "social-butterfly": val = s.uniquePartners; break;
             case "monthly-giant": val = s.matchesLast30Days; break;
+            case "the-wall": val = s.cleanSheets; break;
           }
 
           if (val > bestValue) {

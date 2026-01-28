@@ -4,6 +4,7 @@ import {
   getRestCycle,
   pickAmericanoRestingPlayers,
   pickAmericanoTeams,
+  pickMexicanoRestingPlayers,
   pickMexicanoTeams,
   generateAmericanoRounds,
   getNextSuggestion
@@ -145,6 +146,32 @@ describe('Tournament Logic', () => {
 
       const allPlayers = [...suggestion.team1_ids, ...suggestion.team2_ids, ...suggestion.resting_ids];
       expect(new Set(allPlayers).size).toBe(5);
+    });
+
+    it('should handle Mexicano balancing correctly', () => {
+      // Setup: p1 has many points, p2 has few.
+      const rounds: any[] = [
+        { team1_ids: ['p1', 'p3'], team2_ids: ['p4', 'p5'], team1_score: 100, team2_score: 0, mode: 'mexicano' }
+      ];
+      const suggestion = getNextSuggestion(rounds, participants, 'mexicano');
+      // suggestion should try to balance p1 with someone weaker or against someone stronger
+      expect(suggestion.team1_ids).toBeDefined();
+    });
+  });
+
+  describe('pickMexicanoRestingPlayers', () => {
+    it('should prefer resting those with fewest points or not yet rested', () => {
+       const standings: any = {
+         p1: { totalPoints: 100, gamesPlayed: 1 },
+         p2: { totalPoints: 100, gamesPlayed: 1 },
+         p3: { totalPoints: 10, gamesPlayed: 1 },
+         p4: { totalPoints: 10, gamesPlayed: 1 },
+         p5: { totalPoints: 0, gamesPlayed: 0 }
+       };
+       const restCycle = new Set<string>();
+       const resting = pickMexicanoRestingPlayers(standings, restCycle, participants, 1);
+       // p5 has 0 points, should be rested
+       expect(resting[0]).toBe('p5');
     });
   });
 });

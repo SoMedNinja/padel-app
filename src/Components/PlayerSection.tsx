@@ -73,6 +73,7 @@ import { alpha } from "@mui/material/styles";
 // Note for non-coders: alpha is a helper that makes a color transparent so highlight
 // backgrounds are soft instead of solid blocks.
 import "./PlayerSection.css";
+import { formatDate } from "../utils/format";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
@@ -100,12 +101,11 @@ const formatMvpDays = (days: number) => {
 
 const formatChartTimestamp = (value: string | number, includeTime = false) => {
   if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
+  const date = typeof value === "number" ? new Date(value) : value;
   const options: Intl.DateTimeFormatOptions = includeTime
     ? { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
     : { year: "numeric", month: "short", day: "numeric" };
-  return new Intl.DateTimeFormat("sv-SE", options).format(date);
+  return formatDate(date, options);
 };
 
 const renderPlayerOptionLabel = (profile: Profile | null | undefined): ReactNode => {
@@ -442,7 +442,7 @@ const buildHeadToHeadRecentResults = (
 ) => {
   if (!playerId || !opponentId) return [];
   const sortedMatches = [...matches].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) => b.created_at.localeCompare(a.created_at)
   );
 
   const results = [];

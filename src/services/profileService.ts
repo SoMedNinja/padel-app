@@ -22,6 +22,9 @@ export const profileService = {
 
     if (filteredUpdates.name) {
       filteredUpdates.name = filteredUpdates.name.trim();
+      if (!filteredUpdates.name) {
+        throw new Error("Namn får inte vara tomt");
+      }
       if (filteredUpdates.name.length > 50) {
         throw new Error("Namnet är för långt (max 50 tecken)");
       }
@@ -51,6 +54,9 @@ export const profileService = {
 
     if (filteredProfile.name) {
       filteredProfile.name = filteredProfile.name.trim();
+      if (!filteredProfile.name) {
+        throw new Error("Namn får inte vara tomt");
+      }
       if (filteredProfile.name.length > 50) {
         throw new Error("Namnet är för långt (max 50 tecken)");
       }

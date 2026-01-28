@@ -85,7 +85,15 @@ export const tournamentService = {
   },
 
   async updateTournament(tournamentId: string, updates: any) {
-    const { error } = await supabase.from("mexicana_tournaments").update(updates).eq("id", tournamentId);
+    const sanitized = { ...updates };
+    if (sanitized.name !== undefined) sanitized.name = sanitized.name?.trim();
+    if (sanitized.location !== undefined) sanitized.location = sanitized.location?.trim();
+
+    if (sanitized.name === "") {
+      throw new Error("Turneringsnamn får inte vara tomt");
+    }
+
+    const { error } = await supabase.from("mexicana_tournaments").update(sanitized).eq("id", tournamentId);
     if (error) throw error;
   },
 
@@ -95,9 +103,18 @@ export const tournamentService = {
   },
 
   async createTournament(tournament: any) {
+    const sanitized = {
+      ...tournament,
+      name: tournament.name?.trim(),
+      location: tournament.location?.trim(),
+    };
+    if (!sanitized.name) {
+      throw new Error("Turneringsnamn får inte vara tomt");
+    }
+
     const { data, error } = await supabase
       .from("mexicana_tournaments")
-      .insert(tournament)
+      .insert(sanitized)
       .select()
       .single();
     if (error) throw error;
