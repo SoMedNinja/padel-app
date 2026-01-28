@@ -47,6 +47,10 @@ For the automated cron job to authenticate with the Edge Function, it needs acce
 select vault.create_secret('your-service-role-key-here', 'service_role_key', 'Service role key for cron jobs');
 ```
 If you see an error like “missing FROM-clause entry,” it usually means the key was pasted without quotes. Re-run the SQL with the key wrapped in single quotes.
+If you see an error like “function vault.create_secret does not exist,” the Vault extension may not be enabled. Run this once in the SQL Editor, then re-run the `vault.create_secret` command:
+```sql
+create extension if not exists supabase_vault;
+```
 
 **Note for non-coders:** *Vault* is a secure storage area in Supabase. We put the secret key there so scheduled jobs can read it without exposing it in the code.
 
