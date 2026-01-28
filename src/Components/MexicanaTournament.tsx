@@ -26,6 +26,7 @@ import {
   useMediaQuery,
   ButtonBase,
   Avatar,
+  Tooltip,
 } from "@mui/material";
 // Note for non-coders: these imports bring in ready-made table UI pieces so the browser
 // recognizes names like TableContainer and can render the standings tables.
@@ -127,7 +128,7 @@ export default function MexicanaTournament({
   } = useTournamentDetails(activeTournamentId);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [activeSection, setActiveSection] = useState<"create" | "run" | "results" | "history">("create");
+  const [activeSection, setActiveSection] = useState<"create" | "run" | "overview" | "results" | "history">("create");
 
   const [participants, setParticipants] = useState<string[]>([]);
   const [rounds, setRounds] = useState<TournamentRound[]>([]);
@@ -228,7 +229,7 @@ export default function MexicanaTournament({
         status: "draft",
         created_by: user.id,
       });
-      invalidateTournamentData(queryClient, activeTournamentId);
+      invalidateTournamentData(queryClient, data.id);
       setActiveTournamentId(data.id);
       toast.success("Turneringen är skapad.");
     } catch (error: any) {
@@ -746,6 +747,74 @@ export default function MexicanaTournament({
       </Grid>
   );
 
+  const canShareResults = Boolean(activeTournament && sortedStandings.length);
+  const handleShareResults = () => {
+    // Note for non-coders: we only open the share modal once results exist to avoid blank exports.
+    if (!canShareResults) {
+      toast.error("Det finns inga resultat att dela ännu.");
+      return;
+    }
+    setShareOpen(true);
+  };
+
+  const overviewSection = (
+    <Grid container spacing={3}>
+      <Grid size={{ xs: 12, md: 7 }}>
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Turneringsöversikt</Typography>
+            {activeTournament ? (
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  <Chip label={activeTournament.name} sx={{ fontWeight: 700 }} />
+                  <Chip label={getTournamentStatusLabel(activeTournament.status)} color="primary" />
+                  <Chip label={activeTournament.tournament_type === "americano" ? "Americano" : "Mexicano"} />
+                  <Chip label={`${participants.length} spelare`} />
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  {activeTournament.location ? `Plats: ${activeTournament.location}` : "Ingen plats angiven."}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {activeTournament.scheduled_at ? `Datum: ${formatDate(activeTournament.scheduled_at)}` : "Datum saknas."}
+                </Typography>
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Välj en turnering för att se detaljer.
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 5 }}>
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Topplista (snabb vy)</Typography>
+            {sortedStandings.length ? (
+              <Stack spacing={1}>
+                {sortedStandings.slice(0, 5).map((res, index) => (
+                  <Box key={res.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {index + 1}. {getIdDisplayName(res.id, profileMap)}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {res.totalPoints}p
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Inga resultat ännu.
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  );
+
   const runSection = activeTournament?.status === "in_progress" ? (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12, md: 6 }}>
@@ -967,8 +1036,8 @@ export default function MexicanaTournament({
                     <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="center">Poäng</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="center">Matcher</TableCell>
-                    <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }} align="center">V/O/F</TableCell>
-                    <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }} align="center">Diff</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">V/O/F</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Diff</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -978,8 +1047,8 @@ export default function MexicanaTournament({
                       <TableCell>{getIdDisplayName(res.id, profileMap)}</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700 }}>{res.totalPoints}</TableCell>
                       <TableCell align="center">{res.gamesPlayed}</TableCell>
-                      <TableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{res.wins}/{res.ties}/{res.losses}</TableCell>
-                      <TableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{res.pointsFor - res.pointsAgainst}</TableCell>
+                      <TableCell align="center">{res.wins}/{res.ties}/{res.losses}</TableCell>
+                      <TableCell align="center">{res.pointsFor - res.pointsAgainst}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1034,9 +1103,9 @@ export default function MexicanaTournament({
                     <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="center">Poäng</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="center">Matcher</TableCell>
-                    <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }} align="center">V/O/F</TableCell>
-                    <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }} align="center">Diff</TableCell>
-                    <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }} align="center">Snitt</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">V/O/F</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Diff</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Snitt</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1046,9 +1115,9 @@ export default function MexicanaTournament({
                       <TableCell>{getIdDisplayName(res.id, profileMap)}</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700 }}>{res.totalPoints}</TableCell>
                       <TableCell align="center">{res.gamesPlayed}</TableCell>
-                      <TableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{res.wins}/{res.ties}/{res.losses}</TableCell>
-                      <TableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{res.pointsFor - res.pointsAgainst}</TableCell>
-                      <TableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{(res.totalPoints / (res.gamesPlayed || 1)).toFixed(1)}</TableCell>
+                      <TableCell align="center">{res.wins}/{res.ties}/{res.losses}</TableCell>
+                      <TableCell align="center">{res.pointsFor - res.pointsAgainst}</TableCell>
+                      <TableCell align="center">{(res.totalPoints / (res.gamesPlayed || 1)).toFixed(1)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1075,14 +1144,19 @@ export default function MexicanaTournament({
               <Button variant="outlined" fullWidth onClick={() => setActiveTournamentId("")}>
                 Tillbaka
               </Button>
-              <Button
-                variant="contained"
-                fullWidth
-                startIcon={<ShareIcon />}
-                onClick={() => setShareOpen(true)}
-              >
-                Dela resultat
-              </Button>
+              <Tooltip title={canShareResults ? "" : "Spara resultat först"} disableHoverListener={canShareResults}>
+                <span>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<ShareIcon />}
+                    onClick={handleShareResults}
+                    disabled={!canShareResults}
+                  >
+                    Dela resultat
+                  </Button>
+                </span>
+              </Tooltip>
             </Stack>
       </CardContent>
     </Card>
@@ -1234,12 +1308,14 @@ export default function MexicanaTournament({
           >
             <Tab value="create" label="Skapa" />
             <Tab value="run" label="Spela" />
+            <Tab value="overview" label="Turneringsöversikt" />
             <Tab value="results" label="Resultat" />
             <Tab value="history" label="Historik" />
           </Tabs>
 
           {activeSection === "create" && createSection}
           {activeSection === "run" && runSection}
+          {activeSection === "overview" && overviewSection}
           {activeSection === "results" && resultsSection}
           {activeSection === "history" && historySection}
         </>
