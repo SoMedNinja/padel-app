@@ -216,6 +216,9 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
 
   const theme = themes[variant % themes.length] || themes[0];
   const isMagazine = variant === 3;
+  const isStatsLayout = variant === 1;
+  const isScoreHeroLayout = variant === 2;
+  const isSplitSpotlightLayout = variant === 4;
 
   return (
     <Box
@@ -275,6 +278,142 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
                {safeFormatDate(match?.created_at, { weekday: 'long', day: 'numeric', month: 'long' })}
              </Typography>
            </Stack>
+        </Box>
+      ) : isStatsLayout ? (
+        // Layout note (non-coder): this variant moves the stats into a left column so the eye starts with numbers before the score.
+        <Box sx={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 4 }}>
+          <Stack spacing={3} alignItems="flex-start">
+            <GSLogo />
+            <Box>
+              <Typography variant="h3" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme?.accent || 'inherit' }}>
+                Statistik först
+              </Typography>
+              <Typography variant="body1" sx={{ opacity: 0.8 }}>
+                {safeFormatDate(match?.created_at, { weekday: 'long', day: 'numeric', month: 'long' })}
+              </Typography>
+            </Box>
+            <Box sx={{ width: '100%', bgcolor: 'rgba(255,255,255,0.12)', p: 3, borderRadius: 3 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>ELO-delta</Typography>
+              <Stack spacing={1}>
+                {team1Names.map((name, i) => {
+                  const pid = match?.team1_ids?.[i];
+                  const deltaValue = pid ? deltas?.[pid] : undefined;
+                  return (
+                    <Stack key={`t1-${i}`} direction="row" justifyContent="space-between">
+                      <Typography variant="body1">{name || '—'}</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: theme?.accent || 'inherit' }}>
+                        {deltaValue !== undefined ? `${deltaValue >= 0 ? '+' : ''}${Math.round(deltaValue)} ELO` : '—'}
+                      </Typography>
+                    </Stack>
+                  );
+                })}
+                {team2Names.map((name, i) => {
+                  const pid = match?.team2_ids?.[i];
+                  const deltaValue = pid ? deltas?.[pid] : undefined;
+                  return (
+                    <Stack key={`t2-${i}`} direction="row" justifyContent="space-between">
+                      <Typography variant="body1">{name || '—'}</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: theme?.accent || 'inherit' }}>
+                        {deltaValue !== undefined ? `${deltaValue >= 0 ? '+' : ''}${Math.round(deltaValue)} ELO` : '—'}
+                      </Typography>
+                    </Stack>
+                  );
+                })}
+              </Stack>
+            </Box>
+            <Typography variant="body1" sx={{ fontStyle: 'italic', opacity: 0.8 }}>
+              "{highlight?.description || ''}"
+            </Typography>
+          </Stack>
+          <Stack spacing={3} alignItems="center" justifyContent="center">
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme?.accent || 'inherit' }}>
+              {highlight?.title || 'Match'}
+            </Typography>
+            <Box sx={{
+              bgcolor: 'white',
+              color: '#0d47a1',
+              p: 3,
+              borderRadius: 3,
+              minWidth: 240,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+            }}>
+              <Typography variant="h1" sx={{ fontWeight: 900, lineHeight: 1 }}>
+                {match?.team1_sets ?? 0} – {match?.team2_sets ?? 0}
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>{team1Names?.join(' & ')}</Typography>
+              <Typography variant="h5" sx={{ opacity: 0.7, my: 1 }}>vs</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>{team2Names?.join(' & ')}</Typography>
+            </Box>
+          </Stack>
+        </Box>
+      ) : isScoreHeroLayout ? (
+        // Layout note (non-coder): this version makes the score the main "hero" element and tucks the team list underneath.
+        <Stack spacing={5} alignItems="center" sx={{ width: '100%' }}>
+          <Typography variant="h3" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme?.accent || 'inherit' }}>
+            {highlight?.title || 'Match'}
+          </Typography>
+          <Box sx={{
+            bgcolor: 'rgba(255,255,255,0.15)',
+            borderRadius: 6,
+            px: 6,
+            py: 4,
+            width: '80%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.25)'
+          }}>
+            <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140, lineHeight: 1 }}>
+              {match?.team1_sets ?? 0} – {match?.team2_sets ?? 0}
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={6} sx={{ width: '100%', justifyContent: 'center' }}>
+            <Box sx={{ textAlign: 'right' }}>
+              {team1Names.map((name, i) => (
+                <Typography key={i} variant="h4" sx={{ fontWeight: 700 }}>{name || '—'}</Typography>
+              ))}
+            </Box>
+            <Box sx={{ textAlign: 'left' }}>
+              {team2Names.map((name, i) => (
+                <Typography key={i} variant="h4" sx={{ fontWeight: 700 }}>{name || '—'}</Typography>
+              ))}
+            </Box>
+          </Stack>
+          <Typography variant="h5" sx={{ fontStyle: 'italic', opacity: 0.8 }}>
+            "{highlight?.description || ''}"
+          </Typography>
+        </Stack>
+      ) : isSplitSpotlightLayout ? (
+        // Layout note (non-coder): the left side is a spotlight block, while the right side is a compact roster panel.
+        <Box sx={{ width: '100%', display: 'flex', gap: 4 }}>
+          <Box sx={{ flex: 1.3, bgcolor: 'rgba(0,0,0,0.2)', p: 4, borderRadius: 4 }}>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme?.accent || 'inherit' }}>
+              {highlight?.title || 'Match'}
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.8, mb: 3 }}>
+              {safeFormatDate(match?.created_at, { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Typography>
+            <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 120 }}>
+              {match?.team1_sets ?? 0} – {match?.team2_sets ?? 0}
+            </Typography>
+            <Typography variant="h5" sx={{ fontStyle: 'italic', mt: 2 }}>
+              "{highlight?.description || ''}"
+            </Typography>
+          </Box>
+          <Box sx={{ flex: 1, bgcolor: 'rgba(255,255,255,0.12)', p: 4, borderRadius: 4 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 2, textTransform: 'uppercase' }}>Lag</Typography>
+            <Stack spacing={2}>
+              <Box>
+                {team1Names.map((name, i) => (
+                  <Typography key={`split-t1-${i}`} variant="h4" sx={{ fontWeight: 700 }}>{name || '—'}</Typography>
+                ))}
+              </Box>
+              <Box>
+                {team2Names.map((name, i) => (
+                  <Typography key={`split-t2-${i}`} variant="h4" sx={{ fontWeight: 700 }}>{name || '—'}</Typography>
+                ))}
+              </Box>
+            </Stack>
+          </Box>
         </Box>
       ) : (
         <Stack spacing={6} alignItems="center" sx={{ width: '100%', zIndex: 1 }}>
@@ -365,6 +504,9 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
   const theme = themes[variant % themes.length] || themes[0];
   const isMagazine = variant === 3;
   const isDetailed = variant === 1;
+  const isStatsLayout = variant === 1;
+  const isScoreHeroLayout = variant === 2;
+  const isSplitSpotlightLayout = variant === 4;
 
   return (
     <Box
@@ -407,6 +549,142 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
              <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', color: theme?.accent || 'primary.main' }}>
                {safeFormatDate(data?.createdAt, { weekday: 'long', day: 'numeric', month: 'long' })}
              </Typography>
+          </Box>
+        </Box>
+      ) : isStatsLayout ? (
+        // Layout note (non-coder): this recap puts the stats into a column so the numbers lead the story.
+        <Box sx={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 4 }}>
+          <Stack spacing={3} alignItems="flex-start">
+            <GSLogo />
+            <Box sx={{ bgcolor: 'rgba(0,0,0,0.15)', p: 3, borderRadius: 3, width: '100%' }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase' }}>Matchdata</Typography>
+              <Stack spacing={2} sx={{ mt: 2 }}>
+                <Box>
+                  <Typography variant="h6" sx={{ opacity: 0.6 }}>Fairness</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.fairness ?? 0}%</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ opacity: 0.6 }}>Vinstchans Lag A</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round((data?.winProbability ?? 0) * 100)}%</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ opacity: 0.6 }}>Serve A</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.team1ServesFirst ? 'JA' : 'NEJ'}</Typography>
+                </Box>
+              </Stack>
+            </Box>
+            <Typography variant="body1" sx={{ opacity: 0.7 }}>
+              {safeFormatDate(data?.createdAt, { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Typography>
+          </Stack>
+          <Stack spacing={3} alignItems="center" justifyContent="center">
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme?.accent || 'inherit' }}>
+              Match-recap
+            </Typography>
+            <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140 }}>
+              {data?.scoreline || '0–0'}
+            </Typography>
+            <Grid container spacing={3} sx={{ width: '100%' }}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag A</Typography>
+                {data?.teamA?.players?.map((p: any, i: number) => (
+                  <Box key={p?.id || i} sx={{ mb: 1 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
+                    <Typography variant="body1" sx={{ color: theme?.accent || 'inherit', fontWeight: 700 }}>
+                      {(p?.delta ?? 0) >= 0 ? '+' : ''}{p?.delta ?? 0} ELO
+                    </Typography>
+                  </Box>
+                ))}
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag B</Typography>
+                {data?.teamB?.players?.map((p: any, i: number) => (
+                  <Box key={p?.id || i} sx={{ mb: 1 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
+                    <Typography variant="body1" sx={{ color: theme?.accent || 'inherit', fontWeight: 700 }}>
+                      {(p?.delta ?? 0) >= 0 ? '+' : ''}{p?.delta ?? 0} ELO
+                    </Typography>
+                  </Box>
+                ))}
+              </Grid>
+            </Grid>
+          </Stack>
+        </Box>
+      ) : isScoreHeroLayout ? (
+        // Layout note (non-coder): this variant makes the score the main hero so it grabs attention first.
+        <Stack spacing={4} alignItems="center" sx={{ width: '100%' }}>
+          <GSLogo />
+          <Typography variant="h3" sx={{ fontWeight: 800, textTransform: 'uppercase', color: theme?.accent || 'inherit' }}>
+            Match-recap
+          </Typography>
+          <Box sx={{ bgcolor: 'rgba(255,255,255,0.15)', px: 6, py: 4, borderRadius: 6, width: '80%' }}>
+            <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 150 }}>
+              {data?.scoreline || '0–0'}
+            </Typography>
+          </Box>
+          <Grid container spacing={4} sx={{ width: '100%' }}>
+            <Grid size={{ xs: 6 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag A</Typography>
+              {data?.teamA?.players?.map((p: any, i: number) => (
+                <Typography key={p?.id || i} variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
+              ))}
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag B</Typography>
+              {data?.teamB?.players?.map((p: any, i: number) => (
+                <Typography key={p?.id || i} variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
+              ))}
+            </Grid>
+          </Grid>
+          <Stack direction="row" spacing={2} sx={{ width: '100%', justifyContent: 'center' }}>
+            <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 2, borderRadius: 2, flex: 1 }}>
+              <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Fairness</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.fairness ?? 0}%</Typography>
+            </Box>
+            <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 2, borderRadius: 2, flex: 1 }}>
+              <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Vinstchans Lag A</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round((data?.winProbability ?? 0) * 100)}%</Typography>
+            </Box>
+          </Stack>
+        </Stack>
+      ) : isSplitSpotlightLayout ? (
+        // Layout note (non-coder): this version splits the screen with a big highlight area and a smaller roster panel.
+        <Box sx={{ width: '100%', display: 'flex', gap: 4 }}>
+          <Box sx={{ flex: 1.4, bgcolor: 'rgba(0,0,0,0.2)', p: 4, borderRadius: 4 }}>
+            <Typography variant="h2" sx={{ fontWeight: 900, textTransform: 'uppercase', color: theme?.accent || 'inherit' }}>
+              Match-recap
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.7, mb: 3 }}>
+              {safeFormatDate(data?.createdAt, { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Typography>
+            <Typography variant="h1" sx={{ fontWeight: 900, fontSize: 140 }}>
+              {data?.scoreline || '0–0'}
+            </Typography>
+            <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+              <Box>
+                <Typography variant="h6" sx={{ opacity: 0.6 }}>Fairness</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.fairness ?? 0}%</Typography>
+              </Box>
+              <Box>
+                <Typography variant="h6" sx={{ opacity: 0.6 }}>Vinstchans A</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round((data?.winProbability ?? 0) * 100)}%</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ flex: 1, bgcolor: 'rgba(255,255,255,0.12)', p: 4, borderRadius: 4 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2 }}>Lag</Typography>
+            <Stack spacing={2}>
+              <Box>
+                {data?.teamA?.players?.map((p: any, i: number) => (
+                  <Typography key={p?.id || i} variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
+                ))}
+              </Box>
+              <Box>
+                {data?.teamB?.players?.map((p: any, i: number) => (
+                  <Typography key={p?.id || i} variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
+                ))}
+              </Box>
+            </Stack>
           </Box>
         </Box>
       ) : (
