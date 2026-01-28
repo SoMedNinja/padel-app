@@ -24,6 +24,7 @@ import {
   Avatar,
   Tooltip,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   Save as SaveIcon,
   Delete as DeleteIcon,
@@ -195,7 +196,14 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                 const isSelf = profile.id === user?.id;
 
                 return (
-                  <TableRow key={profile.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableRow
+                    key={profile.id}
+                    hover
+                    sx={{
+                      '&:last-child td, &:last-child th': { border: 0 },
+                      bgcolor: isSelf ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                    }}
+                  >
                     <TableCell sx={{ pl: 3 }}>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <Avatar src={profile.avatar_url || ''}>{profile.name?.charAt(0)}</Avatar>
@@ -207,6 +215,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                             placeholder="Namn"
                             value={currentName}
                             onChange={(e) => handleNameChange(profile.id, e.target.value)}
+                            helperText={`${currentName.length}/50`}
                             slotProps={{ htmlInput: { maxLength: 50 } }}
                             sx={{
                               '& .MuiInput-root': { fontWeight: 600 },

@@ -13,3 +13,7 @@
 ## 2025-05-20 - [UX: Contextual Feedback & Scannability]
 **Learning:** In long lists like leaderboards, users struggle to find their own data. Providing a character counter for fields with strict length limits (like player names) prevents silent input truncation.
 **Action:** Implement subtle background highlights (e.g., `alpha(theme.palette.primary.main, 0.08)`) for user-specific rows in tables. Always add `helperText` counters to `TextFields` with `maxLength` constraints.
+
+## 2025-05-22 - [UX: Consistent Constraint Feedback]
+**Learning:** Hard input limits (maxLength) without visible counters lead to "dead" keyboard input that confuses users. Even in administrative views, high-density data requires visual anchors (like row highlights) to maintain user context.
+**Action:** Audit all configuration and management screens for hidden constraints. Ensure every `TextField` with `maxLength` has a corresponding `helperText` counter, and all user-centric tables use standard highlighting.

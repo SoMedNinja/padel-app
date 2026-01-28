@@ -195,6 +195,7 @@ export default function TournamentConfig({
                     value={newTournament.name}
                     onChange={(e) => setNewTournament({ ...newTournament, name: e.target.value })}
                     disabled={isSaving}
+                    helperText={`${newTournament.name.length}/50`}
                     slotProps={{ htmlInput: { maxLength: 50 } }}
                   />
                   <TextField
@@ -202,6 +203,7 @@ export default function TournamentConfig({
                     value={newTournament.location}
                     onChange={(e) => setNewTournament({ ...newTournament, location: e.target.value })}
                     disabled={isSaving}
+                    helperText={`${newTournament.location.length}/50`}
                     slotProps={{ htmlInput: { maxLength: 50 } }}
                   />
                   <TextField
