@@ -82,6 +82,8 @@ export default function History({
 }: HistoryProps) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
+  const allEloPlayersMap = useMemo(() => new Map(allEloPlayers.map(p => [p.id, p])), [allEloPlayers]);
+
   const playerOptions = useMemo(() => {
     const options = profiles.map(profile => ({
       id: profile.id,
@@ -100,7 +102,7 @@ export default function History({
   }, [matches.length]);
 
   const sortedMatches = useMemo(
-    () => [...matches].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    () => [...matches].sort((a, b) => (b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : 0)),
     [matches]
   );
 
@@ -222,18 +224,6 @@ export default function History({
     return `${score} set`;
   };
 
-  const buildTeamEntries = (match: Match, teamKey: "team1" | "team2", idKey: "team1_ids" | "team2_ids"): TeamEntry[] => {
-    const ids = resolveTeamIds(match[idKey], match[teamKey], nameToIdMap);
-    const names = resolveTeamNames(match[idKey], match[teamKey], profileMap);
-
-    const entries = ids.map((id, index) => ({
-      id,
-      name: names[index] || getIdDisplayName(id, profileMap),
-    })).filter(entry => entry.name !== "Okänd");
-
-    return entries.slice(0, 2);
-  };
-
   const formatDelta = (delta?: number) => {
     if (typeof delta !== "number") return "—";
     return delta > 0 ? `+${delta}` : `${delta}`;
@@ -267,14 +257,45 @@ export default function History({
 
       <Stack spacing={2}>
         {visibleMatches.map(m => {
-          const teamAEntries = buildTeamEntries(m, "team1", "team1_ids");
-          const teamBEntries = buildTeamEntries(m, "team2", "team2_ids");
           const isEditing = editingId === m.id;
+          const matchDeltas = eloDeltaByMatch[m.id] || {};
+          const matchRatings = eloRatingByMatch[m.id] || {};
+
+          // Optimization: Pre-calculate team data once per match instead of per-player
+          const t1Ids = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
+          const t2Ids = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
+          const t1Names = resolveTeamNames(m.team1_ids, m.team1, profileMap);
+          const t2Names = resolveTeamNames(m.team2_ids, m.team2, profileMap);
+
+          const teamAEntries = t1Ids.map((id, index) => ({
+            id,
+            name: t1Names[index] || getIdDisplayName(id, profileMap),
+          })).filter(entry => entry.name !== "Okänd").slice(0, 2);
+
+          const teamBEntries = t2Ids.map((id, index) => ({
+            id,
+            name: t2Names[index] || getIdDisplayName(id, profileMap),
+          })).filter(entry => entry.name !== "Okänd").slice(0, 2);
+
+          const matchWeight = getMatchWeight(m);
+
+          const getAvg = (ids: (string | null)[]) => {
+            const active = ids.filter(id => id && id !== GUEST_ID);
+            if (!active.length) return 1000;
+            let sum = 0;
+            for (const id of active) {
+              const playerElo = matchRatings[id!] || 1000;
+              const playerDelta = matchDeltas[id!] || 0;
+              sum += (playerElo - playerDelta);
+            }
+            return sum / active.length;
+          };
+
+          const avgA = getAvg(t1Ids);
+          const avgB = getAvg(t2Ids);
 
           const tournamentType = m.source_tournament_type || "standalone";
           const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
-
-          const matchDeltas = eloDeltaByMatch[m.id] || {};
 
           return (
             <Card key={m.id} variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
@@ -385,26 +406,12 @@ export default function History({
                       <List disablePadding sx={{ mt: 1 }}>
                         {teamAEntries.map(entry => {
                           const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                          const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                          const currentElo = entry.id ? matchRatings[entry.id] : undefined;
 
                           let explanation = "";
                           if (entry.id && typeof delta === 'number') {
                             const preElo = (currentElo || 1000) - delta;
-                            const t1Ids = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
-                            const t2Ids = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
-                            const getAvg = (ids: (string | null)[]) => {
-                              const active = ids.filter(id => id && id !== GUEST_ID);
-                              if (!active.length) return 1000;
-                              return active.reduce((sum, id) => {
-                                const playerElo = eloRatingByMatch[m.id]?.[id!] || 1000;
-                                const playerDelta = eloDeltaByMatch[m.id]?.[id!] || 0;
-                                return sum + (playerElo - playerDelta);
-                              }, 0) / active.length;
-                            };
-                            const avgA = getAvg(t1Ids);
-                            const avgB = getAvg(t2Ids);
-                            const matchWeight = getMatchWeight(m);
-                            const playerStats = allEloPlayers.find(p => p.id === entry.id);
+                            const playerStats = allEloPlayersMap.get(entry.id);
 
                             explanation = getEloExplanation(
                               delta,
@@ -468,26 +475,12 @@ export default function History({
                       <List disablePadding sx={{ mt: 1 }}>
                         {teamBEntries.map(entry => {
                           const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                          const currentElo = entry.id ? eloRatingByMatch[m.id]?.[entry.id] : undefined;
+                          const currentElo = entry.id ? matchRatings[entry.id] : undefined;
 
                           let explanation = "";
                           if (entry.id && typeof delta === 'number') {
                             const preElo = (currentElo || 1000) - delta;
-                            const t1Ids = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
-                            const t2Ids = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
-                            const getAvg = (ids: (string | null)[]) => {
-                              const active = ids.filter(id => id && id !== GUEST_ID);
-                              if (!active.length) return 1000;
-                              return active.reduce((sum, id) => {
-                                const playerElo = eloRatingByMatch[m.id]?.[id!] || 1000;
-                                const playerDelta = eloDeltaByMatch[m.id]?.[id!] || 0;
-                                return sum + (playerElo - playerDelta);
-                              }, 0) / active.length;
-                            };
-                            const avgA = getAvg(t1Ids);
-                            const avgB = getAvg(t2Ids);
-                            const matchWeight = getMatchWeight(m);
-                            const playerStats = allEloPlayers.find(p => p.id === entry.id);
+                            const playerStats = allEloPlayersMap.get(entry.id);
 
                             explanation = getEloExplanation(
                               delta,

@@ -432,17 +432,16 @@ export const buildAllPlayersBadgeStats = (
     if (!team1.length || !team2.length) return;
     if (match.team1_sets == null || match.team2_sets == null) return;
 
-    team1.forEach(id => ensurePlayer(eloMap, id));
-    team2.forEach(id => ensurePlayer(eloMap, id));
-
     const avg = (team: string[]) => {
-      if (!team.length) return ELO_BASELINE;
-      return (
-        team.reduce((sum, id) => {
-          ensurePlayer(eloMap, id);
-          return sum + eloMap[id].elo;
-        }, 0) / team.length
-      );
+      const len = team.length;
+      if (!len) return ELO_BASELINE;
+      let sum = 0;
+      for (let i = 0; i < len; i++) {
+        const id = team[i];
+        ensurePlayer(eloMap, id);
+        sum += eloMap[id].elo;
+      }
+      return sum / len;
     };
 
     const e1 = avg(team1);
@@ -458,33 +457,27 @@ export const buildAllPlayersBadgeStats = (
     const margin = Math.abs(setsA - setsB);
     const scoreType = match.score_type || "sets";
 
-    // Helper to update individual player stats
-    const updateStats = (id: string, isTeam1: boolean) => {
-      // Create stats object if it doesn't exist (e.g. for players not in initial profiles list)
+    // Optimization: Calculate hour once per match instead of per-player
+    const createdAt = match.created_at || "";
+    let matchHour = -1;
+    if (createdAt) {
+      const matchDate = new Date(createdAt);
+      if (!Number.isNaN(matchDate.getTime())) {
+        matchHour = matchDate.getHours();
+      }
+    }
+
+    // Helper to update individual player stats and ELO in a single pass
+    const updatePlayer = (id: string, isTeam1: boolean) => {
+      // Create stats object if it doesn't exist
       if (!statsMap[id]) {
         statsMap[id] = {
-          matchesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          currentWinStreak: 0,
-          bestWinStreak: 0,
-          firstWinVsHigherEloAt: null,
-          biggestUpsetEloGap: 0,
-          currentElo: ELO_BASELINE,
-          matchesLast30Days: 0,
-          marathonMatches: 0,
-          quickWins: 0,
-          closeWins: 0,
-          cleanSheets: 0,
-          nightOwlMatches: 0,
-          earlyBirdMatches: 0,
-          uniquePartners: 0,
-          uniqueOpponents: 0,
-          tournamentsPlayed: 0,
-          tournamentWins: 0,
-          tournamentPodiums: 0,
-          americanoWins: 0,
-          mexicanoWins: 0
+          matchesPlayed: 0, wins: 0, losses: 0, currentWinStreak: 0, bestWinStreak: 0,
+          firstWinVsHigherEloAt: null, biggestUpsetEloGap: 0, currentElo: ELO_BASELINE,
+          matchesLast30Days: 0, marathonMatches: 0, quickWins: 0, closeWins: 0,
+          cleanSheets: 0, nightOwlMatches: 0, earlyBirdMatches: 0, uniquePartners: 0,
+          uniqueOpponents: 0, tournamentsPlayed: 0, tournamentWins: 0,
+          tournamentPodiums: 0, americanoWins: 0, mexicanoWins: 0
         };
         partnerSets[id] = new Set();
         opponentSets[id] = new Set();
@@ -497,8 +490,13 @@ export const buildAllPlayersBadgeStats = (
 
       const playerTeam = isTeam1 ? team1 : team2;
       const opponentTeam = isTeam1 ? team2 : team1;
-      playerTeam.filter(pid => pid && pid !== id).forEach(pid => partnerSets[id].add(pid));
-      opponentTeam.forEach(pid => opponentSets[id].add(pid));
+      for (let i = 0; i < playerTeam.length; i++) {
+        const pid = playerTeam[i];
+        if (pid && pid !== id) partnerSets[id].add(pid);
+      }
+      for (let i = 0; i < opponentTeam.length; i++) {
+        opponentSets[id].add(opponentTeam[i]);
+      }
 
       if (scoreType === "sets") {
         if (maxSets >= 6) stats.marathonMatches += 1;
@@ -508,19 +506,10 @@ export const buildAllPlayersBadgeStats = (
           stats.cleanSheets += 1;
         }
       }
-      const createdAt = match.created_at || "";
       if (createdAt) {
-        // Optimization: use ISO string comparison instead of new Date()
         if (createdAt >= thirtyDaysAgoISO) stats.matchesLast30Days += 1;
-
-        // Optimization: use local hour for badges. We instantiate Date once per match
-        // in the loop, which is acceptable performance-wise compared to the sort loop.
-        const matchDate = new Date(createdAt);
-        if (!Number.isNaN(matchDate.getTime())) {
-          const hour = matchDate.getHours();
-          if (hour >= 21) stats.nightOwlMatches += 1;
-          if (hour < 9) stats.earlyBirdMatches += 1;
-        }
+        if (matchHour >= 21) stats.nightOwlMatches += 1;
+        if (matchHour >= 0 && matchHour < 9) stats.earlyBirdMatches += 1;
       }
 
       stats.matchesPlayed += 1;
@@ -529,47 +518,29 @@ export const buildAllPlayersBadgeStats = (
         stats.currentWinStreak += 1;
         stats.bestWinStreak = Math.max(stats.bestWinStreak, stats.currentWinStreak);
         if (opponentAvg > playerPreElo) {
-          if (!stats.firstWinVsHigherEloAt) {
-            stats.firstWinVsHigherEloAt = match.created_at || null;
-          }
-          stats.biggestUpsetEloGap = Math.max(
-            stats.biggestUpsetEloGap,
-            Math.round(opponentAvg - playerPreElo)
-          );
+          if (!stats.firstWinVsHigherEloAt) stats.firstWinVsHigherEloAt = match.created_at || null;
+          stats.biggestUpsetEloGap = Math.max(stats.biggestUpsetEloGap, Math.round(opponentAvg - playerPreElo));
         }
       } else {
         stats.losses += 1;
         stats.currentWinStreak = 0;
       }
+
+      // Update ELO
+      const player = eloMap[id];
+      const playerK = getKFactor(player.games);
+      const weight = getPlayerWeight(player.elo, isTeam1 ? e1 : e2);
+      const effectiveWeight = playerWon ? weight : 1 / weight;
+      const expected = isTeam1 ? expected1 : (1 - expected1);
+      const delta = Math.round(
+        playerK * marginMultiplier * matchWeight * effectiveWeight * ((playerWon ? 1 : 0) - expected)
+      );
+      player.elo += delta;
+      player.games += 1;
     };
 
-    team1.forEach(id => updateStats(id, true));
-    team2.forEach(id => updateStats(id, false));
-
-    // Update ELO for next matches
-    team1.forEach(id => {
-      const player = eloMap[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e1);
-      const effectiveWeight = team1Won ? weight : 1 / weight;
-      const delta = Math.round(
-        playerK * marginMultiplier * matchWeight * effectiveWeight * ((team1Won ? 1 : 0) - expected1)
-      );
-      player.elo += delta;
-      player.games += 1;
-    });
-
-    team2.forEach(id => {
-      const player = eloMap[id];
-      const playerK = getKFactor(player.games);
-      const weight = getPlayerWeight(player.elo, e2);
-      const effectiveWeight = !team1Won ? weight : 1 / weight;
-      const delta = Math.round(
-        playerK * marginMultiplier * matchWeight * effectiveWeight * ((team1Won ? 0 : 1) - (1 - expected1))
-      );
-      player.elo += delta;
-      player.games += 1;
-    });
+    for (let i = 0; i < team1.length; i++) updatePlayer(team1[i], true);
+    for (let i = 0; i < team2.length; i++) updatePlayer(team2[i], false);
   });
 
   const tournamentEntries = Array.isArray(tournamentResults) ? tournamentResults : [];
@@ -698,47 +669,60 @@ export const buildPlayerBadges = (
   ];
 
   // Unique merits
-  const allPlayers = Object.keys(allPlayerStats);
-  if (allPlayers.length > 0 && playerId) {
-      UNIQUE_BADGE_DEFINITIONS.forEach(def => {
-        let bestPlayerId = null;
-        let bestValue = -1;
+  const allPlayerIds = Object.keys(allPlayerStats);
+  if (allPlayerIds.length > 0 && playerId) {
+    // Optimization: find all unique merit leaders in a single pass over all players (O(P * U))
+    // instead of nested loops that re-calculate for each merit (O(U * P)).
+    const bestValueMap: Record<string, number> = {};
+    const bestPlayerIdMap: Record<string, string | null> = {};
 
-        allPlayers.forEach(id => {
-          const s = allPlayerStats[id];
-          let val = -1;
-          switch (def.id) {
-            case "king-of-elo": if (s.matchesPlayed >= 10) val = s.currentElo; break;
-            case "most-active": val = s.matchesPlayed; break;
-            case "win-machine": if (s.matchesPlayed >= 20) val = (s.wins / s.matchesPlayed); break;
-            case "upset-king": val = s.biggestUpsetEloGap; break;
-            case "marathon-pro": val = s.marathonMatches; break;
-            case "clutch-pro": val = s.closeWins; break;
-            case "social-butterfly": val = s.uniquePartners; break;
-            case "monthly-giant": val = s.matchesLast30Days; break;
-            case "the-wall": val = s.cleanSheets; break;
-          }
+    UNIQUE_BADGE_DEFINITIONS.forEach(def => {
+      bestValueMap[def.id] = -1;
+      bestPlayerIdMap[def.id] = null;
+    });
 
-          if (val > bestValue) {
-            bestValue = val;
-            bestPlayerId = id;
-          }
-        });
+    for (let i = 0; i < allPlayerIds.length; i++) {
+      const id = allPlayerIds[i];
+      const s = allPlayerStats[id];
+      if (!s) continue;
 
-        if (bestPlayerId === playerId && bestValue > 0) {
-          badges.push({
-            id: def.id,
-            icon: def.icon,
-            tier: "Unique",
-            title: def.title,
-            description: def.description,
-            earned: true,
-            group: def.group,
-            groupOrder: def.groupOrder,
-            progress: null
-          });
+      for (let j = 0; j < UNIQUE_BADGE_DEFINITIONS.length; j++) {
+        const def = UNIQUE_BADGE_DEFINITIONS[j];
+        let val = -1;
+        switch (def.id) {
+          case "king-of-elo": if (s.matchesPlayed >= 10) val = s.currentElo; break;
+          case "most-active": val = s.matchesPlayed; break;
+          case "win-machine": if (s.matchesPlayed >= 20) val = (s.wins / s.matchesPlayed); break;
+          case "upset-king": val = s.biggestUpsetEloGap; break;
+          case "marathon-pro": val = s.marathonMatches; break;
+          case "clutch-pro": val = s.closeWins; break;
+          case "social-butterfly": val = s.uniquePartners; break;
+          case "monthly-giant": val = s.matchesLast30Days; break;
+          case "the-wall": val = s.cleanSheets; break;
         }
-      });
+
+        if (val > bestValueMap[def.id]) {
+          bestValueMap[def.id] = val;
+          bestPlayerIdMap[def.id] = id;
+        }
+      }
+    }
+
+    UNIQUE_BADGE_DEFINITIONS.forEach(def => {
+      if (bestPlayerIdMap[def.id] === playerId && bestValueMap[def.id] > 0) {
+        badges.push({
+          id: def.id,
+          icon: def.icon,
+          tier: "Unique",
+          title: def.title,
+          description: def.description,
+          earned: true,
+          group: def.group,
+          groupOrder: def.groupOrder,
+          progress: null
+        });
+      }
+    });
   }
 
   const earnedBadges = badges.filter(badge => badge.earned);

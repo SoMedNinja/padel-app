@@ -17,3 +17,7 @@
 ## 2026-01-29 - [UTC vs Local Hour for Time-of-Day Badges]
 **Learning:** Extracting hours from ISO strings using `slice(11, 13)` returns the UTC hour, which can cause regressions if the application logic expects local time (e.g., for "Night Owl" badges).
 **Action:** While string sorting and date filtering should always use ISO strings for performance, continue using `new Date().getHours()` when local time is functionally required, but ensure the `Date` object is instantiated only once per loop iteration.
+
+## 2026-05-20 - [Lifting Computations and Pre-indexing in Render Loops]
+**Learning:** Performing array lookups (like `.find()`) and recalculating shared data (like team averages) inside a nested `.map()` within a React render path leads to exponential work ($O(Matches \times Players \times Players)$).
+**Action:** Lift shared calculations out of the inner loops and pre-index array data into a `Map` ($O(1)$ lookup) to linearize the complexity.
