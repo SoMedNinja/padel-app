@@ -25,9 +25,11 @@ export default function TournamentPage() {
   };
 
   const handleRefresh = usePullToRefresh([
-    () => invalidateProfileData(queryClient),
-    () => invalidateMatchData(queryClient),
-    () => invalidateTournamentData(queryClient),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetailsBase() }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() }),
   ]);
 
   const hasError = isError;

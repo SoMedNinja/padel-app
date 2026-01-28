@@ -46,7 +46,8 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "mexicana_tournaments" },
         () => {
-          invalidateTournamentData(queryClient);
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetailsBase() });
         }
       )
       .subscribe();
@@ -57,7 +58,7 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "mexicana_rounds" },
         () => {
-          invalidateTournamentData(queryClient);
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetailsBase() });
         }
       )
       .subscribe();
@@ -68,7 +69,7 @@ export const useRealtime = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "mexicana_participants" },
         () => {
-          invalidateTournamentData(queryClient);
+          queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetailsBase() });
         }
       )
       .subscribe();
