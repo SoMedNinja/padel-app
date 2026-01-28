@@ -416,10 +416,14 @@ export const buildAllPlayersBadgeStats = (
     opponentSets[profile.id] = new Set();
   });
 
-  const sortedMatches = [...safeMatches].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
-  const now = Date.now();
+  // Optimization: use string comparison for sorting to avoid expensive new Date() calls.
+  const sortedMatches = [...safeMatches].sort((a, b) => {
+    if (a.created_at < b.created_at) return -1;
+    if (a.created_at > b.created_at) return 1;
+    return 0;
+  });
+
+  const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   sortedMatches.forEach(match => {
     const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, mapObj));
@@ -448,7 +452,6 @@ export const buildAllPlayersBadgeStats = (
     const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
     const matchWeight = getMatchWeight(match);
 
-    const matchDate = match.created_at ? new Date(match.created_at) : null;
     const setsA = Number(match.team1_sets);
     const setsB = Number(match.team2_sets);
     const maxSets = Math.max(setsA, setsB);
@@ -505,13 +508,19 @@ export const buildAllPlayersBadgeStats = (
           stats.cleanSheets += 1;
         }
       }
-      if (matchDate && !Number.isNaN(matchDate.getTime())) {
-        const diffDays = (now - matchDate.getTime()) / (1000 * 60 * 60 * 24);
-        if (diffDays <= 30) stats.matchesLast30Days += 1;
+      const createdAt = match.created_at || "";
+      if (createdAt) {
+        // Optimization: use ISO string comparison instead of new Date()
+        if (createdAt >= thirtyDaysAgoISO) stats.matchesLast30Days += 1;
 
-        const hour = matchDate.getHours();
-        if (hour >= 21) stats.nightOwlMatches += 1;
-        if (hour < 9) stats.earlyBirdMatches += 1;
+        // Optimization: use local hour for badges. We instantiate Date once per match
+        // in the loop, which is acceptable performance-wise compared to the sort loop.
+        const matchDate = new Date(createdAt);
+        if (!Number.isNaN(matchDate.getTime())) {
+          const hour = matchDate.getHours();
+          if (hour >= 21) stats.nightOwlMatches += 1;
+          if (hour < 9) stats.earlyBirdMatches += 1;
+        }
       }
 
       stats.matchesPlayed += 1;
