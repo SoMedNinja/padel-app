@@ -221,8 +221,16 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                 <TableCell component="div" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "wins"} direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("wins")}>Vinster</TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Streak</TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Trend</TableCell>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
+                  <Tooltip title="Antal vinster (V) eller förluster (F) i rad" arrow>
+                    <Box component="span" sx={{ cursor: 'help' }}>Streak</Box>
+                  </Tooltip>
+                </TableCell>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
+                  <Tooltip title="Form baserat på de senaste 5 matcherna" arrow>
+                    <Box component="span" sx={{ cursor: 'help' }}>Trend</Box>
+                  </Tooltip>
+                </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("winPct")}>Vinst %</TableSortLabel>
                 </TableCell>
