@@ -609,7 +609,7 @@ export default function MatchForm({
             {s}
           </Button>
         ))}
-        {!showExtraScores && (
+        {!showExtraScores ? (
           <Button
             variant="outlined"
             onClick={() => setShowExtraScores(true)}
@@ -623,6 +623,21 @@ export default function MatchForm({
             }}
           >
             Mer...
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            onClick={() => setShowExtraScores(false)}
+            aria-label="Visa färre poängalternativ"
+            sx={{
+              minWidth: 50,
+              height: 50,
+              fontSize: "0.8rem",
+              borderRadius: "50%",
+              textTransform: "none"
+            }}
+          >
+            Göm
           </Button>
         )}
       </Box>
