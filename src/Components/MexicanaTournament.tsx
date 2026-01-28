@@ -498,13 +498,11 @@ export default function MexicanaTournament({
       tournament_id: activeTournament.id,
       profile_id: res.id === GUEST_ID ? null : res.id,
       rank: index + 1,
-      total_points: res.totalPoints,
       points_for: res.pointsFor,
       points_against: res.pointsAgainst,
       matches_played: res.gamesPlayed,
       wins: res.wins,
       losses: res.losses,
-      tournament_type: activeTournament.tournament_type || "mexicano",
     }));
 
     try {
