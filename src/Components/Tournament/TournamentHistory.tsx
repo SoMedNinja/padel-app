@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -32,12 +33,16 @@ export default function TournamentHistory({
   onDelete,
   isMobile,
 }: TournamentHistoryProps) {
+  const navigate = useNavigate();
+
   if (tournaments.length === 0) {
     return (
       <EmptyState
         title="Inga turneringar ännu"
         description="Starta en ny Americano eller Mexicana för att samla gänget!"
         icon={<TrophyIcon sx={{ fontSize: 48 }} />}
+        actionLabel="Ny turnering"
+        onAction={() => navigate("/tournament")}
       />
     );
   }
