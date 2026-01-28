@@ -636,12 +636,14 @@ export default function MexicanaTournament({
                       value={newTournament.name}
                       onChange={e => setNewTournament({ ...newTournament, name: e.target.value })}
                       disabled={isSaving}
+                      slotProps={{ htmlInput: { maxLength: 50 } }}
                     />
                     <TextField
                       label="Plats (valfritt)"
                       value={newTournament.location}
                       onChange={e => setNewTournament({ ...newTournament, location: e.target.value })}
                       disabled={isSaving}
+                      slotProps={{ htmlInput: { maxLength: 50 } }}
                     />
                     <TextField
                       label="Datum"
