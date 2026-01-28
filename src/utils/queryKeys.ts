@@ -7,6 +7,8 @@ export const queryKeys = {
   matchesInfinite: (filter: MatchFilter) => ["matches-infinite", filter] as const,
   matchesInfiniteBase: () => ["matches-infinite"] as const,
   tournaments: () => ["tournaments"] as const,
+  // Note for non-coders: this base key lets us refresh any tournament detail screen, no matter which tournament is open.
+  tournamentDetailsBase: () => ["tournamentDetails"] as const,
   tournamentDetails: (tournamentId?: string) =>
     ["tournamentDetails", tournamentId] as const,
   tournamentResults: () => ["tournamentResults"] as const,

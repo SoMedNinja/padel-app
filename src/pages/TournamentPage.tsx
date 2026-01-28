@@ -22,7 +22,7 @@ export default function TournamentPage() {
     () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
     () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
     () => queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails() }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetailsBase() }),
     () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() }),
   ]);
 
