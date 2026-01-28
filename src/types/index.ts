@@ -83,10 +83,14 @@ export interface BestPartner {
 
 export interface TournamentResult {
   id: string;
-  player_id: string;
-  profile_id?: string; // Some tables use profile_id
+  player_id?: string;
+  profile_id?: string;
   rank: number;
-  total_points: number;
+  points_for: number;
+  points_against: number;
+  matches_played: number;
+  wins: number;
+  losses: number;
   tournament_id: string;
   created_at: string;
   tournament_type?: string;
