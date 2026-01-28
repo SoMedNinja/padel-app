@@ -11,28 +11,54 @@ The application now supports sending a weekly ELO summary and stats email to all
 ## Setup Steps
 
 ### 1. Set Supabase Secret (Resend)
-Run the following command in your terminal to store the Resend API key:
+This stores your Resend API key securely in Supabase so the Edge Function can send emails.
+
+**Step-by-step**
+1. Copy your Resend API key from the Resend dashboard.
+2. Open a terminal and make sure you are in the project folder (the same folder that has `supabase/`).
+3. Run the command below, replacing the placeholder with your real key:
 ```bash
 supabase secrets set RESEND_API_KEY=re_your_api_key_here
 ```
+4. You should see a success message confirming the secret was saved.
+
+**Note for non-coders:** A *secret* is a private value (like a password) that Supabase stores for you. The Edge Function reads this secret at runtime so you don't hard‑code it in your source code.
 
 ### 2. Deploy Edge Function
-Deploy the `weekly-summary` function to your Supabase project:
+Deploy the `weekly-summary` function to your Supabase project so it can run in the cloud:
 ```bash
 supabase functions deploy weekly-summary
 ```
+If you see an error about linking, run `supabase link --project-ref <YOUR_PROJECT_REF>` first (the project reference is in your Supabase project URL).
+
+**Note for non-coders:** An *Edge Function* is a small piece of code that runs on Supabase’s servers. “Deploy” means uploading your local code to Supabase so it can run there.
 
 ### 3. Add Service Role Key to Vault
-For the automated cron job to authenticate with the Edge Function, it needs access to the `service_role` key. Run this SQL in your Supabase SQL Editor:
+For the automated cron job to authenticate with the Edge Function, it needs access to the `service_role` key. This key is highly privileged, so we store it in Supabase Vault and only reference it securely.
+
+**Step-by-step**
+1. In the Supabase dashboard, open **Project Settings → API**.
+2. Copy the **service_role** key (the secret one, not the public anon key).
+3. Open **SQL Editor** in Supabase.
+4. Run this SQL (replace the placeholder with your actual key):
 ```sql
 -- Replace 'your-service-role-key-here' with the actual key from
 -- Project Settings -> API -> service_role (secret)
 select vault.create_secret('your-service-role-key-here', 'service_role_key', 'Service role key for cron jobs');
 ```
 
+**Note for non-coders:** *Vault* is a secure storage area in Supabase. We put the secret key there so scheduled jobs can read it without exposing it in the code.
+
 ### 4. Enable Cron Job
-Run the SQL migration in `supabase/migrations/20250410000000_setup_weekly_summary_cron.sql` using the Supabase SQL Editor.
-**Important**: Replace `YOUR_PROJECT_REF` in the SQL with your actual Supabase project reference (found in your project settings URL, e.g., `https://abcdefgh.supabase.co`).
+This step schedules the weekly email to run automatically.
+
+**Step-by-step**
+1. Open the file `supabase/migrations/20250410000000_setup_weekly_summary_cron.sql`.
+2. Replace `YOUR_PROJECT_REF` in the SQL with your actual project reference (found in your Supabase project URL, e.g., `https://abcdefgh.supabase.co` → `abcdefgh`).
+3. Copy the updated SQL.
+4. Paste it into the Supabase **SQL Editor** and run it.
+
+**Note for non-coders:** A *cron job* is a scheduled task. This SQL tells Supabase to run the email function every week at the specified time.
 
 ## What's included in the email?
 -   **ELO Leaderboard**: The current overall standings.
