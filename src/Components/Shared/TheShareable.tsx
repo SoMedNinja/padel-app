@@ -16,6 +16,7 @@ import { toPng } from 'html-to-image';
 import { Match, Tournament, TournamentResult } from '../../types';
 import { MatchHighlight } from '../../utils/highlights';
 import { Grid } from '@mui/material';
+import { toast } from 'sonner';
 
 const LOGO_BOX_SIZE = 80;
 
@@ -957,9 +958,13 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
     if (!templateRef.current) return;
     setIsExporting(true);
     try {
+      // Note for non-coders: waiting a moment ensures fonts are loaded before we capture the image.
+      await document.fonts?.ready;
+      await new Promise(requestAnimationFrame);
       const dataUrl = await toPng(templateRef.current, {
         quality: 1.0,
         pixelRatio: 2, // Higher resolution for sharing
+        cacheBust: true,
       });
       const link = document.createElement('a');
       link.download = `padel-${type}-${new Date().getTime()}.png`;
@@ -967,6 +972,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
       link.click();
     } catch (err) {
       console.error('Failed to export image', err);
+      toast.error('Kunde inte skapa bilden. Försök igen.');
     } finally {
       setIsExporting(false);
     }

@@ -128,7 +128,7 @@ export default function MexicanaTournament({
   } = useTournamentDetails(activeTournamentId);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [activeSection, setActiveSection] = useState<"create" | "run" | "overview" | "results" | "history">("create");
+  const [activeSection, setActiveSection] = useState<"create" | "run" | "live" | "results" | "history">("create");
 
   const [participants, setParticipants] = useState<string[]>([]);
   const [rounds, setRounds] = useState<TournamentRound[]>([]);
@@ -200,7 +200,7 @@ export default function MexicanaTournament({
 
   useEffect(() => {
     if (activeTournament?.status === "in_progress") {
-      setActiveSection("run");
+      setActiveSection("live");
     } else if (activeTournament?.status === "completed") {
       setActiveSection("results");
     } else {
@@ -757,62 +757,81 @@ export default function MexicanaTournament({
     setShareOpen(true);
   };
 
-  const overviewSection = (
-    <Grid container spacing={3}>
-      <Grid size={{ xs: 12, md: 7 }}>
-        <Card variant="outlined" sx={{ borderRadius: 3 }}>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Turneringsöversikt</Typography>
-            {activeTournament ? (
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  <Chip label={activeTournament.name} sx={{ fontWeight: 700 }} />
-                  <Chip label={getTournamentStatusLabel(activeTournament.status)} color="primary" />
-                  <Chip label={activeTournament.tournament_type === "americano" ? "Americano" : "Mexicano"} />
-                  <Chip label={`${participants.length} spelare`} />
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {activeTournament.location ? `Plats: ${activeTournament.location}` : "Ingen plats angiven."}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {activeTournament.scheduled_at ? `Datum: ${formatDate(activeTournament.scheduled_at)}` : "Datum saknas."}
-                </Typography>
-              </Stack>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Välj en turnering för att se detaljer.
-              </Typography>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
+  const liveSection = (
+    <Stack spacing={3}>
+      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Live view</Typography>
+          {activeTournament && (activeTournament.status === 'in_progress' || activeTournament.status === 'completed') ? (
+            <TournamentBracket
+              rounds={rounds}
+              profileMap={profileMap}
+              activeTournament={activeTournament}
+            />
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Starta en turnering för att se liveuppdateringar.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
 
-      <Grid size={{ xs: 12, md: 5 }}>
-        <Card variant="outlined" sx={{ borderRadius: 3 }}>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Topplista (snabb vy)</Typography>
-            {sortedStandings.length ? (
-              <Stack spacing={1}>
-                {sortedStandings.slice(0, 5).map((res, index) => (
-                  <Box key={res.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      {index + 1}. {getIdDisplayName(res.id, profileMap)}
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      {res.totalPoints}p
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Inga resultat ännu.
-              </Typography>
-            )}
-          </CardContent>
-        </Card>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 7 }}>
+          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Turneringsöversikt</Typography>
+              {activeTournament ? (
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Chip label={activeTournament.name} sx={{ fontWeight: 700 }} />
+                    <Chip label={getTournamentStatusLabel(activeTournament.status)} color="primary" />
+                    <Chip label={activeTournament.tournament_type === "americano" ? "Americano" : "Mexicano"} />
+                    <Chip label={`${participants.length} spelare`} />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {activeTournament.location ? `Plats: ${activeTournament.location}` : "Ingen plats angiven."}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {activeTournament.scheduled_at ? `Datum: ${formatDate(activeTournament.scheduled_at)}` : "Datum saknas."}
+                  </Typography>
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Välj en turnering för att se detaljer.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 5 }}>
+          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Topplista (snabb vy)</Typography>
+              {sortedStandings.length ? (
+                <Stack spacing={1}>
+                  {sortedStandings.slice(0, 5).map((res, index) => (
+                    <Box key={res.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {index + 1}. {getIdDisplayName(res.id, profileMap)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {res.totalPoints}p
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Inga resultat ännu.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
-    </Grid>
+    </Stack>
   );
 
   const runSection = activeTournament?.status === "in_progress" ? (
@@ -1264,14 +1283,6 @@ export default function MexicanaTournament({
         )}
       </Box>
 
-      {activeTournament && (activeTournament.status === 'in_progress' || activeTournament.status === 'completed') && (
-        <TournamentBracket
-          rounds={rounds}
-          profileMap={profileMap}
-          activeTournament={activeTournament}
-        />
-      )}
-
       {(isTournamentListError || isTournamentDetailsError) && (
         <AppAlert severity="error">
           {tournamentErrorMessage}
@@ -1308,14 +1319,14 @@ export default function MexicanaTournament({
           >
             <Tab value="create" label="Skapa" />
             <Tab value="run" label="Spela" />
-            <Tab value="overview" label="Turneringsöversikt" />
+            <Tab value="live" label="Live view" />
             <Tab value="results" label="Resultat" />
             <Tab value="history" label="Historik" />
           </Tabs>
 
           {activeSection === "create" && createSection}
           {activeSection === "run" && runSection}
-          {activeSection === "overview" && overviewSection}
+          {activeSection === "live" && liveSection}
           {activeSection === "results" && resultsSection}
           {activeSection === "history" && historySection}
         </>
