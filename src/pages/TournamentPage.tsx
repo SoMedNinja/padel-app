@@ -7,27 +7,31 @@ import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useEloStats } from "../hooks/useEloStats";
 import { Box, Button, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
 import AppAlert from "../Components/Shared/AppAlert";
-import { queryKeys } from "../utils/queryKeys";
+import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 
 export default function TournamentPage() {
   const { user, isGuest } = useStore();
-  const { eloPlayers, profiles, isLoading } = useEloStats();
+  const {
+    eloPlayers,
+    profiles,
+    isLoading,
+    isError,
+    error
+  } = useEloStats();
   const queryClient = useQueryClient();
 
   const handleTournamentSync = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() });
+    invalidateTournamentData(queryClient);
   };
 
   const handleRefresh = usePullToRefresh([
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() }),
+    () => invalidateProfileData(queryClient),
+    () => invalidateMatchData(queryClient),
+    () => invalidateTournamentData(queryClient),
   ]);
 
-  const hasError = false; // useEloStats doesn't expose error yet
-  const errorMessage = "Något gick fel när turneringsdata hämtades.";
+  const hasError = isError;
+  const errorMessage = error?.message || "Något gick fel när turneringsdata hämtades.";
 
   useEffect(() => {
     // Note for non-coders: we add a body class so CSS can remove the global padding only on this page.

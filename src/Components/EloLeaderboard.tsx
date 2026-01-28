@@ -19,8 +19,10 @@ import {
   TableRow,
   Paper,
   TableSortLabel,
+  useMediaQuery,
 } from "@mui/material";
 import { InfoOutlined } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
 
 // Enkel hjälpfunktion för vinstprocent
 const winPct = (wins: number, losses: number) =>
@@ -34,6 +36,8 @@ interface EloLeaderboardProps {
 export default function EloLeaderboard({ players = [], matches = [] }: EloLeaderboardProps) {
   const [sortKey, setSortKey] = useState<string>("elo");
   const [asc, setAsc] = useState<boolean>(false);
+  const theme = useTheme();
+  const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
 
   const mergedPlayers = useMemo(() => {
     if (!players.length) return [];
@@ -194,13 +198,15 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
             </Box>
           )}
           {/* Note for non-coders: we render rows in a grid so the virtual scroll transforms work reliably. */}
-          <Table component="div" sx={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
+          <Table component="div" sx={{ minWidth: isCompact ? 520 : 800, display: 'flex', flexDirection: 'column' }}>
             <TableHead component="div" sx={{ bgcolor: 'grey.50', display: 'block', width: '100%', borderBottom: '1px solid', borderColor: 'divider' }}>
               <TableRow
                 component="div"
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
+                  gridTemplateColumns: isCompact
+                    ? 'minmax(200px, 1.8fr) repeat(3, minmax(70px, 1fr))'
+                    : 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
                   alignItems: 'center',
                   width: '100%',
                   minHeight: 56,
@@ -218,11 +224,17 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                 <TableCell component="div" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <TableSortLabel active={sortKey === "wins"} direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("wins")}>Vinster</TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Streak</TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Trend</TableCell>
-                <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
-                  <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("winPct")}>Vinst %</TableSortLabel>
-                </TableCell>
+                {!isCompact && (
+                  <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Streak</TableCell>
+                )}
+                {!isCompact && (
+                  <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>Trend</TableCell>
+                )}
+                {!isCompact && (
+                  <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
+                    <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("winPct")}>Vinst %</TableSortLabel>
+                  </TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody component="div" sx={{ position: 'relative', height: Math.max(totalSize, 100), display: 'block', width: '100%' }}>
@@ -243,7 +255,9 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                       left: 0,
                       width: '100%',
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
+                      gridTemplateColumns: isCompact
+                        ? 'minmax(200px, 1.8fr) repeat(3, minmax(70px, 1fr))'
+                        : 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
                       alignItems: 'center',
                       transform: `translateY(${virtualItem.start}px)`,
                       borderBottom: '1px solid',
@@ -264,11 +278,17 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                     <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{getStreak(p)}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>
-                      <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
-                    </TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
+                    {!isCompact && (
+                      <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{getStreak(p)}</TableCell>
+                    )}
+                    {!isCompact && (
+                      <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>
+                        <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
+                      </TableCell>
+                    )}
+                    {!isCompact && (
+                      <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
+                    )}
                   </TableRow>
                 );
               })}

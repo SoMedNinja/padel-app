@@ -17,8 +17,9 @@ import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { findMatchHighlight } from "../utils/highlights";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
+import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 import { filterMatches } from "../utils/filters";
-import { tournamentService } from "../services/tournamentService";
+import { padelData } from "../data/padelData";
 
 type TournamentResultRow = TournamentResult & {
   mexicana_tournaments?: { tournament_type?: string | null } | null;
@@ -36,7 +37,15 @@ export default function Dashboard() {
     checkAndResetDismissed
   } = useStore();
 
-  const { eloPlayers, allMatches, profiles, isLoading: isLoadingElo, eloDeltaByMatch } = useEloStats();
+  const {
+    eloPlayers,
+    allMatches,
+    profiles,
+    isLoading: isLoadingElo,
+    isError: isEloError,
+    error: eloError,
+    eloDeltaByMatch
+  } = useEloStats();
 
   const {
     data: tournamentResults = [] as TournamentResult[],
@@ -46,14 +55,15 @@ export default function Dashboard() {
     refetch: refetchTournamentResults,
   } = useQuery({
     queryKey: queryKeys.tournamentResults(),
-    queryFn: () => tournamentService.getTournamentResultsWithTypes(),
+    queryFn: () => padelData.tournaments.resultsWithTypes(),
   });
 
   useScrollToFragment();
 
   const handleRefresh = usePullToRefresh([
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
+    () => invalidateProfileData(queryClient),
+    () => invalidateMatchData(queryClient),
+    () => invalidateTournamentData(queryClient),
     refetchTournamentResults,
   ]);
 
@@ -84,9 +94,10 @@ export default function Dashboard() {
     return allMatches.find(m => m.id === highlight.matchId);
   }, [highlight, allMatches]);
 
-  const hasError = isTournamentResultsError;
+  const hasError = isTournamentResultsError || isEloError;
   const errorMessage =
     (tournamentResultsError as Error | undefined)?.message ||
+    eloError?.message ||
     "Något gick fel när data hämtades.";
 
   const isLoading = isLoadingElo || isLoadingTournamentResults;
