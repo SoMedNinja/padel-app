@@ -277,6 +277,7 @@ export default function History({
             name: t2Names[index] || getIdDisplayName(id, profileMap),
           })).filter(entry => entry.name !== "Okänd").slice(0, 2);
 
+          const is1v1 = teamAEntries.length === 1 && teamBEntries.length === 1;
           const matchWeight = getMatchWeight(m);
 
           const getAvg = (ids: (string | null)[]) => {
@@ -384,7 +385,7 @@ export default function History({
                   </Grid>
 
                   <Grid size={{ xs: 12, sm: 4 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag A</Typography>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare A" : "Lag A"}</Typography>
                     {isEditing ? (
                       <Stack spacing={1} sx={{ mt: 1 }}>
                         {edit?.team1_ids.map((value, index) => (
@@ -453,7 +454,7 @@ export default function History({
                   </Grid>
 
                   <Grid size={{ xs: 12, sm: 4 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag B</Typography>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare B" : "Lag B"}</Typography>
                     {isEditing ? (
                       <Stack spacing={1} sx={{ mt: 1 }}>
                         {edit?.team2_ids.map((value, index) => (

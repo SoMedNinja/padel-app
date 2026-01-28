@@ -272,7 +272,7 @@ Deno.serve(async (req) => {
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
     const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
 
-    let activePlayerIds = new Set<string>();
+    const activePlayerIds = new Set<string>();
     if (targetPlayerId) {
       activePlayerIds.add(targetPlayerId);
     } else {
