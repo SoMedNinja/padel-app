@@ -19,6 +19,7 @@ import { tournamentService } from "../services/tournamentService";
 import { matchService } from "../services/matchService";
 import {
   getProfileDisplayName,
+  getTournamentStatusLabel,
   idsToNames,
   makeProfileMap,
 } from "../utils/profileMap";
