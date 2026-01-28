@@ -9,3 +9,7 @@
 ## 2025-05-15 - [Binary Search for Virtualized Lists]
 **Learning:** Linear scans ($O(N)$) to find visible items in a virtualized list can cause noticeable frame drops when the list grows large.
 **Action:** Use binary search ($O(\log N)$) on the pre-calculated item offsets to find the visible range, ensuring smooth scrolling even with thousands of items.
+
+## 2026-01-28 - [Single-Pass Search for Best Partner]
+**Learning:** Using `Object.entries().map().filter().sort()[0]` to find a single maximum item from a record results in multiple intermediate array allocations and an (N \log N)$ sort. For a hot-path calculation like ELO that runs on every match change, this adds unnecessary overhead.
+**Action:** Use a single-pass `for...in` loop to find the best item in (N)$ with zero extra allocations.

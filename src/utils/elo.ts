@@ -201,18 +201,21 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
   const resolveName = (id: string) => getIdDisplayName(id, profileMap);
 
-  // Pre-calculate timestamps once for efficient sorting
-  const matchesWithTime = matches.map(m => {
-    const timestamp = new Date(m.created_at).getTime();
-    return { m, t: Number.isNaN(timestamp) ? 0 : timestamp };
+  // Optimization: use string comparison for sorting to avoid expensive new Date() calls.
+  // ISO 8601 strings sort correctly lexicographically.
+  const sortedMatches = [...matches].sort((a, b) => {
+    if (a.created_at < b.created_at) return -1;
+    if (a.created_at > b.created_at) return 1;
+    return 0;
   });
-
-  matchesWithTime.sort((a, b) => a.t - b.t);
 
   const eloDeltaByMatch: Record<string, Record<string, number>> = {};
   const eloRatingByMatch: Record<string, Record<string, number>> = {};
 
-  matchesWithTime.forEach(({ m, t: historyStamp }) => {
+  sortedMatches.forEach((m) => {
+    // We only instantiate Date once per match in the sorted loop
+    const historyStamp = new Date(m.created_at).getTime();
+
     const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
     const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
     [...t1, ...t2].forEach(id => ensurePlayer(id, resolveName(id), null, badgeMap[id]));
@@ -251,8 +254,11 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
         player.losses++;
       }
       player.games++;
+
+      const result = team1Won ? "W" : "L";
+      player.recentResults.push(result);
       player.history.push({
-        result: team1Won ? "W" : "L",
+        result,
         timestamp: historyStamp,
         date: m.created_at || "",
         delta,
@@ -282,8 +288,11 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
         player.wins++;
       }
       player.games++;
+
+      const result = team1Won ? "L" : "W";
+      player.recentResults.push(result);
       player.history.push({
-        result: team1Won ? "L" : "W",
+        result,
         timestamp: historyStamp,
         date: m.created_at || "",
         delta,
@@ -303,21 +312,40 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   });
 
   const finalPlayers = Object.values(players).map(player => {
-    // player.history is already sorted by timestamp because sortedMatches was sorted.
-    const recentResults = player.history.map(entry => entry.result);
-    const bestPartnerEntry = Object.entries(player.partners)
-      .map(([partnerId, stats]) => ({
-        partnerId,
-        games: stats.games,
-        wins: stats.wins,
-        winRate: stats.games ? stats.wins / stats.games : 0,
-      }))
-      .filter(entry => entry.games >= 2)
-      .sort((a, b) => {
-        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
-        if (b.games !== a.games) return b.games - a.games;
-        return b.wins - a.wins;
-      })[0];
+    // Optimization: find best partner in a single pass instead of map + filter + sort
+    let bestPartnerEntry: any = null;
+    let bestWinRate = -1;
+    let bestGames = -1;
+    let bestWins = -1;
+
+    for (const partnerId in player.partners) {
+      const stats = player.partners[partnerId];
+      if (stats.games < 2) continue;
+
+      const winRate = stats.wins / stats.games;
+      let isBetter = false;
+
+      if (!bestPartnerEntry) {
+        isBetter = true;
+      } else if (winRate > bestWinRate) {
+        isBetter = true;
+      } else if (winRate === bestWinRate) {
+        if (stats.games > bestGames) {
+          isBetter = true;
+        } else if (stats.games === bestGames) {
+          if (stats.wins > bestWins) {
+            isBetter = true;
+          }
+        }
+      }
+
+      if (isBetter) {
+        bestPartnerEntry = { partnerId, ...stats, winRate };
+        bestWinRate = winRate;
+        bestGames = stats.games;
+        bestWins = stats.wins;
+      }
+    }
 
     const bestPartner = bestPartnerEntry
       ? {
@@ -326,7 +354,7 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
       }
       : null;
 
-    return { ...player, recentResults, bestPartner };
+    return { ...player, bestPartner };
   });
 
   return {

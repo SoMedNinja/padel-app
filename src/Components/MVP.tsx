@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { getLatestMatchDate } from "../utils/stats";
 import {
   getMvpWinner,
   scorePlayersForMvp,
@@ -30,25 +29,33 @@ export default function MVP({
     let relevantMatches = matches;
 
     if (mode === "evening") {
-      const latestDate = getLatestMatchDate(matches);
+      // Optimization: find latest date in a single pass using string comparison
+      // to avoid new Date() calls.
+      let latestDate = "";
+      for (const m of matches) {
+        const d = m.created_at?.slice(0, 10);
+        if (d && d > latestDate) latestDate = d;
+      }
       if (!latestDate) return null;
 
       relevantMatches = matches.filter(
-        m => m.created_at?.slice(0, 10) === latestDate
+        m => m.created_at?.startsWith(latestDate)
       );
     }
 
     if (mode === "30days") {
-      // Optimization: calculate latest timestamp efficiently
-      let latestTimestamp = 0;
-      for (let i = 0; i < matches.length; i++) {
-        const timestamp = new Date(matches[i].created_at).getTime();
-        if (timestamp > latestTimestamp) latestTimestamp = timestamp;
+      // Optimization: find latest timestamp using string comparison for latest date
+      // and use ISO string comparison for filtering to avoid O(M) new Date() calls.
+      let latestCreatedAt = "";
+      for (const m of matches) {
+        if (m.created_at > latestCreatedAt) latestCreatedAt = m.created_at;
       }
-      const cutoff = latestTimestamp - 30 * 24 * 60 * 60 * 1000;
-      relevantMatches = matches.filter(
-        m => new Date(m.created_at).getTime() > cutoff
-      );
+      if (!latestCreatedAt) return null;
+
+      const latestTime = new Date(latestCreatedAt).getTime();
+      const cutoffStr = new Date(latestTime - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      relevantMatches = matches.filter(m => m.created_at > cutoffStr);
     }
 
     const minGames = mode === "evening" ? EVENING_MIN_GAMES : MONTH_MIN_GAMES;
