@@ -24,6 +24,8 @@ import {
   Grid,
   Avatar,
   Tooltip,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -34,7 +36,9 @@ import {
   AdminPanelSettings as AdminIcon,
   People as PeopleIcon,
   HourglassEmpty as PendingIcon,
+  Email as EmailIcon,
 } from "@mui/icons-material";
+import WeeklyEmailPreview from "./Admin/WeeklyEmailPreview";
 
 interface AdminPanelProps {
   user: any;
@@ -44,6 +48,7 @@ interface AdminPanelProps {
 }
 
 export default function AdminPanel({ user, profiles = [], onProfileUpdate, onProfileDelete }: AdminPanelProps) {
+  const [tab, setTab] = useState(0);
   const [editNames, setEditNames] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [toggleId, setToggleId] = useState<string | null>(null);
@@ -134,10 +139,25 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
       <Box>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>Administration</Typography>
         <Typography variant="body1" color="text.secondary">
-          Hantera användare, godkänn nya medlemmar och administrera behörigheter.
+          Hantera användare, godkänn nya medlemmar och administrera systemet.
         </Typography>
       </Box>
 
+      <Paper sx={{ borderRadius: 3, bgcolor: 'background.paper', mb: 2 }}>
+        <Tabs
+          value={tab}
+          onChange={(_, newValue) => setTab(newValue)}
+          variant="fullWidth"
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab icon={<PeopleIcon />} label="Användare" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
+          <Tab icon={<EmailIcon />} label="Veckobrev" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
+        </Tabs>
+      </Paper>
+
+      {tab === 0 && (
+        <>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 4 }}>
           <Card variant="outlined" sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
@@ -298,6 +318,12 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
           </Table>
         </TableContainer>
       </Card>
+      </>
+      )}
+
+      {tab === 1 && (
+        <WeeklyEmailPreview currentUserId={user?.id} />
+      )}
     </Box>
   );
 }
