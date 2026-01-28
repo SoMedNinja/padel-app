@@ -92,14 +92,16 @@ export default function ActiveRound({
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
               Spela ronder
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Läge:{" "}
+            <Box sx={{ mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Läge:
+              </Typography>
               <Chip
                 label={tournamentMode === "americano" ? "Americano" : "Mexicano"}
                 size="small"
                 sx={{ fontWeight: 700 }}
               />
-            </Typography>
+            </Box>
 
             {tournamentMode === "mexicano" && (
               <Box sx={{ mb: 4 }}>

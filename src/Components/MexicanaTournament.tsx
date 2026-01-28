@@ -529,6 +529,15 @@ export default function MexicanaTournament({
     (tournamentListError as Error | undefined)?.message ||
     "Kunde inte hämta turneringsdata.";
 
+  const canShareResults = Boolean(activeTournament && sortedStandings.length);
+  const handleShareResults = () => {
+    // Note for non-coders: we only open the share modal once results exist to avoid blank exports.
+    if (!canShareResults) {
+      toast.error("Det finns inga resultat att dela ännu.");
+      return;
+    }
+    setShareOpen(true);
+  };
 
   return (
     <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
