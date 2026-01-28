@@ -61,3 +61,13 @@ export const resolveTeamNames = (
   }
   return [];
 };
+
+export const getTournamentStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    draft: "Utkast",
+    in_progress: "Pågår",
+    completed: "Avslutad",
+    abandoned: "Avbruten",
+  };
+  return labels[status] || "Okänd";
+};

@@ -122,7 +122,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const trimmed = cleanedName;
+    const trimmed = name.trim();
     // Note for non-coders: we clean the name here so badge tags aren't saved as part of it.
     if (!trimmed) return alert("Spelarnamn krävs.");
     if (trimmed.length > 50) return alert("Spelarnamn får vara max 50 tecken.");

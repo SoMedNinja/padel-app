@@ -17,6 +17,7 @@ import { Match, Tournament, TournamentResult } from '../../types';
 import { MatchHighlight } from '../../utils/highlights';
 import { Grid } from '@mui/material';
 import { toast } from 'sonner';
+import { formatDate } from '../../utils/format';
 
 const LOGO_BOX_SIZE = 80;
 
@@ -42,13 +43,7 @@ const GSLogo = () => (
 
 const safeFormatDate = (dateStr: string | undefined, options: Intl.DateTimeFormatOptions) => {
   if (!dateStr) return '—';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('sv-SE', options);
-  } catch (e) {
-    return '—';
-  }
+  return formatDate(dateStr, options) || '—';
 };
 
 const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { tournament: Tournament; results: any[]; profileMap: Record<string, string>; variant?: number }) => {

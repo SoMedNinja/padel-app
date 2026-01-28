@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { getPlayerColor } from "../utils/colors";
 import { Typography, Box, Paper } from "@mui/material";
+import { formatDate, formatShortDate } from "../utils/format";
 
 export default function EloTrend({ players = [] }) {
   const { data, playerNames } = useMemo(() => {
@@ -82,7 +83,7 @@ export default function EloTrend({ players = [] }) {
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
             <XAxis
               dataKey="date"
-              tickFormatter={(val) => new Date(val).toLocaleDateString("sv-SE", { month: 'short', day: 'numeric' })}
+              tickFormatter={(val) => formatShortDate(val)}
               style={{ fontSize: '0.75rem' }}
             />
             <YAxis
@@ -91,7 +92,7 @@ export default function EloTrend({ players = [] }) {
             />
             <Tooltip
               contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-              labelFormatter={(val) => new Date(val).toLocaleDateString("sv-SE", { dateStyle: 'medium' })}
+              labelFormatter={(val) => formatDate(val, { dateStyle: 'medium' })}
             />
 
             {playerNames.map(name => (

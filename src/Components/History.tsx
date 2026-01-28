@@ -37,6 +37,7 @@ import {
   Save as SaveIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
+import { formatDate } from "../utils/format";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -268,7 +269,6 @@ export default function History({
         {visibleMatches.map(m => {
           const teamAEntries = buildTeamEntries(m, "team1", "team1_ids");
           const teamBEntries = buildTeamEntries(m, "team2", "team2_ids");
-          const date = m.created_at?.slice(0, 10);
           const isEditing = editingId === m.id;
 
           const tournamentType = m.source_tournament_type || "standalone";
@@ -292,7 +292,7 @@ export default function History({
                           sx={{ mt: 1 }}
                         />
                       ) : (
-                        `Datum: ${date}`
+                        `Datum: ${formatDate(m.created_at)}`
                       )}
                     </Typography>
                   </Box>
