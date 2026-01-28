@@ -11,15 +11,23 @@ import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, 
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { queryKeys } from "../utils/queryKeys";
+import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 import { useEloStats } from "../hooks/useEloStats";
 import { filterMatches } from "../utils/filters";
-import { tournamentService } from "../services/tournamentService";
+import { padelData } from "../data/padelData";
 
 export default function PlayerProfilePage() {
   const queryClient = useQueryClient();
   const { matchFilter, setMatchFilter, user, isGuest } = useStore();
 
-  const { eloPlayers, allMatches, profiles, isLoading: isLoadingElo } = useEloStats();
+  const {
+    eloPlayers,
+    allMatches,
+    profiles,
+    isLoading: isLoadingElo,
+    isError: isEloError,
+    error: eloError
+  } = useEloStats();
 
   useScrollToFragment();
 
@@ -31,7 +39,7 @@ export default function PlayerProfilePage() {
     refetch: refetchTournamentResults,
   } = useQuery({
     queryKey: queryKeys.tournamentResults(),
-    queryFn: () => tournamentService.getTournamentResultsWithTypes(),
+    queryFn: () => padelData.tournaments.resultsWithTypes(),
   });
 
   const filteredMatches = useMemo(
@@ -45,15 +53,17 @@ export default function PlayerProfilePage() {
   const userWithAdmin = user ? { ...user, is_admin: user.is_admin } : null;
 
   const handleRefresh = usePullToRefresh([
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
+    () => invalidateProfileData(queryClient),
+    () => invalidateMatchData(queryClient),
+    () => invalidateTournamentData(queryClient),
     refetchTournamentResults,
   ]);
 
   const isLoading = isLoadingElo || isLoadingTournamentResults;
-  const hasError = isTournamentResultsError;
+  const hasError = isTournamentResultsError || isEloError;
   const errorMessage =
     (tournamentResultsError as Error | undefined)?.message ||
+    eloError?.message ||
     "Något gick fel när profilen laddades.";
 
   if (isGuest) {

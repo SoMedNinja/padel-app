@@ -10,6 +10,13 @@ body.tournament-page #root {
   padding: 0;
 }
 
+/* Note for non-coders: this keeps the tournament page scrollable on mobile devices. */
+.tournament-scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;

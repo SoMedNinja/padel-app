@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
-import { profileService } from "../services/profileService";
+import { padelData } from "../data/padelData";
 
 export const useProfiles = () => {
   return useQuery({
     queryKey: queryKeys.profiles(),
-    queryFn: () => profileService.getProfiles(),
+    queryFn: () => padelData.profiles.list(),
   });
 };

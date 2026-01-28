@@ -10,6 +10,7 @@ import {
   Add as AddIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
+  Lock as LockIcon,
 } from "@mui/icons-material";
 
 interface BottomNavProps {
@@ -18,6 +19,7 @@ interface BottomNavProps {
   toggleMenu: () => void;
   toggleFab: (event: React.MouseEvent<HTMLButtonElement>) => void;
   closeMenu: () => void;
+  isGuest?: boolean;
 }
 
 const BottomNav: React.FC<BottomNavProps> = ({
@@ -25,7 +27,8 @@ const BottomNav: React.FC<BottomNavProps> = ({
   isFabOpen,
   toggleMenu,
   toggleFab,
-  closeMenu
+  closeMenu,
+  isGuest = false
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,10 +71,17 @@ const BottomNav: React.FC<BottomNavProps> = ({
           icon={<HomeIcon />}
         />
         <BottomNavigationAction
-          label="Spela"
+          label={isGuest ? "Spela (logga in)" : "Spela"}
           value="fab"
-          icon={isFabOpen ? <CloseIcon sx={{ fontSize: '2rem' }} /> : <AddIcon sx={{ fontSize: '2rem' }} />}
-          onClick={toggleFab}
+          icon={
+            isGuest
+              ? <LockIcon sx={{ fontSize: '2rem' }} />
+              : isFabOpen
+                ? <CloseIcon sx={{ fontSize: '2rem' }} />
+                : <AddIcon sx={{ fontSize: '2rem' }} />
+          }
+          onClick={isGuest ? undefined : toggleFab}
+          disabled={isGuest}
           sx={{
             '& .MuiBottomNavigationAction-label': {
               color: 'primary.main',

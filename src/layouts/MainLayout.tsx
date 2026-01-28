@@ -19,6 +19,7 @@ import {
   Alert,
   AlertTitle,
   Container,
+  Chip,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -109,6 +110,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 >
                     {isDashboard ? "Grabbarnas serie" : "Padel-app"}
                 </Typography>
+                {isGuest && (
+                  <Chip
+                    label="Gästläge"
+                    size="small"
+                    color="warning"
+                    sx={{ mt: 0.5, fontWeight: 700, alignSelf: 'flex-start' }}
+                  />
+                )}
                 {isDashboard && (
                   <Typography
                     variant="caption"
@@ -230,6 +239,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         toggleMenu={toggleMenu}
         toggleFab={handleFabClick as any}
         closeMenu={closeMenu}
+        isGuest={isGuest}
       />
     </Box>
   );
