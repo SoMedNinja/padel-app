@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   Skeleton,
   Box,
@@ -113,6 +113,7 @@ export default function MexicanaTournament({
 }: MexicanaTournamentProps) {
   const queryClient = useQueryClient();
   const [activeTournamentId, setActiveTournamentId] = useState("");
+  const lastRedirectRef = useRef("");
   const [shareOpen, setShareOpen] = useState(false);
   const {
     data: tournaments = [],
@@ -199,14 +200,26 @@ export default function MexicanaTournament({
   }, [tournamentData, activeTournamentId]);
 
   useEffect(() => {
-    if (activeTournament?.status === "in_progress") {
-      setActiveSection("live");
-    } else if (activeTournament?.status === "completed") {
+    if (!activeTournament) {
+      setActiveSection("create");
+      return;
+    }
+
+    // Note for non-coders: we only auto-switch the tab when first selecting a tournament
+    // or when the status changes (like from draft to in_progress), but NOT on every refresh.
+    // This allows you to manually switch to "Live view" or "History" without being kicked back.
+    const redirectKey = `${activeTournamentId}-${activeTournament.status}`;
+    if (lastRedirectRef.current === redirectKey) return;
+
+    if (activeTournament.status === "in_progress") {
+      setActiveSection("run");
+    } else if (activeTournament.status === "completed") {
       setActiveSection("results");
     } else {
       setActiveSection("create");
     }
-  }, [activeTournament?.status]);
+    lastRedirectRef.current = redirectKey;
+  }, [activeTournamentId, activeTournament?.status, activeTournament]);
 
   const createTournament = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -220,20 +233,23 @@ export default function MexicanaTournament({
     }
     setIsSaving(true);
     try {
+      // Note for non-coders: robustly casting score_target to number to ensure database compatibility.
+      const scoreTarget = Number(newTournament.score_target);
       const data = await tournamentService.createTournament({
         name: newTournament.name.trim(),
         scheduled_at: newTournament.scheduled_at || null,
         location: newTournament.location || null,
-        score_target: Number(newTournament.score_target) || SCORE_TARGET_DEFAULT,
+        score_target: isNaN(scoreTarget) ? SCORE_TARGET_DEFAULT : scoreTarget,
         tournament_type: newTournament.tournament_type,
         status: "draft",
         created_by: user.id,
       });
       invalidateTournamentData(queryClient, data.id);
       setActiveTournamentId(data.id);
-      toast.success("Turneringen är skapad.");
+      toast.success(`"${data.name}" har skapats.`);
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte skapa turneringen.");
+      console.error("Error creating tournament:", error);
+      toast.error(error.message || "Kunde inte skapa turneringen. Kontrollera anslutningen.");
     }
     setIsSaving(false);
   };
@@ -314,6 +330,7 @@ export default function MexicanaTournament({
     try {
       await tournamentService.updateTournament(activeTournamentId, { status: "in_progress" });
       invalidateTournamentData(queryClient, activeTournamentId);
+      setActiveSection("run");
       toast.success("Turneringen har startat.");
     } catch (error: any) {
       toast.error(error.message || "Kunde inte starta turneringen.");
@@ -450,20 +467,24 @@ export default function MexicanaTournament({
     }
 
     // Sync to matches
-    const matchPayload = rounds.map(round => ({
-      team1: idsToNames(round.team1_ids, profileMap),
-      team2: idsToNames(round.team2_ids, profileMap),
-      team1_ids: round.team1_ids.map((id: string) => id === GUEST_ID ? null : id),
-      team2_ids: round.team2_ids.map((id: string) => id === GUEST_ID ? null : id),
-      team1_sets: Number(round.team1_score),
-      team2_sets: Number(round.team2_score),
-      score_type: "points",
-      score_target: activeTournament.score_target,
-      source_tournament_id: activeTournament.id,
-      source_tournament_type: activeTournament.tournament_type || "mexicana",
-      team1_serves_first: true,
-      created_by: user.id,
-    }));
+    // Note for non-coders: we only sync rounds that actually have a score, to avoid
+    // cluttering the match history with unplayed or empty games.
+    const matchPayload = rounds
+      .filter(round => Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score))
+      .map(round => ({
+        team1: idsToNames(round.team1_ids, profileMap),
+        team2: idsToNames(round.team2_ids, profileMap),
+        team1_ids: round.team1_ids.map((id: string) => id === GUEST_ID ? null : id),
+        team2_ids: round.team2_ids.map((id: string) => id === GUEST_ID ? null : id),
+        team1_sets: Number(round.team1_score),
+        team2_sets: Number(round.team2_score),
+        score_type: "points",
+        score_target: activeTournament.score_target,
+        source_tournament_id: activeTournament.id,
+        source_tournament_type: activeTournament.tournament_type || "mexicano",
+        team1_serves_first: true,
+        created_by: user.id,
+      }));
 
     try {
       await matchService.createMatch(matchPayload);
@@ -477,25 +498,32 @@ export default function MexicanaTournament({
       tournament_id: activeTournament.id,
       profile_id: res.id === GUEST_ID ? null : res.id,
       rank: index + 1,
+      total_points: res.totalPoints,
       points_for: res.pointsFor,
       points_against: res.pointsAgainst,
       matches_played: res.gamesPlayed,
       wins: res.wins,
       losses: res.losses,
+      tournament_type: activeTournament.tournament_type || "mexicano",
     }));
 
     try {
+      // Save results
       await tournamentService.createTournamentResults(resultsPayload);
+
+      // Update tournament status
       await tournamentService.updateTournament(activeTournament.id, {
         status: "completed",
         completed_at: new Date().toISOString(),
         synced_to_matches: true
       });
+
       invalidateTournamentData(queryClient, activeTournamentId);
       onTournamentSync?.();
-      toast.success("Turneringen slutförd.");
+      toast.success("Turneringen slutförd och synkad till historik.");
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte slutföra turneringen.");
+      console.error("Error completing tournament:", error);
+      toast.error(error.message || "Ett oväntat fel uppstod vid slutföring.");
     } finally {
       setIsSaving(false);
     }
@@ -1192,21 +1220,6 @@ export default function MexicanaTournament({
     </Card>
   );
 
-      {activeTournament && (
-        <TheShareable
-          open={shareOpen}
-          onClose={() => setShareOpen(false)}
-          type="tournament"
-          data={{
-            tournament: activeTournament,
-            results: sortedStandings,
-            profileMap: Object.fromEntries(
-              selectableProfiles.map(p => [p.id, getProfileDisplayName(p)])
-            )
-          }}
-        />
-      )}
-
   const historySection = (
     <Card variant="outlined" sx={{ borderRadius: 3 }}>
       <CardContent>
@@ -1332,6 +1345,21 @@ export default function MexicanaTournament({
           {activeSection === "results" && resultsSection}
           {activeSection === "history" && historySection}
         </>
+      )}
+
+      {activeTournament && (
+        <TheShareable
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          type="tournament"
+          data={{
+            tournament: activeTournament,
+            results: sortedStandings,
+            profileMap: Object.fromEntries(
+              selectableProfiles.map(p => [p.id, getProfileDisplayName(p)])
+            )
+          }}
+        />
       )}
     </Box>
   );

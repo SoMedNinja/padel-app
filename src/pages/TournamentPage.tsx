@@ -7,7 +7,7 @@ import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useEloStats } from "../hooks/useEloStats";
 import { Box, Button, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
 import AppAlert from "../Components/Shared/AppAlert";
-import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
+import { invalidateTournamentData } from "../data/queryInvalidation";
 
 export default function TournamentPage() {
   const { user, isGuest } = useStore();
@@ -25,11 +25,7 @@ export default function TournamentPage() {
   };
 
   const handleRefresh = usePullToRefresh([
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.matches({ type: "all" }) }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetailsBase() }),
-    () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() }),
+    () => invalidateTournamentData(queryClient),
   ]);
 
   const hasError = isError;

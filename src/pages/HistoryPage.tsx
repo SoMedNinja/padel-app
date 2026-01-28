@@ -9,7 +9,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEloStats } from "../hooks/useEloStats";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { filterMatches } from "../utils/filters";
-import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData } from "../data/queryInvalidation";
 
 export default function HistoryPage() {
