@@ -599,6 +599,7 @@ export default function MatchForm({
             key={s}
             variant={value === s ? "contained" : "outlined"}
             onClick={() => onChange(s)}
+            aria-label={`Välj resultat: ${s}`}
             sx={{
               minWidth: 50,
               height: 50,
@@ -760,7 +761,12 @@ export default function MatchForm({
                         key={i}
                         size="small"
                         label={getIdDisplayName(id, profileMap)}
-                        avatar={<Avatar src={profileMap.get(id)?.avatar_url || ""} />}
+                        avatar={
+                          <Avatar
+                            src={profileMap.get(id)?.avatar_url || ""}
+                            name={getIdDisplayName(id, profileMap)}
+                          />
+                        }
                       />
                     ))}
                   </Box>
@@ -776,7 +782,12 @@ export default function MatchForm({
                         key={i}
                         size="small"
                         label={getIdDisplayName(id, profileMap)}
-                        avatar={<Avatar src={profileMap.get(id)?.avatar_url || ""} />}
+                        avatar={
+                          <Avatar
+                            src={profileMap.get(id)?.avatar_url || ""}
+                            name={getIdDisplayName(id, profileMap)}
+                          />
+                        }
                       />
                     ))}
                   </Box>

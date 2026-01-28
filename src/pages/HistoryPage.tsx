@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
 import EmptyState from "../Components/Shared/EmptyState";
@@ -12,6 +13,7 @@ import { filterMatches } from "../utils/filters";
 import { invalidateMatchData, invalidateProfileData } from "../data/queryInvalidation";
 
 export default function HistoryPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { matchFilter, setMatchFilter, user, isGuest } = useStore();
 
@@ -60,6 +62,8 @@ export default function HistoryPage() {
             <EmptyState
               title="Ingen historik"
               description="Inga matcher matchar ditt nuvarande filter. Prova att ändra filtret eller registrera en ny match."
+              actionLabel="Registrera match"
+              onAction={() => navigate("/single-game")}
             />
           ) : (
             <History
