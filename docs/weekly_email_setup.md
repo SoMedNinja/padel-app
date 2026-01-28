@@ -40,12 +40,13 @@ For the automated cron job to authenticate with the Edge Function, it needs acce
 1. In the Supabase dashboard, open **Project Settings → API**.
 2. Copy the **service_role** key (the secret one, not the public anon key).
 3. Open **SQL Editor** in Supabase.
-4. Run this SQL (replace the placeholder with your actual key):
+4. Run this SQL (replace the placeholder with your actual key). Make sure the key stays inside single quotes — if you remove the quotes, the SQL editor thinks your key is a table name and throws an error.
 ```sql
 -- Replace 'your-service-role-key-here' with the actual key from
 -- Project Settings -> API -> service_role (secret)
 select vault.create_secret('your-service-role-key-here', 'service_role_key', 'Service role key for cron jobs');
 ```
+If you see an error like “missing FROM-clause entry,” it usually means the key was pasted without quotes. Re-run the SQL with the key wrapped in single quotes.
 
 **Note for non-coders:** *Vault* is a secure storage area in Supabase. We put the secret key there so scheduled jobs can read it without exposing it in the code.
 
