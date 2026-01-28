@@ -9,3 +9,7 @@
 ## 2025-05-15 - [A11y & UI Consistency Audit]
 **Learning:** Icon-only buttons without `aria-label` were widespread across MexicanaTournament, Merits, and MVP sections. Inconsistent sentence casing in loading/empty states (e.g., "laddar data...") can make the UI feel unpolished.
 **Action:** Always verify `aria-label` on new `IconButton` or `InfoIcon` components. Enforce Sentence case for all UI strings and labels. Use `Tooltip` to provide additional context for advanced features like "Matchmaker".
+
+## 2025-05-20 - [UX: Contextual Feedback & Scannability]
+**Learning:** In long lists like leaderboards, users struggle to find their own data. Providing a character counter for fields with strict length limits (like player names) prevents silent input truncation.
+**Action:** Implement subtle background highlights (e.g., `alpha(theme.palette.primary.main, 0.08)`) for user-specific rows in tables. Always add `helperText` counters to `TextFields` with `maxLength` constraints.
