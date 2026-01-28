@@ -20,6 +20,15 @@ interface FilterBarProps {
 export default function FilterBar({ filter, setFilter }: FilterBarProps) {
   // Note for non-coders: We pre-fill the "till" date with today so it's ready once a "från" date is chosen.
   const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+  const filterLabels: Record<MatchFilterType, string> = {
+    all: "Alla matcher",
+    short: "Korta matcher",
+    long: "Långa matcher",
+    tournaments: "Turneringar",
+    last7: "Senaste 7 dagar",
+    last30: "Senaste 30 dagar",
+    range: "Datumintervall",
+  };
 
   const handleChange = (event: SelectChangeEvent) => {
     const type = event.target.value as MatchFilterType;
@@ -75,25 +84,30 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
             },
           }}
         >
-          <MenuItem value="all">Alla matcher</MenuItem>
-          <MenuItem value="short">Korta matcher</MenuItem>
-          <MenuItem value="long">Långa matcher</MenuItem>
-          <MenuItem value="tournaments">Turneringar</MenuItem>
-          <MenuItem value="last7">Senaste 7 dagarna</MenuItem>
-          <MenuItem value="last30">Senaste 30 dagarna</MenuItem>
-          <MenuItem value="range">Datumintervall</MenuItem>
+          <MenuItem value="all">{filterLabels.all}</MenuItem>
+          <MenuItem value="short">{filterLabels.short}</MenuItem>
+          <MenuItem value="long">{filterLabels.long}</MenuItem>
+          <MenuItem value="tournaments">{filterLabels.tournaments}</MenuItem>
+          <MenuItem value="last7">{filterLabels.last7}</MenuItem>
+          <MenuItem value="last30">{filterLabels.last30}</MenuItem>
+          <MenuItem value="range">{filterLabels.range}</MenuItem>
         </Select>
       </FormControl>
-      {filter.type !== "all" && (
-        <Button
-          size="small"
-          onClick={() => setFilter({ type: "all" })}
-          startIcon={<CloseIcon />}
-          sx={{ mt: 1, textTransform: "none", fontWeight: 700, borderRadius: "12px" }}
-        >
-          Rensa filter
-        </Button>
-      )}
+      <Button
+        size="small"
+        onClick={() => setFilter({ type: "all" })}
+        startIcon={<CloseIcon />}
+        disabled={filter.type === "all"}
+        sx={{ mt: 1, textTransform: "none", fontWeight: 700, borderRadius: "12px" }}
+      >
+        Återställ filter
+      </Button>
+      <Box sx={{ mt: 1, px: 1, py: 0.5, borderRadius: 2, bgcolor: "grey.100" }}>
+        {/* Note for non-coders: this label reminds people which filter is active right now. */}
+        <Box component="span" sx={{ fontSize: 12, fontWeight: 700, color: "text.secondary" }}>
+          Aktivt: {filterLabels[filter.type]}
+        </Box>
+      </Box>
       {filter.type === "range" && (
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}>
           <TextField

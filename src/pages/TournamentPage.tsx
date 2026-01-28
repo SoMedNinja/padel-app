@@ -7,15 +7,21 @@ import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useEloStats } from "../hooks/useEloStats";
 import { Box, Button, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
 import AppAlert from "../Components/Shared/AppAlert";
-import { queryKeys } from "../utils/queryKeys";
+import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 
 export default function TournamentPage() {
   const { user, isGuest } = useStore();
-  const { eloPlayers, profiles, isLoading } = useEloStats();
+  const {
+    eloPlayers,
+    profiles,
+    isLoading,
+    isError,
+    error
+  } = useEloStats();
   const queryClient = useQueryClient();
 
   const handleTournamentSync = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() });
+    invalidateTournamentData(queryClient);
   };
 
   const handleRefresh = usePullToRefresh([
@@ -26,8 +32,8 @@ export default function TournamentPage() {
     () => queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() }),
   ]);
 
-  const hasError = false; // useEloStats doesn't expose error yet
-  const errorMessage = "Något gick fel när turneringsdata hämtades.";
+  const hasError = isError;
+  const errorMessage = error?.message || "Något gick fel när turneringsdata hämtades.";
 
   useEffect(() => {
     // Note for non-coders: we add a body class so CSS can remove the global padding only on this page.
@@ -39,6 +45,7 @@ export default function TournamentPage() {
 
   return (
     <PullToRefresh
+      className="tournament-scroll"
       onRefresh={handleRefresh}
       pullingContent={
         <Box sx={{ p: 2, textAlign: 'center', opacity: 0.6 }}>
@@ -52,43 +59,45 @@ export default function TournamentPage() {
       }
     >
       <section id="mexicana" className="page-section">
-        {isGuest && (
-          <AppAlert severity="info" sx={{ mb: 2 }}>
-            {/* Note for non-coders: guests can browse the schedule, but only signed-in users can save rounds. */}
-            Logga in för att skapa eller spara turneringar. Som gäst kan du bara titta.
-          </AppAlert>
-        )}
-        {hasError && (
-          <AppAlert
-            severity="error"
-            sx={{ mb: 2 }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <Typography variant="body2">{errorMessage}</Typography>
-              <Button color="inherit" size="small" onClick={handleRefresh}>
-                Försök igen
-              </Button>
-            </Box>
-          </AppAlert>
-        )}
-        {isLoading ? (
-          <Stack spacing={2} sx={{ mb: 2 }}>
-            {/* Note for non-coders: skeletons are gray placeholders shown while data loads. */}
-            <Skeleton variant="rectangular" height={220} sx={{ borderRadius: "16px" }} />
-            <Box className="mexicana-grid">
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
-            </Box>
-          </Stack>
-        ) : (
-          <MexicanaTournament
-            user={isGuest ? null : user}
-            profiles={profiles}
-            eloPlayers={eloPlayers}
-            isGuest={isGuest}
-            onTournamentSync={handleTournamentSync}
-          />
-        )}
+        <Box sx={{ px: { xs: 2, sm: 0 }, pb: { xs: 10, sm: 4 } }}>
+          {isGuest && (
+            <AppAlert severity="info" sx={{ mb: 2 }}>
+              {/* Note for non-coders: guests can browse the schedule, but only signed-in users can save rounds. */}
+              Logga in för att skapa eller spara turneringar. Som gäst kan du bara titta.
+            </AppAlert>
+          )}
+          {hasError && (
+            <AppAlert
+              severity="error"
+              sx={{ mb: 2 }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <Typography variant="body2">{errorMessage}</Typography>
+                <Button color="inherit" size="small" onClick={handleRefresh}>
+                  Försök igen
+                </Button>
+              </Box>
+            </AppAlert>
+          )}
+          {isLoading ? (
+            <Stack spacing={2} sx={{ mb: 2 }}>
+              {/* Note for non-coders: skeletons are gray placeholders shown while data loads. */}
+              <Skeleton variant="rectangular" height={220} sx={{ borderRadius: "16px" }} />
+              <Box className="mexicana-grid">
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
+              </Box>
+            </Stack>
+          ) : (
+            <MexicanaTournament
+              user={isGuest ? null : user}
+              profiles={profiles}
+              eloPlayers={eloPlayers}
+              isGuest={isGuest}
+              onTournamentSync={handleTournamentSync}
+            />
+          )}
+        </Box>
       </section>
     </PullToRefresh>
   );

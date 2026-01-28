@@ -4,6 +4,7 @@ import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
 import { Match, PlayerStats } from "../types";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
+import { useStore } from "../store/useStore";
 import {
   Tooltip,
   IconButton,
@@ -20,6 +21,7 @@ import {
   Paper,
   TableSortLabel,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { InfoOutlined } from "@mui/icons-material";
 
 // Enkel hjälpfunktion för vinstprocent
@@ -32,6 +34,7 @@ interface EloLeaderboardProps {
 }
 
 export default function EloLeaderboard({ players = [], matches = [] }: EloLeaderboardProps) {
+  const { user } = useStore();
   const [sortKey, setSortKey] = useState<string>("elo");
   const [asc, setAsc] = useState<boolean>(false);
 
@@ -249,6 +252,7 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                       borderBottom: '1px solid',
                       borderColor: 'divider',
                       minHeight: 56,
+                      bgcolor: p.id === user?.id ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
                     }}
                   >
                     <TableCell component="div" sx={{ borderBottom: 'none' }}>

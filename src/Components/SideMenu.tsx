@@ -10,6 +10,7 @@ import {
   Divider,
   Box,
   Button,
+  Chip,
 } from "@mui/material";
 import {
   Home as HomeIcon,
@@ -56,6 +57,14 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
       }}
     >
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {isGuest && (
+          <Chip
+            label="Gästläge"
+            color="warning"
+            size="small"
+            sx={{ alignSelf: 'flex-start', fontWeight: 700, mb: 1 }}
+          />
+        )}
         <List>
           {menuItems.map((item) => (
             <ListItem key={item.text} disablePadding>

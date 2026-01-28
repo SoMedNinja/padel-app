@@ -207,6 +207,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                             placeholder="Namn"
                             value={currentName}
                             onChange={(e) => handleNameChange(profile.id, e.target.value)}
+                            slotProps={{ htmlInput: { maxLength: 50 } }}
                             sx={{
                               '& .MuiInput-root': { fontWeight: 600 },
                               maxWidth: 250

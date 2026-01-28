@@ -4,10 +4,10 @@ import { useStore } from "../store/useStore";
 import { useProfiles } from "../hooks/useProfiles";
 import { useQueryClient } from "@tanstack/react-query";
 import { Profile } from "../types";
-import { queryKeys } from "../utils/queryKeys";
 import { Box, Button, Container, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import AppAlert from "../Components/Shared/AppAlert";
+import { invalidateProfileData } from "../data/queryInvalidation";
 
 export default function AdminPage() {
   const { user } = useStore();
@@ -15,11 +15,11 @@ export default function AdminPage() {
   const queryClient = useQueryClient();
 
   const handleProfileUpdate = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.profiles() });
+    invalidateProfileData(queryClient);
   };
 
   const handleProfileDelete = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.profiles() });
+    invalidateProfileData(queryClient);
   };
 
   if (!user?.is_admin) {
