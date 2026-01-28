@@ -12,8 +12,6 @@ import {
   Stack,
   Divider,
   Chip,
-  Checkbox,
-  FormControlLabel,
   IconButton,
   Alert,
   Paper,
@@ -23,6 +21,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
+  Tab,
+  useMediaQuery,
+  ButtonBase,
+  Avatar,
+  Tooltip,
 } from "@mui/material";
 // Note for non-coders: these imports bring in ready-made table UI pieces so the browser
 // recognizes names like TableContainer and can render the standings tables.
@@ -56,9 +60,11 @@ import {
   generateAmericanoRounds,
 } from "../utils/tournamentLogic";
 import { Profile, PlayerStats, TournamentRound } from "../types";
-import { queryKeys } from "../utils/queryKeys";
 import EmptyState from "./Shared/EmptyState";
 import { EmojiEvents as TrophyIcon } from "@mui/icons-material";
+import AppAlert from "./Shared/AppAlert";
+import { useTheme } from "@mui/material/styles";
+import { invalidateTournamentData } from "../data/queryInvalidation";
 
 const POINTS_OPTIONS = [16, 21, 24, 31];
 const SCORE_TARGET_DEFAULT = 24;
@@ -108,8 +114,21 @@ export default function MexicanaTournament({
   const queryClient = useQueryClient();
   const [activeTournamentId, setActiveTournamentId] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
-  const { data: tournaments = [], isLoading: isLoadingTournaments } = useTournaments();
-  const { data: tournamentData, isLoading: isLoadingDetails } = useTournamentDetails(activeTournamentId);
+  const {
+    data: tournaments = [],
+    isLoading: isLoadingTournaments,
+    isError: isTournamentListError,
+    error: tournamentListError,
+  } = useTournaments();
+  const {
+    data: tournamentData,
+    isLoading: isLoadingDetails,
+    isError: isTournamentDetailsError,
+    error: tournamentDetailsError,
+  } = useTournamentDetails(activeTournamentId);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [activeSection, setActiveSection] = useState<"create" | "run" | "live" | "results" | "history">("create");
 
   const [participants, setParticipants] = useState<string[]>([]);
   const [rounds, setRounds] = useState<TournamentRound[]>([]);
@@ -179,6 +198,16 @@ export default function MexicanaTournament({
     }
   }, [tournamentData, activeTournamentId]);
 
+  useEffect(() => {
+    if (activeTournament?.status === "in_progress") {
+      setActiveSection("live");
+    } else if (activeTournament?.status === "completed") {
+      setActiveSection("results");
+    } else {
+      setActiveSection("create");
+    }
+  }, [activeTournament?.status]);
+
   const createTournament = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!newTournament.name.trim()) {
@@ -200,7 +229,7 @@ export default function MexicanaTournament({
         status: "draft",
         created_by: user.id,
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+      invalidateTournamentData(queryClient, data.id);
       setActiveTournamentId(data.id);
       toast.success("Turneringen är skapad.");
     } catch (error: any) {
@@ -231,7 +260,7 @@ export default function MexicanaTournament({
           profile_id: profileId === GUEST_ID ? null : profileId,
         }))
       );
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
+      invalidateTournamentData(queryClient, activeTournamentId);
       toast.success("Roster sparad.");
       setIsSaving(false);
       return true;
@@ -284,8 +313,7 @@ export default function MexicanaTournament({
 
     try {
       await tournamentService.updateTournament(activeTournamentId, { status: "in_progress" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
+      invalidateTournamentData(queryClient, activeTournamentId);
       toast.success("Turneringen har startat.");
     } catch (error: any) {
       toast.error(error.message || "Kunde inte starta turneringen.");
@@ -340,7 +368,7 @@ export default function MexicanaTournament({
         team2_score: s2,
         mode: recordingRound.mode,
       }]);
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
+      invalidateTournamentData(queryClient, activeTournamentId);
       setRecordingRound(null);
       toast.success(`Rond ${nextRoundNumber} sparad.`);
     } catch (error: any) {
@@ -359,7 +387,7 @@ export default function MexicanaTournament({
       // Explicitly delete matches first to handle FK constraint if migration hasn't run yet
       await matchService.deleteMatchesByTournamentId(tournament.id);
       await tournamentService.deleteTournament(tournament.id);
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+      invalidateTournamentData(queryClient, tournament.id);
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
       toast.success("Turneringen borttagen.");
     } catch (error: any) {
@@ -375,7 +403,7 @@ export default function MexicanaTournament({
     setIsSaving(true);
     try {
       await tournamentService.updateTournament(activeTournamentId, { status: "abandoned" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+      invalidateTournamentData(queryClient, activeTournamentId);
       toast.success("Turneringen avbruten.");
     } catch (error: any) {
       toast.error(error.message || "Kunde inte avbryta turneringen.");
@@ -463,8 +491,7 @@ export default function MexicanaTournament({
         completed_at: new Date().toISOString(),
         synced_to_matches: true
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResultsHistory() });
+      invalidateTournamentData(queryClient, activeTournamentId);
       onTournamentSync?.();
       toast.success("Turneringen slutförd.");
     } catch (error: any) {
@@ -495,7 +522,7 @@ export default function MexicanaTournament({
         team1_score: Number(s1),
         team2_score: Number(s2),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(activeTournamentId) });
+      invalidateTournamentData(queryClient, activeTournamentId);
       toast.success("Resultat sparat.");
     } catch (error: any) {
       toast.error(error.message || "Kunde inte spara resultat.");
@@ -523,22 +550,76 @@ export default function MexicanaTournament({
     <Card variant="outlined" sx={{ borderRadius: 3 }}>
       <CardContent>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>Deltagare ({participants.length})</Typography>
-        <Box sx={{ maxHeight: '240px', overflowY: 'auto', mb: 2 }}>
+        <Box sx={{ mb: 2 }}>
+          {/* Note for non-coders: these tiles match the single-match player selection UI for consistency. */}
           <Grid container spacing={1}>
-            {selectableProfiles.map(p => (
-              <Grid key={p.id} size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={participants.includes(p.id)}
-                      onChange={() => toggleParticipant(p.id)}
-                      disabled={activeTournament.status !== 'draft'}
-                    />
-                  }
-                  label={getProfileDisplayName(p)}
-                />
-              </Grid>
-            ))}
+            {[...selectableProfiles].map(p => {
+              const isSelected = participants.includes(p.id);
+              return (
+                <Grid key={p.id} size={{ xs: 4, sm: 3 }}>
+                  <ButtonBase
+                    component={Paper}
+                    elevation={isSelected ? 4 : 1}
+                    aria-pressed={isSelected}
+                    aria-label={`Välj ${p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}`}
+                    disabled={activeTournament.status !== 'draft'}
+                    sx={{
+                      p: 1.5,
+                      width: '100%',
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      bgcolor: isSelected ? "primary.light" : "background.paper",
+                      color: isSelected ? "primary.contrastText" : "text.primary",
+                      border: isSelected ? "2px solid" : "1px solid",
+                      borderColor: isSelected ? "primary.main" : "divider",
+                      transition: "all 0.2s",
+                      borderRadius: 1,
+                      "&:hover": {
+                        bgcolor: isSelected ? "primary.light" : "action.hover",
+                      },
+                    }}
+                    onClick={() => toggleParticipant(p.id)}
+                  >
+                    <Avatar
+                      src={p.avatar_url || ""}
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        mb: 1,
+                        border: isSelected ? "2px solid #fff" : "none",
+                      }}
+                    >
+                      {p.name.charAt(0)}
+                    </Avatar>
+                    <Typography
+                      variant="caption"
+                      align="center"
+                      sx={{
+                        fontWeight: isSelected ? 800 : 500,
+                        wordBreak: "break-word",
+                        lineHeight: 1.2,
+                        height: "2.4em",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}
+                    </Typography>
+                    {isSelected && (
+                      <CompleteIcon
+                        sx={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          fontSize: 16,
+                          color: "primary.main",
+                        }}
+                      />
+                    )}
+                  </ButtonBase>
+                </Grid>
+              );
+            })}
           </Grid>
         </Box>
         {activeTournament.status === 'draft' && (
@@ -557,48 +638,13 @@ export default function MexicanaTournament({
     </Card>
   );
 
-  return (
-    <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Turnering</Typography>
-        </Box>
-        {activeTournament && (
-          <Chip
-            label={getTournamentStatusLabel(activeTournament.status)}
-            color={
-              activeTournament.status === 'completed' ? 'success' :
-              activeTournament.status === 'in_progress' ? 'primary' :
-              'default'
-            }
-            sx={{ fontWeight: 700 }}
-          />
-        )}
-      </Box>
+  const tournamentErrorMessage =
+    (tournamentDetailsError as Error | undefined)?.message ||
+    (tournamentListError as Error | undefined)?.message ||
+    "Kunde inte hämta turneringsdata.";
 
-      {activeTournament && (activeTournament.status === 'in_progress' || activeTournament.status === 'completed') && (
-        <TournamentBracket
-          rounds={rounds}
-          profileMap={profileMap}
-          activeTournament={activeTournament}
-        />
-      )}
-
-      {isLoading ? (
-        <Stack spacing={2}>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
-            </Grid>
-          </Grid>
-          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 3 }} />
-        </Stack>
-      ) : (
-      <>
-      <Grid container spacing={3}>
+  const createSection = (
+    <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: activeTournament?.status === 'draft' ? 6 : 12 }}>
           <Card variant="outlined" sx={{ borderRadius: 3 }}>
             <CardContent>
@@ -701,16 +747,104 @@ export default function MexicanaTournament({
           </Grid>
         )}
       </Grid>
+  );
 
-      {activeTournament?.status === 'in_progress' && (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card variant="outlined" sx={{ borderRadius: 3 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Spela ronder</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Läge: <Chip label={tournamentMode === 'americano' ? 'Americano' : 'Mexicano'} size="small" sx={{ fontWeight: 700 }} />
+  const canShareResults = Boolean(activeTournament && sortedStandings.length);
+  const handleShareResults = () => {
+    // Note for non-coders: we only open the share modal once results exist to avoid blank exports.
+    if (!canShareResults) {
+      toast.error("Det finns inga resultat att dela ännu.");
+      return;
+    }
+    setShareOpen(true);
+  };
+
+  const liveSection = (
+    <Stack spacing={3}>
+      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Live view</Typography>
+          {activeTournament && (activeTournament.status === 'in_progress' || activeTournament.status === 'completed') ? (
+            <TournamentBracket
+              rounds={rounds}
+              profileMap={profileMap}
+              activeTournament={activeTournament}
+            />
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Starta en turnering för att se liveuppdateringar.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 7 }}>
+          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Turneringsöversikt</Typography>
+              {activeTournament ? (
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Chip label={activeTournament.name} sx={{ fontWeight: 700 }} />
+                    <Chip label={getTournamentStatusLabel(activeTournament.status)} color="primary" />
+                    <Chip label={activeTournament.tournament_type === "americano" ? "Americano" : "Mexicano"} />
+                    <Chip label={`${participants.length} spelare`} />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {activeTournament.location ? `Plats: ${activeTournament.location}` : "Ingen plats angiven."}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {activeTournament.scheduled_at ? `Datum: ${formatDate(activeTournament.scheduled_at)}` : "Datum saknas."}
+                  </Typography>
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Välj en turnering för att se detaljer.
                 </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 5 }}>
+          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Topplista (snabb vy)</Typography>
+              {sortedStandings.length ? (
+                <Stack spacing={1}>
+                  {sortedStandings.slice(0, 5).map((res, index) => (
+                    <Box key={res.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {index + 1}. {getIdDisplayName(res.id, profileMap)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {res.totalPoints}p
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Inga resultat ännu.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Stack>
+  );
+
+  const runSection = activeTournament?.status === "in_progress" ? (
+    <Grid container spacing={3}>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Spela ronder</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Läge: <Chip label={tournamentMode === 'americano' ? 'Americano' : 'Mexicano'} size="small" sx={{ fontWeight: 700 }} />
+            </Typography>
 
                 {tournamentMode === 'mexicano' && (
                   <Box sx={{ mb: 4 }}>
@@ -907,59 +1041,68 @@ export default function MexicanaTournament({
                     )}
                   </Box>
                 )}
-              </CardContent>
-            </Card>
-          </Grid>
+          </CardContent>
+        </Card>
+      </Grid>
 
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card variant="outlined" sx={{ borderRadius: 3 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Poängställning</Typography>
-                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
-                  <Table size="small">
-                    <TableHead sx={{ bgcolor: 'grey.50' }}>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700 }}>Plac.</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }} align="center">Poäng</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }} align="center">Matcher</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }} align="center">V/O/F</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }} align="center">Diff</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {sortedStandings.map((res, i) => (
-                        <TableRow key={res.id} hover>
-                          <TableCell sx={{ fontWeight: 700 }}>{i + 1}</TableCell>
-                          <TableCell>{getIdDisplayName(res.id, profileMap)}</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>{res.totalPoints}</TableCell>
-                          <TableCell align="center">{res.gamesPlayed}</TableCell>
-                          <TableCell align="center">{res.wins}/{res.ties}/{res.losses}</TableCell>
-                          <TableCell align="center">{res.pointsFor - res.pointsAgainst}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
-                   <Button variant="outlined" color="error" startIcon={<StopIcon />} onClick={markAbandoned}>Avbryt</Button>
-                   <Button variant="contained" color="success" startIcon={<CompleteIcon />} onClick={completeTournament} disabled={rounds.length === 0}>
-                     Slutför & synka
-                   </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
-
-      {activeTournament?.status === 'completed' && (
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card variant="outlined" sx={{ borderRadius: 3 }}>
           <CardContent>
-            <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Resultat</Typography>
-            <Typography variant="body2" sx={{ mb: 3 }}>
-              <strong>{activeTournament.name}</strong> slutfördes {formatDate(activeTournament.completed_at)}.
-            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Poängställning</Typography>
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
+              <Table size="small" sx={{ minWidth: isMobile ? 520 : 640 }}>
+                <TableHead sx={{ bgcolor: 'grey.50' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>Plac.</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Namn</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Poäng</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Matcher</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">V/O/F</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="center">Diff</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedStandings.map((res, i) => (
+                    <TableRow key={res.id} hover>
+                      <TableCell sx={{ fontWeight: 700 }}>{i + 1}</TableCell>
+                      <TableCell>{getIdDisplayName(res.id, profileMap)}</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700 }}>{res.totalPoints}</TableCell>
+                      <TableCell align="center">{res.gamesPlayed}</TableCell>
+                      <TableCell align="center">{res.wins}/{res.ties}/{res.losses}</TableCell>
+                      <TableCell align="center">{res.pointsFor - res.pointsAgainst}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 3 }}>
+              <Button variant="outlined" color="error" startIcon={<StopIcon />} onClick={markAbandoned}>Avbryt</Button>
+              <Button variant="contained" color="success" startIcon={<CompleteIcon />} onClick={completeTournament} disabled={rounds.length === 0}>
+                Slutför & synka
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  ) : (
+    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <CardContent>
+        {/* Note for non-coders: this message appears when there is no active tournament to run. */}
+        <Typography variant="body2" color="text.secondary">
+          Välj en turnering och starta den för att registrera ronder.
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+
+  const resultsSection = activeTournament?.status === "completed" ? (
+    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <CardContent>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Resultat</Typography>
+        <Typography variant="body2" sx={{ mb: 3 }}>
+          <strong>{activeTournament.name}</strong> slutfördes {formatDate(activeTournament.completed_at)}.
+        </Typography>
 
             <Grid container spacing={2} sx={{ mb: 4 }}>
               {sortedStandings.slice(0, 3).map((res, i) => (
@@ -974,7 +1117,7 @@ export default function MexicanaTournament({
             </Grid>
 
             <TableContainer component={Paper} variant="outlined" sx={{ mb: 4, borderRadius: 2, overflow: 'auto' }}>
-              <Table size="small">
+              <Table size="small" sx={{ minWidth: isMobile ? 520 : 680 }}>
                 <TableHead sx={{ bgcolor: 'grey.50' }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700 }}>Plac.</TableCell>
@@ -1009,7 +1152,7 @@ export default function MexicanaTournament({
               {rounds.map(round => (
                 <Paper key={round.id} variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="caption" sx={{ fontWeight: 800 }}>Rond {round.round_number}</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, textAlign: 'right' }}>
                     {idsToNames(round.team1_ids, profileMap).join(" & ")}
                     <Chip label={`${round.team1_score} – ${round.team2_score}`} size="small" sx={{ mx: 2, fontWeight: 800 }} />
                     {idsToNames(round.team2_ids, profileMap).join(" & ")}
@@ -1022,18 +1165,32 @@ export default function MexicanaTournament({
               <Button variant="outlined" fullWidth onClick={() => setActiveTournamentId("")}>
                 Tillbaka
               </Button>
-              <Button
-                variant="contained"
-                fullWidth
-                startIcon={<ShareIcon />}
-                onClick={() => setShareOpen(true)}
-              >
-                Dela resultat
-              </Button>
+              <Tooltip title={canShareResults ? "" : "Spara resultat först"} disableHoverListener={canShareResults}>
+                <span>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<ShareIcon />}
+                    onClick={handleShareResults}
+                    disabled={!canShareResults}
+                  >
+                    Dela resultat
+                  </Button>
+                </span>
+              </Tooltip>
             </Stack>
-          </CardContent>
-        </Card>
-      )}
+      </CardContent>
+    </Card>
+  ) : (
+    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <CardContent>
+        {/* Note for non-coders: results show up once a tournament is marked as completed. */}
+        <Typography variant="body2" color="text.secondary">
+          Slutför en turnering för att se resultat här.
+        </Typography>
+      </CardContent>
+    </Card>
+  );
 
       {activeTournament && (
         <TheShareable
@@ -1050,63 +1207,131 @@ export default function MexicanaTournament({
         />
       )}
 
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Historik</Typography>
-            {tournaments.length === 0 ? (
-              <EmptyState
-                title="Inga turneringar ännu"
-                description="Starta en ny Americano eller Mexicana för att samla gänget!"
-                icon={<TrophyIcon sx={{ fontSize: 48 }} />}
-              />
-            ) : (
-              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
-                <Table size="small">
-                  <TableHead sx={{ bgcolor: 'grey.50' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700 }}>Turnering</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Typ</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Datum</TableCell>
-                      <TableCell align="right"></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {tournaments.map(t => (
-                      <TableRow key={t.id} hover>
-                        <TableCell sx={{ fontWeight: 600 }}>{t.name}</TableCell>
-                        <TableCell sx={{ textTransform: 'capitalize' }}>{t.tournament_type}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={getTournamentStatusLabel(t.status)}
-                            size="small"
-                            color={t.status === 'completed' ? 'success' : 'default'}
-                            sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                          />
-                        </TableCell>
-                        <TableCell>{formatDate(t.scheduled_at)}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => deleteTournament(t)}
-                              aria-label={`Radera turneringen ${t.name}`}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-        </CardContent>
-      </Card>
-      </>
+  const historySection = (
+    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <CardContent>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Historik</Typography>
+        {tournaments.length === 0 ? (
+          <EmptyState
+            title="Inga turneringar ännu"
+            description="Starta en ny Americano eller Mexicana för att samla gänget!"
+            icon={<TrophyIcon sx={{ fontSize: 48 }} />}
+          />
+        ) : (
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: 'auto' }}>
+            <Table size="small" sx={{ minWidth: isMobile ? 520 : 700 }}>
+              <TableHead sx={{ bgcolor: 'grey.50' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>Turnering</TableCell>
+                  <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }}>Typ</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }}>Datum</TableCell>
+                  <TableCell align="right"></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {tournaments.map(t => (
+                  <TableRow key={t.id} hover>
+                    <TableCell sx={{ fontWeight: 600 }}>{t.name}</TableCell>
+                    <TableCell sx={{ textTransform: 'capitalize', display: { xs: 'none', sm: 'table-cell' } }}>{t.tournament_type}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={getTournamentStatusLabel(t.status)}
+                        size="small"
+                        color={t.status === 'completed' ? 'success' : 'default'}
+                        sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{formatDate(t.scheduled_at)}</TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button size="small" variant="outlined" onClick={() => setActiveTournamentId(t.id)}>Visa</Button>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => deleteTournament(t)}
+                          aria-label={`Radera turneringen ${t.name}`}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Turnering</Typography>
+        </Box>
+        {activeTournament && (
+          <Chip
+            label={getTournamentStatusLabel(activeTournament.status)}
+            color={
+              activeTournament.status === 'completed' ? 'success' :
+              activeTournament.status === 'in_progress' ? 'primary' :
+              'default'
+            }
+            sx={{ fontWeight: 700 }}
+          />
+        )}
+      </Box>
+
+      {(isTournamentListError || isTournamentDetailsError) && (
+        <AppAlert severity="error">
+          {tournamentErrorMessage}
+        </AppAlert>
+      )}
+
+      {isLoading ? (
+        <Stack spacing={2}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+            </Grid>
+          </Grid>
+          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 3 }} />
+        </Stack>
+      ) : (
+        <>
+          <Tabs
+            value={activeSection}
+            onChange={(_, value) => setActiveSection(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{
+              bgcolor: 'background.paper',
+              borderRadius: '12px',
+              px: 1,
+              border: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <Tab value="create" label="Skapa" />
+            <Tab value="run" label="Spela" />
+            <Tab value="live" label="Live view" />
+            <Tab value="results" label="Resultat" />
+            <Tab value="history" label="Historik" />
+          </Tabs>
+
+          {activeSection === "create" && createSection}
+          {activeSection === "run" && runSection}
+          {activeSection === "live" && liveSection}
+          {activeSection === "results" && resultsSection}
+          {activeSection === "history" && historySection}
+        </>
       )}
     </Box>
   );

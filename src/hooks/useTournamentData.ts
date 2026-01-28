@@ -1,18 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
-import { tournamentService } from "../services/tournamentService";
+import { padelData } from "../data/padelData";
 
 export function useTournaments() {
   return useQuery({
     queryKey: queryKeys.tournaments(),
-    queryFn: () => tournamentService.getTournaments(),
+    queryFn: () => padelData.tournaments.list(),
   });
 }
 
 export function useTournamentDetails(tournamentId: string) {
   return useQuery({
     queryKey: queryKeys.tournamentDetails(tournamentId),
-    queryFn: () => tournamentService.getTournamentDetails(tournamentId),
+    queryFn: () => padelData.tournaments.details(tournamentId),
     enabled: !!tournamentId,
   });
 }
@@ -20,6 +20,6 @@ export function useTournamentDetails(tournamentId: string) {
 export function useTournamentResults() {
   return useQuery({
     queryKey: queryKeys.tournamentResultsHistory(),
-    queryFn: () => tournamentService.getTournamentResults(),
+    queryFn: () => padelData.tournaments.results(),
   });
 }
