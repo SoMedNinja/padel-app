@@ -13,11 +13,13 @@ import {
   Paper,
   ButtonBase,
   Avatar,
+  CircularProgress,
 } from "@mui/material";
 import {
   Add as AddIcon,
   PlayArrow as StartIcon,
   CheckCircle as CompleteIcon,
+  Save as SaveIcon,
 } from "@mui/icons-material";
 import { GUEST_ID, GUEST_NAME } from "../../utils/guest";
 import { getProfileDisplayName, getTournamentStatusLabel } from "../../utils/profileMap";
@@ -135,13 +137,18 @@ export default function TournamentConfig({
         </Box>
         {activeTournament.status === "draft" && (
           <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={saveRoster} disabled={isSaving}>
+            <Button
+              variant="contained"
+              onClick={saveRoster}
+              disabled={isSaving}
+              startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            >
               Spara roster
             </Button>
             {participants.length >= 4 && (
               <Button
                 variant="outlined"
-                startIcon={<StartIcon />}
+                startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <StartIcon />}
                 onClick={startTournament}
                 disabled={isSaving}
               >
@@ -256,7 +263,12 @@ export default function TournamentConfig({
                     ))}
                   </TextField>
 
-                  <Button type="submit" variant="contained" disabled={isSaving}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    disabled={isSaving}
+                    startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
+                  >
                     Skapa turnering
                   </Button>
                 </Stack>
