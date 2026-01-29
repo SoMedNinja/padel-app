@@ -12,7 +12,7 @@ import {
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import { Match, Profile, PlayerStats } from "../types";
 import { matchService } from "../services/matchService";
-import { getEloExplanation, getMatchWeight } from "../utils/elo";
+import { getEloExplanation, getSinglesAdjustedMatchWeight } from "../utils/elo";
 import { InfoOutlined as InfoIcon } from "@mui/icons-material";
 import {
   Box,
@@ -302,7 +302,10 @@ export default function History({
           .slice(0, 2);
 
           const is1v1 = isActually1v1 || (teamAEntries.length === 1 && teamBEntries.length === 1);
-          const matchWeight = getMatchWeight(m);
+          const activeTeamCount = (ids: (string | null)[]) =>
+            ids.filter(id => id && id !== GUEST_ID).length;
+          const isSinglesMatch = activeTeamCount(t1Ids) === 1 && activeTeamCount(t2Ids) === 1;
+          const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
 
           const getAvg = (ids: (string | null)[]) => {
             const active = ids.filter(id => id && id !== GUEST_ID);

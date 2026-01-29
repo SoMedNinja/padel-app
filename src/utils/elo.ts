@@ -22,6 +22,8 @@ const MID_POINTS_MAX = 21;
 const SHORT_MATCH_WEIGHT = 0.5;
 const MID_MATCH_WEIGHT = 0.5;
 const LONG_MATCH_WEIGHT = 1;
+// Note for non-coders: 1v1 matches count a bit less because one player's form swings the result more.
+const SINGLES_MATCH_WEIGHT = 0.5;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -66,6 +68,10 @@ export const getMatchWeight = (match: Match) => {
     return LONG_MATCH_WEIGHT;
   }
   return MID_MATCH_WEIGHT;
+};
+
+export const getSinglesAdjustedMatchWeight = (match: Match, isSinglesMatch: boolean) => {
+  return getMatchWeight(match) * (isSinglesMatch ? SINGLES_MATCH_WEIGHT : 1);
 };
 
 export { ELO_BASELINE };
@@ -231,7 +237,8 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     const exp1 = getExpectedScore(e1, e2);
     const team1Won = m.team1_sets > m.team2_sets;
     const marginMultiplier = getMarginMultiplier(m.team1_sets, m.team2_sets);
-    const matchWeight = getMatchWeight(m);
+    const isSinglesMatch = t1Active.length === 1 && t2Active.length === 1;
+    const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
 
     const matchDeltas: Record<string, number> = {};
     const matchRatings: Record<string, number> = {};

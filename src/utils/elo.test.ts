@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateElo,
+  calculateEloWithStats,
   getExpectedScore,
   getKFactor,
   getMarginMultiplier,
@@ -139,6 +140,46 @@ describe("ELO Logic", () => {
 
     // Total ELO should be preserved (roughly, due to rounding)
     expect(Math.round(p1!.elo + p2!.elo)).toBe(2000);
+  });
+
+  it("should give smaller deltas for 1v1 than 2v2 when everything else matches", () => {
+    const oneVsOneProfiles: any[] = [
+      { id: "p1", name: "Player 1" },
+      { id: "p2", name: "Player 2" },
+    ];
+    const oneVsOneMatches: any[] = [
+      {
+        id: "m1",
+        created_at: new Date().toISOString(),
+        team1_ids: ["p1"],
+        team2_ids: ["p2"],
+        team1_sets: 2,
+        team2_sets: 0,
+      }
+    ];
+    const oneVsOne = calculateEloWithStats(oneVsOneMatches, oneVsOneProfiles);
+    const oneVsOneDelta = Math.abs(oneVsOne.eloDeltaByMatch.m1.p1);
+
+    const twoVsTwoProfiles: any[] = [
+      { id: "p1", name: "Player 1" },
+      { id: "p2", name: "Player 2" },
+      { id: "p3", name: "Player 3" },
+      { id: "p4", name: "Player 4" },
+    ];
+    const twoVsTwoMatches: any[] = [
+      {
+        id: "m2",
+        created_at: new Date().toISOString(),
+        team1_ids: ["p1", "p2"],
+        team2_ids: ["p3", "p4"],
+        team1_sets: 2,
+        team2_sets: 0,
+      }
+    ];
+    const twoVsTwo = calculateEloWithStats(twoVsTwoMatches, twoVsTwoProfiles);
+    const twoVsTwoDelta = Math.abs(twoVsTwo.eloDeltaByMatch.m2.p1);
+
+    expect(oneVsOneDelta).toBeLessThan(twoVsTwoDelta);
   });
 
   it("should handle ties correctly (no ELO change if possible)", () => {
