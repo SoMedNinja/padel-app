@@ -18,6 +18,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import {
   ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon,
   Close as CloseIcon,
   Groups as GroupsIcon,
   Scoreboard as ScoreboardIcon,
@@ -674,9 +675,11 @@ export default function MatchForm({
           <Box sx={{ display: "flex", alignItems: "center", mb: 2, justifyContent: "space-between" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {step > 0 && (
-                <IconButton onClick={() => setStep(step === 10 ? 0 : prev => prev - 1)} size="small" aria-label="Gå tillbaka">
-                  <ArrowBackIcon />
-                </IconButton>
+                <Tooltip title="Gå tillbaka" arrow>
+                  <IconButton onClick={() => setStep(step === 10 ? 0 : prev => prev - 1)} size="small" aria-label="Gå tillbaka">
+                    <ArrowBackIcon />
+                  </IconButton>
+                </Tooltip>
               )}
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 {step === 0 && (mode === "1v1" ? "Välj Spelare A" : "Välj Lag A")}
@@ -703,9 +706,11 @@ export default function MatchForm({
               </>
             )}
             {step > 0 && (
-              <IconButton onClick={resetWizard} size="small" color="error" aria-label="Stäng och rensa">
-                <CloseIcon />
-              </IconButton>
+              <Tooltip title="Stäng och rensa matchen" arrow>
+                <IconButton onClick={resetWizard} size="small" color="error" aria-label="Stäng och rensa">
+                  <CloseIcon />
+                </IconButton>
+              </Tooltip>
             )}
           </Box>
 
@@ -734,6 +739,7 @@ export default function MatchForm({
                     variant="contained"
                     fullWidth
                     onClick={() => setStep(1)}
+                    endIcon={<ArrowForwardIcon />}
                     sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
                   >
                     Nästa (Välj Lag B)
@@ -763,6 +769,7 @@ export default function MatchForm({
                     variant="contained"
                     fullWidth
                     onClick={() => setStep(2)}
+                    endIcon={<ArrowForwardIcon />}
                     sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
                   >
                     Nästa (Ange resultat)
@@ -819,6 +826,7 @@ export default function MatchForm({
                   size="large"
                   disabled={a === "" || b === ""}
                   onClick={() => setStep(3)}
+                  endIcon={<ArrowForwardIcon />}
                   sx={{ mt: 2, height: 56, fontSize: "1.1rem" }}
                 >
                   Fortsätt
