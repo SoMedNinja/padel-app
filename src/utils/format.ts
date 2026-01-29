@@ -3,6 +3,19 @@
  * Ensures consistent Swedish formatting for dates, scores, and other values.
  */
 
+// Optimization: Cache Intl.DateTimeFormat instances to avoid expensive re-creation
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+const getFormatter = (options: Intl.DateTimeFormatOptions) => {
+  const key = JSON.stringify(options);
+  let formatter = formatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("sv-SE", options);
+    formatterCache.set(key, formatter);
+  }
+  return formatter;
+};
+
 /**
  * Formats a date string or Date object to a readable Swedish format.
  * Example: "måndag 12 maj 2024" or "12 maj"
@@ -18,7 +31,7 @@ export const formatDate = (
   if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("sv-SE", options).format(d);
+  return getFormatter(options).format(d);
 };
 
 /**

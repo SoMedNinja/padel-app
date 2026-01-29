@@ -70,24 +70,34 @@ export const calculateWinPct = (wins: number, losses: number) =>
   wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
 
 export const getStreak = (recentResults: ("W" | "L")[]) => {
-  if (!recentResults.length) return "—";
-  const reversed = [...recentResults].reverse();
-  const first = reversed[0];
+  const len = recentResults.length;
+  if (len === 0) return "—";
+
+  // Optimization: use a reverse loop to avoid creating a new reversed array
+  const lastResult = recentResults[len - 1];
   let count = 0;
-  for (const result of reversed) {
-    if (result !== first) break;
-    count += 1;
+  for (let i = len - 1; i >= 0; i--) {
+    if (recentResults[i] !== lastResult) break;
+    count++;
   }
-  return `${first}${count}`;
+
+  // Swedish mapping for display if needed elsewhere,
+  // but keeping internal "W"/"L" for consistency with history.
+  return `${lastResult}${count}`;
 };
 
 export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
-  const last5 = recentResults.slice(-5);
-  if (last5.length < 3) return "—";
-  const wins = last5.filter(r => r === "W").length;
-  const total = last5.length || 1;
-  const winRate = wins / total;
+  const len = recentResults.length;
+  if (len < 3) return "—";
 
+  // Optimization: avoid slice() and filter() by using a simple loop over the last 5
+  const count = Math.min(len, 5);
+  let wins = 0;
+  for (let i = len - 1; i >= len - count; i--) {
+    if (recentResults[i] === "W") wins++;
+  }
+
+  const winRate = wins / count;
   if (winRate >= 0.8) return "⬆️";
   if (winRate <= 0.2) return "⬇️";
   return "➖";
