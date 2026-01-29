@@ -282,6 +282,9 @@ export default function History({
           const t1Names = resolveTeamNames(m.team1_ids, m.team1, profileMap);
           const t2Names = resolveTeamNames(m.team2_ids, m.team2, profileMap);
 
+          const tournamentType = m.source_tournament_type || "standalone";
+          const isActually1v1 = tournamentType === "standalone_1v1";
+
           const teamAEntries = t1Ids.map((id, index) => ({
             id,
             name: t1Names[index] || getIdDisplayName(id, profileMap),
@@ -316,8 +319,6 @@ export default function History({
           const avgA = getAvg(t1Ids);
           const avgB = getAvg(t2Ids);
 
-          const tournamentType = m.source_tournament_type || "standalone";
-          const isActually1v1 = tournamentType === "standalone_1v1";
           const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "standalone_1v1" ? "Match 1v1" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
 
           return (

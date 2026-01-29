@@ -51,7 +51,7 @@ const MOCK_MATCHES: Match[] = [
   },
 ];
 
-export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreviewProps) {
+export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPreviewProps) {
   const { matches = [], profiles = [], isLoading } = usePadelData();
   const [useMock, setUseMock] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
