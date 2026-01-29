@@ -32,9 +32,10 @@ const winPct = (wins: number, losses: number) =>
 interface EloLeaderboardProps {
   players?: PlayerStats[];
   matches?: Match[];
+  isFiltered?: boolean;
 }
 
-export default function EloLeaderboard({ players = [], matches = [] }: EloLeaderboardProps) {
+export default function EloLeaderboard({ players = [], matches = [], isFiltered = false }: EloLeaderboardProps) {
   const { user } = useStore();
   const [sortKey, setSortKey] = useState<string>("elo");
   const [asc, setAsc] = useState<boolean>(false);
@@ -50,6 +51,18 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
         losses: 0,
         games: 0,
         recentResults: [],
+        streak: "—",
+        trend: "—",
+      }));
+    }
+
+    // Optimization: If NOT filtered (showing all matches), we can skip the O(P * H) loop
+    // as player.wins/losses/recentResults already contain the correct all-time stats.
+    if (!isFiltered) {
+      return players.map(player => ({
+        ...player,
+        streak: getStreak(player.recentResults).replace("W", "V").replace("L", "F"),
+        trend: getTrendIndicator(player.recentResults),
       }));
     }
 
@@ -90,7 +103,7 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
         trend,
       };
     });
-  }, [matches, players]);
+  }, [matches, players, isFiltered]);
 
   const hasUnknownPlayers = useMemo(() => mergedPlayers.some(player => !player.name || player.name === "Okänd"), [mergedPlayers]);
   const showLoadingOverlay = !mergedPlayers.length || hasUnknownPlayers;

@@ -37,3 +37,7 @@
 ## 2024-05-21 - [Avoiding Array Cloning in Hot Paths]
 **Learning:** Common patterns like `[...arr].reverse().find()` or `arr.slice(-5).filter()` create intermediate array allocations that add up in virtualized lists or data-heavy views.
 **Action:** Use single-pass loops (especially reverse loops for tail-end data) to achieve O(N) complexity with zero extra allocations. Move these calculations into memoized data-processing blocks rather than calling them directly in the render path.
+
+## 2024-05-21 - [Leveraging Pre-aggregated Data in Sub-components]
+**Learning:** Re-calculating complex statistics (like wins, losses, or ELO averages) inside sub-components when the parent has already computed them for the same dataset results in redundant O(P * M) work.
+**Action:** Use an `isFiltered` or similar flag to let sub-components know when they can bypass expensive re-calculation logic and directly use the pre-aggregated data passed through props.

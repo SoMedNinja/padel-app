@@ -286,6 +286,7 @@ export default function History({
           const matchRatings = eloRatingByMatch[m.id] || {};
 
           // Optimization: Pre-calculate team data once per match instead of per-player
+          // We consolidate ID and name resolution to avoid redundant function calls and array iterations.
           const t1Ids = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
           const t2Ids = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
           const t1Names = resolveTeamNames(m.team1_ids, m.team1, profileMap);
@@ -298,38 +299,42 @@ export default function History({
             id,
             name: t1Names[index] || getIdDisplayName(id, profileMap),
           }))
-          .filter(entry => entry.name !== "Okänd")
-          .filter((_, idx) => !isActually1v1 || idx === 0)
+          .filter((entry, idx) => entry.name !== "Okänd" && (!isActually1v1 || idx === 0))
           .slice(0, 2);
 
           const teamBEntries = t2Ids.map((id, index) => ({
             id,
             name: t2Names[index] || getIdDisplayName(id, profileMap),
           }))
-          .filter(entry => entry.name !== "Okänd")
-          .filter((_, idx) => !isActually1v1 || idx === 0)
+          .filter((entry, idx) => entry.name !== "Okänd" && (!isActually1v1 || idx === 0))
           .slice(0, 2);
 
           const is1v1 = isActually1v1 || (teamAEntries.length === 1 && teamBEntries.length === 1);
-          const activeTeamCount = (ids: (string | null)[]) =>
-            ids.filter(id => id && id !== GUEST_ID).length;
-          const isSinglesMatch = activeTeamCount(t1Ids) === 1 && activeTeamCount(t2Ids) === 1;
-          const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
 
-          const getAvg = (ids: (string | null)[]) => {
-            const active = ids.filter(id => id && id !== GUEST_ID);
-            if (!active.length) return 1000;
-            let sum = 0;
-            for (const id of active) {
-              const playerElo = matchRatings[id!] || 1000;
-              const playerDelta = matchDeltas[id!] || 0;
-              sum += (playerElo - playerDelta);
+          // Optimization: Use a more efficient single-pass calculation for ELO averages and match weight.
+          let activeT1Count = 0;
+          let sumA = 0;
+          for (const id of t1Ids) {
+            if (id && id !== GUEST_ID) {
+              activeT1Count++;
+              sumA += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
             }
-            return sum / active.length;
-          };
+          }
 
-          const avgA = getAvg(t1Ids);
-          const avgB = getAvg(t2Ids);
+          let activeT2Count = 0;
+          let sumB = 0;
+          for (const id of t2Ids) {
+            if (id && id !== GUEST_ID) {
+              activeT2Count++;
+              sumB += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
+            }
+          }
+
+          const avgA = activeT1Count > 0 ? sumA / activeT1Count : 1000;
+          const avgB = activeT2Count > 0 ? sumB / activeT2Count : 1000;
+
+          const isSinglesMatch = activeT1Count === 1 && activeT2Count === 1;
+          const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
 
           // This label is the badge text shown in history so non-coders can see the match format at a glance.
           const typeLabel = tournamentType === "standalone"
