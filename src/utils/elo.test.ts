@@ -112,6 +112,35 @@ describe("ELO Logic", () => {
     expect(p1!.elo).toBeGreaterThan(1000);
   });
 
+  it("should calculate correct ELO for 1v1 matches", () => {
+    const profiles: any[] = [
+      { id: "p1", name: "Player 1" },
+      { id: "p2", name: "Player 2" },
+    ];
+    const matches: any[] = [
+      {
+        id: "m1",
+        created_at: new Date().toISOString(),
+        team1_ids: ["p1"],
+        team2_ids: ["p2"],
+        team1_sets: 2,
+        team2_sets: 0,
+      }
+    ];
+
+    const results = calculateElo(matches, profiles);
+    const p1 = results.find(r => r.id === "p1");
+    const p2 = results.find(r => r.id === "p2");
+
+    expect(p1!.elo).toBeGreaterThan(1000);
+    expect(p2!.elo).toBeLessThan(1000);
+    expect(p1!.wins).toBe(1);
+    expect(p2!.losses).toBe(1);
+
+    // Total ELO should be preserved (roughly, due to rounding)
+    expect(Math.round(p1!.elo + p2!.elo)).toBe(2000);
+  });
+
   it("should handle ties correctly (no ELO change if possible)", () => {
     // Note: currently calculateElo uses team1Won = s1 > s2.
     // If s1 === s2, team1Won is false.

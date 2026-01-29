@@ -199,8 +199,9 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
 };
 
 const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: Match; highlight: MatchHighlight; variant?: number; deltas?: Record<string, number> }) => {
-  const team1Names = Array.isArray(match?.team1) ? match.team1 : [match?.team1 || 'Lag A'];
-  const team2Names = Array.isArray(match?.team2) ? match.team2 : [match?.team2 || 'Lag B'];
+  const team1Names = (Array.isArray(match?.team1) ? match.team1 : [match?.team1 || 'Lag A']).filter(Boolean);
+  const team2Names = (Array.isArray(match?.team2) ? match.team2 : [match?.team2 || 'Lag B']).filter(Boolean);
+  const is1v1 = match?.source_tournament_type === "standalone_1v1" || (team1Names.length === 1 && team2Names.length === 1);
 
   const themes = [
     { bg: 'linear-gradient(180deg, #1a237e 0%, #0d47a1 100%)', color: 'white', accent: '#ffca28', font: 'Inter' }, // Classic Blue
@@ -396,7 +397,7 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
             </Typography>
           </Box>
           <Box sx={{ flex: 1, bgcolor: 'rgba(255,255,255,0.12)', p: 4, borderRadius: 4 }}>
-            <Typography variant="h5" sx={{ fontWeight: 800, mb: 2, textTransform: 'uppercase' }}>Lag</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 2, textTransform: 'uppercase' }}>{is1v1 ? 'Spelare' : 'Lag'}</Typography>
             <Stack spacing={2}>
               <Box>
                 {team1Names.map((name, i) => (
@@ -489,6 +490,8 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
 };
 
 const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number }) => {
+  // Recap data players should already be filtered in MatchForm.tsx createRecap
+  const is1v1 = data?.teamA?.players?.length === 1 && data?.teamB?.players?.length === 1;
   const themes = [
     { bg: 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)', color: 'white', accent: '#00d2ff', font: 'Inter' }, // Classic
     { bg: '#fdfdfd', color: '#1a1a1a', accent: '#d32f2f', font: 'Inter', border: '2px solid #eee' }, // Stats Clean
@@ -533,11 +536,11 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
 
              <Stack direction="row" spacing={8} sx={{ mb: 4 }}>
                 <Box>
-                  <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>Lag A</Typography>
+                  <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>{is1v1 ? 'Spelare A' : 'Lag A'}</Typography>
                   {data?.teamA?.players?.map((p: any, i: number) => <Typography key={p?.id || i} variant="h3" sx={{ fontWeight: 800 }}>{p?.name || '—'}</Typography>)}
                 </Box>
                 <Box>
-                  <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>Lag B</Typography>
+                  <Typography variant="h5" sx={{ opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>{is1v1 ? 'Spelare B' : 'Lag B'}</Typography>
                   {data?.teamB?.players?.map((p: any, i: number) => <Typography key={p?.id || i} variant="h3" sx={{ fontWeight: 800 }}>{p?.name || '—'}</Typography>)}
                 </Box>
              </Stack>
@@ -560,7 +563,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
                   <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.fairness ?? 0}%</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="h6" sx={{ opacity: 0.6 }}>Vinstchans Lag A</Typography>
+                  <Typography variant="h6" sx={{ opacity: 0.6 }}>{is1v1 ? 'Vinstchans A' : 'Vinstchans Lag A'}</Typography>
                   <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round((data?.winProbability ?? 0) * 100)}%</Typography>
                 </Box>
                 <Box>
@@ -582,7 +585,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
             </Typography>
             <Grid container spacing={3} sx={{ width: '100%' }}>
               <Grid size={{ xs: 6 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag A</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>{is1v1 ? 'Spelare A' : 'Lag A'}</Typography>
                 {data?.teamA?.players?.map((p: any, i: number) => (
                   <Box key={p?.id || i} sx={{ mb: 1 }}>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
@@ -593,7 +596,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
                 ))}
               </Grid>
               <Grid size={{ xs: 6 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag B</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>{is1v1 ? 'Spelare B' : 'Lag B'}</Typography>
                 {data?.teamB?.players?.map((p: any, i: number) => (
                   <Box key={p?.id || i} sx={{ mb: 1 }}>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
@@ -620,13 +623,13 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
           </Box>
           <Grid container spacing={4} sx={{ width: '100%' }}>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag A</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>{is1v1 ? 'Spelare A' : 'Lag A'}</Typography>
               {data?.teamA?.players?.map((p: any, i: number) => (
                 <Typography key={p?.id || i} variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
               ))}
             </Grid>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>Lag B</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800, opacity: 0.7, textTransform: 'uppercase' }}>{is1v1 ? 'Spelare B' : 'Lag B'}</Typography>
               {data?.teamB?.players?.map((p: any, i: number) => (
                 <Typography key={p?.id || i} variant="h4" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
               ))}
@@ -638,7 +641,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
               <Typography variant="h4" sx={{ fontWeight: 900 }}>{data?.fairness ?? 0}%</Typography>
             </Box>
             <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 2, borderRadius: 2, flex: 1 }}>
-              <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Vinstchans Lag A</Typography>
+              <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>{is1v1 ? 'Vinstchans A' : 'Vinstchans Lag A'}</Typography>
               <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round((data?.winProbability ?? 0) * 100)}%</Typography>
             </Box>
           </Stack>
@@ -668,7 +671,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
             </Stack>
           </Box>
           <Box sx={{ flex: 1, bgcolor: 'rgba(255,255,255,0.12)', p: 4, borderRadius: 4 }}>
-            <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2 }}>Lag</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 2 }}>{is1v1 ? 'Spelare' : 'Lag'}</Typography>
             <Stack spacing={2}>
               <Box>
                 {data?.teamA?.players?.map((p: any, i: number) => (
@@ -697,7 +700,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
 
           <Grid container spacing={4} sx={{ width: '100%' }}>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag A</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>{is1v1 ? 'Spelare A' : 'Lag A'}</Typography>
               {data?.teamA?.players?.map((p: any, i: number) => (
                 <Box key={p?.id || i} sx={{ mb: 2 }}>
                   <Typography variant="h3" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
@@ -711,7 +714,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
               ))}
             </Grid>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>Lag B</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800, opacity: 0.7, mb: 2, textTransform: 'uppercase' }}>{is1v1 ? 'Spelare B' : 'Lag B'}</Typography>
               {data?.teamB?.players?.map((p: any, i: number) => (
                 <Box key={p?.id || i} sx={{ mb: 2 }}>
                   <Typography variant="h3" sx={{ fontWeight: 700 }}>{p?.name || '—'}</Typography>
@@ -744,7 +747,7 @@ const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number
               flex: 1,
               border: isDetailed ? `2px solid ${theme?.accent || 'transparent'}` : 'none'
             }}>
-               <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>Vinstchans Lag A</Typography>
+               <Typography variant="h6" sx={{ opacity: 0.6, fontWeight: 800, textTransform: 'uppercase' }}>{is1v1 ? 'Vinstchans A' : 'Vinstchans Lag A'}</Typography>
                <Typography variant="h4" sx={{ fontWeight: 900 }}>{Math.round((data?.winProbability ?? 0) * 100)}%</Typography>
             </Box>
             {isDetailed && (

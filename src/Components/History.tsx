@@ -89,7 +89,11 @@ export default function History({
       id: profile.id,
       name: getProfileDisplayName(profile),
     }));
-    return [{ id: GUEST_ID, name: GUEST_NAME }, ...options];
+    return [
+      { id: "", name: "Ingen (1v1)" },
+      { id: GUEST_ID, name: GUEST_NAME },
+      ...options
+    ];
   }, [profiles]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -168,8 +172,9 @@ export default function History({
       return;
     }
 
-    if (edit.team1_ids.some(id => !id) || edit.team2_ids.some(id => !id)) {
-      toast.error("Välj spelare för alla positioner.");
+    // Ensure at least one player per team is selected
+    if (!edit.team1_ids[0] || !edit.team2_ids[0]) {
+      toast.error("Välj minst en spelare per lag.");
       return;
     }
 
@@ -178,16 +183,26 @@ export default function History({
       return;
     }
 
-    const team1IdsForDb = edit.team1_ids.map(id => (id === GUEST_ID ? null : id));
-    const team2IdsForDb = edit.team2_ids.map(id => (id === GUEST_ID ? null : id));
+    const is1v1Match = !edit.team1_ids[1] && !edit.team2_ids[1];
+    const team1IdsForDb = edit.team1_ids.map(id => (id === GUEST_ID ? null : id || null));
+    const team2IdsForDb = edit.team2_ids.map(id => (id === GUEST_ID ? null : id || null));
+
+    const team1Names = idsToNames(edit.team1_ids as string[], profileMap);
+    const team2Names = idsToNames(edit.team2_ids as string[], profileMap);
+
+    if (is1v1Match) {
+      team1Names.push("");
+      team2Names.push("");
+    }
 
     try {
       await matchService.updateMatch(matchId, {
         created_at: new Date(edit.created_at).toISOString(),
-        team1: idsToNames(edit.team1_ids as string[], profileMap),
-        team2: idsToNames(edit.team2_ids as string[], profileMap),
+        team1: team1Names,
+        team2: team2Names,
         team1_ids: team1IdsForDb,
         team2_ids: team2IdsForDb,
+        source_tournament_type: is1v1Match ? "standalone_1v1" : "standalone",
         team1_sets: Number(edit.team1_sets),
         team2_sets: Number(edit.team2_sets),
         score_type: edit.score_type || "sets",
@@ -267,16 +282,26 @@ export default function History({
           const t1Names = resolveTeamNames(m.team1_ids, m.team1, profileMap);
           const t2Names = resolveTeamNames(m.team2_ids, m.team2, profileMap);
 
+          const tournamentType = m.source_tournament_type || "standalone";
+          const isActually1v1 = tournamentType === "standalone_1v1";
+
           const teamAEntries = t1Ids.map((id, index) => ({
             id,
             name: t1Names[index] || getIdDisplayName(id, profileMap),
-          })).filter(entry => entry.name !== "Okänd").slice(0, 2);
+          }))
+          .filter(entry => entry.name !== "Okänd")
+          .filter((_, idx) => !isActually1v1 || idx === 0)
+          .slice(0, 2);
 
           const teamBEntries = t2Ids.map((id, index) => ({
             id,
             name: t2Names[index] || getIdDisplayName(id, profileMap),
-          })).filter(entry => entry.name !== "Okänd").slice(0, 2);
+          }))
+          .filter(entry => entry.name !== "Okänd")
+          .filter((_, idx) => !isActually1v1 || idx === 0)
+          .slice(0, 2);
 
+          const is1v1 = isActually1v1 || (teamAEntries.length === 1 && teamBEntries.length === 1);
           const matchWeight = getMatchWeight(m);
 
           const getAvg = (ids: (string | null)[]) => {
@@ -294,8 +319,7 @@ export default function History({
           const avgA = getAvg(t1Ids);
           const avgB = getAvg(t2Ids);
 
-          const tournamentType = m.source_tournament_type || "standalone";
-          const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
+          const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "standalone_1v1" ? "Match 1v1" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
 
           return (
             <Card key={m.id} variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
@@ -384,7 +408,7 @@ export default function History({
                   </Grid>
 
                   <Grid size={{ xs: 12, sm: 4 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag A</Typography>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare A" : "Lag A"}</Typography>
                     {isEditing ? (
                       <Stack spacing={1} sx={{ mt: 1 }}>
                         {edit?.team1_ids.map((value, index) => (
@@ -453,7 +477,7 @@ export default function History({
                   </Grid>
 
                   <Grid size={{ xs: 12, sm: 4 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Lag B</Typography>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare B" : "Lag B"}</Typography>
                     {isEditing ? (
                       <Stack spacing={1} sx={{ mt: 1 }}>
                         {edit?.team2_ids.map((value, index) => (

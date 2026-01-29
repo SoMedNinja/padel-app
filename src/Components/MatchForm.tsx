@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { matchService } from "../services/matchService";
 import {
@@ -69,6 +69,7 @@ interface MatchFormProps {
   profiles: Profile[];
   matches: Match[];
   eloPlayers: PlayerStats[];
+  mode?: "1v1" | "2v2";
 }
 
 export default function MatchForm({
@@ -76,10 +77,18 @@ export default function MatchForm({
   profiles = [],
   matches = [],
   eloPlayers = [],
+  mode = "2v2",
 }: MatchFormProps) {
+  const teamSize = mode === "1v1" ? 1 : 2;
   const [step, setStep] = useState(0); // 0: Start/TeamA, 1: TeamB, 2: Score, 3: Review, 10: Pool Selection (Matchmaker)
-  const [team1, setTeam1] = useState<string[]>(["", ""]);
-  const [team2, setTeam2] = useState<string[]>(["", ""]);
+  const [team1, setTeam1] = useState<string[]>(Array(teamSize).fill(""));
+  const [team2, setTeam2] = useState<string[]>(Array(teamSize).fill(""));
+
+  useEffect(() => {
+    setTeam1(Array(teamSize).fill(""));
+    setTeam2(Array(teamSize).fill(""));
+    setStep(0);
+  }, [mode, teamSize]);
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [pool, setPool] = useState<string[]>([]);
@@ -120,8 +129,8 @@ export default function MatchForm({
     const hasProgress = team1.some(id => id !== "") || team2.some(id => id !== "") || pool.length > 0;
     if (!silent && hasProgress && !window.confirm("Är du säker på att du vill rensa matchen och börja om?")) return;
     setStep(0);
-    setTeam1(["", ""]);
-    setTeam2(["", ""]);
+    setTeam1(Array(teamSize).fill(""));
+    setTeam2(Array(teamSize).fill(""));
     setA("");
     setB("");
     setPool([]);
@@ -166,7 +175,7 @@ export default function MatchForm({
       setTeam(newTeam);
 
       // Auto-advance if team is full
-      if (emptyIndex === 1) {
+      if (emptyIndex === teamSize - 1) {
         setStep(prev => (prev === 10 ? 2 : prev + 1));
       }
     }
@@ -381,12 +390,23 @@ export default function MatchForm({
 
     const team1IdsForDb = team1.map(id => (id === GUEST_ID ? null : id));
     const team2IdsForDb = team2.map(id => (id === GUEST_ID ? null : id));
+    const team1Names = idsToNames(team1, profileMap);
+    const team2Names = idsToNames(team2, profileMap);
+
+    // Database constraint 'matches_team_arrays_length' requires exactly 2 elements.
+    // For 1v1, we pad IDs with null and names with empty string.
+    if (mode === "1v1") {
+      team1IdsForDb.push(null);
+      team2IdsForDb.push(null);
+      team1Names.push("");
+      team2Names.push("");
+    }
 
     setIsSubmitting(true);
     try {
       await matchService.createMatch({
-        team1: idsToNames(team1, profileMap),
-        team2: idsToNames(team2, profileMap),
+        team1: team1Names,
+        team2: team2Names,
         team1_ids: team1IdsForDb,
         team2_ids: team2IdsForDb,
         team1_sets: scoreA,
@@ -394,7 +414,7 @@ export default function MatchForm({
         score_type: "sets",
         score_target: null,
         source_tournament_id: null,
-        source_tournament_type: "standalone",
+        source_tournament_type: mode === "1v1" ? "standalone_1v1" : "standalone",
         team1_serves_first: true,
         created_by: user.id,
       });
@@ -406,8 +426,8 @@ export default function MatchForm({
 
     const newMatch: Match = {
       id: "temp",
-      team1: idsToNames(team1, profileMap),
-      team2: idsToNames(team2, profileMap),
+      team1: team1Names,
+      team2: team2Names,
       team1_ids: team1IdsForDb,
       team2_ids: team2IdsForDb,
       team1_sets: scoreA,
@@ -659,14 +679,14 @@ export default function MatchForm({
                 </IconButton>
               )}
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {step === 0 && "Välj Lag A"}
-                {step === 1 && "Välj Lag B"}
+                {step === 0 && (mode === "1v1" ? "Välj Spelare A" : "Välj Lag A")}
+                {step === 1 && (mode === "1v1" ? "Välj Spelare B" : "Välj Lag B")}
                 {step === 2 && "Ange resultat"}
                 {step === 3 && "Granska & Spara"}
                 {step === 10 && "Matchmaker: Välj spelare"}
               </Typography>
             </Box>
-            {step === 0 && (
+            {step === 0 && mode === "2v2" && (
               <>
                 {/* Note for non-coders: a tooltip is the small helper bubble that appears on hover. */}
                 <Tooltip title="Generera jämna lag eller rotationsschema baserat på ELO" arrow>
@@ -697,7 +717,7 @@ export default function MatchForm({
             {step === 0 && (
               <Box>
                 <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
-                  {[0, 1].map(idx => (
+                  {Array.from({ length: teamSize }).map((_, idx) => (
                     <Chip
                       key={idx}
                       label={team1[idx] ? getIdDisplayName(team1[idx], profileMap) : `Spelare ${idx + 1}`}
@@ -726,7 +746,7 @@ export default function MatchForm({
             {step === 1 && (
               <Box>
                 <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
-                  {[0, 1].map(idx => (
+                  {Array.from({ length: teamSize }).map((_, idx) => (
                     <Chip
                       key={idx}
                       label={team2[idx] ? getIdDisplayName(team2[idx], profileMap) : `Spelare ${idx + 1}`}
@@ -1109,7 +1129,7 @@ export default function MatchForm({
                 <Paper variant="outlined" sx={{ p: 2, textAlign: "center", bgcolor: "grey.50" }}>
                   <Typography variant="h4" fontWeight={900}>{matchRecap.scoreline}</Typography>
                   <Chip
-                    label={matchRecap.teamAWon ? "Vinst Lag A" : "Vinst Lag B"}
+                    label={matchRecap.teamAWon ? (mode === "1v1" ? "Vinst Spelare A" : "Vinst Lag A") : (mode === "1v1" ? "Vinst Spelare B" : "Vinst Lag B")}
                     color={matchRecap.teamAWon ? "success" : "warning"}
                     sx={{ fontWeight: 800, mt: 1 }}
                   />
@@ -1117,8 +1137,8 @@ export default function MatchForm({
 
                 <Grid container spacing={2}>
                   {[
-                    { title: "Lag A", won: matchRecap.teamAWon, players: matchRecap.teamA.players },
-                    { title: "Lag B", won: !matchRecap.teamAWon, players: matchRecap.teamB.players }
+                    { title: mode === "1v1" ? "Spelare A" : "Lag A", won: matchRecap.teamAWon, players: matchRecap.teamA.players },
+                    { title: mode === "1v1" ? "Spelare B" : "Lag B", won: !matchRecap.teamAWon, players: matchRecap.teamB.players }
                   ].map((team, idx) => (
                     <Grid key={idx} size={{ xs: 12, sm: 6 }}>
                       <Paper variant="outlined" sx={{ p: 1.5 }}>
@@ -1152,7 +1172,7 @@ export default function MatchForm({
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {recapMode === "match" && matchRecap && (
               <Typography variant="caption" color="text.secondary" align="center">
-                Fairness: {matchRecap.fairness}% · Vinstchans Lag A: {Math.round(matchRecap.winProbability * 100)}%
+                Fairness: {matchRecap.fairness}% · {mode === "1v1" ? "Vinstchans A" : "Vinstchans Lag A"}: {Math.round(matchRecap.winProbability * 100)}%
               </Typography>
             )}
             <Button

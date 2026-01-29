@@ -791,7 +791,7 @@ export default function PlayerSection({
 
           <Box sx={{ height: isEloChartFullscreen ? '80vh' : 300, minHeight: 300, width: '100%', mt: 2 }}>
             {comparisonData.length ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
                 <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis

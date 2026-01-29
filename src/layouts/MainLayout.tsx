@@ -27,6 +27,7 @@ import {
   Close as CloseIcon,
   SportsTennis as TennisIcon,
   EmojiEvents as TrophyIcon,
+  Groups as GroupsIcon,
 } from "@mui/icons-material";
 
 interface MainLayoutProps {
@@ -219,9 +220,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
         sx={{ zIndex: 1400 }}
       >
         {!isGuest && (
-          <MenuItem onClick={() => { navigate("/single-game"); handleFabClose(); }}>
+          <MenuItem onClick={() => { navigate("/single-game?mode=1v1"); handleFabClose(); }}>
             <ListItemIcon><TennisIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Enkel match</ListItemText>
+            <ListItemText>Enkel match 1v1</ListItemText>
+          </MenuItem>
+        )}
+        {!isGuest && (
+          <MenuItem onClick={() => { navigate("/single-game?mode=2v2"); handleFabClose(); }}>
+            <ListItemIcon><GroupsIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Enkel match 2v2</ListItemText>
           </MenuItem>
         )}
         {!isGuest && (

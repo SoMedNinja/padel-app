@@ -1,4 +1,5 @@
 import React from "react";
+import { useSearchParams } from "react-router-dom";
 import MatchForm from "../Components/MatchForm";
 import { useStore } from "../store/useStore";
 import { useProfiles } from "../hooks/useProfiles";
@@ -9,6 +10,9 @@ import { Box, Container, Typography } from "@mui/material";
 import AppAlert from "../Components/Shared/AppAlert";
 
 export default function SingleGamePage() {
+  const [searchParams] = useSearchParams();
+  const mode = (searchParams.get("mode") as "1v1" | "2v2") || "2v2";
+
   const { user, isGuest } = useStore();
   const { data: profiles = [] as Profile[] } = useProfiles();
   const { data: matches = [] as Match[] } = useMatches({ type: "all" });
@@ -35,6 +39,7 @@ export default function SingleGamePage() {
         profiles={profiles}
         matches={matches}
         eloPlayers={allEloPlayers}
+        mode={mode}
       />
     </div>
   );
