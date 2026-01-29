@@ -319,7 +319,16 @@ export default function History({
           const avgA = getAvg(t1Ids);
           const avgB = getAvg(t2Ids);
 
-          const typeLabel = tournamentType === "standalone" ? "Match" : tournamentType === "standalone_1v1" ? "Match 1v1" : tournamentType === "mexicano" ? "Mexicano" : tournamentType === "americano" ? "Americano" : tournamentType;
+          // This label is the badge text shown in history so non-coders can see the match format at a glance.
+          const typeLabel = tournamentType === "standalone"
+            ? (is1v1 ? "Match 1v1" : "Match 2v2")
+            : tournamentType === "standalone_1v1"
+              ? "Match 1v1"
+              : tournamentType === "mexicano"
+                ? "Mexicano"
+                : tournamentType === "americano"
+                  ? "Americano"
+                  : tournamentType;
 
           return (
             <Card key={m.id} variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
