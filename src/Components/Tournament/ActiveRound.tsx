@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  CircularProgress,
 } from "@mui/material";
 import {
   Stop as StopIcon,
@@ -173,7 +174,12 @@ export default function ActiveRound({
                     </Grid>
 
                     <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
-                      <Button variant="contained" onClick={saveRound} disabled={isSaving}>
+                      <Button
+                        variant="contained"
+                        onClick={saveRound}
+                        disabled={isSaving}
+                        startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
+                      >
                         Spara rond
                       </Button>
                       <Button variant="outlined" onClick={() => setRecordingRound(null)}>
@@ -340,6 +346,7 @@ export default function ActiveRound({
                           size="small"
                           fullWidth
                           sx={{ mt: 2.5, py: 1, fontWeight: 700 }}
+                          startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
                           onClick={() =>
                             updateRoundInDb(round.id, round.team1_score, round.team2_score)
                           }

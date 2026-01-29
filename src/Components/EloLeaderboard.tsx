@@ -230,6 +230,7 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                     key={p.id || p.name}
                     ref={measureElement(virtualItem.index)}
                     data-index={virtualItem.index}
+                    aria-rowindex={virtualItem.index + 1}
                     hover
                     sx={{
                       position: 'absolute',
