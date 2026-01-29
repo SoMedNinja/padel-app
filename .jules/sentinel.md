@@ -12,3 +12,8 @@
 **Vulnerability:** Generic update methods in services (like `profileService.updateProfile`) that accept a `Partial<Profile>` can be abused by users to modify sensitive fields (e.g., `is_admin`) if RLS is misconfigured.
 **Learning:** Even with frontend route protection, the API layer must explicitly guard against self-modification of authorization flags.
 **Prevention:** In service methods, fetch the current session and strip sensitive fields from the payload if the target ID matches the current user's ID. Always enforce input length limits (e.g., 50 chars for names) in both UI and service layers to prevent DoS and UI breakage.
+
+## 2025-05-25 - Unauthenticated State Handling in Services
+**Vulnerability:** Authorization stripping logic in services (e.g., `profileService.updateProfile`) only checking for `currentUser.id === id`, leaving a gap if `currentUser` is null/undefined.
+**Learning:** Security checks that rely on session data must account for the absence of a session. Relying only on ID comparisons can allow unauthenticated requests to bypass frontend-intended stripping if Supabase RLS is misconfigured.
+**Prevention:** Always check for `!currentUser` in addition to `currentUser.id === id` when stripping sensitive fields in the service layer. Ensure all input types (like scores being non-negative numbers) are validated before reaching the database.
