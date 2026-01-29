@@ -21,3 +21,11 @@
 ## 2026-05-20 - [Lifting Computations and Pre-indexing in Render Loops]
 **Learning:** Performing array lookups (like `.find()`) and recalculating shared data (like team averages) inside a nested `.map()` within a React render path leads to exponential work ($O(Matches \times Players \times Players)$).
 **Action:** Lift shared calculations out of the inner loops and pre-index array data into a `Map` ($O(1)$ lookup) to linearize the complexity.
+
+## 2026-01-29 - [Redundant Stats Scan in usePadelData]
+**Learning:** Re-calculating recent results for every player using a utility that scans the entire match history results in (Players \times Matches)$ complexity. Since the ELO calculation already processes matches in a single pass and populates this history, re-scanning is entirely redundant.
+**Action:** Reuse the results already accumulated during the ELO calculation.
+
+## 2026-01-29 - [Non-memoized Stats in Render Path]
+**Learning:** Calling (Matches)$ utility functions like synergy or rivalry calculations directly in a component's render path (or IIFE) causes significant overhead on every re-render.
+**Action:** Always wrap expensive statistical calculations in `useMemo` when they depend on large datasets like match history.
