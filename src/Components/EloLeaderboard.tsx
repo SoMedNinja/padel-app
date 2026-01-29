@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
 import { getStoredAvatar } from "../utils/avatar";
+import { getStreak, getTrendIndicator } from "../utils/stats";
 import { Match, PlayerStats } from "../types";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
 import { useStore } from "../store/useStore";
@@ -73,12 +74,20 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
         }
       }
 
+      // Optimization: Pre-calculate streak and trend once per data change
+      // instead of on every render of every visible virtual row.
+      const streakRaw = getStreak(recentResults);
+      const streak = streakRaw.replace("W", "V").replace("L", "F");
+      const trend = getTrendIndicator(recentResults);
+
       return {
         ...player,
         wins,
         losses,
         games: recentResults.length,
         recentResults,
+        streak,
+        trend,
       };
     });
   }, [matches, players]);
@@ -131,32 +140,6 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
       setSortKey(key);
       setAsc(false);
     }
-  };
-
-  const getStreak = (player: PlayerStats) => {
-    const results = player.recentResults || [];
-    if (!results.length) return "—";
-    const reversed = [...results].reverse();
-    const first = reversed[0];
-    let count = 0;
-    for (const result of reversed) {
-      if (result !== first) break;
-      count += 1;
-    }
-    const label = first === "W" ? "V" : "F";
-    return `${label}${count}`;
-  };
-
-  const getTrendIndicator = (player: PlayerStats) => {
-    const last5 = player.recentResults?.slice(-5) || [];
-    if (last5.length < 3) return "—";
-    const wins = last5.filter(r => r === "W").length;
-    const total = last5.length || 1;
-    const winRate = wins / total;
-
-    if (winRate >= 0.8) return "⬆️";
-    if (winRate <= 0.2) return "⬇️";
-    return "➖";
   };
 
   return (
@@ -276,9 +259,9 @@ export default function EloLeaderboard({ players = [], matches = [] }: EloLeader
                     <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{getStreak(p)}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{(p as any).streak || "—"}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>
-                      <Typography variant="body2" component="span">{getTrendIndicator(p)}</Typography>
+                      <Typography variant="body2" component="span">{(p as any).trend || "—"}</Typography>
                     </TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
                   </TableRow>
