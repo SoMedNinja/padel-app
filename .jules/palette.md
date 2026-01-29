@@ -21,3 +21,7 @@
 ## 2025-05-24 - [Micro-UX: Progressive Disclosure & Contextual Feedback]
 **Learning:** For dense forms (like score selection), allowing users to collapse extra options ("Göm") keeps the UI tidy and reduces cognitive load. Providing immediate, contextual loading feedback (like a spinner inside a button) for administrative actions prevents double-clicks and uncertainty.
 **Action:** Use "Mer.../Göm" patterns for optional high-density inputs. Always replace icons with a `CircularProgress` (size 16) in buttons during active async operations. Use `cursor: 'help'` on tooltipped headers to signal interactivity.
+
+## 2026-01-29 - [Micro-UX: Visual Feedback for Async Actions]
+**Learning:** Buttons performing asynchronous operations (save, delete, start) without visual loading states can lead to user uncertainty and double-clicks.
+**Action:** Always implement a `CircularProgress` (size 16) spinner within the button's `startIcon` or as the main icon during active async states (e.g., `isSaving`, `deleteId === id`). Use `color="inherit"` to ensure the spinner matches the button's text color.

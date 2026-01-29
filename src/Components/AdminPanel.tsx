@@ -305,7 +305,11 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                               aria-label={`Radera profilen för ${profile.name}`}
                               sx={{ border: '1px solid', borderColor: 'divider' }}
                             >
-                              <DeleteIcon fontSize="small" />
+                              {deleteId === profile.id ? (
+                                <CircularProgress size={16} color="inherit" />
+                              ) : (
+                                <DeleteIcon fontSize="small" />
+                              )}
                             </IconButton>
                           </span>
                         </Tooltip>
