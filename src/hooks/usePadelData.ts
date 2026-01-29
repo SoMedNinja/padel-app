@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { filterMatches } from "../utils/filters";
 import { calculateElo } from "../utils/elo";
-import { getRecentResults } from "../utils/stats";
 import { Match, MatchFilter, Profile, PlayerStats } from "../types";
 
 export function usePadelData(matches: Match[], filter: MatchFilter, profiles: Profile[] = []) {
@@ -15,7 +14,8 @@ export function usePadelData(matches: Match[], filter: MatchFilter, profiles: Pr
     const playersWithTrend: PlayerStats[] = eloPlayers.map(p => ({
       ...p,
       avatarUrl: p.avatarUrl || avatarMap.get(p.id) || null,
-      recentResults: getRecentResults(filteredMatches, p.name),
+      // Optimization: use recentResults already calculated in calculateElo to avoid O(P * M) redundant re-scan
+      recentResults: p.recentResults.slice(-5),
     }));
 
     return {

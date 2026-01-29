@@ -581,6 +581,10 @@ export default function PlayerSection({
       .reduce((sum, h) => sum + h.delta, 0);
   }, [globalStats]);
 
+  // Optimization: memoize synergy/rivalry stats to avoid expensive O(M) re-scans on every render
+  const synergy = useMemo(() => getPartnerSynergy(matches, playerName), [matches, playerName]);
+  const rival = useMemo(() => getToughestOpponent(matches, playerName), [matches, playerName]);
+
   const tournamentMerits = useMemo(() => {
     if (!user?.id) return [];
     const myResults = tournamentResults.filter(r => (r.profile_id || r.player_id) === user.id);
@@ -960,18 +964,16 @@ export default function PlayerSection({
                   }}
                 >
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Bästa Partner</Typography>
-                  {(() => {
-                    const synergy = getPartnerSynergy(matches, playerName);
-                    if (!synergy) return <Typography variant="h6">—</Typography>;
-                    return (
-                      <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{synergy.name}</Typography>
-                        <Typography variant="caption">
-                          {synergy.wins} vinster på {synergy.games} matcher ({Math.round((synergy.wins / synergy.games) * 100)}%)
-                        </Typography>
-                      </Box>
-                    );
-                  })()}
+                  {synergy ? (
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{synergy.name}</Typography>
+                      <Typography variant="caption">
+                        {synergy.wins} vinster på {synergy.games} matcher ({Math.round((synergy.wins / synergy.games) * 100)}%)
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="h6">—</Typography>
+                  )}
                 </Paper>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -986,18 +988,16 @@ export default function PlayerSection({
                   }}
                 >
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Tuffaste Motståndare</Typography>
-                  {(() => {
-                    const rival = getToughestOpponent(matches, playerName);
-                    if (!rival) return <Typography variant="h6">—</Typography>;
-                    return (
-                      <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{rival.name}</Typography>
-                        <Typography variant="caption">
-                          {rival.losses} förluster på {rival.games} matcher ({Math.round((rival.losses / rival.games) * 100)}%)
-                        </Typography>
-                      </Box>
-                    );
-                  })()}
+                  {rival ? (
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{rival.name}</Typography>
+                      <Typography variant="caption">
+                        {rival.losses} förluster på {rival.games} matcher ({Math.round((rival.losses / rival.games) * 100)}%)
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="h6">—</Typography>
+                  )}
                 </Paper>
               </Grid>
             </Grid>
