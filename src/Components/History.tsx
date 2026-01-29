@@ -349,14 +349,16 @@ export default function History({
                         </Button>
                       )}
                       {canDelete(m) && (
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => deleteMatch(m.id)}
-                          aria-label="Radera match"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <Tooltip title="Radera match" arrow>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => deleteMatch(m.id)}
+                            aria-label="Radera match"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       )}
                     </Stack>
                   )}

@@ -13,6 +13,7 @@ import {
   Paper,
   ButtonBase,
   Avatar,
+  CircularProgress,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -135,17 +136,22 @@ export default function TournamentConfig({
         </Box>
         {activeTournament.status === "draft" && (
           <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={saveRoster} disabled={isSaving}>
-              Spara roster
+            <Button
+              variant="contained"
+              onClick={saveRoster}
+              disabled={isSaving}
+              startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              {isSaving ? "Sparar..." : "Spara roster"}
             </Button>
             {participants.length >= 4 && (
               <Button
                 variant="outlined"
-                startIcon={<StartIcon />}
+                startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <StartIcon />}
                 onClick={startTournament}
                 disabled={isSaving}
               >
-                Starta turnering
+                {isSaving ? "Startar..." : "Starta turnering"}
               </Button>
             )}
           </Stack>
@@ -256,8 +262,13 @@ export default function TournamentConfig({
                     ))}
                   </TextField>
 
-                  <Button type="submit" variant="contained" disabled={isSaving}>
-                    Skapa turnering
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    disabled={isSaving}
+                    startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
+                  >
+                    {isSaving ? "Skapar..." : "Skapa turnering"}
                   </Button>
                 </Stack>
               </Box>
