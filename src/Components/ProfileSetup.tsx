@@ -22,6 +22,7 @@ import {
   Step,
   StepLabel,
   Divider,
+  CircularProgress,
 } from "@mui/material";
 import {
   PhotoCamera as PhotoIcon,
@@ -253,6 +254,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                           size="small"
                           onClick={saveAvatar}
                           disabled={savingAvatar}
+                          startIcon={savingAvatar ? <CircularProgress size={16} color="inherit" /> : null}
                         >
                           Använd
                         </Button>
@@ -270,7 +272,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                 variant="contained"
                 size="large"
                 disabled={saving}
-                startIcon={<SaveIcon />}
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                 sx={{ height: 56, fontWeight: 700 }}
               >
                 {saving ? "Sparar..." : "Spara och fortsätt"}

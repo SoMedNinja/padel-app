@@ -30,6 +30,7 @@ import {
   ListItem,
   ListItemText,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -97,6 +98,8 @@ export default function History({
   }, [profiles]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(10);
 
@@ -195,6 +198,7 @@ export default function History({
       team2Names.push("");
     }
 
+    setIsSavingEdit(true);
     try {
       await matchService.updateMatch(matchId, {
         created_at: new Date(edit.created_at).toISOString(),
@@ -215,17 +219,22 @@ export default function History({
       cancelEdit();
     } catch (error: any) {
       toast.error(error.message || "Kunde inte uppdatera matchen.");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
   const deleteMatch = async (matchId: string) => {
     if (!window.confirm("Radera matchen?")) return;
 
+    setDeletingId(matchId);
     try {
       await matchService.deleteMatch(matchId);
       toast.success("Matchen har raderats.");
     } catch (error: any) {
       toast.error(error.message || "Kunde inte radera matchen.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -366,8 +375,13 @@ export default function History({
                           color="error"
                           onClick={() => deleteMatch(m.id)}
                           aria-label="Radera match"
+                          disabled={deletingId === m.id}
                         >
-                          <DeleteIcon fontSize="small" />
+                          {deletingId === m.id ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <DeleteIcon fontSize="small" />
+                          )}
                         </IconButton>
                       )}
                     </Stack>
@@ -560,8 +574,15 @@ export default function History({
 
                 {isEditing && (
                   <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
-                    <Button variant="contained" startIcon={<SaveIcon />} onClick={() => saveEdit(m.id)}>Spara</Button>
-                    <Button variant="outlined" startIcon={<CloseIcon />} onClick={cancelEdit}>Avbryt</Button>
+                    <Button
+                      variant="contained"
+                      startIcon={isSavingEdit ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                      onClick={() => saveEdit(m.id)}
+                      disabled={isSavingEdit}
+                    >
+                      Spara
+                    </Button>
+                    <Button variant="outlined" startIcon={<CloseIcon />} onClick={cancelEdit} disabled={isSavingEdit}>Avbryt</Button>
                   </Box>
                 )}
               </CardContent>
@@ -572,7 +593,11 @@ export default function History({
 
       {canLoadMore && (
         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-          <Button variant="outlined" onClick={() => setVisibleCount(count => count + 10)}>
+          <Button
+            variant="outlined"
+            onClick={() => setVisibleCount(count => count + 10)}
+            aria-label="Visa fler matcher ur historiken"
+          >
             Visa fler matcher
           </Button>
         </Box>
