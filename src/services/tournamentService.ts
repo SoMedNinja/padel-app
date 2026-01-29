@@ -86,11 +86,21 @@ export const tournamentService = {
 
   async updateTournament(tournamentId: string, updates: any) {
     const sanitized = { ...updates };
-    if (sanitized.name !== undefined) sanitized.name = sanitized.name?.trim();
-    if (sanitized.location !== undefined) sanitized.location = sanitized.location?.trim();
+    if (sanitized.name !== undefined) {
+      sanitized.name = sanitized.name?.trim();
+      if (sanitized.name === "") {
+        throw new Error("Turneringsnamn får inte vara tomt");
+      }
+      if (sanitized.name.length > 50) {
+        throw new Error("Turneringsnamnet är för långt (max 50 tecken)");
+      }
+    }
 
-    if (sanitized.name === "") {
-      throw new Error("Turneringsnamn får inte vara tomt");
+    if (sanitized.location !== undefined) {
+      sanitized.location = sanitized.location?.trim();
+      if (sanitized.location && sanitized.location.length > 50) {
+        throw new Error("Platsen är för lång (max 50 tecken)");
+      }
     }
 
     const { error } = await supabase.from("mexicana_tournaments").update(sanitized).eq("id", tournamentId);
@@ -108,8 +118,15 @@ export const tournamentService = {
       name: tournament.name?.trim(),
       location: tournament.location?.trim(),
     };
+
     if (!sanitized.name) {
       throw new Error("Turneringsnamn får inte vara tomt");
+    }
+    if (sanitized.name.length > 50) {
+      throw new Error("Turneringsnamnet är för långt (max 50 tecken)");
+    }
+    if (sanitized.location && sanitized.location.length > 50) {
+      throw new Error("Platsen är för lång (max 50 tecken)");
     }
 
     const { data, error } = await supabase

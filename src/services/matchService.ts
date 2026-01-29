@@ -53,6 +53,13 @@ export const matchService = {
   },
 
   async createMatch(match: any): Promise<void> {
+    if (match.team1_sets !== undefined && (typeof match.team1_sets !== "number" || match.team1_sets < 0)) {
+      throw new Error("Ogiltigt resultat för Lag 1");
+    }
+    if (match.team2_sets !== undefined && (typeof match.team2_sets !== "number" || match.team2_sets < 0)) {
+      throw new Error("Ogiltigt resultat för Lag 2");
+    }
+
     const { error } = await supabase
       .from("matches")
       .insert(match);
@@ -60,6 +67,13 @@ export const matchService = {
   },
 
   async updateMatch(matchId: string, updates: any): Promise<void> {
+    if (updates.team1_sets !== undefined && (typeof updates.team1_sets !== "number" || updates.team1_sets < 0)) {
+      throw new Error("Ogiltigt resultat för Lag 1");
+    }
+    if (updates.team2_sets !== undefined && (typeof updates.team2_sets !== "number" || updates.team2_sets < 0)) {
+      throw new Error("Ogiltigt resultat för Lag 2");
+    }
+
     const { error } = await supabase
       .from("matches")
       .update(updates)

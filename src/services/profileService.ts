@@ -15,7 +15,8 @@ export const profileService = {
     const filteredUpdates = { ...updates };
 
     // Security: prevent users from escalating their own privileges
-    if (currentUser && currentUser.id === id) {
+    // If not logged in, or updating self, strip sensitive fields.
+    if (!currentUser || currentUser.id === id) {
       delete filteredUpdates.is_admin;
       delete filteredUpdates.is_approved;
     }
@@ -47,7 +48,8 @@ export const profileService = {
     const filteredProfile = { ...profile };
 
     // Security: prevent users from escalating their own privileges
-    if (currentUser && currentUser.id === filteredProfile.id) {
+    // If not logged in, or updating self, strip sensitive fields.
+    if (!currentUser || currentUser.id === filteredProfile.id) {
       delete filteredProfile.is_admin;
       delete filteredProfile.is_approved;
     }
