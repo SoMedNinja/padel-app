@@ -390,12 +390,23 @@ export default function MatchForm({
 
     const team1IdsForDb = team1.map(id => (id === GUEST_ID ? null : id));
     const team2IdsForDb = team2.map(id => (id === GUEST_ID ? null : id));
+    const team1Names = idsToNames(team1, profileMap);
+    const team2Names = idsToNames(team2, profileMap);
+
+    // Database constraint 'matches_team_arrays_length' requires exactly 2 elements.
+    // For 1v1, we pad IDs with null and names with empty string.
+    if (mode === "1v1") {
+      team1IdsForDb.push(null);
+      team2IdsForDb.push(null);
+      team1Names.push("");
+      team2Names.push("");
+    }
 
     setIsSubmitting(true);
     try {
       await matchService.createMatch({
-        team1: idsToNames(team1, profileMap),
-        team2: idsToNames(team2, profileMap),
+        team1: team1Names,
+        team2: team2Names,
         team1_ids: team1IdsForDb,
         team2_ids: team2IdsForDb,
         team1_sets: scoreA,
@@ -403,7 +414,7 @@ export default function MatchForm({
         score_type: "sets",
         score_target: null,
         source_tournament_id: null,
-        source_tournament_type: "standalone",
+        source_tournament_type: mode === "1v1" ? "standalone_1v1" : "standalone",
         team1_serves_first: true,
         created_by: user.id,
       });
@@ -415,8 +426,8 @@ export default function MatchForm({
 
     const newMatch: Match = {
       id: "temp",
-      team1: idsToNames(team1, profileMap),
-      team2: idsToNames(team2, profileMap),
+      team1: team1Names,
+      team2: team2Names,
       team1_ids: team1IdsForDb,
       team2_ids: team2IdsForDb,
       team1_sets: scoreA,

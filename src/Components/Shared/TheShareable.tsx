@@ -199,9 +199,9 @@ const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { 
 };
 
 const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: Match; highlight: MatchHighlight; variant?: number; deltas?: Record<string, number> }) => {
-  const team1Names = Array.isArray(match?.team1) ? match.team1 : [match?.team1 || 'Lag A'];
-  const team2Names = Array.isArray(match?.team2) ? match.team2 : [match?.team2 || 'Lag B'];
-  const is1v1 = team1Names.length === 1 && team2Names.length === 1;
+  const team1Names = (Array.isArray(match?.team1) ? match.team1 : [match?.team1 || 'Lag A']).filter(Boolean);
+  const team2Names = (Array.isArray(match?.team2) ? match.team2 : [match?.team2 || 'Lag B']).filter(Boolean);
+  const is1v1 = match?.source_tournament_type === "standalone_1v1" || (team1Names.length === 1 && team2Names.length === 1);
 
   const themes = [
     { bg: 'linear-gradient(180deg, #1a237e 0%, #0d47a1 100%)', color: 'white', accent: '#ffca28', font: 'Inter' }, // Classic Blue
@@ -490,6 +490,7 @@ const MatchTemplate = ({ match, highlight, variant = 0, deltas = {} }: { match: 
 };
 
 const RecapMatchTemplate = ({ data, variant = 0 }: { data: any; variant?: number }) => {
+  // Recap data players should already be filtered in MatchForm.tsx createRecap
   const is1v1 = data?.teamA?.players?.length === 1 && data?.teamB?.players?.length === 1;
   const themes = [
     { bg: 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)', color: 'white', accent: '#00d2ff', font: 'Inter' }, // Classic
