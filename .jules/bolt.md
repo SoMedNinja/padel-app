@@ -45,3 +45,15 @@
 ## 2024-05-22 - [Avoiding Redundant Normalization and Sorting]
 **Learning:** Frequent calls to data normalization utilities (like `normalizeTeam`) and unnecessary $O(N \log N)$ sorting for "top-N" selection can dominate the execution time of statistics calculations as the dataset grows.
 **Action:** Normalize data once and reuse it. Replace full sorts with single-pass $O(N)$ selection loops when only the best item is needed.
+
+## 2026-02-10 - [O(N) Search for Latest Match]
+**Learning:** Using `sort()` to find the latest match by date is $O(N \log N)$ and involves creating thousands of `Date` objects in the comparator. ISO 8601 strings can be compared directly.
+**Action:** Use a single-pass `for` loop with a string comparison to find the maximum ISO date string in $O(N)$.
+
+## 2026-02-10 - [Pre-indexing History for Highlight Calculations]
+**Learning:** Performing `.find()` or `.filter()` on player history within a match loop results in $O(M \times P \times H)$ complexity.
+**Action:** Pre-index the specific history entries needed into a `Map` ($O(M \times P)$) before entering the match loop to achieve $O(1)$ lookups.
+
+## 2026-02-10 - [Identity-based Cache Keys for Intl.DateTimeFormat]
+**Learning:** Even with a Map-based cache, calling `JSON.stringify(options)` on every format call adds measurable overhead, especially when default options are created as new objects on every call.
+**Action:** Use a constant for default options and perform an identity check (`===`) to use a static cache key, bypassing stringification for the most common path.
