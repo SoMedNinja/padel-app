@@ -75,3 +75,55 @@ This step schedules the weekly email to run automatically.
 
 The email is only sent to players who have played at least one match during the week.
 Trigger time: **Every Sunday at 23:55**.
+
+## Testing & Troubleshooting
+
+### Quick test (from your app)
+Use the **Veckobrev → Skicka test** button in the admin UI. This calls the `weekly-summary` Edge Function from the browser and should return a success message if everything is configured correctly.
+
+**Note for non-coders:** The admin UI is just a “remote control.” It calls the Edge Function for you so you don’t have to run commands manually.
+
+### Manual test (from your terminal)
+If the UI fails, you can test the Edge Function directly with the Supabase CLI. The function expects **both**:
+- an `apikey` header (your **anon** key), and
+- an `Authorization` header (a **user access token**).
+
+Example:
+```bash
+supabase functions invoke weekly-summary \
+  --project-ref YOUR_PROJECT_REF \
+  --body '{"playerId":"PLAYER_ID"}' \
+  --header "apikey: YOUR_SUPABASE_ANON_KEY" \
+  --header "Authorization: Bearer YOUR_USER_ACCESS_TOKEN"
+```
+This helps you see function errors without the browser in the way.
+
+**Note for non-coders:** This command sends a one-off request straight to Supabase, like pressing the “Skicka test” button, but from your terminal.
+
+**Note for non-coders:** The *user access token* is a temporary “proof you are logged in.” You can copy it from your browser’s local storage if you are signed in to the app.
+
+### Common errors
+#### 401 Unauthorized
+This means the Edge Function did not accept your request. The most common causes are:
+- **Missing or wrong `VITE_SUPABASE_ANON_KEY`** in your frontend environment (the key should be the *anon* key from Supabase Project Settings → API).
+- **You are not logged in** (no valid user session), so the browser doesn’t send a valid auth token.
+
+**Note for non-coders:** Think of a 401 as a “locked door.” The server didn’t see a valid “pass” (login token) attached to your request.
+
+#### Test email says "Email not found" or sends to 0 recipients
+The weekly summary emails are sent to addresses stored in **Supabase Auth**, not in the `profiles` table. Each `profiles.id` must match the corresponding Auth user ID. If a profile exists without a matching Auth user, the function cannot find an email address and skips that player.
+
+**Note for non-coders:** Think of the `profiles` table as a “player card” and Supabase Auth as the “address book.” The email can only be sent if the player card is linked to a real address book entry.
+
+#### 500 Internal Server Error
+This usually means a required secret is missing for the function:
+- `RESEND_API_KEY` (required to talk to Resend)
+- `SUPABASE_SERVICE_ROLE_KEY` (required because the function reads users via the admin API)
+
+Set them with:
+```bash
+supabase secrets set RESEND_API_KEY=your_key
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+**Note for non-coders:** The “service role key” is a powerful server-only key that lets the function fetch users. It should never be used in your browser code.

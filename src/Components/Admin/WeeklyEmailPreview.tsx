@@ -330,7 +330,20 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       if (error) throw error;
 
       if (data?.success) {
-        alert(`Test-mail har skickats till ${data.sent} mottagare.`);
+        const errorCount = Array.isArray(data.errors) ? data.errors.length : 0;
+        if (errorCount > 0) {
+          const errorNames = data.errors
+            .map((entry: { name?: string; error?: string }) => entry.name)
+            .filter(Boolean)
+            .slice(0, 3)
+            .join(", ");
+          // Note for non-coders: The function reads email addresses from Supabase Auth,
+          // so a profile without a matching Auth user has no email to send to.
+          const errorHint = errorNames ? ` (saknar e-post: ${errorNames})` : "";
+          alert(`Test-mail skickades till ${data.sent} mottagare, men ${errorCount} saknar e-post i Auth.${errorHint}`);
+        } else {
+          alert(`Test-mail har skickats till ${data.sent} mottagare.`);
+        }
       } else if (data?.message === "No activity") {
         alert("Ingen aktivitet hittades för den här spelaren den senaste veckan, men mailet kan ha skickats ändå om spelaren forcerades.");
       } else {
