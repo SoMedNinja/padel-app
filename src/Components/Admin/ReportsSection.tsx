@@ -30,7 +30,7 @@ import { toast } from "sonner";
 
 export default function ReportsSection() {
   const [tab, setTab] = useState(0); // 0: Spelkväll, 1: Turnering
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
   const [shareType, setShareType] = useState<"recap-evening" | "tournament">("recap-evening");
@@ -49,6 +49,23 @@ export default function ReportsSection() {
 
   const profileMap = useMemo(() => makeProfileMap(selectableProfiles), [selectableProfiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(selectableProfiles), [selectableProfiles]);
+
+  const gameEvenings = useMemo(() => {
+    const dates = new Set<string>();
+    matches.forEach(m => {
+      if (m.created_at) {
+        dates.add(m.created_at.slice(0, 10));
+      }
+    });
+    return Array.from(dates).sort((a, b) => b.localeCompare(a));
+  }, [matches]);
+
+  // Auto-select latest date if none selected
+  React.useEffect(() => {
+    if (gameEvenings.length > 0 && !selectedDate) {
+      setSelectedDate(gameEvenings[0]);
+    }
+  }, [gameEvenings, selectedDate]);
 
   const eloMap = useMemo(() => {
     if (!matches.length || !profiles.length) return { [GUEST_ID]: ELO_BASELINE };
@@ -141,17 +158,27 @@ export default function ReportsSection() {
               <Box>
                 <Typography variant="h6" fontWeight={800} gutterBottom>Skapa kvällsrecap</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Välj ett datum för att generera en sammanfattning av alla matcher som spelades då.
+                  Välj en spelkväll ur listan för att generera en sammanfattning.
                 </Typography>
               </Box>
-              <TextField
-                label="Välj datum"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                fullWidth
-              />
+              <FormControl fullWidth>
+                <InputLabel id="evening-select-label">Välj spelkväll</InputLabel>
+                <Select
+                  labelId="evening-select-label"
+                  value={selectedDate}
+                  label="Välj spelkväll"
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                >
+                  {gameEvenings.map(date => (
+                    <MenuItem key={date} value={date}>
+                      {formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </MenuItem>
+                  ))}
+                  {gameEvenings.length === 0 && (
+                    <MenuItem disabled>Inga spelkvällar hittades</MenuItem>
+                  )}
+                </Select>
+              </FormControl>
               <Button
                 variant="contained"
                 size="large"
