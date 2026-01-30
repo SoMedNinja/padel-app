@@ -84,13 +84,23 @@ Use the **Veckobrev → Skicka test** button in the admin UI. This calls the `we
 **Note for non-coders:** The admin UI is just a “remote control.” It calls the Edge Function for you so you don’t have to run commands manually.
 
 ### Manual test (from your terminal)
-If the UI fails, you can test the Edge Function directly with the Supabase CLI:
+If the UI fails, you can test the Edge Function directly with the Supabase CLI. The function expects **both**:
+- an `apikey` header (your **anon** key), and
+- an `Authorization` header (a **user access token**).
+
+Example:
 ```bash
-supabase functions invoke weekly-summary --project-ref YOUR_PROJECT_REF --body '{"playerId":"PLAYER_ID"}'
+supabase functions invoke weekly-summary \
+  --project-ref YOUR_PROJECT_REF \
+  --body '{"playerId":"PLAYER_ID"}' \
+  --header "apikey: YOUR_SUPABASE_ANON_KEY" \
+  --header "Authorization: Bearer YOUR_USER_ACCESS_TOKEN"
 ```
 This helps you see function errors without the browser in the way.
 
 **Note for non-coders:** This command sends a one-off request straight to Supabase, like pressing the “Skicka test” button, but from your terminal.
+
+**Note for non-coders:** The *user access token* is a temporary “proof you are logged in.” You can copy it from your browser’s local storage if you are signed in to the app.
 
 ### Common errors
 #### 401 Unauthorized
