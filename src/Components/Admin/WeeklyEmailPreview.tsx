@@ -347,11 +347,22 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     setIsSending(true);
     try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!sessionData.session?.access_token) {
+        // Note for non-coders: Edge Functions require a valid login session to prove who is calling.
+        alert("Du måste vara inloggad för att skicka test-mail. Logga in och försök igen.");
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('weekly-summary', {
         body: { playerId: selectedPlayerId }
       });
 
-      if (error) throw error;
+      if (error) {
+        const statusHint = (error as any)?.status ? ` (status ${error.status})` : "";
+        throw new Error(`${error.message || "Okänt fel"}${statusHint}`);
+      }
 
       if (data?.success) {
         const errorCount = Array.isArray(data.errors) ? data.errors.length : 0;
