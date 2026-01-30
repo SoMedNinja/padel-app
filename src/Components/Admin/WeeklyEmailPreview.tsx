@@ -59,6 +59,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const [timeframe, setTimeframe] = useState<"current" | "previous" | "custom">("current");
   const [selectedWeek, setSelectedWeek] = useState<string>(""); // format "YYYY-Www"
   const [isSending, setIsSending] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   const activeProfiles = useMock ? MOCK_PROFILES : profiles.filter(p => !p.is_deleted);
   const activeMatches = useMock ? MOCK_MATCHES : matches;
@@ -76,6 +77,19 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       setSelectedPlayerId("");
     }
   }, [activeProfiles, selectedPlayerId, currentUserId]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    // Note for non-coders: we check if the user is logged in so we can safely send emails.
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!isMounted) return;
+      const hasAccessToken = Boolean(data.session?.access_token);
+      setHasSession(hasAccessToken && !error);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const availableWeeks = useMemo(() => {
     const weeks = new Set<string>();
@@ -321,6 +335,16 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     const confirmed = window.confirm(`Vill du skicka ett test-mail till ${player?.name}?`);
     if (!confirmed) return;
 
+    // Note for non-coders: the backend requires a login token, so we stop here if the user isn't logged in.
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (sessionError || !accessToken) {
+      setHasSession(false);
+      alert("Du måste vara inloggad för att skicka test-mail.");
+      return;
+    }
+    setHasSession(true);
+
     setIsSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('weekly-summary', {
@@ -430,7 +454,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
               variant="contained"
               fullWidth
               onClick={handleSendTest}
-              disabled={isSending || useMock}
+              disabled={isSending || useMock || hasSession === false}
               startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
             >
               Skicka test
