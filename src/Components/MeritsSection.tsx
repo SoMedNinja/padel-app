@@ -196,7 +196,7 @@ export default function MeritsSection({
             {isOtherExpanded && (
               <Grid container spacing={1.5}>
                 {badgeSummary.otherUniqueBadges.map((badge: any) => {
-                  const holder = profiles.find((p: any) => p.id === badge.holderId);
+                  const holder = profiles.find((p: any) => String(p.id) === String(badge.holderId));
                   return (
                     <Grid key={badge.id} size={{ xs: 6, sm: 4, md: 4 }}>
                       <Paper
@@ -224,10 +224,10 @@ export default function MeritsSection({
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Avatar src={holder?.avatar_url} sx={{ width: 18, height: 18, fontSize: '0.6rem' }}>
-                            {holder?.full_name?.charAt(0)}
+                            {holder?.name?.charAt(0)}
                           </Avatar>
                           <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main', fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {holder?.full_name || 'Okänd'} ({badge.holderValue})
+                            {holder?.name || 'Okänd'} ({badge.holderValue})
                           </Typography>
                         </Box>
                       </Paper>
