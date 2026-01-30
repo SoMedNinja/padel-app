@@ -13,7 +13,7 @@ import {
   FormControlLabel,
   CircularProgress,
 } from "@mui/material";
-import { usePadelData } from "../../hooks/usePadelData";
+import { useEloStats } from "../../hooks/useEloStats";
 import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
@@ -52,7 +52,7 @@ const MOCK_MATCHES: Match[] = [
 ];
 
 export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPreviewProps) {
-  const { matches = [], profiles = [], isLoading } = usePadelData();
+  const { allMatches: matches = [], profiles = [], isLoading } = useEloStats();
   const [useMock, setUseMock] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
   const [timeframe, setTimeframe] = useState<"current" | "previous">("current");
@@ -61,10 +61,15 @@ export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPrev
   const activeProfiles = useMock ? MOCK_PROFILES : profiles.filter(p => !p.is_deleted);
   const activeMatches = useMock ? MOCK_MATCHES : matches;
 
-  // Set default player if not set
+  // Set default player if not set or if current player is not in active list
   React.useEffect(() => {
-    if (!selectedPlayerId && activeProfiles.length > 0) {
-      setSelectedPlayerId(activeProfiles[0].id);
+    if (activeProfiles.length > 0) {
+      const exists = activeProfiles.some((p) => p.id === selectedPlayerId);
+      if (!exists) {
+        setSelectedPlayerId(activeProfiles[0].id);
+      }
+    } else if (selectedPlayerId) {
+      setSelectedPlayerId("");
     }
   }, [activeProfiles, selectedPlayerId]);
 
