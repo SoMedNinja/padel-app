@@ -41,3 +41,7 @@
 ## 2024-05-21 - [Leveraging Pre-aggregated Data in Sub-components]
 **Learning:** Re-calculating complex statistics (like wins, losses, or ELO averages) inside sub-components when the parent has already computed them for the same dataset results in redundant O(P * M) work.
 **Action:** Use an `isFiltered` or similar flag to let sub-components know when they can bypass expensive re-calculation logic and directly use the pre-aggregated data passed through props.
+
+## 2024-05-22 - [Avoiding Redundant Normalization and Sorting]
+**Learning:** Frequent calls to data normalization utilities (like `normalizeTeam`) and unnecessary $O(N \log N)$ sorting for "top-N" selection can dominate the execution time of statistics calculations as the dataset grows.
+**Action:** Normalize data once and reuse it. Replace full sorts with single-pass $O(N)$ selection loops when only the best item is needed.

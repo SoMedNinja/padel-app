@@ -37,7 +37,11 @@ export function scorePlayersForMvp(
   players: PlayerStats[],
   minGames: number
 ): MvpScoreResult[] {
-  const matchIds = new Set(matches.map(m => m.id).filter(Boolean));
+  const matchIds = new Set<string>();
+  for (let i = 0; i < matches.length; i++) {
+    const id = matches[i].id;
+    if (id) matchIds.add(id);
+  }
 
   return players.map(player => {
     let wins = 0;
@@ -75,19 +79,38 @@ export function scorePlayersForMvp(
  * Determines the MVP winner from a list of scored results.
  */
 export function getMvpWinner(results: MvpScoreResult[]): MvpScoreResult | null {
-  const eligible = results.filter(r => r.isEligible);
-  if (eligible.length === 0) return null;
+  let winner: MvpScoreResult | null = null;
 
-  return [...eligible].sort((a, b) => {
-    // 1. Higher Score
-    if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
-    // 2. Higher ELO Gain
-    if (Math.abs(b.periodEloGain - a.periodEloGain) > 0.001) return b.periodEloGain - a.periodEloGain;
-    // 3. Higher Total ELO (Net)
-    if (b.eloNet !== a.eloNet) return b.eloNet - a.eloNet;
-    // 4. More Wins
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    // 5. Alphabetical
-    return a.name.localeCompare(b.name);
-  })[0];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (!r.isEligible) continue;
+    if (!winner) {
+      winner = r;
+      continue;
+    }
+
+    const scoreDiff = r.score - winner.score;
+    if (scoreDiff > 0.001) {
+      winner = r;
+    } else if (scoreDiff > -0.001) {
+      const eloGainDiff = r.periodEloGain - winner.periodEloGain;
+      if (eloGainDiff > 0.001) {
+        winner = r;
+      } else if (eloGainDiff > -0.001) {
+        if (r.eloNet > winner.eloNet) {
+          winner = r;
+        } else if (r.eloNet === winner.eloNet) {
+          if (r.wins > winner.wins) {
+            winner = r;
+          } else if (r.wins === winner.wins) {
+            if (r.name.localeCompare(winner.name) < 0) {
+              winner = r;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return winner;
 }
