@@ -930,6 +930,8 @@ export default function PlayerSection({
                   size="small"
                   value={editedName}
                   onChange={(e) => setEditedName(e.target.value)}
+                  helperText={`${editedName.length}/50`}
+                  slotProps={{ htmlInput: { maxLength: 50 } }}
                 />
                 <Button variant="contained" size="small" onClick={handleNameSave}>Spara</Button>
                 <Button variant="outlined" size="small" onClick={() => setIsEditingName(false)}>Avbryt</Button>

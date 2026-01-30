@@ -12,6 +12,7 @@ import {
   Switch,
   FormControlLabel,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import { useEloStats } from "../../hooks/useEloStats";
 import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
@@ -71,7 +72,7 @@ export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPrev
     } else if (selectedPlayerId) {
       setSelectedPlayerId("");
     }
-  }, [activeProfiles, selectedPlayerId]);
+  }, [activeProfiles, selectedPlayerId, currentUserId]);
 
   const emailData = useMemo(() => {
     if (!selectedPlayerId) return null;
@@ -358,15 +359,19 @@ export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPrev
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 2 }}>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleSendTest}
-              disabled={isSending || useMock}
-              startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
-            >
-              Skicka test
-            </Button>
+            <Tooltip title={useMock ? "Du kan inte skicka test-mail med testdata" : ""}>
+              <span>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={handleSendTest}
+                  disabled={isSending || useMock}
+                  startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
+                >
+                  Skicka test
+                </Button>
+              </span>
+            </Tooltip>
           </Grid>
         </Grid>
       </Paper>
