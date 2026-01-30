@@ -18,7 +18,7 @@ import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
 import { getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
-import { supabase, supabaseAnonKey } from "../../supabaseClient";
+import { supabase, supabaseAnonKey, supabaseUrl } from "../../supabaseClient";
 
 interface WeeklyEmailPreviewProps {
   currentUserId?: string;
@@ -360,17 +360,28 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         throw new Error("VITE_SUPABASE_ANON_KEY saknas i frontend-miljön (Vercel).");
       }
 
-      const { data, error } = await supabase.functions.invoke('weekly-summary', {
-        body: { playerId: selectedPlayerId },
+      if (!supabaseUrl) {
+        // Note for non-coders: we build the Edge Function URL from the Supabase project URL.
+        throw new Error("VITE_SUPABASE_URL saknas i frontend-miljön (Vercel).");
+      }
+
+      const functionUrl = `${supabaseUrl}/functions/v1/weekly-summary`;
+      // Note for non-coders: this fetch mirrors the exact curl headers so the Edge Function can authenticate.
+      const response = await fetch(functionUrl, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           apikey: supabaseAnonKey,
-          Authorization: `Bearer ${sessionData.session.access_token}`
-        }
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({ playerId: selectedPlayerId }),
       });
 
-      if (error) {
-        const statusHint = (error as any)?.status ? ` (status ${error.status})` : "";
-        throw new Error(`${error.message || "Okänt fel"}${statusHint}`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const errorMessage = data?.error || data?.message || "Okänt fel";
+        const statusHint = response.status ? ` (status ${response.status})` : "";
+        throw new Error(`${errorMessage}${statusHint}`);
       }
 
       if (data?.success) {
