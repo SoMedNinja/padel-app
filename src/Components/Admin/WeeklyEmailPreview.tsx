@@ -332,10 +332,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     if (!selectedPlayerId) return;
 
     const player = activeProfiles.find(p => p.id === selectedPlayerId);
-    const confirmed = window.confirm(`Vill du skicka ett test-mail till ${player?.name}?`);
-    if (!confirmed) return;
-
-    // Note for non-coders: the backend requires a login token, so we stop here if the user isn't logged in.
+    // Note for non-coders: we ask Supabase who is logged in right now before we attempt to send email.
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     if (sessionError || !accessToken) {
@@ -344,6 +341,9 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       return;
     }
     setHasSession(true);
+
+    const confirmed = window.confirm(`Vill du skicka ett test-mail till ${player?.name}?`);
+    if (!confirmed) return;
 
     setIsSending(true);
     try {
@@ -450,11 +450,12 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 2 }}>
+            {/* Note for non-coders: we keep this button disabled until we know the user is logged in. */}
             <Button
               variant="contained"
               fullWidth
               onClick={handleSendTest}
-              disabled={isSending || useMock || hasSession === false}
+              disabled={isSending || useMock || !hasSession}
               startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
             >
               Skicka test
