@@ -19,6 +19,7 @@ import {
   IconButton,
   Chip,
   Paper,
+  Avatar,
 } from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
@@ -54,6 +55,7 @@ export default function MeritsSection({
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
 
   const [isEarnedExpanded, setIsEarnedExpanded] = useState(true);
+  const [isOtherExpanded, setIsOtherExpanded] = useState(true);
   const [isLockedExpanded, setIsLockedExpanded] = useState(true);
   const [selectedBadgeId, setSelectedBadgeId] = useState(
     playerProfile?.featured_badge_id || null
@@ -178,6 +180,64 @@ export default function MeritsSection({
             </Stack>
           )}
         </Box>
+
+        {badgeSummary.otherUniqueBadges?.length > 0 && (
+          <Box sx={{ mb: 6 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>Unika meriter som kan byta ägare</Typography>
+              <IconButton
+                onClick={() => setIsOtherExpanded(!isOtherExpanded)}
+                aria-label={isOtherExpanded ? "Dölj unika meriter" : "Visa unika meriter"}
+              >
+                {isOtherExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+            </Box>
+
+            {isOtherExpanded && (
+              <Grid container spacing={1.5}>
+                {badgeSummary.otherUniqueBadges.map((badge: any) => {
+                  const holder = profiles.find((p: any) => p.id === badge.holderId);
+                  return (
+                    <Grid key={badge.id} size={{ xs: 6, sm: 4, md: 4 }}>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 1,
+                          borderRadius: 2,
+                          bgcolor: 'rgba(25, 118, 210, 0.04)',
+                          borderColor: 'divider',
+                          opacity: 0.9
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="h5">{badge.icon}</Typography>
+                          <Chip label="Unik" size="small" variant="outlined" color="primary" sx={{ fontWeight: 800, fontSize: '0.6rem', height: 20 }} />
+                        </Box>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>{badge.title}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>{badge.description}</Typography>
+
+                        <Divider sx={{ my: 0.5 }} />
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar src={holder?.avatar_url} sx={{ width: 18, height: 18, fontSize: '0.6rem' }}>
+                            {holder?.full_name?.charAt(0)}
+                          </Avatar>
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main', fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {holder?.full_name || 'Okänd'} ({badge.holderValue})
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            )}
+          </Box>
+        )}
 
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
