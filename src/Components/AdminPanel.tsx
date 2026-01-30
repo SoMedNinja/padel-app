@@ -150,6 +150,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
           variant="fullWidth"
           indicatorColor="primary"
           textColor="primary"
+          aria-label="Admin-alternativ"
         >
           <Tab icon={<PeopleIcon />} label="Användare" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
           <Tab icon={<EmailIcon />} label="Veckobrev" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
