@@ -372,12 +372,17 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         throw new Error("VITE_SUPABASE_URL saknas i frontend-miljön (Vercel).");
       }
 
+      // Note for non-coders: we include apikey in both header and URL to avoid mobile/Safari stripping custom headers.
+      const functionUrl = new URL(`${supabaseUrl}/functions/v1/weekly-summary`);
+      functionUrl.searchParams.set("apikey", supabaseAnonKey);
+
       // Note for non-coders: we use a direct fetch so the headers match the working curl request exactly.
-      const response = await fetch(`${supabaseUrl}/functions/v1/weekly-summary`, {
+      const response = await fetch(functionUrl.toString(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: supabaseAnonKey,
+          "x-client-info": "padel-app-web",
           Authorization: `Bearer ${sessionData.session.access_token}`,
         },
         body: JSON.stringify({ playerId: selectedPlayerId }),
@@ -418,6 +423,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   };
 
   if (isLoading) return <CircularProgress />;
+
+  const hasSupabaseUrl = Boolean(supabaseUrl);
+  const hasSupabaseAnonKey = Boolean(supabaseAnonKey);
+  const showEnvStatus = true;
+  // Note for non-coders: this masks secrets so we can confirm they exist without exposing them.
+  const maskedSupabaseAnonKey = hasSupabaseAnonKey
+    ? `${supabaseAnonKey.slice(0, 6)}...${supabaseAnonKey.slice(-4)}`
+    : "";
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
