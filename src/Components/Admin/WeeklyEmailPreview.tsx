@@ -60,6 +60,13 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const [selectedWeek, setSelectedWeek] = useState<string>(""); // format "YYYY-Www"
   const [isSending, setIsSending] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const hasSupabaseUrl = Boolean(supabaseUrl);
+  const hasSupabaseAnonKey = Boolean(supabaseAnonKey);
+  const maskedSupabaseAnonKey = hasSupabaseAnonKey
+    ? `${supabaseAnonKey.slice(0, 6)}…${supabaseAnonKey.slice(-4)}`
+    : "saknas";
+  // Note for non-coders: this limits the env status hint to logged-in admin views only.
+  const showEnvStatus = Boolean(currentUserId);
 
   const activeProfiles = useMock ? MOCK_PROFILES : profiles.filter(p => !p.is_deleted);
   const activeMatches = useMock ? MOCK_MATCHES : matches;
