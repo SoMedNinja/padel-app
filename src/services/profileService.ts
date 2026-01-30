@@ -1,6 +1,18 @@
 import { supabase } from "../supabaseClient";
 import { Profile } from "../types";
 
+const MAX_AVATAR_LENGTH = 3_000_000; // Security: Limit avatar data size to ~2.2MB
+
+async function checkIsAdmin(userId?: string): Promise<boolean> {
+  if (!userId) return false;
+  const { data } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .single();
+  return data?.is_admin === true;
+}
+
 export const profileService = {
   async getProfiles(): Promise<Profile[]> {
     const { data, error } = await supabase.from("profiles").select("*");
@@ -11,14 +23,23 @@ export const profileService = {
   async updateProfile(id: string, updates: Partial<Profile>): Promise<Profile> {
     const { data: sessionData } = await supabase.auth.getSession();
     const currentUser = sessionData.session?.user;
+    const isAdmin = await checkIsAdmin(currentUser?.id);
 
     const filteredUpdates = { ...updates };
 
-    // Security: prevent users from escalating their own privileges
-    // If not logged in, or updating self, strip sensitive fields.
-    if (!currentUser || currentUser.id === id) {
+    // Security: prevent non-admins from escalating privileges or updating others
+    if (!isAdmin) {
+      if (!currentUser || currentUser.id !== id) {
+        throw new Error("Du har inte behörighet att uppdatera denna profil.");
+      }
+      delete filteredUpdates.id;
       delete filteredUpdates.is_admin;
       delete filteredUpdates.is_approved;
+      delete filteredUpdates.is_deleted;
+    }
+
+    if (filteredUpdates.avatar_url && filteredUpdates.avatar_url.length > MAX_AVATAR_LENGTH) {
+      throw new Error("Profilbilden är för stor.");
     }
 
     if (filteredUpdates.name) {
@@ -44,14 +65,22 @@ export const profileService = {
   async upsertProfile(profile: Partial<Profile>): Promise<Profile> {
     const { data: sessionData } = await supabase.auth.getSession();
     const currentUser = sessionData.session?.user;
+    const isAdmin = await checkIsAdmin(currentUser?.id);
 
     const filteredProfile = { ...profile };
 
-    // Security: prevent users from escalating their own privileges
-    // If not logged in, or updating self, strip sensitive fields.
-    if (!currentUser || currentUser.id === filteredProfile.id) {
+    // Security: prevent non-admins from escalating privileges or updating others
+    if (!isAdmin) {
+      if (!currentUser || (filteredProfile.id && currentUser.id !== filteredProfile.id)) {
+        throw new Error("Du har inte behörighet att uppdatera denna profil.");
+      }
       delete filteredProfile.is_admin;
       delete filteredProfile.is_approved;
+      delete filteredProfile.is_deleted;
+    }
+
+    if (filteredProfile.avatar_url && filteredProfile.avatar_url.length > MAX_AVATAR_LENGTH) {
+      throw new Error("Profilbilden är för stor.");
     }
 
     if (filteredProfile.name) {
