@@ -18,7 +18,7 @@ import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
 import { getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
-import { supabase } from "../../supabaseClient";
+import { supabase, supabaseAnonKey } from "../../supabaseClient";
 
 interface WeeklyEmailPreviewProps {
   currentUserId?: string;
@@ -355,8 +355,17 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         return;
       }
 
+      if (!supabaseAnonKey) {
+        // Note for non-coders: without the anon key, Supabase rejects the request with a 401.
+        throw new Error("VITE_SUPABASE_ANON_KEY saknas i frontend-miljön (Vercel).");
+      }
+
       const { data, error } = await supabase.functions.invoke('weekly-summary', {
-        body: { playerId: selectedPlayerId }
+        body: { playerId: selectedPlayerId },
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${sessionData.session.access_token}`
+        }
       });
 
       if (error) {
