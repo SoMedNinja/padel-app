@@ -235,6 +235,7 @@ function findWeekHighlight(weekMatches: Match[], playersEnd: Record<string, Play
 }
 
 Deno.serve(async (req) => {
+  console.log(`Weekly summary function called with method: ${req.method}`);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -250,8 +251,9 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json();
       targetPlayerId = body.playerId || null;
+      console.log(`Target player ID: ${targetPlayerId}`);
     } catch {
-      // No body or not JSON, proceed as normal
+      console.log("No JSON body provided or failed to parse");
     }
 
     const now = new Date();
@@ -478,24 +480,31 @@ Deno.serve(async (req) => {
         </html>
       `;
 
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
-        body: JSON.stringify({
-          from: 'Padel-appen <onboarding@resend.dev>',
-          to: [email],
-          subject: 'Veckan i padel',
-          html: html
-        })
-      });
+      console.log(`Sending email to ${email}...`);
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
+          body: JSON.stringify({
+            from: 'Padel-appen <onboarding@resend.dev>',
+            to: [email],
+            subject: 'Veckan i padel',
+            html: html
+          })
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error(`Failed to send email to ${email}:`, errorData);
-        return { id, success: false, error: errorData };
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(`Resend API error for ${email}:`, errorData);
+          return { id, success: false, error: errorData };
+        }
+
+        console.log(`Successfully sent email to ${email}`);
+        return { id, success: true };
+      } catch (err) {
+        console.error(`Fetch error for ${email}:`, err);
+        return { id, success: false, error: err.message };
       }
-
-      return { id, success: true };
     }));
 
     const successfulCount = emailResults.filter(r => r.success).length;
