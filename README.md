@@ -22,6 +22,12 @@ Note for non-coders: the anon public key is safe to use in the browser because S
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
+## Deployment (Vercel)
+
+This project uses `pnpm`. If Vercel shows a build warning/error about the pnpm version, pin the version via the `packageManager` field in `package.json` (this repo already does). 
+
+**Note for non-coders:** `packageManager` is just a small hint that tells Vercel which version of pnpm to use so builds are consistent.
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

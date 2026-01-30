@@ -106,6 +106,7 @@ This helps you see function errors without the browser in the way.
 #### 401 Unauthorized
 This means the Edge Function did not accept your request. The most common causes are:
 - **Missing or wrong `VITE_SUPABASE_ANON_KEY`** in your frontend environment (the key should be the *anon* key from Supabase Project Settings → API).
+- **Using the publishable key instead of the anon public key** (publishable keys often start with `sb_publishable_` and will be rejected by Edge Functions).
 - **You are not logged in** (no valid user session), so the browser doesn’t send a valid auth token.
 
 **Note for non-coders:** Think of a 401 as a “locked door.” The server didn’t see a valid “pass” (login token) attached to your request.
