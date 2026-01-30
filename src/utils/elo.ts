@@ -156,7 +156,8 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
   const ensurePlayer = (id: string, name = "Okänd", avatarUrl: string | null = null, featuredBadgeId: string | null = null) => {
     if (id === GUEST_ID) return;
-    if (!players[id]) {
+    const existing = players[id];
+    if (!existing) {
       players[id] = {
         id,
         name,
@@ -172,15 +173,10 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
         recentResults: [],
       };
     } else {
-      if (name && players[id].name === "Okänd") {
-        players[id].name = name;
-      }
-      if (avatarUrl && !players[id].avatarUrl) {
-        players[id].avatarUrl = avatarUrl;
-      }
-      if (featuredBadgeId && !players[id].featuredBadgeId) {
-        players[id].featuredBadgeId = featuredBadgeId;
-      }
+      // Optimization: skip redundant checks if info is already present
+      if (existing.name === "Okänd" && name) existing.name = name;
+      if (!existing.avatarUrl && avatarUrl) existing.avatarUrl = avatarUrl;
+      if (!existing.featuredBadgeId && featuredBadgeId) existing.featuredBadgeId = featuredBadgeId;
     }
   };
 
@@ -188,21 +184,44 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     ensurePlayer(p.id, getProfileDisplayName(p), avatarMap[p.id], badgeMap[p.id]);
   });
 
-  const normalizeTeam = (team: any): string[] => (Array.isArray(team) ? team.filter(Boolean) : []);
-  const hasPlayer = (id: string) => Boolean(players[id]);
-  const activeTeam = (team: string[]) => team.filter(id => id !== GUEST_ID && hasPlayer(id));
-  const avg = (team: string[]) =>
-    team.reduce((s, id) => s + (players[id]?.elo ?? ELO_BASELINE), 0) / team.length;
+  const normalizeTeam = (team: any): string[] => {
+    if (!Array.isArray(team)) return [];
+    // Optimization: check if filter is needed before allocating new array
+    for (let i = 0; i < team.length; i++) {
+      if (!team[i]) return team.filter(Boolean);
+    }
+    return team;
+  };
+  const activeTeam = (team: string[]) => {
+    const active = [];
+    for (let i = 0; i < team.length; i++) {
+      const id = team[i];
+      if (id !== GUEST_ID && players[id]) active.push(id);
+    }
+    return active;
+  };
+  const avg = (team: string[]) => {
+    let sum = 0;
+    const len = team.length;
+    for (let i = 0; i < len; i++) {
+      sum += players[team[i]]?.elo ?? ELO_BASELINE;
+    }
+    return sum / len;
+  };
   const recordPartners = (team: string[], didWin: boolean) => {
-    team.forEach((playerId) => {
-      team.forEach((partnerId) => {
-        if (playerId === partnerId) return;
-        const partnerStats = players[playerId].partners[partnerId] || { games: 0, wins: 0 };
+    const len = team.length;
+    for (let i = 0; i < len; i++) {
+      const playerId = team[i];
+      const player = players[playerId];
+      for (let j = 0; j < len; j++) {
+        const partnerId = team[j];
+        if (playerId === partnerId) continue;
+        const partnerStats = player.partners[partnerId] || { games: 0, wins: 0 };
         partnerStats.games += 1;
         if (didWin) partnerStats.wins += 1;
-        players[playerId].partners[partnerId] = partnerStats;
-      });
-    });
+        player.partners[partnerId] = partnerStats;
+      }
+    }
   };
 
   const resolveName = (id: string) => getIdDisplayName(id, profileMap);
@@ -224,7 +243,9 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
     const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
     const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
-    [...t1, ...t2].forEach(id => ensurePlayer(id, resolveName(id), null, badgeMap[id]));
+    // Optimization: avoid array spread allocation
+    for (let i = 0; i < t1.length; i++) ensurePlayer(t1[i], resolveName(t1[i]), null, badgeMap[t1[i]]);
+    for (let i = 0; i < t2.length; i++) ensurePlayer(t2[i], resolveName(t2[i]), null, badgeMap[t2[i]]);
     const t1Active = activeTeam(t1);
     const t2Active = activeTeam(t2);
 

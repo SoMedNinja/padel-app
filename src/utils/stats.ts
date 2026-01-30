@@ -2,7 +2,13 @@
 import { Match, PlayerStats } from "../types";
 
 const normalizeTeam = (team: any): string[] => {
-  if (Array.isArray(team)) return team.filter(Boolean);
+  if (Array.isArray(team)) {
+    // Optimization: avoid filter(Boolean) if array is already clean
+    for (let i = 0; i < team.length; i++) {
+      if (!team[i]) return team.filter(Boolean);
+    }
+    return team;
+  }
   if (typeof team === "string") {
     const trimmed = team.trim();
     if (!trimmed) return [];
@@ -39,30 +45,29 @@ export function getLatestMatchDate(matches: Match[]) {
 }
 
 export function getRecentResults(matches: Match[], playerName: string, limit = 5): ("W" | "L")[] {
-  // Optimization: filter and map in a single pass to avoid multiple array allocations
-  // Also avoid re-sorting if possible, but here we need the last N matches by time.
-  const relevantMatches = [];
+  // Optimization: filter and calculate results in a single pass to avoid multiple array allocations
+  // and redundant normalization in the later map().
+  const relevantResults: { date: string, res: "W" | "L" }[] = [];
+
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i];
-    const team1 = normalizeTeam(m.team1);
-    const team2 = normalizeTeam(m.team2);
-    if (team1.includes(playerName) || team2.includes(playerName)) {
-      relevantMatches.push(m);
+    const t1 = normalizeTeam(m.team1);
+    const t2 = normalizeTeam(m.team2);
+
+    const inT1 = t1.includes(playerName);
+    const inT2 = t2.includes(playerName);
+
+    if (inT1 || inT2) {
+      const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
+      relevantResults.push({ date: m.created_at || "", res: won ? "W" : "L" });
     }
   }
 
-  return relevantMatches
-    // Optimization: ISO strings can be compared lexicographically
-    .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0))
+  return relevantResults
+    // ISO strings can be compared lexicographically
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     .slice(-limit)
-    .map(m => {
-      const team1 = normalizeTeam(m.team1);
-      const team2 = normalizeTeam(m.team2);
-      const won =
-        (team1.includes(playerName) && m.team1_sets > m.team2_sets) ||
-        (team2.includes(playerName) && m.team2_sets > m.team1_sets);
-      return won ? "W" : "L";
-    });
+    .map(r => r.res);
 }
 
 
