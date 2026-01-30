@@ -41,3 +41,7 @@
 ## 2024-05-21 - [Leveraging Pre-aggregated Data in Sub-components]
 **Learning:** Re-calculating complex statistics (like wins, losses, or ELO averages) inside sub-components when the parent has already computed them for the same dataset results in redundant O(P * M) work.
 **Action:** Use an `isFiltered` or similar flag to let sub-components know when they can bypass expensive re-calculation logic and directly use the pre-aggregated data passed through props.
+
+## 2024-05-21 - [Targeted Pre-indexing for Highlight Detection]
+**Learning:** Global pre-indexing of all player histories ($O(P \times H)$) for a targeted calculation like "latest match highlights" (which only involves a handful of players) is a performance regression as the dataset grows.
+**Action:** Only pre-index data for the specific subset of entities involved in the calculation. In `findMatchHighlight`, first identify the relevant players from the latest matches, then build a targeted lookup Map for only those players.
