@@ -21,7 +21,3 @@
 ## 2025-05-24 - [Micro-UX: Progressive Disclosure & Contextual Feedback]
 **Learning:** For dense forms (like score selection), allowing users to collapse extra options ("Göm") keeps the UI tidy and reduces cognitive load. Providing immediate, contextual loading feedback (like a spinner inside a button) for administrative actions prevents double-clicks and uncertainty.
 **Action:** Use "Mer.../Göm" patterns for optional high-density inputs. Always replace icons with a `CircularProgress` (size 16) in buttons during active async operations. Use `cursor: 'help'` on tooltipped headers to signal interactivity.
-
-## 2025-05-15 - [Character limits and interactive accessibility]
-**Learning:** For interactive card-like elements used for selection, replacing standard Paper with ButtonBase (component={Paper}) ensures they are focusable and keyboard-accessible. Adding character counters to fields with backend constraints (like player names) prevents silent user errors.
-**Action:** Always use ButtonBase for interactive cards and include helperText counters for limited text inputs.
