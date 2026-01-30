@@ -18,7 +18,7 @@ import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
 import { getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
-import { supabase } from "../../supabaseClient";
+import { supabase, supabaseAnonKey, supabaseUrl } from "../../supabaseClient";
 
 interface WeeklyEmailPreviewProps {
   currentUserId?: string;
@@ -355,13 +355,31 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('weekly-summary', {
-        body: { playerId: selectedPlayerId }
+      if (!supabaseAnonKey) {
+        // Note for non-coders: without the anon key, Supabase rejects the request with a 401.
+        throw new Error("VITE_SUPABASE_ANON_KEY saknas i frontend-miljön (Vercel).");
+      }
+
+      if (!supabaseUrl) {
+        // Note for non-coders: the base project URL is required so we know where to send the request.
+        throw new Error("VITE_SUPABASE_URL saknas i frontend-miljön (Vercel).");
+      }
+
+      // Note for non-coders: we use a direct fetch so the headers match the working curl request exactly.
+      const response = await fetch(`${supabaseUrl}/functions/v1/weekly-summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({ playerId: selectedPlayerId }),
       });
 
-      if (error) {
-        const statusHint = (error as any)?.status ? ` (status ${error.status})` : "";
-        throw new Error(`${error.message || "Okänt fel"}${statusHint}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errorMessage = data?.error || data?.message || "Okänt fel";
+        throw new Error(`${errorMessage} (status ${response.status})`);
       }
 
       if (data?.success) {
