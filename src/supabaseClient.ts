@@ -5,6 +5,14 @@ const envSupabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const envSupabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 const supabaseUrl = envSupabaseUrl || "";
 const supabaseAnonKey = envSupabaseAnonKey || "";
+const isPublishableKey = supabaseAnonKey.startsWith("sb_publishable_");
+
+if (isPublishableKey) {
+  // Note for non-coders: Supabase "publishable" keys won't authenticate Edge Functions, so we warn loudly.
+  console.warn(
+    "Supabase key looks like a publishable key (sb_publishable_*). Use the anon public key from Project Settings → API; publishable keys won't work with Edge Functions."
+  );
+}
 
 const isSupabaseConfigured = Boolean(envSupabaseUrl && envSupabaseAnonKey);
 const missingSupabaseMessage =
