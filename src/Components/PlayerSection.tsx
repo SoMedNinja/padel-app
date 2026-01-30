@@ -19,6 +19,7 @@ import {
 import {
   ELO_BASELINE,
   calculateElo,
+  getWinProbability,
 } from "../utils/elo";
 import { GUEST_ID } from "../utils/guest";
 import {
@@ -73,7 +74,7 @@ import { alpha } from "@mui/material/styles";
 // Note for non-coders: alpha is a helper that makes a color transparent so highlight
 // backgrounds are soft instead of solid blocks.
 import "./PlayerSection.css";
-import { formatDate } from "../utils/format";
+import { formatDate, formatScore } from "../utils/format";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
@@ -336,9 +337,24 @@ const getHighestEloRating = (playerStats: PlayerStats | undefined) => {
   return Math.max(historyMax, playerStats.elo);
 };
 
-const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponentId: string, mode: string, nameToIdMap: Map<string, string>) => {
+const buildHeadToHead = (
+  matches: Match[],
+  playerId: string | undefined,
+  opponentId: string,
+  mode: string,
+  nameToIdMap: Map<string, string>,
+  playerDeltaMap: Map<string, number>
+) => {
   if (!playerId || !opponentId) {
-    return { wins: 0, losses: 0, matches: 0, avgSetDiff: 0, totalSetsFor: 0, totalSetsAgainst: 0 };
+    return {
+      wins: 0,
+      losses: 0,
+      matches: 0,
+      totalSetsFor: 0,
+      totalSetsAgainst: 0,
+      totalEloExchange: 0,
+      lastMatch: null
+    };
   }
 
   let wins = 0;
@@ -346,6 +362,8 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
   let total = 0;
   let totalSetsFor = 0;
   let totalSetsAgainst = 0;
+  let totalEloExchange = 0;
+  let lastMatch: any = null;
 
   matches.forEach(match => {
     const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
@@ -384,8 +402,22 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
     let setsFor = isTeam1 ? s1 : s2;
     let setsAgainst = isTeam1 ? s2 : s1;
 
+    // Track ELO exchange
+    const delta = playerDeltaMap.get(match.id) || 0;
+    totalEloExchange += delta;
+
+    // Track last match
+    if (!lastMatch || match.created_at > lastMatch.created_at) {
+      lastMatch = {
+        date: match.created_at,
+        setsFor,
+        setsAgainst,
+        won: playerWon
+      };
+    }
+
     // Normalize point-based matches (from tournaments) to a 1-set win/loss
-    // so they don't skew the "Set difference" average.
+    // for the "Totala set" count to be consistent.
     if (match.score_type === "points") {
       if (setsFor > setsAgainst) {
         setsFor = 1;
@@ -403,9 +435,15 @@ const buildHeadToHead = (matches: Match[], playerId: string | undefined, opponen
     totalSetsAgainst += setsAgainst;
   });
 
-  const avgSetDiff = total ? (totalSetsFor - totalSetsAgainst) / total : 0;
-
-  return { wins, losses, matches: total, avgSetDiff, totalSetsFor, totalSetsAgainst };
+  return {
+    wins,
+    losses,
+    matches: total,
+    totalSetsFor,
+    totalSetsAgainst,
+    totalEloExchange,
+    lastMatch
+  };
 };
 
 const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string) => {
@@ -1046,9 +1084,18 @@ export function HeadToHeadSection({
     selectablePlayers[0]?.id ||
     "";
 
+  const playerDeltaMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const currentPlayerStats = allEloPlayers.find(p => p.id === user?.id);
+    currentPlayerStats?.history.forEach(h => {
+      map.set(h.matchId, h.delta);
+    });
+    return map;
+  }, [allEloPlayers, user?.id]);
+
   const headToHead = useMemo(
-    () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap),
-    [matches, user, resolvedOpponentId, mode, nameToIdMap]
+    () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap),
+    [matches, user, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap]
   );
 
   const recentResults = useMemo(
@@ -1084,6 +1131,11 @@ export function HeadToHeadSection({
 
   const currentPlayerElo = currentPlayerStats?.elo ?? ELO_BASELINE;
   const opponentElo = opponentPlayerStats?.elo ?? ELO_BASELINE;
+
+  const winProbability = useMemo(
+    () => getWinProbability(currentPlayerElo, opponentElo),
+    [currentPlayerElo, opponentElo]
+  );
 
   const playerHighestElo = useMemo(
     () => getHighestEloRating(currentPlayerStats),
@@ -1175,18 +1227,39 @@ export function HeadToHeadSection({
                 { label: "Förluster", value: headToHead.losses },
                 { label: "Vinst %", value: `${percent(headToHead.wins, headToHead.losses)}%` },
                 {
-                  label: "Snitt setdiff",
-                  value: `${headToHead.avgSetDiff > 0 ? '+' : ''}${headToHead.avgSetDiff.toFixed(1)}`,
-                  color: headToHead.avgSetDiff > 0 ? 'success.main' : headToHead.avgSetDiff < 0 ? 'error.main' : 'inherit'
+                  label: "Totala set",
+                  value: `${headToHead.totalSetsFor} – ${headToHead.totalSetsAgainst}`,
                 },
+                ...(mode === "against" ? [
+                  {
+                    label: "Vinstchans",
+                    value: `${Math.round(winProbability * 100)}%`,
+                  },
+                  {
+                    label: "ELO-utbyte",
+                    value: `${headToHead.totalEloExchange > 0 ? '+' : ''}${headToHead.totalEloExchange}`,
+                    color: headToHead.totalEloExchange > 0 ? 'success.main' : headToHead.totalEloExchange < 0 ? 'error.main' : 'inherit'
+                  }
+                ] : [])
               ].map(stat => (
-                <Grid key={stat.label} size={{ xs: 6, sm: 4, md: 2.4 }}>
+                <Grid key={stat.label} size={{ xs: 6, sm: 4, md: mode === "against" ? 3 : 2.4 }}>
                   <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800, color: stat.color || 'inherit' }}>{stat.value}</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: (stat as any).color || 'inherit' }}>{stat.value}</Typography>
                   </Paper>
                 </Grid>
               ))}
+
+              {headToHead.lastMatch && (
+                <Grid size={{ xs: 12 }}>
+                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'grey.50' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste mötet</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      {formatDate(headToHead.lastMatch.date)}: {formatScore(headToHead.lastMatch.setsFor, headToHead.lastMatch.setsAgainst)} ({headToHead.lastMatch.won ? 'Vinst' : 'Förlust'})
+                    </Typography>
+                  </Paper>
+                </Grid>
+              )}
 
               <Grid size={{ xs: 12 }}>
                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
