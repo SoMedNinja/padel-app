@@ -6,6 +6,7 @@ import { HeadToHeadSection } from "../Components/PlayerSection";
 import FilterBar from "../Components/FilterBar";
 import { Box, Skeleton, Stack, Container, CircularProgress, Typography, Button, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
+import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
 import AppAlert from "../Components/Shared/AppAlert";
 import EmptyState from "../Components/Shared/EmptyState";
 import { useStore } from "../store/useStore";
@@ -116,16 +117,8 @@ export default function Dashboard() {
   return (
     <PullToRefresh
       onRefresh={handleRefresh}
-      pullingContent={
-        <Box sx={{ p: 2, textAlign: 'center', opacity: 0.6 }}>
-          <Typography variant="body2">Dra för att uppdatera...</Typography>
-        </Box>
-      }
-      refreshingContent={
-        <Box sx={{ p: 2, textAlign: 'center' }}>
-          <CircularProgress size={24} />
-        </Box>
-      }
+      pullingContent={<PullingContent />}
+      refreshingContent={<RefreshingContent />}
     >
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box id="dashboard" component="section">

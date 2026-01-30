@@ -3,6 +3,7 @@ import MexicanaTournament from "../Components/MexicanaTournament";
 import { useStore } from "../store/useStore";
 import { useQueryClient } from "@tanstack/react-query";
 import PullToRefresh from "react-simple-pull-to-refresh";
+import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useEloStats } from "../hooks/useEloStats";
 import { Box, Button, Skeleton, Stack, CircularProgress, Typography } from "@mui/material";
@@ -43,16 +44,8 @@ export default function TournamentPage() {
     <PullToRefresh
       className="tournament-scroll"
       onRefresh={handleRefresh}
-      pullingContent={
-        <Box sx={{ p: 2, textAlign: 'center', opacity: 0.6 }}>
-          <Typography variant="body2">Dra för att uppdatera...</Typography>
-        </Box>
-      }
-      refreshingContent={
-        <Box sx={{ p: 2, textAlign: 'center' }}>
-          <CircularProgress size={24} />
-        </Box>
-      }
+      pullingContent={<PullingContent />}
+      refreshingContent={<RefreshingContent />}
     >
       <section id="mexicana" className="page-section">
         <Box sx={{ px: { xs: 2, sm: 0 }, pb: { xs: 10, sm: 4 } }}>

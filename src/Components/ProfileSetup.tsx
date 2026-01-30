@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Avatar from "./Avatar";
 import { profileService } from "../services/profileService";
+import Cropper, { Area } from "react-easy-crop";
+import BadgeGallery from "./BadgeGallery";
+import { useEloStats } from "../hooks/useEloStats";
 import {
-  cropAvatarImage,
   getStoredAvatar,
   removeStoredAvatar,
   setStoredAvatar
@@ -23,6 +25,10 @@ import {
   StepLabel,
   Divider,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   PhotoCamera as PhotoIcon,
@@ -30,18 +36,27 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { stripBadgeLabelFromName } from "../utils/profileName";
+import { EmojiEvents as TrophyIcon } from "@mui/icons-material";
+import { getCroppedImg } from "../utils/image";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
+  const { eloPlayers } = useEloStats();
   const [name, setName] = useState(initialName);
   const [saving, setSaving] = useState(false);
   const avatarStorageId = user?.id || null;
   const [avatarUrl, setAvatarUrl] = useState(() =>
     avatarStorageId ? getStoredAvatar(avatarStorageId) : null
   );
-  const [pendingAvatar, setPendingAvatar] = useState(null);
+  const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
   const [avatarZoom, setAvatarZoom] = useState(1);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState("");
+  const [badgeGalleryOpen, setBadgeGalleryOpen] = useState(false);
+  const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
+    user?.featured_badge_id || null
+  );
 
   const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
   const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -61,7 +76,11 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const isAvatarColumnMissing = (error) =>
     error?.message?.includes("avatar_url") && error.message.includes("schema cache");
 
-  const handleAvatarChange = (event) => {
+  const onCropComplete = useCallback((_: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !avatarStorageId) return;
     setAvatarNotice("");
@@ -85,10 +104,10 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   };
 
   const saveAvatar = async () => {
-    if (!pendingAvatar || !avatarStorageId) return;
+    if (!pendingAvatar || !avatarStorageId || !croppedAreaPixels) return;
     setSavingAvatar(true);
     try {
-      const cropped = await cropAvatarImage(pendingAvatar, avatarZoom);
+      const cropped = await getCroppedImg(pendingAvatar, croppedAreaPixels);
       setStoredAvatar(avatarStorageId, cropped);
       setAvatarUrl(cropped);
       setPendingAvatar(null);
@@ -101,7 +120,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       alert(error.message || "Kunde inte beskära bilden.");
     } finally {
       setSavingAvatar(false);
@@ -111,6 +130,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const cancelAvatar = () => {
     setPendingAvatar(null);
     setAvatarZoom(1);
+    setCrop({ x: 0, y: 0 });
   };
 
   const removeAvatar = () => {
@@ -121,6 +141,16 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     setAvatarZoom(1);
   };
 
+  const globalStats = useMemo(
+    () => eloPlayers.find(p => p.id === user?.id),
+    [eloPlayers, user?.id]
+  );
+
+  const allPlayerStatsMap = useMemo(
+    () => eloPlayers.reduce((acc, p) => ({ ...acc, [p.id]: p }), {}),
+    [eloPlayers]
+  );
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     const trimmed = name.trim();
@@ -130,7 +160,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     if (!user?.id) return;
 
     setSaving(true);
-    const payload: any = { id: user.id, name: trimmed };
+    const payload: any = { id: user.id, name: trimmed, featured_badge_id: selectedBadgeId };
     if (avatarUrl) {
       payload.avatar_url = avatarUrl;
     }
@@ -218,54 +248,70 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     )}
                   </Stack>
                   {avatarNotice && <Alert severity="warning" sx={{ py: 0 }}>{avatarNotice}</Alert>}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<TrophyIcon />}
+                    onClick={() => setBadgeGalleryOpen(true)}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Välj merit
+                  </Button>
                 </Stack>
               </Box>
 
-              {pendingAvatar && (
-                <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'grey.50' }}>
-                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700 }}>Justera bild</Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center' }}>
-                    <Box
-                      sx={{
-                        width: 100,
-                        height: 100,
-                        borderRadius: '50%',
-                        border: 2,
-                        borderColor: 'primary.main',
-                        backgroundImage: `url(${pendingAvatar})`,
-                        backgroundSize: `${avatarZoom * 100}%`,
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat',
-                        bgcolor: '#fff'
-                      }}
-                    />
-                    <Box sx={{ flex: 1, minWidth: 200 }}>
-                      <Typography variant="caption">Zoom</Typography>
-                      <Slider
-                        value={avatarZoom}
-                        min={1}
-                        max={2.5}
-                        step={0.1}
-                        onChange={(_, val) => setAvatarZoom(val as number)}
+              <BadgeGallery
+                open={badgeGalleryOpen}
+                onClose={() => setBadgeGalleryOpen(false)}
+                onSelect={(id) => {
+                  setSelectedBadgeId(id);
+                  setBadgeGalleryOpen(false);
+                }}
+                currentBadgeId={selectedBadgeId}
+                stats={globalStats}
+                allPlayerStats={allPlayerStatsMap}
+                playerId={user?.id || ""}
+              />
+
+              <Dialog open={Boolean(pendingAvatar)} onClose={cancelAvatar} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ fontWeight: 800 }}>Justera profilbild</DialogTitle>
+                <DialogContent>
+                  <Box sx={{ position: 'relative', width: '100%', height: 300, bgcolor: '#333', borderRadius: 2, overflow: 'hidden', mb: 2 }}>
+                    {pendingAvatar && (
+                      <Cropper
+                        image={pendingAvatar}
+                        crop={crop}
+                        zoom={avatarZoom}
+                        aspect={1}
+                        onCropChange={setCrop}
+                        onZoomChange={setAvatarZoom}
+                        onCropComplete={onCropComplete}
+                        cropShape="round"
+                        showGrid={false}
                       />
-                      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          onClick={saveAvatar}
-                          disabled={savingAvatar}
-                          startIcon={savingAvatar ? <CircularProgress size={16} color="inherit" /> : null}
-                        >
-                          Använd
-                        </Button>
-                        <Button variant="text" size="small" onClick={cancelAvatar}>
-                          Avbryt
-                        </Button>
-                      </Stack>
-                    </Box>
+                    )}
                   </Box>
-                </Box>
-              )}
+                  <Typography variant="caption" color="text.secondary">Zoom</Typography>
+                  <Slider
+                    value={avatarZoom}
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    onChange={(_, val) => setAvatarZoom(val as number)}
+                  />
+                </DialogContent>
+                <DialogActions sx={{ p: 3 }}>
+                  <Button onClick={cancelAvatar} color="inherit">Avbryt</Button>
+                  <Button
+                    variant="contained"
+                    onClick={saveAvatar}
+                    disabled={savingAvatar}
+                    startIcon={savingAvatar ? <CircularProgress size={16} color="inherit" /> : null}
+                  >
+                    Använd bild
+                  </Button>
+                </DialogActions>
+              </Dialog>
 
               <Button
                 type="submit"

@@ -5,6 +5,7 @@ import FilterBar from "../Components/FilterBar";
 import EmptyState from "../Components/Shared/EmptyState";
 import { Box, Button, Skeleton, Stack, Container, Typography, Alert } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
+import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
 import { useStore } from "../store/useStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEloStats } from "../hooks/useEloStats";
@@ -39,7 +40,11 @@ export default function HistoryPage() {
   ]);
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      pullingContent={<PullingContent />}
+      refreshingContent={<RefreshingContent />}
+    >
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Box id="history" component="section">
           <Typography variant="h4" sx={{ mb: 3, fontWeight: 800 }}>Matchhistorik</Typography>

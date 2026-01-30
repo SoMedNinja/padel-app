@@ -232,3 +232,56 @@ body.chart-fullscreen-active {
   font-weight: 700;
   font-size: 1.2rem;
 }
+
+/* Pull-to-refresh Animation */
+.ptr-animation-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 12px;
+}
+
+.padel-ball {
+  width: 24px;
+  height: 24px;
+  background-color: #d4e157; /* Padel ball yellow */
+  border-radius: 50%;
+  border: 2px solid #aebf2e;
+  box-shadow: inset -2px -2px 0 rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.padel-ball::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(255,255,255,0.4);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.bouncing-ball {
+  animation: bounce 0.6s infinite alternate cubic-bezier(.5,0,.5,1);
+}
+
+@keyframes bounce {
+  from { transform: translateY(0) scaleX(1); }
+  to { transform: translateY(-30px) scaleX(0.95); }
+}
+
+.ball-shadow {
+  width: 20px;
+  height: 4px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 50%;
+  animation: shadow-pulse 0.6s infinite alternate cubic-bezier(.5,0,.5,1);
+}
+
+@keyframes shadow-pulse {
+  from { transform: scale(1); opacity: 0.2; }
+  to { transform: scale(0.5); opacity: 0.05; }
+}

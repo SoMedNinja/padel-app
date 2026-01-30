@@ -6,7 +6,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  ReferenceLine
 } from "recharts";
 import { getPlayerColor } from "../utils/colors";
 import { Typography, Box, Paper } from "@mui/material";
@@ -72,7 +73,12 @@ export default function EloTrend({ players = [] }) {
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>
-      <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>ELO Trend (senaste året)</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 800 }}>ELO Trend</Typography>
+          <Typography variant="caption" color="text.secondary">Tryck och dra för att se detaljer</Typography>
+        </Box>
+      </Box>
 
       <Box sx={{ width: "100%", height: 350, minWidth: 0 }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
@@ -91,8 +97,18 @@ export default function EloTrend({ players = [] }) {
               style={{ fontSize: '0.75rem' }}
             />
             <Tooltip
-              contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-              labelFormatter={(val) => formatDate(val, { dateStyle: 'medium' })}
+              contentStyle={{
+                borderRadius: 16,
+                border: 'none',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                padding: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(4px)'
+              }}
+              itemStyle={{ fontWeight: 700, padding: '2px 0' }}
+              labelStyle={{ fontWeight: 800, color: '#d32f2f', marginBottom: '8px' }}
+              labelFormatter={(val) => formatDate(val, { dateStyle: 'long' })}
+              cursor={{ stroke: '#d32f2f', strokeWidth: 1, strokeDasharray: '4 4' }}
             />
 
             {playerNames.map(name => (
@@ -102,9 +118,15 @@ export default function EloTrend({ players = [] }) {
                 dataKey={(row) => row[name]}
                 name={name}
                 stroke={getPlayerColor(name)}
-                strokeWidth={3}
+                strokeWidth={4}
                 dot={false}
-                activeDot={{ r: 6 }}
+                activeDot={{
+                  r: 8,
+                  strokeWidth: 2,
+                  stroke: '#fff',
+                  fill: getPlayerColor(name)
+                }}
+                animationDuration={1000}
               />
             ))}
           </LineChart>
