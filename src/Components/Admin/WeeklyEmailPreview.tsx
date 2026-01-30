@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { useEloStats } from "../../hooks/useEloStats";
 import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
+import { getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
 import { supabase } from "../../supabaseClient";
@@ -55,7 +56,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const { allMatches: matches = [], profiles = [], isLoading } = useEloStats();
   const [useMock, setUseMock] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
-  const [timeframe, setTimeframe] = useState<"current" | "previous">("current");
+  const [timeframe, setTimeframe] = useState<"current" | "previous" | "custom">("current");
+  const [selectedWeek, setSelectedWeek] = useState<string>(""); // format "YYYY-Www"
   const [isSending, setIsSending] = useState(false);
 
   const activeProfiles = useMock ? MOCK_PROFILES : profiles.filter(p => !p.is_deleted);
@@ -75,6 +77,28 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     }
   }, [activeProfiles, selectedPlayerId, currentUserId]);
 
+  const availableWeeks = useMemo(() => {
+    const weeks = new Set<string>();
+    activeMatches.forEach(m => {
+      const d = new Date(m.created_at);
+      const { week, year } = getISOWeek(d);
+      weeks.add(`${year}-W${String(week).padStart(2, '0')}`);
+    });
+    return Array.from(weeks).sort().reverse();
+  }, [activeMatches]);
+
+  // Set default week if not set or if current week is not in available list
+  React.useEffect(() => {
+    if (availableWeeks.length > 0) {
+      const exists = availableWeeks.includes(selectedWeek);
+      if (!exists) {
+        setSelectedWeek(availableWeeks[0]);
+      }
+    } else if (selectedWeek) {
+      setSelectedWeek("");
+    }
+  }, [availableWeeks, selectedWeek]);
+
   const emailData = useMemo(() => {
     if (!selectedPlayerId) return null;
 
@@ -85,10 +109,17 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       // Past 7 days
       end = now;
       start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else {
+    } else if (timeframe === "previous") {
       // 7-14 days ago
       end = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       start = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    } else if (timeframe === "custom" && selectedWeek) {
+      const [year, weekStr] = selectedWeek.split("-W");
+      const range = getISOWeekRange(parseInt(weekStr), parseInt(year));
+      start = range.start;
+      end = range.end;
+    } else {
+      return null;
     }
 
     const startISO = start.toISOString();
@@ -155,7 +186,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       highlight: findWeekHighlight(),
       leaderboard
     };
-  }, [selectedPlayerId, timeframe, useMock, activeMatches, activeProfiles]);
+  }, [selectedPlayerId, timeframe, selectedWeek, useMock, activeMatches, activeProfiles]);
 
   const emailHtml = useMemo(() => {
     if (!emailData) return "";
@@ -350,13 +381,35 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
               >
                 <MenuItem value="current">Senaste 7 dagarna</MenuItem>
                 <MenuItem value="previous">7-14 dagar sedan</MenuItem>
+                <MenuItem value="custom">Välj specifik vecka</MenuItem>
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
+          {timeframe === 'custom' && (
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Välj vecka</InputLabel>
+                <Select
+                  value={selectedWeek}
+                  label="Välj vecka"
+                  onChange={(e) => setSelectedWeek(e.target.value)}
+                >
+                  {availableWeeks.map(w => {
+                    const [year, week] = w.split("-W");
+                    return (
+                      <MenuItem key={w} value={w}>
+                        {`Vecka ${parseInt(week)}, ${year}`}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+            </Grid>
+          )}
+          <Grid size={{ xs: 12, sm: 2 }}>
             <FormControlLabel
               control={<Switch checked={useMock} onChange={(e) => setUseMock(e.target.checked)} />}
-              label="Använd testdata"
+              label="Testdata"
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 2 }}>
