@@ -368,13 +368,12 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       }
 
       if (!supabaseUrl) {
-        // Note for non-coders: we build the Edge Function URL from the Supabase project URL.
+        // Note for non-coders: the base project URL is required so we know where to send the request.
         throw new Error("VITE_SUPABASE_URL saknas i frontend-miljön (Vercel).");
       }
 
-      const functionUrl = `${supabaseUrl}/functions/v1/weekly-summary`;
-      // Note for non-coders: this fetch mirrors the exact curl headers so the Edge Function can authenticate.
-      const response = await fetch(functionUrl, {
+      // Note for non-coders: we use a direct fetch so the headers match the working curl request exactly.
+      const response = await fetch(`${supabaseUrl}/functions/v1/weekly-summary`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -384,11 +383,10 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         body: JSON.stringify({ playerId: selectedPlayerId }),
       });
 
-      const data = await response.json().catch(() => null);
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const errorMessage = data?.error || data?.message || "Okänt fel";
-        const statusHint = response.status ? ` (status ${response.status})` : "";
-        throw new Error(`${errorMessage}${statusHint}`);
+        throw new Error(`${errorMessage} (status ${response.status})`);
       }
 
       if (data?.success) {
