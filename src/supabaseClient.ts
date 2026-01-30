@@ -76,4 +76,4 @@ export const supabase: SupabaseClient = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : (createMockSupabase() as unknown as SupabaseClient);
 
-export { isSupabaseConfigured };
+export { isSupabaseConfigured, supabaseAnonKey, supabaseUrl };

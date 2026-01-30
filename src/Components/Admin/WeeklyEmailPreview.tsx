@@ -18,7 +18,7 @@ import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
 import { getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
-import { supabase } from "../../supabaseClient";
+import { supabase, supabaseAnonKey, supabaseUrl } from "../../supabaseClient";
 
 interface WeeklyEmailPreviewProps {
   currentUserId?: string;
@@ -355,13 +355,36 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('weekly-summary', {
-        body: { playerId: selectedPlayerId }
+      if (!supabaseAnonKey) {
+        // Note for non-coders: without the anon key, Supabase rejects the request with a 401.
+        throw new Error("VITE_SUPABASE_ANON_KEY saknas i frontend-miljön (Vercel).");
+      }
+
+      if (!supabaseUrl) {
+        // Note for non-coders: the base project URL is required so we know where to send the request.
+        throw new Error("VITE_SUPABASE_URL saknas i frontend-miljön (Vercel).");
+      }
+
+      // Note for non-coders: we include apikey in both header and URL to avoid mobile/Safari stripping custom headers.
+      const functionUrl = new URL(`${supabaseUrl}/functions/v1/weekly-summary`);
+      functionUrl.searchParams.set("apikey", supabaseAnonKey);
+
+      // Note for non-coders: we use a direct fetch so the headers match the working curl request exactly.
+      const response = await fetch(functionUrl.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseAnonKey,
+          "x-client-info": "padel-app-web",
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({ playerId: selectedPlayerId }),
       });
 
-      if (error) {
-        const statusHint = (error as any)?.status ? ` (status ${error.status})` : "";
-        throw new Error(`${error.message || "Okänt fel"}${statusHint}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errorMessage = data?.error || data?.message || "Okänt fel";
+        throw new Error(`${errorMessage} (status ${response.status})`);
       }
 
       if (data?.success) {
@@ -394,6 +417,12 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
   if (isLoading) return <CircularProgress />;
 
+  // Note for non-coders: this masks secrets so we can confirm they exist without exposing them.
+  const maskedAnonKey = supabaseAnonKey
+    ? `${supabaseAnonKey.slice(0, 6)}...${supabaseAnonKey.slice(-4)}`
+    : "saknas";
+  const maskedUrl = supabaseUrl || "saknas";
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Paper sx={{ p: 3, borderRadius: 4 }}>
@@ -402,6 +431,9 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Här kan du se hur det veckovisa sammanfattningsmailet ser ut för olika spelare.
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+          Debug: Supabase URL: {maskedUrl} • Anon key: {maskedAnonKey}
         </Typography>
 
         <Grid container spacing={2} alignItems="center">
