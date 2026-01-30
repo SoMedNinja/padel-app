@@ -60,6 +60,13 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const [selectedWeek, setSelectedWeek] = useState<string>(""); // format "YYYY-Www"
   const [isSending, setIsSending] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const hasSupabaseUrl = Boolean(supabaseUrl);
+  const hasSupabaseAnonKey = Boolean(supabaseAnonKey);
+  const maskedSupabaseAnonKey = hasSupabaseAnonKey
+    ? `${supabaseAnonKey.slice(0, 6)}…${supabaseAnonKey.slice(-4)}`
+    : "saknas";
+  // Note for non-coders: this limits the env status hint to logged-in admin views only.
+  const showEnvStatus = Boolean(currentUserId);
 
   const activeProfiles = useMock ? MOCK_PROFILES : profiles.filter(p => !p.is_deleted);
   const activeMatches = useMock ? MOCK_MATCHES : matches;
@@ -423,6 +430,19 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Här kan du se hur det veckovisa sammanfattningsmailet ser ut för olika spelare.
         </Typography>
+        {showEnvStatus ? (
+          <>
+            {/* Note for non-coders: this tiny caption helps admins confirm that build-time env values reached the browser. */}
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 2 }}
+            >
+              Admin-check: Supabase URL {hasSupabaseUrl ? "finns" : "saknas"} · Anon key{" "}
+              {hasSupabaseAnonKey ? maskedSupabaseAnonKey : "saknas"}
+            </Typography>
+          </>
+        ) : null}
 
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, sm: 4 }}>
