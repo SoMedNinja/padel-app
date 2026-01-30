@@ -417,11 +417,13 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
   if (isLoading) return <CircularProgress />;
 
+  const hasSupabaseUrl = Boolean(supabaseUrl);
+  const hasSupabaseAnonKey = Boolean(supabaseAnonKey);
+  const showEnvStatus = true;
   // Note for non-coders: this masks secrets so we can confirm they exist without exposing them.
-  const maskedAnonKey = supabaseAnonKey
+  const maskedSupabaseAnonKey = hasSupabaseAnonKey
     ? `${supabaseAnonKey.slice(0, 6)}...${supabaseAnonKey.slice(-4)}`
-    : "saknas";
-  const maskedUrl = supabaseUrl || "saknas";
+    : "";
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -432,9 +434,19 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Här kan du se hur det veckovisa sammanfattningsmailet ser ut för olika spelare.
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
-          Debug: Supabase URL: {maskedUrl} • Anon key: {maskedAnonKey}
-        </Typography>
+        {showEnvStatus ? (
+          <>
+            {/* Note for non-coders: this tiny caption helps admins confirm that build-time env values reached the browser. */}
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 2 }}
+            >
+              Admin-check: Supabase URL {hasSupabaseUrl ? "finns" : "saknas"} · Anon key{" "}
+              {hasSupabaseAnonKey ? maskedSupabaseAnonKey : "saknas"}
+            </Typography>
+          </>
+        ) : null}
 
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, sm: 4 }}>
