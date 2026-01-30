@@ -10,8 +10,8 @@ import {
   Legend
 } from "recharts";
 import Avatar from "./Avatar";
+import Cropper, { Area } from "react-easy-crop";
 import {
-  cropAvatarImage,
   getStoredAvatar,
   removeStoredAvatar,
   setStoredAvatar
@@ -34,12 +34,14 @@ import {
   getPartnerSynergy,
   getToughestOpponent
 } from "../utils/stats";
+import { buildAllPlayersBadgeStats } from "../utils/badges";
 import {
   getMvpWinner,
   scorePlayersForMvp,
   EVENING_MIN_GAMES
 } from "../utils/mvp";
 import ProfileName from "./ProfileName";
+import BadgeGallery from "./BadgeGallery";
 import { Match, Profile, TournamentResult, PlayerStats } from "../types";
 import { profileService } from "../services/profileService";
 import {
@@ -60,6 +62,10 @@ import {
   Tabs,
   MenuItem,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -69,12 +75,14 @@ import {
   Delete as DeleteIcon,
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
+  EmojiEvents as TrophyIcon,
 } from "@mui/icons-material";
 import { alpha } from "@mui/material/styles";
 // Note for non-coders: alpha is a helper that makes a color transparent so highlight
 // backgrounds are soft instead of solid blocks.
 import "./PlayerSection.css";
 import { formatDate, formatScore } from "../utils/format";
+import { getCroppedImg } from "../utils/image";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
@@ -544,12 +552,26 @@ export default function PlayerSection({
     ? getProfileDisplayName(playerProfile)
     : user?.email || "Din profil";
 
+  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(playerName);
 
   useEffect(() => {
     setEditedName(playerName);
   }, [playerName]);
+
+  const handleBadgeSelect = async (badgeId: string | null) => {
+    if (!user?.id) return;
+    try {
+      const data = await profileService.updateProfile(user.id, { featured_badge_id: badgeId });
+      setSelectedBadgeId(badgeId);
+      setBadgeGalleryOpen(false);
+      onProfileUpdate?.(data);
+    } catch (error: any) {
+      alert(error.message || "Kunde inte uppdatera meriten.");
+    }
+  };
 
   const handleNameSave = async () => {
     if (!user?.id) return;
@@ -571,6 +593,8 @@ export default function PlayerSection({
   );
   const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
   const [avatarZoom, setAvatarZoom] = useState<number>(1);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [savingAvatar, setSavingAvatar] = useState<boolean>(false);
 
   // Stats based on filtered matches (matches prop)
@@ -587,6 +611,15 @@ export default function PlayerSection({
   const globalStats = useMemo(
     () => allEloPlayers.find(p => p.id === user?.id),
     [allEloPlayers, user?.id]
+  );
+
+  const badgeStatsMap = useMemo(() => {
+    return buildAllPlayersBadgeStats(matches, profiles, nameToIdMap, tournamentResults);
+  }, [matches, profiles, nameToIdMap, tournamentResults]);
+
+  const currentPlayerBadgeStats = useMemo(
+    () => badgeStatsMap[user?.id || ""],
+    [badgeStatsMap, user?.id]
   );
 
   const currentEloDisplay = globalStats?.elo ?? ELO_BASELINE;
@@ -648,6 +681,7 @@ export default function PlayerSection({
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
+  const [badgeGalleryOpen, setBadgeGalleryOpen] = useState(false);
 
   const comparisonIds = useMemo(() => {
     if (!user?.id) return [];
@@ -725,6 +759,10 @@ export default function PlayerSection({
     setSelectedBadgeId(playerProfile?.featured_badge_id || null);
   }, [playerProfile?.featured_badge_id]);
 
+  const onCropComplete = (croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !avatarStorageId) return;
@@ -740,10 +778,10 @@ export default function PlayerSection({
   };
 
   const saveAvatar = async () => {
-    if (!pendingAvatar || !avatarStorageId) return;
+    if (!pendingAvatar || !avatarStorageId || !croppedAreaPixels) return;
     setSavingAvatar(true);
     try {
-      const cropped = await cropAvatarImage(pendingAvatar, avatarZoom);
+      const cropped = await getCroppedImg(pendingAvatar, croppedAreaPixels);
       setStoredAvatar(avatarStorageId, cropped);
       setAvatarUrl(cropped);
       setPendingAvatar(null);
@@ -765,6 +803,7 @@ export default function PlayerSection({
   const cancelAvatar = () => {
     setPendingAvatar(null);
     setAvatarZoom(1);
+    setCrop({ x: 0, y: 0 });
   };
 
   const resetAvatar = async () => {
@@ -831,9 +870,16 @@ export default function PlayerSection({
             </Stack>
           </Box>
 
-          <Box sx={{ height: isEloChartFullscreen ? '80vh' : 300, minHeight: 300, width: '100%', mt: 2 }}>
+          <Box sx={{ height: isEloChartFullscreen ? 'auto' : 300, flex: isEloChartFullscreen ? 1 : 'none', minHeight: 300, width: '100%', mt: 2 }}>
             {comparisonData.length ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+              <ResponsiveContainer
+                key={isEloChartFullscreen ? 'fs' : 'normal'}
+                width="100%"
+                height="100%"
+                minWidth={0}
+                minHeight={0}
+                debounce={50}
+              >
                 <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -910,9 +956,19 @@ export default function PlayerSection({
                 <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
               </Button>
               {!isEditingName && (
-                <Button variant="outlined" size="small" startIcon={<EditIcon />} onClick={() => setIsEditingName(true)}>
-                  Ändra namn
-                </Button>
+                <>
+                  <Button variant="outlined" size="small" startIcon={<EditIcon />} onClick={() => setIsEditingName(true)}>
+                    Ändra namn
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<TrophyIcon />}
+                    onClick={() => setBadgeGalleryOpen(true)}
+                  >
+                    Välj merit
+                  </Button>
+                </>
               )}
               <Button variant="text" size="small" color="error" startIcon={<DeleteIcon />} onClick={resetAvatar}>
                 Återställ bild
@@ -921,41 +977,55 @@ export default function PlayerSection({
           </Box>
         </Box>
 
-        {pendingAvatar && (
-          <Box sx={{ p: 2, border: 1, borderColor: 'primary.light', borderRadius: 2, bgcolor: 'grey.50', mb: 4 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700 }}>Justera profilbild</Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center' }}>
-              <Box
-                sx={{
-                  width: 100,
-                  height: 100,
-                  borderRadius: '50%',
-                  border: 2,
-                  borderColor: 'primary.main',
-                  backgroundImage: `url(${pendingAvatar})`,
-                  backgroundSize: `${avatarZoom * 100}%`,
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                  bgcolor: '#fff'
-                }}
-              />
-              <Box sx={{ flex: 1, minWidth: 200 }}>
-                <Typography variant="caption">Zoom</Typography>
-                <Slider
-                  value={avatarZoom}
-                  min={1}
-                  max={2.5}
-                  step={0.1}
-                  onChange={(_, val) => setAvatarZoom(val as number)}
+        <Dialog open={Boolean(pendingAvatar)} onClose={cancelAvatar} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 800 }}>Justera profilbild</DialogTitle>
+          <DialogContent>
+            <Box sx={{ position: 'relative', width: '100%', height: 300, bgcolor: '#333', borderRadius: 2, overflow: 'hidden', mb: 2 }}>
+              {pendingAvatar && (
+                <Cropper
+                  image={pendingAvatar}
+                  crop={crop}
+                  zoom={avatarZoom}
+                  aspect={1}
+                  onCropChange={setCrop}
+                  onZoomChange={setAvatarZoom}
+                  onCropComplete={onCropComplete}
+                  cropShape="round"
+                  showGrid={false}
                 />
-                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                  <Button variant="contained" size="small" onClick={saveAvatar} disabled={savingAvatar}>Använd</Button>
-                  <Button variant="text" size="small" onClick={cancelAvatar}>Avbryt</Button>
-                </Stack>
-              </Box>
+              )}
             </Box>
-          </Box>
-        )}
+            <Typography variant="caption" color="text.secondary">Zoom</Typography>
+            <Slider
+              value={avatarZoom}
+              min={1}
+              max={3}
+              step={0.1}
+              onChange={(_, val) => setAvatarZoom(val as number)}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={cancelAvatar} color="inherit">Avbryt</Button>
+            <Button
+              variant="contained"
+              onClick={saveAvatar}
+              disabled={savingAvatar}
+              startIcon={savingAvatar ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              Använd bild
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <BadgeGallery
+          open={badgeGalleryOpen}
+          onClose={() => setBadgeGalleryOpen(false)}
+          onSelect={handleBadgeSelect}
+          currentBadgeId={selectedBadgeId}
+          stats={currentPlayerBadgeStats}
+          allPlayerStats={badgeStatsMap}
+          playerId={user?.id || ""}
+        />
 
         <Grid container spacing={2}>
           {tournamentMerits.map(merit => (

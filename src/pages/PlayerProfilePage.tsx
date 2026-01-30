@@ -9,6 +9,7 @@ import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
+import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
@@ -78,7 +79,11 @@ export default function PlayerProfilePage() {
   }
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      pullingContent={<PullingContent />}
+      refreshingContent={<RefreshingContent />}
+    >
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Box component="section">
           {/* Note for non-coders: this filter controls which matches feed the profile stats. */}
