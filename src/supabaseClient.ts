@@ -7,8 +7,16 @@ const supabaseUrl = envSupabaseUrl || "";
 const supabaseAnonKey = envSupabaseAnonKey || "";
 
 const isSupabaseConfigured = Boolean(envSupabaseUrl && envSupabaseAnonKey);
+const isPublishableKey = typeof envSupabaseAnonKey === "string" && envSupabaseAnonKey.startsWith("sb_publishable_");
 const missingSupabaseMessage =
   "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
+
+if (isPublishableKey) {
+  // Note for non-coders: the publishable key is not accepted by Edge Functions; use the anon public key from Supabase.
+  console.warn(
+    "VITE_SUPABASE_ANON_KEY looks like a publishable key. Edge Functions require the anon public key from Supabase -> Project Settings -> API."
+  );
+}
 
 const createMockQuery = (): any => {
   const response = { data: [], error: null };
