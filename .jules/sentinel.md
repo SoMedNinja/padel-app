@@ -17,3 +17,8 @@
 **Vulnerability:** Authorization stripping logic in services (e.g., `profileService.updateProfile`) only checking for `currentUser.id === id`, leaving a gap if `currentUser` is null/undefined.
 **Learning:** Security checks that rely on session data must account for the absence of a session. Relying only on ID comparisons can allow unauthenticated requests to bypass frontend-intended stripping if Supabase RLS is misconfigured.
 **Prevention:** Always check for `!currentUser` in addition to `currentUser.id === id` when stripping sensitive fields in the service layer. Ensure all input types (like scores being non-negative numbers) are validated before reaching the database.
+
+## 2025-05-26 - Flawed Authorization Check Logic
+**Vulnerability:** Service-layer authorization logic that only checks if `currentUser.id === id` to strip sensitive fields, but fails to account for non-admins updating OTHER users' profiles.
+**Learning:** Checking for identity (`uid = id`) is insufficient for cross-resource updates. A non-admin can bypass frontend field stripping by attempting to update another user's ID, which leads to a potential IDOR if RLS is not perfectly configured for column-level security.
+**Prevention:** Implement a server-side or service-layer role check (e.g., `checkIsAdmin`). Enforce that non-admins can only update their own resources and ALWAYS have sensitive fields stripped, regardless of whose resource they are attempting to modify.
