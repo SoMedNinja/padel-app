@@ -38,9 +38,11 @@ import {
 import { stripBadgeLabelFromName } from "../utils/profileName";
 import { EmojiEvents as TrophyIcon } from "@mui/icons-material";
 import { getCroppedImg } from "../utils/image";
+import { buildAllPlayersBadgeStats } from "../utils/badges";
+import { makeNameToIdMap } from "../utils/profileMap";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
-  const { eloPlayers } = useEloStats();
+  const { allMatches, profiles } = useEloStats();
   const [name, setName] = useState(initialName);
   const [saving, setSaving] = useState(false);
   const avatarStorageId = user?.id || null;
@@ -141,14 +143,17 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     setAvatarZoom(1);
   };
 
-  const globalStats = useMemo(
-    () => eloPlayers.find(p => p.id === user?.id),
-    [eloPlayers, user?.id]
-  );
+  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
 
-  const allPlayerStatsMap = useMemo(
-    () => eloPlayers.reduce((acc, p) => ({ ...acc, [p.id]: p }), {}),
-    [eloPlayers]
+  const badgeStatsMap = useMemo(() => {
+    // Note: tournamentResults is empty here for now in setup,
+    // but we still get all match-based badges.
+    return buildAllPlayersBadgeStats(allMatches, profiles, nameToIdMap, []);
+  }, [allMatches, profiles, nameToIdMap]);
+
+  const currentPlayerBadgeStats = useMemo(
+    () => badgeStatsMap[user?.id || ""],
+    [badgeStatsMap, user?.id]
   );
 
   const handleSubmit = async (event) => {
@@ -268,8 +273,8 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                   setBadgeGalleryOpen(false);
                 }}
                 currentBadgeId={selectedBadgeId}
-                stats={globalStats}
-                allPlayerStats={allPlayerStatsMap}
+                stats={currentPlayerBadgeStats}
+                allPlayerStats={badgeStatsMap}
                 playerId={user?.id || ""}
               />
 

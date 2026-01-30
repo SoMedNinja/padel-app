@@ -101,20 +101,6 @@ export default function MatchForm({
   const [showExtraScores, setShowExtraScores] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [recentIds, setRecentIds] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("recent_player_ids") || "[]");
-    } catch {
-      return [];
-    }
-  });
-
-  const saveToRecent = (ids: string[]) => {
-    const validIds = ids.filter(id => id && id !== GUEST_ID);
-    const next = Array.from(new Set([...validIds, ...recentIds])).slice(0, 6);
-    setRecentIds(next);
-    localStorage.setItem("recent_player_ids", JSON.stringify(next));
-  };
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
@@ -452,7 +438,6 @@ export default function MatchForm({
 
     createRecap(team1, team2, scoreA, scoreB);
     buildEveningRecap(matches, newMatch);
-    saveToRecent([...team1, ...team2]);
     resetWizard(true);
     setRecapMode("evening");
     setShowRecap(true);
@@ -519,42 +504,6 @@ export default function MatchForm({
 
 
 
-
-  const renderRecentSection = (
-    onSelect: (id: string) => void,
-    selectedIds: string[] = [],
-    excludeIds: string[] = []
-  ) => {
-    const recentPlayers = recentIds
-      .map(id => selectablePlayers.find(p => p.id === id))
-      .filter((p): p is Profile => !!p && !excludeIds.includes(p.id));
-
-    if (!recentPlayers.length) return null;
-
-    return (
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 1, display: "block", textTransform: "uppercase" }}>
-          Senaste spelare
-        </Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-          {recentPlayers.map(p => {
-            const isSelected = selectedIds.includes(p.id);
-            return (
-              <Chip
-                key={p.id}
-                avatar={<Avatar src={p.avatar_url || ""} name={p.name} />}
-                label={getProfileDisplayName(p)}
-                onClick={() => onSelect(p.id)}
-                color={isSelected ? "primary" : "default"}
-                variant={isSelected ? "filled" : "outlined"}
-                sx={{ fontWeight: isSelected ? 700 : 500 }}
-              />
-            );
-          })}
-        </Box>
-      </Box>
-    );
-  };
 
   const renderPlayerGrid = (
     onSelect: (id: string) => void,
@@ -784,7 +733,6 @@ export default function MatchForm({
                     />
                   ))}
                 </Box>
-                {renderRecentSection(id => selectPlayerForTeam(id, 1), team1)}
                 {renderPlayerGrid(id => selectPlayerForTeam(id, 1), team1)}
                 {team1.every(id => id !== "") && (
                   <Button
@@ -815,7 +763,6 @@ export default function MatchForm({
                     />
                   ))}
                 </Box>
-                {renderRecentSection(id => selectPlayerForTeam(id, 2), team2, team1)}
                 {renderPlayerGrid(id => selectPlayerForTeam(id, 2), team2, team1)}
                 {team2.every(id => id !== "") && (
                   <Button

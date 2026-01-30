@@ -31,18 +31,18 @@ export default function BadgeGallery({
         Välj framhävd merit
         <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
       </DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: 4 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Välj en av dina intjänade meriter för att visa den bredvid ditt namn i appen.
+          Välj en merit att visa bredvid ditt namn.
         </Typography>
 
-        <Grid container spacing={2}>
+        <Grid container spacing={1.5}>
           <Grid size={{ xs: 12 }}>
             <Button
               fullWidth
               variant={!currentBadgeId ? "contained" : "outlined"}
               onClick={() => onSelect(null)}
-              sx={{ py: 1.5, borderRadius: 2 }}
+              sx={{ py: 1.5, borderRadius: 2, mb: 1 }}
             >
               Ingen merit
             </Button>
@@ -50,28 +50,42 @@ export default function BadgeGallery({
           {earnedBadges.map((badge) => {
             const isSelected = currentBadgeId === badge.id;
             return (
-              <Grid size={{ xs: 6 }} key={badge.id}>
+              <Grid size={{ xs: 4, sm: 3 }} key={badge.id}>
                 <Paper
                   variant="outlined"
                   sx={{
-                    p: 2,
+                    p: 1.5,
                     cursor: 'pointer',
                     textAlign: 'center',
                     borderRadius: 3,
                     transition: 'all 0.2s',
                     borderColor: isSelected ? 'primary.main' : 'divider',
-                    bgcolor: isSelected ? 'rgba(211, 47, 47, 0.04)' : 'background.paper',
+                    bgcolor: isSelected ? 'rgba(211, 47, 47, 0.08)' : 'background.paper',
                     '&:hover': {
                       borderColor: 'primary.light',
-                      bgcolor: 'rgba(211, 47, 47, 0.02)',
-                    }
+                      bgcolor: 'rgba(211, 47, 47, 0.04)',
+                    },
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    height: '100%',
+                    justifyContent: 'center'
                   }}
                   onClick={() => onSelect(badge.id)}
                 >
-                  <Typography variant="h4" sx={{ mb: 1 }}>{badge.icon}</Typography>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.5 }}>{badge.title}</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
-                    {badge.description}
+                  <Typography variant="h5">{badge.icon}</Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 800,
+                      fontSize: '0.65rem',
+                      textTransform: 'uppercase',
+                      lineHeight: 1.1,
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    {badge.title}
                   </Typography>
                 </Paper>
               </Grid>

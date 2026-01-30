@@ -34,6 +34,7 @@ import {
   getPartnerSynergy,
   getToughestOpponent
 } from "../utils/stats";
+import { buildAllPlayersBadgeStats } from "../utils/badges";
 import {
   getMvpWinner,
   scorePlayersForMvp,
@@ -551,6 +552,8 @@ export default function PlayerSection({
     ? getProfileDisplayName(playerProfile)
     : user?.email || "Din profil";
 
+  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(playerName);
 
@@ -610,9 +613,13 @@ export default function PlayerSection({
     [allEloPlayers, user?.id]
   );
 
-  const allPlayerStatsMap = useMemo(
-    () => allEloPlayers.reduce((acc, p) => ({ ...acc, [p.id]: p }), {}),
-    [allEloPlayers]
+  const badgeStatsMap = useMemo(() => {
+    return buildAllPlayersBadgeStats(matches, profiles, nameToIdMap, tournamentResults);
+  }, [matches, profiles, nameToIdMap, tournamentResults]);
+
+  const currentPlayerBadgeStats = useMemo(
+    () => badgeStatsMap[user?.id || ""],
+    [badgeStatsMap, user?.id]
   );
 
   const currentEloDisplay = globalStats?.elo ?? ELO_BASELINE;
@@ -863,9 +870,16 @@ export default function PlayerSection({
             </Stack>
           </Box>
 
-          <Box sx={{ height: isEloChartFullscreen ? '80vh' : 300, minHeight: 300, width: '100%', mt: 2 }}>
+          <Box sx={{ height: isEloChartFullscreen ? 'auto' : 300, flex: isEloChartFullscreen ? 1 : 'none', minHeight: 300, width: '100%', mt: 2 }}>
             {comparisonData.length ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+              <ResponsiveContainer
+                key={isEloChartFullscreen ? 'fs' : 'normal'}
+                width="100%"
+                height="100%"
+                minWidth={0}
+                minHeight={0}
+                debounce={50}
+              >
                 <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -1008,8 +1022,8 @@ export default function PlayerSection({
           onClose={() => setBadgeGalleryOpen(false)}
           onSelect={handleBadgeSelect}
           currentBadgeId={selectedBadgeId}
-          stats={globalStats}
-          allPlayerStats={allPlayerStatsMap}
+          stats={currentPlayerBadgeStats}
+          allPlayerStats={badgeStatsMap}
           playerId={user?.id || ""}
         />
 
