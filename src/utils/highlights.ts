@@ -15,35 +15,58 @@ export const findMatchHighlight = (
 ): MatchHighlight | null => {
   if (!allMatches.length || !playerStats.length) return null;
 
-  // 1. Find the latest date
-  const sortedMatches = [...allMatches].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  // 1. Find the latest date and matches on that date in a single pass.
+  // ISO strings sort lexicographically, so we can find the latest without sorting.
+  let latestMatch = allMatches[0];
+  for (let i = 1; i < allMatches.length; i++) {
+    if (allMatches[i].created_at > latestMatch.created_at) {
+      latestMatch = allMatches[i];
+    }
+  }
 
-  const latestMatch = sortedMatches[0];
-  const latestDate = new Date(latestMatch.created_at).toDateString();
-
-  const latestMatches = sortedMatches.filter(
-    m => new Date(m.created_at).toDateString() === latestDate
+  // We preserve toDateString() behavior to stay consistent with local time zones.
+  const latestDateStr = new Date(latestMatch.created_at).toDateString();
+  const latestMatches = allMatches.filter(
+    m => new Date(m.created_at).toDateString() === latestDateStr
   );
 
   if (!latestMatches.length) return null;
 
-  // Map to get player stats by ID
-  const playerMap = new Map(playerStats.map(p => [p.id, p]));
+  // 2. Identify players involved in the latest matches to minimize indexing work.
+  const relevantPlayerIds = new Set<string>();
+  for (const match of latestMatches) {
+    if (Array.isArray(match.team1_ids)) {
+      for (const id of match.team1_ids) if (id) relevantPlayerIds.add(id);
+    }
+    if (Array.isArray(match.team2_ids)) {
+      for (const id of match.team2_ids) if (id) relevantPlayerIds.add(id);
+    }
+  }
 
-  // We need to know the ELO *before* the match.
-  // We can get this from the player's history in PlayerStats.
+  // 3. Pre-index player history for O(1) lookups instead of O(H) .find()
+  // Only for relevant players to avoid unnecessary memory/CPU usage.
+  const playerHistoryMap = new Map<string, Map<string, any>>();
+  for (let i = 0; i < playerStats.length; i++) {
+    const p = playerStats[i];
+    if (!relevantPlayerIds.has(p.id)) continue;
+
+    const historyMap = new Map<string, any>();
+    for (let j = 0; j < p.history.length; j++) {
+      const h = p.history[j];
+      historyMap.set(h.matchId, h);
+    }
+    playerHistoryMap.set(p.id, historyMap);
+  }
 
   const highlights: { match: Match; score: number; type: MatchHighlight['reason']; title: string; description: string }[] = [];
 
   latestMatches.forEach(match => {
-    // Get pre-match ELO for all players
+    // Get pre-match ELO for all players using the pre-indexed Map
     const getPreElo = (id: string | null) => {
       if (!id) return 1000;
-      const player = playerMap.get(id);
-      if (!player) return 1000;
-      const matchHistory = player.history.find(h => h.matchId === match.id);
+      const historyMap = playerHistoryMap.get(id);
+      if (!historyMap) return 1000;
+      const matchHistory = historyMap.get(match.id);
       return matchHistory ? matchHistory.elo - matchHistory.delta : 1000;
     };
 
@@ -122,6 +145,6 @@ export const findMatchHighlight = (
     reason: best.type,
     title: best.title,
     description: best.description,
-    matchDate: new Date(best.match.created_at).toDateString()
+    matchDate: latestDateStr
   };
 };

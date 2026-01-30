@@ -218,18 +218,29 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   const eloDeltaByMatch: Record<string, Record<string, number>> = {};
   const eloRatingByMatch: Record<string, Record<string, number>> = {};
 
-  sortedMatches.forEach((m) => {
+  for (const m of sortedMatches) {
     // We only instantiate Date once per match in the sorted loop
     const historyStamp = new Date(m.created_at).getTime();
 
     const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
     const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
-    [...t1, ...t2].forEach(id => ensurePlayer(id, resolveName(id), null, badgeMap[id]));
+
+    // Optimization: Avoid array spread and skip expensive lookups for existing players.
+    // In large datasets, most players already exist in the 'players' record.
+    for (let i = 0; i < t1.length; i++) {
+      const id = t1[i];
+      if (!players[id]) ensurePlayer(id, resolveName(id), null, badgeMap[id]);
+    }
+    for (let i = 0; i < t2.length; i++) {
+      const id = t2[i];
+      if (!players[id]) ensurePlayer(id, resolveName(id), null, badgeMap[id]);
+    }
+
     const t1Active = activeTeam(t1);
     const t2Active = activeTeam(t2);
 
-    if (!t1Active.length || !t2Active.length) return;
-    if (!Number.isFinite(m.team1_sets) || !Number.isFinite(m.team2_sets)) return;
+    if (!t1Active.length || !t2Active.length) continue;
+    if (!Number.isFinite(m.team1_sets) || !Number.isFinite(m.team2_sets)) continue;
 
     const e1 = avg(t1Active);
     const e2 = avg(t2Active);
@@ -243,7 +254,7 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     const matchDeltas: Record<string, number> = {};
     const matchRatings: Record<string, number> = {};
 
-    t1Active.forEach(id => {
+    for (const id of t1Active) {
       const player = players[id];
       const delta = buildPlayerDelta({
         playerElo: player.elo,
@@ -275,9 +286,9 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
       matchDeltas[id] = delta;
       matchRatings[id] = player.elo;
-    });
+    }
 
-    t2Active.forEach(id => {
+    for (const id of t2Active) {
       const player = players[id];
       const delta = buildPlayerDelta({
         playerElo: player.elo,
@@ -309,14 +320,14 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
       matchDeltas[id] = delta;
       matchRatings[id] = player.elo;
-    });
+    }
 
     eloDeltaByMatch[m.id] = matchDeltas;
     eloRatingByMatch[m.id] = matchRatings;
 
     recordPartners(t1Active, team1Won);
     recordPartners(t2Active, !team1Won);
-  });
+  }
 
   const finalPlayers = Object.values(players).map(player => {
     // Optimization: find best partner in a single pass instead of map + filter + sort
