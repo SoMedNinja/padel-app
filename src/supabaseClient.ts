@@ -10,7 +10,7 @@ const isPublishableKey = supabaseAnonKey.startsWith("sb_publishable_");
 if (isPublishableKey) {
   // Note for non-coders: Supabase "publishable" keys won't authenticate Edge Functions, so we warn loudly.
   console.warn(
-    "Supabase key looks like a publishable key (sb_publishable_*). Use the anon public key from Project Settings → API; publishable keys won't work with Edge Functions."
+    "Warning: VITE_SUPABASE_ANON_KEY is a publishable key (sb_publishable_*). It must be the anon public key; publishable keys cause 401 errors for Edge Functions. Admin note: find the anon public key in Supabase Dashboard → Project Settings → API → Project API keys."
   );
 }
 
