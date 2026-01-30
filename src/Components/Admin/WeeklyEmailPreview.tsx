@@ -12,6 +12,7 @@ import {
   Switch,
   FormControlLabel,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import { usePadelData } from "../../hooks/usePadelData";
 import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
@@ -51,7 +52,7 @@ const MOCK_MATCHES: Match[] = [
   },
 ];
 
-export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPreviewProps) {
+export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreviewProps) {
   const { matches = [], profiles = [], isLoading } = usePadelData();
   const [useMock, setUseMock] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
@@ -64,9 +65,12 @@ export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPrev
   // Set default player if not set
   React.useEffect(() => {
     if (!selectedPlayerId && activeProfiles.length > 0) {
-      setSelectedPlayerId(activeProfiles[0].id);
+      const defaultId = (currentUserId && activeProfiles.some(p => p.id === currentUserId))
+        ? currentUserId
+        : activeProfiles[0].id;
+      setSelectedPlayerId(defaultId);
     }
-  }, [activeProfiles, selectedPlayerId]);
+  }, [activeProfiles, selectedPlayerId, currentUserId]);
 
   const emailData = useMemo(() => {
     if (!selectedPlayerId) return null;
@@ -353,15 +357,19 @@ export default function WeeklyEmailPreview({ currentUserId: _ }: WeeklyEmailPrev
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 2 }}>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleSendTest}
-              disabled={isSending || useMock}
-              startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
-            >
-              Skicka test
-            </Button>
+            <Tooltip title={useMock ? "Du kan inte skicka test-mail med testdata" : ""}>
+              <span>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={handleSendTest}
+                  disabled={isSending || useMock}
+                  startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
+                >
+                  Skicka test
+                </Button>
+              </span>
+            </Tooltip>
           </Grid>
         </Grid>
       </Paper>
