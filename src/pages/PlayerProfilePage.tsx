@@ -113,6 +113,7 @@ export default function PlayerProfilePage() {
                 variant="scrollable"
                 scrollButtons="auto"
                 allowScrollButtonsMobile
+                aria-label="Profilflikar"
                 sx={{
                   mb: 3,
                   borderBottom: 1,

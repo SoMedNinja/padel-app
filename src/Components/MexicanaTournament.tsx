@@ -584,6 +584,7 @@ export default function MexicanaTournament({
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
+            aria-label="Turneringssektioner"
             sx={{
               bgcolor: 'background.paper',
               borderRadius: '12px',
