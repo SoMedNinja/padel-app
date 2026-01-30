@@ -75,3 +75,40 @@ This step schedules the weekly email to run automatically.
 
 The email is only sent to players who have played at least one match during the week.
 Trigger time: **Every Sunday at 23:55**.
+
+## Testing & Troubleshooting
+
+### Quick test (from your app)
+Use the **Veckobrev → Skicka test** button in the admin UI. This calls the `weekly-summary` Edge Function from the browser and should return a success message if everything is configured correctly.
+
+**Note for non-coders:** The admin UI is just a “remote control.” It calls the Edge Function for you so you don’t have to run commands manually.
+
+### Manual test (from your terminal)
+If the UI fails, you can test the Edge Function directly with the Supabase CLI:
+```bash
+supabase functions invoke weekly-summary --project-ref YOUR_PROJECT_REF --body '{"playerId":"PLAYER_ID"}'
+```
+This helps you see function errors without the browser in the way.
+
+**Note for non-coders:** This command sends a one-off request straight to Supabase, like pressing the “Skicka test” button, but from your terminal.
+
+### Common errors
+#### 401 Unauthorized
+This means the Edge Function did not accept your request. The most common causes are:
+- **Missing or wrong `VITE_SUPABASE_ANON_KEY`** in your frontend environment (the key should be the *anon* key from Supabase Project Settings → API).
+- **You are not logged in** (no valid user session), so the browser doesn’t send a valid auth token.
+
+**Note for non-coders:** Think of a 401 as a “locked door.” The server didn’t see a valid “pass” (login token) attached to your request.
+
+#### 500 Internal Server Error
+This usually means a required secret is missing for the function:
+- `RESEND_API_KEY` (required to talk to Resend)
+- `SUPABASE_SERVICE_ROLE_KEY` (required because the function reads users via the admin API)
+
+Set them with:
+```bash
+supabase secrets set RESEND_API_KEY=your_key
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+**Note for non-coders:** The “service role key” is a powerful server-only key that lets the function fetch users. It should never be used in your browser code.
