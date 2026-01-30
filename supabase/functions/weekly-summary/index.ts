@@ -287,6 +287,7 @@ Deno.serve(async (req) => {
     if (!profiles || !matches) throw new Error("Failed to fetch data from database");
 
     const emailMap = new Map(allUsers.map(u => [u.id, u.email]));
+    const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
     const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
     const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
@@ -354,7 +355,8 @@ Deno.serve(async (req) => {
 
     const emailResults = await Promise.all(Array.from(activePlayerIds).map(async (id) => {
       const email = emailMap.get(id);
-      if (!email) return { id, success: false, error: 'Email not found' };
+      const name = profileNameMap.get(id) ?? "Okänd";
+      if (!email) return { id, name, success: false, error: 'Email not found' };
       const stats = weeklyStats[id];
 
       const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
@@ -492,10 +494,10 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorData = await response.json();
         console.error(`Failed to send email to ${email}:`, errorData);
-        return { id, success: false, error: errorData };
+        return { id, name, success: false, error: errorData };
       }
 
-      return { id, success: true };
+      return { id, name, success: true };
     }));
 
     const successfulCount = emailResults.filter(r => r.success).length;
