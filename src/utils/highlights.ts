@@ -15,36 +15,47 @@ export const findMatchHighlight = (
 ): MatchHighlight | null => {
   if (!allMatches.length || !playerStats.length) return null;
 
-  // 1. Find the latest date
-  const sortedMatches = [...allMatches].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  // 1. Find the latest date in $O(N)$ using ISO string comparison
+  let latestISO = "";
+  for (let i = 0; i < allMatches.length; i++) {
+    const d = allMatches[i].created_at;
+    if (d > latestISO) latestISO = d;
+  }
 
-  const latestMatch = sortedMatches[0];
-  const latestDate = new Date(latestMatch.created_at).toDateString();
+  if (!latestISO) return null;
 
-  const latestMatches = sortedMatches.filter(
-    m => new Date(m.created_at).toDateString() === latestDate
-  );
+  // Group matches from the same local day
+  const latestDate = new Date(latestISO).toDateString();
+  const latestMatches = allMatches.filter(m => new Date(m.created_at).toDateString() === latestDate);
 
   if (!latestMatches.length) return null;
 
-  // Map to get player stats by ID
-  const playerMap = new Map(playerStats.map(p => [p.id, p]));
+  // 2. Pre-index player history for $O(1)$ lookup in the match loop
+  // matchHistoryMap: MatchID -> PlayerID -> HistoryEntry
+  const matchHistoryMap = new Map<string, Map<string, any>>();
+  for (let i = 0; i < latestMatches.length; i++) {
+    matchHistoryMap.set(latestMatches[i].id, new Map());
+  }
 
-  // We need to know the ELO *before* the match.
-  // We can get this from the player's history in PlayerStats.
+  for (let i = 0; i < playerStats.length; i++) {
+    const p = playerStats[i];
+    for (let j = 0; j < p.history.length; j++) {
+      const h = p.history[j];
+      const playerMatchMap = matchHistoryMap.get(h.matchId);
+      if (playerMatchMap) {
+        playerMatchMap.set(p.id, h);
+      }
+    }
+  }
 
   const highlights: { match: Match; score: number; type: MatchHighlight['reason']; title: string; description: string }[] = [];
 
   latestMatches.forEach(match => {
-    // Get pre-match ELO for all players
+    // Get pre-match ELO for all players from pre-indexed map
     const getPreElo = (id: string | null) => {
       if (!id) return 1000;
-      const player = playerMap.get(id);
-      if (!player) return 1000;
-      const matchHistory = player.history.find(h => h.matchId === match.id);
-      return matchHistory ? matchHistory.elo - matchHistory.delta : 1000;
+      const historyEntry = matchHistoryMap.get(match.id)?.get(id);
+      return historyEntry ? historyEntry.elo - historyEntry.delta : 1000;
     };
 
     const t1PreElo = match.team1_ids.map(getPreElo);
@@ -122,6 +133,7 @@ export const findMatchHighlight = (
     reason: best.type,
     title: best.title,
     description: best.description,
+    // Use toDateString() to maintain backward compatibility with UI/tests
     matchDate: new Date(best.match.created_at).toDateString()
   };
 };

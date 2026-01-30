@@ -6,8 +6,19 @@
 // Optimization: Cache Intl.DateTimeFormat instances to avoid expensive re-creation
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
+// Optimization: Define default options as a constant to avoid redundant object allocations
+// and allow for faster cache key resolution.
+const DEFAULT_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+};
+
 const getFormatter = (options: Intl.DateTimeFormatOptions) => {
-  const key = JSON.stringify(options);
+  // Optimization: Use a constant key for default options to avoid JSON.stringify overhead
+  const isDefault = options === DEFAULT_OPTIONS;
+  const key = isDefault ? "default" : JSON.stringify(options);
+
   let formatter = formatterCache.get(key);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat("sv-SE", options);
@@ -22,11 +33,7 @@ const getFormatter = (options: Intl.DateTimeFormatOptions) => {
  */
 export const formatDate = (
   date: string | Date | undefined,
-  options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }
+  options: Intl.DateTimeFormatOptions = DEFAULT_OPTIONS
 ) => {
   if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
