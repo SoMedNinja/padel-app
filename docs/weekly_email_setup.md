@@ -110,6 +110,11 @@ This means the Edge Function did not accept your request. The most common causes
 
 **Note for non-coders:** Think of a 401 as a “locked door.” The server didn’t see a valid “pass” (login token) attached to your request.
 
+#### Test email says "Email not found" or sends to 0 recipients
+The weekly summary emails are sent to addresses stored in **Supabase Auth**, not in the `profiles` table. Each `profiles.id` must match the corresponding Auth user ID. If a profile exists without a matching Auth user, the function cannot find an email address and skips that player.
+
+**Note for non-coders:** Think of the `profiles` table as a “player card” and Supabase Auth as the “address book.” The email can only be sent if the player card is linked to a real address book entry.
+
 #### 500 Internal Server Error
 This usually means a required secret is missing for the function:
 - `RESEND_API_KEY` (required to talk to Resend)
