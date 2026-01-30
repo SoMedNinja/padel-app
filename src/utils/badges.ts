@@ -314,7 +314,9 @@ const buildThresholdBadges = ({
 
 export const getBadgeIconById = (badgeId: string | null | undefined) => {
   if (!badgeId) return null;
-  if (badgeId === "giant-slayer") return BADGE_ICON_MAP["giant-slayer"];
+  // Direct match for unique badges or giant-slayer
+  if (BADGE_ICON_MAP[badgeId]) return BADGE_ICON_MAP[badgeId];
+
   const lastDash = badgeId.lastIndexOf("-");
   const prefix = lastDash > -1 ? badgeId.slice(0, lastDash) : badgeId;
   return BADGE_ICON_MAP[prefix] || null;
@@ -339,6 +341,31 @@ export const getBadgeLabelById = (badgeId: string | null | undefined) => {
   if (!icon) return "";
   const tier = getBadgeTierLabelById(badgeId);
   return tier ? `${icon} ${tier}` : icon;
+};
+
+export const getBadgeDescriptionById = (badgeId: string | null | undefined): string | null => {
+  if (!badgeId) return null;
+
+  // Handle giant-slayer special cases
+  if (badgeId === "giant-slayer") return "Vinn mot ett lag med högre genomsnittlig ELO";
+  if (badgeId === "giant-slayer-pro") return "Vinn mot ett lag med 200+ högre genomsnittlig ELO";
+
+  // Check unique badges
+  const unique = UNIQUE_BADGE_DEFINITIONS.find(u => u.id === badgeId);
+  if (unique) return unique.description;
+
+  // Check threshold badges
+  const lastDash = badgeId.lastIndexOf("-");
+  if (lastDash > -1) {
+    const prefix = badgeId.slice(0, lastDash);
+    const target = Number(badgeId.slice(lastDash + 1));
+    const def = BADGE_DEFINITIONS.find(d => d.idPrefix === prefix);
+    if (def && !isNaN(target)) {
+      return def.description(target);
+    }
+  }
+
+  return null;
 };
 
 export interface PlayerBadgeStats {
