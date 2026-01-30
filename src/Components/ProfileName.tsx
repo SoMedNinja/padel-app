@@ -1,6 +1,6 @@
 import React from "react";
-import { Box, Chip } from "@mui/material";
-import { getBadgeIconById, getBadgeTierLabelById } from "../utils/badges";
+import { Box, Chip, Tooltip } from "@mui/material";
+import { getBadgeIconById, getBadgeTierLabelById, getBadgeDescriptionById } from "../utils/badges";
 import { stripBadgeLabelFromName } from "../utils/profileName";
 
 interface ProfileNameProps {
@@ -12,13 +12,36 @@ interface ProfileNameProps {
 export default function ProfileName({ name, badgeId, className = "" }: ProfileNameProps) {
   const icon = getBadgeIconById(badgeId || null);
   const tier = getBadgeTierLabelById(badgeId || null);
-  // Note for non-coders: we clean the name so it doesn't repeat the badge text next to the badge icon.
-  const displayName = badgeId ? stripBadgeLabelFromName(name, badgeId) : name;
+  const description = getBadgeDescriptionById(badgeId || null);
+
+  // Note for non-coders: we clean the name so it doesn't repeat any legacy merit text.
+  const displayName = stripBadgeLabelFromName(name, badgeId);
+
   // Note for non-coders: a Chip is a small "tag" UI element that groups the icon + tier so it looks like a badge.
   const badgeLabel = icon ? `${icon}${tier ? ` ${tier}` : ""}` : "";
+
   if (!icon) {
     return <span className={className}>{displayName}</span>;
   }
+
+  const badgeChip = (
+    <Chip
+      className="profile-name-badge"
+      aria-label={`Visad merit ${tier ? `${tier} ` : ""}${icon}`}
+      label={badgeLabel}
+      size="small"
+      variant="outlined"
+      sx={{
+        fontWeight: 700,
+        fontSize: "0.65rem",
+        height: 22,
+        cursor: description ? 'help' : 'default',
+        "& .MuiChip-label": {
+          px: 0.75,
+        },
+      }}
+    />
+  );
 
   return (
     <Box
@@ -29,21 +52,11 @@ export default function ProfileName({ name, badgeId, className = "" }: ProfileNa
       <Box component="span" className="profile-name-text">
         {displayName}
       </Box>
-      <Chip
-        className="profile-name-badge"
-        aria-label={`Visad merit ${tier ? `${tier} ` : ""}${icon}`}
-        label={badgeLabel}
-        size="small"
-        variant="outlined"
-        sx={{
-          fontWeight: 700,
-          fontSize: "0.65rem",
-          height: 22,
-          "& .MuiChip-label": {
-            px: 0.75,
-          },
-        }}
-      />
+      {description ? (
+        <Tooltip title={description} arrow>
+          {badgeChip}
+        </Tooltip>
+      ) : badgeChip}
     </Box>
   );
 }

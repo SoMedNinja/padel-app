@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPlayerBadgeStats, buildPlayerBadges } from './badges';
+import { buildPlayerBadgeStats, buildPlayerBadges, getBadgeDescriptionById } from './badges';
 import { ELO_BASELINE } from './elo';
 
 describe('Badges Logic', () => {
@@ -142,5 +142,14 @@ describe('Badges Logic', () => {
     const result2 = buildPlayerBadges(p2Stats, allStats, 'p2');
     const hasKingBadge2 = result2.earnedBadges.some(b => b.id === 'king-of-elo');
     expect(hasKingBadge2).toBe(false);
+  });
+
+  it('should return correct badge descriptions', () => {
+    expect(getBadgeDescriptionById('matches-1')).toBe('Spela 1 matcher');
+    expect(getBadgeDescriptionById('wins-5')).toBe('Vinn 5 matcher');
+    expect(getBadgeDescriptionById('king-of-elo')).toBe('Högst ELO just nu (minst 10 spelade matcher)');
+    expect(getBadgeDescriptionById('giant-slayer')).toBe('Vinn mot ett lag med högre genomsnittlig ELO');
+    expect(getBadgeDescriptionById(null)).toBeNull();
+    expect(getBadgeDescriptionById('non-existent')).toBeNull();
   });
 });
