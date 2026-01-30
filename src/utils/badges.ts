@@ -276,6 +276,8 @@ export interface Badge {
   groupOrder: number;
   progress: { current: number; target: number } | null;
   meta?: string;
+  holderId?: string;
+  holderValue?: number | string;
 }
 
 const buildThresholdBadges = ({
@@ -622,6 +624,7 @@ export const buildPlayerBadges = (
   if (!stats) {
     return {
       earnedBadges: [],
+      otherUniqueBadges: [],
       lockedBadges: [],
       totalBadges: 0,
       totalEarned: 0
@@ -736,14 +739,44 @@ export const buildPlayerBadges = (
     }
 
     UNIQUE_BADGE_DEFINITIONS.forEach(def => {
-      if (bestPlayerIdMap[def.id] === playerId && bestValueMap[def.id] > 0) {
+      const hId = bestPlayerIdMap[def.id];
+      const val = bestValueMap[def.id];
+
+      if (hId && val > 0) {
+        const isEarned = hId === playerId;
+        let formattedValue: string | number = val;
+
+        if (def.id === "win-machine") {
+          formattedValue = `${Math.round(val * 100)}%`;
+        } else if (def.id === "king-of-elo") {
+          formattedValue = `${Math.round(val)} ELO`;
+        } else if (def.id === "upset-king") {
+          formattedValue = `+${Math.round(val)} ELO`;
+        } else {
+          formattedValue = Math.round(val);
+        }
+
         badges.push({
           id: def.id,
           icon: def.icon,
           tier: "Unique",
           title: def.title,
           description: def.description,
-          earned: true,
+          earned: isEarned,
+          group: def.group,
+          groupOrder: def.groupOrder,
+          progress: null,
+          holderId: isEarned ? undefined : hId,
+          holderValue: isEarned ? undefined : formattedValue,
+        });
+      } else {
+        badges.push({
+          id: def.id,
+          icon: def.icon,
+          tier: "Unique",
+          title: def.title,
+          description: def.description,
+          earned: false,
           group: def.group,
           groupOrder: def.groupOrder,
           progress: null
@@ -753,10 +786,12 @@ export const buildPlayerBadges = (
   }
 
   const earnedBadges = badges.filter(badge => badge.earned);
-  const lockedBadges = badges.filter(badge => !badge.earned);
+  const otherUniqueBadges = badges.filter(badge => !badge.earned && badge.holderId);
+  const lockedBadges = badges.filter(badge => !badge.earned && !badge.holderId);
 
   return {
     earnedBadges,
+    otherUniqueBadges,
     lockedBadges,
     totalBadges: badges.length,
     totalEarned: earnedBadges.length
