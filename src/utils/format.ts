@@ -72,3 +72,36 @@ export const sanitizeInput = (val: string | null | undefined, maxLength = 50) =>
   if (!val) return "";
   return val.trim().slice(0, maxLength);
 };
+
+/**
+ * Returns the ISO week number and year for a given date.
+ */
+export const getISOWeek = (date: Date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayNum = d.getDay() || 7;
+  d.setDate(d.getDate() + 4 - dayNum);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { week: weekNo, year: d.getFullYear() };
+};
+
+/**
+ * Returns the start and end dates of an ISO week.
+ */
+export const getISOWeekRange = (week: number, year: number) => {
+  const firstThursday = new Date(year, 0, 1);
+  while (firstThursday.getDay() !== 4) {
+    firstThursday.setDate(firstThursday.getDate() + 1);
+  }
+  const week1Monday = new Date(firstThursday);
+  week1Monday.setDate(firstThursday.getDate() - 3);
+  week1Monday.setHours(0, 0, 0, 0);
+
+  const start = new Date(week1Monday);
+  start.setDate(week1Monday.getDate() + (week - 1) * 7);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  return { start, end };
+};
