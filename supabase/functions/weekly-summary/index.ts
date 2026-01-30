@@ -29,6 +29,11 @@ interface PlayerStats {
 }
 
 // --- CONSTANTS ---
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const GUEST_ID = "guest";
 const ELO_BASELINE = 1000;
 const BASE_K = 20;
@@ -230,6 +235,10 @@ function findWeekHighlight(weekMatches: Match[], playersEnd: Record<string, Play
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -250,8 +259,17 @@ Deno.serve(async (req) => {
     const startOfWeekISO = startOfWeek.toISOString();
     const endOfWeekISO = now.toISOString();
 
-    const { data: profiles } = await supabase.from('profiles').select('id, name').eq('is_deleted', false);
-    const { data: matches } = await supabase.from('matches').select('*');
+    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name').eq('is_deleted', false);
+    if (profilesError) {
+      console.error("Profiles fetch error:", profilesError);
+      throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
+    }
+
+    const { data: matches, error: matchesError } = await supabase.from('matches').select('*');
+    if (matchesError) {
+      console.error("Matches fetch error:", matchesError);
+      throw new Error(`Failed to fetch matches: ${matchesError.message}`);
+    }
 
     // Paginated user fetch to ensure we get all players
     const allUsers = [];
@@ -260,6 +278,7 @@ Deno.serve(async (req) => {
     while (hasMore) {
       const { data: usersData, error } = await supabase.auth.admin.listUsers({ page, perPage: 50 });
       if (error) throw error;
+      if (!usersData?.users) break;
       allUsers.push(...usersData.users);
       hasMore = usersData.users.length === 50;
       page++;
@@ -281,7 +300,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (activePlayerIds.size === 0 && !targetPlayerId) return new Response(JSON.stringify({ message: "No activity" }), { status: 200 });
+    if (activePlayerIds.size === 0 && !targetPlayerId) {
+      console.log("No active players and no targetPlayerId provided");
+      return new Response(JSON.stringify({ message: "No activity" }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const weeklyStats: Record<string, any> = {};
     Array.from(activePlayerIds).forEach(id => {
@@ -304,7 +329,7 @@ Deno.serve(async (req) => {
         matchesPlayed: pMatches.length,
         eloDelta: pEnd.elo - pStart.elo,
         currentElo: pEnd.elo,
-        winRate: Math.round((wins / pMatches.length) * 100),
+        winRate: pMatches.length > 0 ? Math.round((wins / pMatches.length) * 100) : 0,
         partners: Object.entries(partners).map(([pid, count]) => ({
           name: profiles.find(p => p.id === pid)?.name || "Okänd",
           count
@@ -317,7 +342,7 @@ Deno.serve(async (req) => {
 
     const mvpCandidates = Object.values(weeklyStats).map(s => ({
       ...s,
-      mvpScore: s.eloDelta + (s.wins / s.matchesPlayed) * 15 + s.matchesPlayed * 0.5
+      mvpScore: s.eloDelta + (s.matchesPlayed > 0 ? (s.wins / s.matchesPlayed) * 15 : 0) + s.matchesPlayed * 0.5
     })).sort((a, b) => b.mvpScore - a.mvpScore);
 
     const mvp = mvpCandidates.length > 0 ? mvpCandidates[0] : null;
@@ -474,14 +499,22 @@ Deno.serve(async (req) => {
     }));
 
     const successfulCount = emailResults.filter(r => r.success).length;
+    console.log(`Successfully sent ${successfulCount}/${emailResults.length} emails`);
+
     return new Response(JSON.stringify({
       success: true,
       sent: successfulCount,
       total: emailResults.length,
       errors: emailResults.filter(r => !r.success)
-    }), { status: 200 });
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   } catch (error) {
     console.error("Function error:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });
