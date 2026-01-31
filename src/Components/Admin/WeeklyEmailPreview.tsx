@@ -342,8 +342,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     // Note for non-coders: we ask Supabase who is logged in right now before we attempt to send email.
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     // Note for non-coders: the access token proves to the server that this logged-in user is allowed to call the function.
-    const accessToken = sessionData.session?.access_token;
-    if (sessionError || !accessToken) {
+    const hasAccessToken = Boolean(sessionData.session?.access_token);
+    if (sessionError || !hasAccessToken) {
       setHasSession(false);
       alert("Du måste vara inloggad för att skicka test-mail.");
       return;
@@ -355,43 +355,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     setIsSending(true);
     try {
-      if (!accessToken) {
-        // Note for non-coders: Edge Functions require a valid login session to prove who is calling.
-        alert("Du måste vara inloggad för att skicka test-mail. Logga in och försök igen.");
-        return;
-      }
-
-      if (!supabaseAnonKey) {
-        // Note for non-coders: without the anon key, Supabase rejects the request with a 401.
-        throw new Error("VITE_SUPABASE_ANON_KEY saknas i frontend-miljön (Vercel).");
-      }
-
-      if (!supabaseUrl) {
-        // Note for non-coders: the base project URL is required so we know where to send the request.
-        throw new Error("VITE_SUPABASE_URL saknas i frontend-miljön (Vercel).");
-      }
-
-      // Note for non-coders: we include apikey in both header and URL to avoid mobile/Safari stripping custom headers.
-      const functionUrl = new URL(`${supabaseUrl}/functions/v1/weekly-summary`);
-      functionUrl.searchParams.set("apikey", supabaseAnonKey);
-
-      // Note for non-coders: we use a direct fetch so the headers match the working curl request exactly.
-      const response = await fetch(functionUrl.toString(), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: supabaseAnonKey,
-          "x-client-info": "padel-app-web",
-          // Note for non-coders: "Bearer" means we are sending a short-lived session token for authentication.
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ playerId: selectedPlayerId }),
+      // Note for non-coders: Supabase adds the login token for us when we call a server function.
+      const { data, error } = await supabase.functions.invoke("weekly-summary", {
+        body: { playerId: selectedPlayerId },
       });
 
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const errorMessage = data?.error || data?.message || "Okänt fel";
-        throw new Error(`${errorMessage} (status ${response.status})`);
+      if (error) {
+        const errorMessage = error.message || "Okänt fel";
+        throw new Error(errorMessage);
       }
 
       if (data?.success) {
