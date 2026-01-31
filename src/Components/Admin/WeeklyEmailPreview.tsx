@@ -318,6 +318,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     return {
       stats,
+      // Note for non-coders: we pass the week label along so the HTML renderer can reuse it without guessing.
+      weekLabel,
       mvp,
       highlight: findWeekHighlight(),
       leaderboard
@@ -327,7 +329,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const emailHtml = useMemo(() => {
     if (!emailData) return "";
 
-    const { stats, mvp, highlight, leaderboard } = emailData;
+    const { stats, mvp, highlight, leaderboard, weekLabel } = emailData;
     const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
     const deltaSign = stats.eloDelta > 0 ? "+" : "";
     // Note for non-coders: this converts a badge id into a small emoji/tier label we can print beside the name.
