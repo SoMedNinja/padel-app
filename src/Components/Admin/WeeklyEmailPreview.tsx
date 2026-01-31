@@ -355,6 +355,20 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     setIsSending(true);
     try {
+      // Note for non-coders: in development we print short token snippets to verify the right login data is present.
+      if (import.meta.env.DEV) {
+        const session = sessionData.session;
+        const tokenPrefix = (token?: string | null) => (token ? `${token.slice(0, 12)}…` : "saknas");
+        console.log("WeeklyEmailPreview token prefixes", {
+          access: tokenPrefix(session?.access_token),
+          id: tokenPrefix(session?.id_token),
+          provider: tokenPrefix(session?.provider_token),
+        });
+        if (!session?.access_token && (session?.id_token || session?.provider_token)) {
+          console.warn("Admin warning: access_token saknas men id_token/provider_token finns.");
+          alert("Admin-varning: access_token saknas men id_token/provider_token finns.");
+        }
+      }
       // Note for non-coders: Supabase adds the login token for us when we call a server function.
       const { data, error } = await supabase.functions.invoke("weekly-summary", {
         body: { playerId: selectedPlayerId },
