@@ -192,11 +192,6 @@ export default function MatchForm({
 
   const getBadgeIdForName = (name: string) => badgeNameMap.get(name) || null;
 
-  const isSameDay = (aDate: Date, bDate: Date) =>
-    aDate.getFullYear() === bDate.getFullYear() &&
-    aDate.getMonth() === bDate.getMonth() &&
-    aDate.getDate() === bDate.getDate();
-
   const buildEveningRecap = (allMatches: Match[], latestMatch: Match) => {
     const now = new Date();
     const stats = calculateEveningStats(

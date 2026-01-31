@@ -15,25 +15,24 @@ export const calculateEveningStats = (
   profileMap: Map<string, Profile>,
   nameToIdMap: Map<string, string>
 ): EveningRecap | null => {
-  const isSameDay = (aDate: Date, bDate: Date) =>
-    aDate.getFullYear() === bDate.getFullYear() &&
-    aDate.getMonth() === bDate.getMonth() &&
-    aDate.getDate() === bDate.getDate();
+  // Optimization: Use ISO string comparison for faster filtering and avoid redundant mapping
+  // of matches that aren't part of the target evening.
+  const targetISO = targetDate.toISOString().slice(0, 10);
 
-  const normalizedMatches = matches.map(match => {
-    const team1Ids = resolveTeamIds(match.team1_ids, match.team1, nameToIdMap);
-    const team2Ids = resolveTeamIds(match.team2_ids, match.team2, nameToIdMap);
-    return {
-      ...match,
-      team1_ids: team1Ids,
-      team2_ids: team2Ids,
-    };
-  });
-
-  const eveningMatches = normalizedMatches.filter(match => {
-    const stamp = match.created_at ? new Date(match.created_at) : targetDate;
-    return !Number.isNaN(stamp.valueOf()) && isSameDay(stamp, targetDate);
-  });
+  const eveningMatches = matches
+    .filter(match => {
+      if (!match.created_at) return false;
+      return match.created_at.slice(0, 10) === targetISO;
+    })
+    .map(match => {
+      const team1Ids = resolveTeamIds(match.team1_ids, match.team1, nameToIdMap);
+      const team2Ids = resolveTeamIds(match.team2_ids, match.team2, nameToIdMap);
+      return {
+        ...match,
+        team1_ids: team1Ids,
+        team2_ids: team2Ids,
+      };
+    });
 
   if (!eveningMatches.length) {
     return null;

@@ -57,3 +57,7 @@
 ## 2026-02-10 - [Identity-based Cache Keys for Intl.DateTimeFormat]
 **Learning:** Even with a Map-based cache, calling `JSON.stringify(options)` on every format call adds measurable overhead, especially when default options are created as new objects on every call.
 **Action:** Use a constant for default options and perform an identity check (`===`) to use a static cache key, bypassing stringification for the most common path.
+
+## 2025-06-12 - [Filter-Before-Map and ISO String Slicing]
+**Learning:** Performing expensive operations (like ID resolution) on a full dataset before filtering it for a small subset results in significant redundant work. Additionally, comparing dates via ISO string slicing (`.slice(0, 10)`) is much faster than instantiating `new Date()` and calling `.toDateString()` inside large loops.
+**Action:** Always filter large datasets as early as possible and prefer string-based date comparisons for "same-day" logic when data is stored in ISO 8601 format.

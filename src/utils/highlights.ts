@@ -24,9 +24,9 @@ export const findMatchHighlight = (
 
   if (!latestISO) return null;
 
-  // Group matches from the same local day
-  const latestDate = new Date(latestISO).toDateString();
-  const latestMatches = allMatches.filter(m => new Date(m.created_at).toDateString() === latestDate);
+  // Group matches from the same date using ISO string comparison (faster than new Date().toDateString())
+  const latestDateISO = latestISO.slice(0, 10);
+  const latestMatches = allMatches.filter(m => m.created_at && m.created_at.slice(0, 10) === latestDateISO);
 
   if (!latestMatches.length) return null;
 
