@@ -30,7 +30,6 @@ export const useAuthProfile = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const loadingTimeoutRef = useRef<number | null>(null);
-  const syncLockRef = useRef<string | null>(null);
   const syncCounterRef = useRef(0);
   const userRef = useRef(currentUser);
 
@@ -61,15 +60,10 @@ export const useAuthProfile = () => {
       const syncId = ++syncCounterRef.current;
       if (!authUser) {
         setUser(null);
-        syncLockRef.current = null;
         return;
       }
 
-      if (syncLockRef.current === authUser.id) return;
-      syncLockRef.current = authUser.id;
-
-      try {
-        const metadataName = getMetadataName(authUser);
+      const metadataName = getMetadataName(authUser);
       const metadataAvatar = getMetadataAvatar(authUser);
 
       const { data: profile, error } = await supabase
@@ -183,8 +177,6 @@ export const useAuthProfile = () => {
             avatar_url: resolvedAvatar ?? profile?.avatar_url,
           })
         );
-      } finally {
-        syncLockRef.current = null;
       }
     },
     [setIsGuest, setUser]
@@ -241,9 +233,7 @@ export const useAuthProfile = () => {
 
   useEffect(() => {
     let isMounted = true;
-    // Note for non-coders: we rely on onAuthStateChange's INITIAL_SESSION event to trigger
-    // the first load. Calling refresh() here causes redundant session checks and can
-    // lead to token revocation (replay protection) in some browsers.
+    refresh();
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
