@@ -38,17 +38,22 @@ export function filterMatches(matches: Match[], filter: MatchFilter): Match[] {
   if (filter.type === "tournaments") {
     return matches.filter(m => !!m.source_tournament_id);
   }
-  const range = getDateRangeISO(filter);
-  if (range) {
-    const { start, end } = range;
-    return matches.filter(match => {
-      const dateStr = match.created_at;
-      if (!dateStr) return false;
-      // Pre-calculated ISO strings allow for fast lexicographical comparison
-      if (start && dateStr < start) return false;
-      if (end && dateStr > end) return false;
-      return true;
-    });
+
+  // Optimization: Only calculate date range if the filter type requires it
+  if (filter.type === "last7" || filter.type === "last30" || filter.type === "range") {
+    const range = getDateRangeISO(filter);
+    if (range) {
+      const { start, end } = range;
+      return matches.filter(match => {
+        const dateStr = match.created_at;
+        if (!dateStr) return false;
+        // Pre-calculated ISO strings allow for fast lexicographical comparison
+        if (start && dateStr < start) return false;
+        if (end && dateStr > end) return false;
+        return true;
+      });
+    }
   }
+
   return matches;
 }
