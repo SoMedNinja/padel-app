@@ -25,10 +25,11 @@ interface WeeklyEmailPreviewProps {
 }
 
 const MOCK_PROFILES: Profile[] = [
-  { id: "1", name: "Kalle Kula", is_approved: true, is_admin: false, is_deleted: false },
-  { id: "2", name: "Padel-Pelle", is_approved: true, is_admin: false, is_deleted: false },
-  { id: "3", name: "Smasher-Sven", is_approved: true, is_admin: false, is_deleted: false },
-  { id: "4", name: "Boll-Berit", is_approved: true, is_admin: false, is_deleted: false },
+  // Note for non-coders: these mock avatar links let the preview show how "player icons" look in the email.
+  { id: "1", name: "Kalle Kula", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Kalle", is_approved: true, is_admin: false, is_deleted: false },
+  { id: "2", name: "Padel-Pelle", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Pelle", is_approved: true, is_admin: false, is_deleted: false },
+  { id: "3", name: "Smasher-Sven", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Sven", is_approved: true, is_admin: false, is_deleted: false },
+  { id: "4", name: "Boll-Berit", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Berit", is_approved: true, is_admin: false, is_deleted: false },
 ];
 
 const MOCK_MATCHES: Match[] = [
@@ -165,10 +166,57 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     }).length;
 
     const partners: Record<string, number> = {};
+    const partnerStats: Record<string, { games: number; wins: number }> = {};
+    const opponentStats: Record<string, { games: number; wins: number }> = {};
     pMatches.forEach(m => {
-      const team = m.team1_ids.includes(selectedPlayerId) ? m.team1_ids : m.team2_ids;
-      team.forEach(pid => { if (pid && pid !== selectedPlayerId && pid !== GUEST_ID) partners[pid] = (partners[pid] || 0) + 1; });
+      const isTeam1 = m.team1_ids.includes(selectedPlayerId);
+      const didWin = isTeam1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+      const team = isTeam1 ? m.team1_ids : m.team2_ids;
+      const opponents = isTeam1 ? m.team2_ids : m.team1_ids;
+
+      team.forEach(pid => {
+        if (pid && pid !== selectedPlayerId && pid !== GUEST_ID) {
+          partners[pid] = (partners[pid] || 0) + 1;
+          partnerStats[pid] = partnerStats[pid] || { games: 0, wins: 0 };
+          partnerStats[pid].games += 1;
+          partnerStats[pid].wins += didWin ? 1 : 0;
+        }
+      });
+
+      opponents.forEach(pid => {
+        if (pid && pid !== GUEST_ID) {
+          opponentStats[pid] = opponentStats[pid] || { games: 0, wins: 0 };
+          opponentStats[pid].games += 1;
+          opponentStats[pid].wins += didWin ? 1 : 0;
+        }
+      });
     });
+
+    // Note for non-coders: "synergy" is the partner you played with the most this week.
+    const bestPartnerEntry = Object.entries(partnerStats).sort((a, b) => b[1].games - a[1].games)[0];
+    const synergy = bestPartnerEntry
+      ? {
+        id: bestPartnerEntry[0],
+        name: activeProfiles.find(p => p.id === bestPartnerEntry[0])?.name || "Okänd",
+        avatarUrl: activeProfiles.find(p => p.id === bestPartnerEntry[0])?.avatar_url || null,
+        games: bestPartnerEntry[1].games,
+        winRate: Math.round((bestPartnerEntry[1].wins / bestPartnerEntry[1].games) * 100),
+      }
+      : null;
+
+    // Note for non-coders: "rivalry" is the opponent you faced the most in the same week.
+    const topOpponentEntry = Object.entries(opponentStats).sort((a, b) => b[1].games - a[1].games)[0];
+    const rivalry = topOpponentEntry
+      ? {
+        id: topOpponentEntry[0],
+        name: activeProfiles.find(p => p.id === topOpponentEntry[0])?.name || "Okänd",
+        avatarUrl: activeProfiles.find(p => p.id === topOpponentEntry[0])?.avatar_url || null,
+        games: topOpponentEntry[1].games,
+        winRate: Math.round((topOpponentEntry[1].wins / topOpponentEntry[1].games) * 100),
+      }
+      : null;
+
+    const selectedProfile = activeProfiles.find(p => p.id === selectedPlayerId);
 
     const stats = {
       name: playerEnd?.name || activeProfiles.find(p => p.id === selectedPlayerId)?.name || "Okänd",
@@ -180,6 +228,9 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         name: activeProfiles.find(p => p.id === pid)?.name || "Okänd",
         count
       })),
+      avatarUrl: selectedProfile?.avatar_url || null,
+      synergy,
+      rivalry,
       results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
       wins,
       id: selectedPlayerId
@@ -215,6 +266,13 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     const { stats, mvp, highlight, leaderboard } = emailData;
     const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
     const deltaSign = stats.eloDelta > 0 ? "+" : "";
+    // Note for non-coders: we build tiny HTML snippets so the same avatar styling is reused in multiple sections.
+    const renderAvatar = (avatarUrl: string | null, name: string) => {
+      const initial = name.trim().charAt(0).toUpperCase() || "?";
+      return avatarUrl
+        ? `<img src="${avatarUrl}" alt="${name}" width="56" height="56" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
+        : `<div style="width: 56px; height: 56px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">${initial}</div>`;
+    };
 
     return `
       <!DOCTYPE html>
@@ -233,7 +291,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
               <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
                 <!-- Header -->
                 <tr>
-                  <td style="background-color: #000000; padding: 40px 20px; text-align: center;">
+                  <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
                     <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">Veckan i Padel</h1>
                     <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
                   </td>
@@ -243,6 +301,23 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                   <td style="padding: 40px 40px 20px 40px;">
                     <h2 style="margin: 0; font-size: 28px; color: #000;">Hej ${stats.name}!</h2>
                     <p style="font-size: 16px; color: #666; line-height: 1.6;">Här är din personliga sammanfattning av veckans matcher och prestationer på banan.</p>
+                  </td>
+                </tr>
+                <!-- Player Icon -->
+                <tr>
+                  <td style="padding: 0 40px 30px 40px;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #111; border-radius: 10px; color: #fff;">
+                      <tr>
+                        <td style="padding: 20px;" width="80" align="center">
+                          ${renderAvatar(stats.avatarUrl, stats.name)}
+                        </td>
+                        <td style="padding: 20px 20px 20px 0;">
+                          <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #d4af37;">Din ikon</p>
+                          <h3 style="margin: 6px 0 0 0; font-size: 20px; color: #fff;">${stats.name}</h3>
+                          <p style="margin: 6px 0 0 0; font-size: 14px; color: #bbb;">Din valda ikon visas här i veckans mail.</p>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
                 <!-- Stats Grid -->
@@ -292,6 +367,46 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                       <h3 style="margin: 0; font-size: 20px; color: #000;">✨ ${highlight.title}</h3>
                       <p style="margin: 10px 0 0 0; font-size: 16px; color: #444; line-height: 1.5;">${highlight.description}</p>
                     </div>
+                  </td>
+                </tr>
+                ` : ""}
+                <!-- Synergy & Rivalry -->
+                ${(stats.synergy || stats.rivalry) ? `
+                <tr>
+                  <td style="padding: 0 40px 40px 40px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Synergi & Rivalitet</h3>
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td width="50%" style="padding-right: 10px;">
+                          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                            <tr>
+                              <td style="padding: 16px;" align="center" width="70">
+                                ${stats.synergy ? renderAvatar(stats.synergy.avatarUrl, stats.synergy.name) : ""}
+                              </td>
+                              <td style="padding: 16px 16px 16px 0;">
+                                <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Veckans synergi</p>
+                                <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #111;">${stats.synergy ? stats.synergy.name : "Ingen partner spelad"}</p>
+                                ${stats.synergy ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #666;">${stats.synergy.games} matcher • ${stats.synergy.winRate}% vinster</p>` : ""}
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                        <td width="50%" style="padding-left: 10px;">
+                          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                            <tr>
+                              <td style="padding: 16px;" align="center" width="70">
+                                ${stats.rivalry ? renderAvatar(stats.rivalry.avatarUrl, stats.rivalry.name) : ""}
+                              </td>
+                              <td style="padding: 16px 16px 16px 0;">
+                                <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Veckans rival</p>
+                                <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #111;">${stats.rivalry ? stats.rivalry.name : "Ingen rival denna vecka"}</p>
+                                ${stats.rivalry ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #666;">${stats.rivalry.games} möten • ${stats.rivalry.winRate}% vinster</p>` : ""}
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
                 ` : ""}
