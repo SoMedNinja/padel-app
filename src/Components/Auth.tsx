@@ -61,44 +61,51 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
       setNotice("Lösenordet måste vara minst 8 tecken.");
       return;
     }
+
+    let shouldResetSubmitting = true;
     setIsSubmitting(true);
-    if (isSignup) {
-      const siteUrl = resolveSiteUrl();
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: siteUrl,
-        },
-      });
+    try {
+      if (isSignup) {
+        const siteUrl = resolveSiteUrl();
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: siteUrl,
+          },
+        });
 
-      if (error) {
-        toast.error(error.message);
-        setIsSubmitting(false);
-        return;
-      }
-      if (data?.session?.user) {
-        onAuth(data.session.user);
-        setIsSubmitting(false);
-        return;
-      }
-      setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
-    } else {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        if (data?.session?.user) {
+          shouldResetSubmitting = false;
+          onAuth(data.session.user);
+          return;
+        }
+        setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) {
-        toast.error(error.message);
-        setIsSubmitting(false);
-        return;
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        if (data.user) {
+          shouldResetSubmitting = false;
+          onAuth(data.user);
+          return;
+        }
       }
-      if (data.user) {
-        onAuth(data.user);
+    } finally {
+      if (shouldResetSubmitting) {
+        setIsSubmitting(false);
       }
     }
-    setIsSubmitting(false);
   };
 
   const handlePasswordReset = async () => {
@@ -111,16 +118,18 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
       return;
     }
     setIsSubmitting(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: resolveSiteUrl(),
-    });
-    if (error) {
-      toast.error(error.message);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: resolveSiteUrl(),
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setNotice("Återställningslänk skickad! Kolla din e-post.");
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-    setNotice("Återställningslänk skickad! Kolla din e-post.");
-    setIsSubmitting(false);
   };
 
   return (
