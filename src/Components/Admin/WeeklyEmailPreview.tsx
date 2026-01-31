@@ -165,6 +165,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
     }).length;
 
+    const sortedMatches = [...pMatches].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    // Note for non-coders: we track the last 5 wins/losses to draw the mini "form curve" sparkline.
+    const recentResults = sortedMatches.slice(-5).map(m => {
+      const isT1 = m.team1_ids.includes(selectedPlayerId);
+      const didWin = isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+      return didWin ? "W" : "L";
+    });
+
     const partners: Record<string, number> = {};
     const partnerStats: Record<string, { games: number; wins: number }> = {};
     const opponentStats: Record<string, { games: number; wins: number }> = {};
@@ -218,6 +226,20 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     const selectedProfile = activeProfiles.find(p => p.id === selectedPlayerId);
 
+    // Note for non-coders: we only have final set totals, so "best comeback" is a proxy for the tightest win.
+    const comebackMatch = sortedMatches
+      .filter(m => {
+        const isT1 = m.team1_ids.includes(selectedPlayerId);
+        return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+      })
+      .map(m => {
+        const isT1 = m.team1_ids.includes(selectedPlayerId);
+        const teamSets = isT1 ? m.team1_sets : m.team2_sets;
+        const oppSets = isT1 ? m.team2_sets : m.team1_sets;
+        return { match: m, margin: teamSets - oppSets };
+      })
+      .sort((a, b) => a.margin - b.margin)[0];
+
     const stats = {
       name: playerEnd?.name || activeProfiles.find(p => p.id === selectedPlayerId)?.name || "Okänd",
       matchesPlayed: pMatches.length,
@@ -231,6 +253,13 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       avatarUrl: selectedProfile?.avatar_url || null,
       synergy,
       rivalry,
+      bestComeback: comebackMatch
+        ? {
+          score: `${comebackMatch.match.team1_sets}-${comebackMatch.match.team2_sets}`,
+          margin: comebackMatch.margin,
+        }
+        : null,
+      recentResults,
       results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
       wins,
       id: selectedPlayerId
@@ -273,6 +302,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         ? `<img src="${avatarUrl}" alt="${name}" width="56" height="56" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
         : `<div style="width: 56px; height: 56px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">${initial}</div>`;
     };
+    // Note for non-coders: the sparkline turns W/L into points so we can draw a tiny form curve.
+    const sparklinePoints = stats.recentResults
+      .map((result, index) => {
+        const x = 8 + index * 18;
+        const y = result === "W" ? 6 : 20;
+        return `${x},${y}`;
+      })
+      .join(" ");
 
     return `
       <!DOCTYPE html>
@@ -404,6 +441,43 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                               </td>
                             </tr>
                           </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                ` : ""}
+                <!-- Best Comeback & Form Curve -->
+                ${(stats.bestComeback || stats.recentResults.length) ? `
+                <tr>
+                  <td style="padding: 0 40px 40px 40px;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td width="50%" style="padding-right: 10px;">
+                          <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff;">
+                            <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #d4af37;">Bästa comeback</p>
+                            <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700;">${stats.bestComeback ? stats.bestComeback.score : "Ingen vinst i veckan"}</p>
+                            <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? "Tajtaste vinst (proxy för comeback)." : "Spela fler matcher för att få en comeback!"}</p>
+                          </div>
+                        </td>
+                        <td width="50%" style="padding-left: 10px;">
+                          <div style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px;">
+                            <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Formkurva (senaste 5)</p>
+                            ${stats.recentResults.length ? `
+                              <svg width="120" height="26" viewBox="0 0 120 26" xmlns="http://www.w3.org/2000/svg" aria-label="Formkurva">
+                                <polyline points="${sparklinePoints}" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                                ${stats.recentResults.map((result, index) => {
+                                  const x = 8 + index * 18;
+                                  const y = result === "W" ? 6 : 20;
+                                  const color = result === "W" ? "#2e7d32" : "#d32f2f";
+                                  return `<circle cx="${x}" cy="${y}" r="4" fill="${color}" />`;
+                                }).join("")}
+                              </svg>
+                              <p style="margin: 6px 0 0 0; font-size: 12px; color: #666;">${stats.recentResults.join(" ")}</p>
+                            ` : `
+                              <p style="margin: 8px 0 0 0; font-size: 13px; color: #666;">Ingen formkurva ännu.</p>
+                            `}
+                          </div>
                         </td>
                       </tr>
                     </table>
