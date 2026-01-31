@@ -112,18 +112,6 @@ const getBearerToken = (req: Request) => {
   return header.slice("Bearer ".length).trim();
 };
 
-const decodeJwtClaims = (token: string) => {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(normalized);
-    return JSON.parse(json) as { role?: string };
-  } catch {
-    return null;
-  }
-};
-
 // --- CORE LOGIC ---
 function calculateEloAt(matches: Match[], profiles: Profile[], untilDate?: string): Record<string, PlayerStats> {
   const players: Record<string, PlayerStats> = {};
@@ -284,33 +272,35 @@ Deno.serve(async (req) => {
         });
       }
 
-      const claims = decodeJwtClaims(token);
-      const role = claims?.role;
-      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
-        // Non-coder note: only logged-in users (or trusted service tokens) can send a test.
-        return new Response(JSON.stringify({ error: "Insufficient role for test mode" }), {
-          status: 403,
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+      if (!anonKey) {
+        // Non-coder note: the anon key is used only to validate a user login token.
+        throw new Error("SUPABASE_ANON_KEY missing");
+      }
+      const authClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        anonKey
+      );
+      // Non-coder note: this call checks with Supabase that the token belongs to a real user.
+      const { data, error } = await authClient.auth.getUser(token);
+      if (error || !data?.user) {
+        return new Response(JSON.stringify({ error: "Token ogiltig för testläge" }), {
+          status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
 
-      if (role !== "service_role") {
-        const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-        if (!anonKey) {
-          // Non-coder note: the anon key is used only to validate a user login token.
-          throw new Error("SUPABASE_ANON_KEY missing");
-        }
-        const authClient = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          anonKey
-        );
-        const { data, error } = await authClient.auth.getUser(token);
-        if (error || !data?.user) {
-          return new Response(JSON.stringify({ error: "Invalid user token for test mode" }), {
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
+      const role =
+        data.user.role ??
+        data.user.app_metadata?.role ??
+        data.user.user_metadata?.role ??
+        null;
+      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
+        // Non-coder note: we only allow specific roles to send a test summary.
+        return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
     }
 
