@@ -1,17 +1,8 @@
 import { supabase } from "../supabaseClient";
 import { Profile } from "../types";
+import { checkIsAdmin } from "./authUtils";
 
 const MAX_AVATAR_LENGTH = 3_000_000; // Security: Limit avatar data size to ~2.2MB
-
-async function checkIsAdmin(userId?: string): Promise<boolean> {
-  if (!userId) return false;
-  const { data } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", userId)
-    .single();
-  return data?.is_admin === true;
-}
 
 export const profileService = {
   async getProfiles(): Promise<Profile[]> {

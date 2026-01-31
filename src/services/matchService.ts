@@ -1,5 +1,6 @@
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter } from "../types";
+import { checkIsAdmin } from "./authUtils";
 
 const getDateRange = (filter: MatchFilter) => {
   if (filter.type === "last7") {
@@ -67,6 +68,14 @@ export const matchService = {
   },
 
   async updateMatch(matchId: string, updates: any): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData.session?.user;
+    const isAdmin = await checkIsAdmin(currentUser?.id);
+
+    if (!isAdmin) {
+      throw new Error("Endast administratörer kan ändra registrerade matcher.");
+    }
+
     if (updates.team1_sets !== undefined && (typeof updates.team1_sets !== "number" || updates.team1_sets < 0)) {
       throw new Error("Ogiltigt resultat för Lag 1");
     }
@@ -82,6 +91,16 @@ export const matchService = {
   },
 
   async deleteMatch(matchId: string): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData.session?.user;
+    const isAdmin = await checkIsAdmin(currentUser?.id);
+
+    const { data: match } = await supabase.from("matches").select("created_by").eq("id", matchId).single();
+
+    if (!isAdmin && (!currentUser || match?.created_by !== currentUser.id)) {
+      throw new Error("Du har inte behörighet att radera denna match.");
+    }
+
     const { error } = await supabase
       .from("matches")
       .delete()
@@ -90,6 +109,14 @@ export const matchService = {
   },
 
   async deleteMatchesByTournamentId(tournamentId: string): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData.session?.user;
+    const isAdmin = await checkIsAdmin(currentUser?.id);
+
+    if (!isAdmin) {
+      throw new Error("Endast administratörer kan radera turneringsmatcher i bulk.");
+    }
+
     const { error } = await supabase
       .from("matches")
       .delete()
