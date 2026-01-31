@@ -374,6 +374,9 @@ const buildHeadToHead = (
   let lastMatch: any = null;
 
   matches.forEach(match => {
+    // Optimization: skip matches where the player did not participate using the pre-indexed delta map.
+    if (!playerDeltaMap.has(match.id)) return;
+
     const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
     const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
 
@@ -484,16 +487,17 @@ const buildHeadToHeadRecentResults = (
   opponentId: string,
   mode: string,
   limit = 5,
-  nameToIdMap: Map<string, string>
+  nameToIdMap: Map<string, string>,
+  playerDeltaMap: Map<string, number>
 ) => {
   if (!playerId || !opponentId) return [];
-  const sortedMatches = [...matches].sort(
-    (a, b) => b.created_at.localeCompare(a.created_at)
-  );
 
   const results = [];
 
-  for (const match of sortedMatches) {
+  // Optimization: use the fact that matches are already sorted descending and skip irrelevant ones.
+  for (const match of matches) {
+    if (!playerDeltaMap.has(match.id)) continue;
+
     const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
     const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
 
@@ -1176,9 +1180,10 @@ export function HeadToHeadSection({
         resolvedOpponentId,
         mode,
         5,
-        nameToIdMap
+        nameToIdMap,
+        playerDeltaMap
       ),
-    [matches, user, resolvedOpponentId, mode, nameToIdMap]
+    [matches, user, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap]
   );
 
   const tournamentH2H = useMemo(
