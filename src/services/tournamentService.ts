@@ -1,5 +1,6 @@
 import { supabase } from "../supabaseClient";
 import { GUEST_ID } from "../utils/guest";
+import { checkIsAdmin } from "./authUtils";
 
 export const tournamentService = {
   async getTournaments() {
@@ -70,21 +71,37 @@ export const tournamentService = {
   },
 
   async deleteParticipants(tournamentId: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan radera deltagare.");
+
     const { error } = await supabase.from("mexicana_participants").delete().eq("tournament_id", tournamentId);
     if (error) throw error;
   },
 
   async createParticipants(participants: any[]) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan lägga till deltagare.");
+
     const { error } = await supabase.from("mexicana_participants").insert(participants);
     if (error) throw error;
   },
 
   async deleteTournament(tournamentId: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan radera turneringar.");
+
     const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournamentId);
     if (error) throw error;
   },
 
   async updateTournament(tournamentId: string, updates: any) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan ändra turneringar.");
+
     const sanitized = { ...updates };
     if (sanitized.name !== undefined) {
       sanitized.name = sanitized.name?.trim();
@@ -108,11 +125,19 @@ export const tournamentService = {
   },
 
   async createTournamentResults(results: any[]) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan registrera turneringsresultat.");
+
     const { error } = await supabase.from("mexicana_results").insert(results);
     if (error) throw error;
   },
 
   async createTournament(tournament: any) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan skapa turneringar.");
+
     const sanitized = {
       ...tournament,
       name: tournament.name?.trim(),
@@ -139,11 +164,19 @@ export const tournamentService = {
   },
 
   async createRounds(rounds: any[]) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan skapa rundor.");
+
     const { error } = await supabase.from("mexicana_rounds").insert(rounds);
     if (error) throw error;
   },
 
   async updateRound(roundId: string, updates: any) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan uppdatera rundor.");
+
     const { error } = await supabase
       .from("mexicana_rounds")
       .update(updates)
