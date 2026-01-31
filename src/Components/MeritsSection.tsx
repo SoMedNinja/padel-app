@@ -20,6 +20,7 @@ import {
   Chip,
   Paper,
   Avatar,
+  CircularProgress,
 } from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
@@ -161,6 +162,7 @@ export default function MeritsSection({
                               fullWidth
                               onClick={() => handleBadgeSelection(badge.id)}
                               disabled={savingBadgeId === badge.id}
+                              startIcon={savingBadgeId === badge.id ? <CircularProgress size={16} color="inherit" /> : null}
                               sx={{ mt: 1, fontWeight: 700 }}
                             >
                               {selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn"}
