@@ -52,6 +52,7 @@ const SHORT_MATCH_WEIGHT = 0.5;
 const MID_MATCH_WEIGHT = 0.5;
 const LONG_MATCH_WEIGHT = 1;
 const ALLOWED_TEST_ROLES = new Set(["authenticated", "service_role"]);
+const ALLOWED_BROADCAST_ROLES = new Set(["admin", "service_role"]);
 
 // --- ELO HELPERS ---
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -262,46 +263,52 @@ Deno.serve(async (req) => {
       // No body or not JSON, proceed as normal
     }
 
+    const token = getBearerToken(req);
+    if (!token) {
+      // Non-coder note: every request must include a login token so only signed-in users can trigger emails.
+      return new Response(JSON.stringify({ error: "Missing bearer token" }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    if (!anonKey) {
+      // Non-coder note: the anon key is used only to validate a user login token.
+      throw new Error("SUPABASE_ANON_KEY missing");
+    }
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      anonKey
+    );
+    // Non-coder note: this call checks with Supabase that the token belongs to a real user.
+    const { data, error } = await authClient.auth.getUser(token);
+    if (error || !data?.user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const role =
+      data.user.role ??
+      data.user.app_metadata?.role ??
+      data.user.user_metadata?.role ??
+      null;
     if (targetPlayerId) {
-      const token = getBearerToken(req);
-      if (!token) {
-        // Non-coder note: we require a login token for "test" emails so strangers can't trigger sends.
-        return new Response(JSON.stringify({ error: "Missing bearer token for test mode" }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-
-      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-      if (!anonKey) {
-        // Non-coder note: the anon key is used only to validate a user login token.
-        throw new Error("SUPABASE_ANON_KEY missing");
-      }
-      const authClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        anonKey
-      );
-      // Non-coder note: this call checks with Supabase that the token belongs to a real user.
-      const { data, error } = await authClient.auth.getUser(token);
-      if (error || !data?.user) {
-        return new Response(JSON.stringify({ error: "Token ogiltig för testläge" }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-
-      const role =
-        data.user.role ??
-        data.user.app_metadata?.role ??
-        data.user.user_metadata?.role ??
-        null;
       if (!role || !ALLOWED_TEST_ROLES.has(role)) {
-        // Non-coder note: we only allow specific roles to send a test summary.
+        // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
         return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+    } else if (!role || !ALLOWED_BROADCAST_ROLES.has(role)) {
+      // Non-coder note: mass email sends are restricted to admins/service roles only.
+      return new Response(JSON.stringify({ error: "Roll saknar behörighet för massutskick" }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const now = new Date();
@@ -398,7 +405,11 @@ Deno.serve(async (req) => {
 
     const mvp = mvpCandidates.length > 0 ? mvpCandidates[0] : null;
     const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart);
-    const leaderboard = Object.values(eloEnd).sort((a, b) => b.elo - a.elo).map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
+    // Non-coder note: we keep the leaderboard short so the email matches the preview layout.
+    const leaderboard = Object.values(eloEnd)
+      .sort((a, b) => b.elo - a.elo)
+      .slice(0, 5)
+      .map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) throw new Error("RESEND_API_KEY missing");
