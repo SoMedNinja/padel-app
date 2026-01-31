@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Dialog, DialogTitle, DialogContent, Grid, Button, Typography, Paper, IconButton } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, Grid, Button, Typography, Paper, IconButton, ButtonBase } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { buildPlayerBadges } from "../utils/badges";
 import { Profile } from "../types";
@@ -29,7 +29,7 @@ export default function BadgeGallery({
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         Välj framhävd merit
-        <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
+        <IconButton onClick={onClose} size="small" aria-label="Stäng"><CloseIcon /></IconButton>
       </DialogTitle>
       <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: 4 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -51,11 +51,14 @@ export default function BadgeGallery({
             const isSelected = currentBadgeId === badge.id;
             return (
               <Grid size={{ xs: 4, sm: 3 }} key={badge.id}>
-                <Paper
+                <ButtonBase
+                  component={Paper}
                   variant="outlined"
+                  aria-label={`Välj merit: ${badge.title}`}
+                  aria-pressed={isSelected}
                   sx={{
                     p: 1.5,
-                    cursor: 'pointer',
+                    width: '100%',
                     textAlign: 'center',
                     borderRadius: 3,
                     transition: 'all 0.2s',
@@ -70,7 +73,8 @@ export default function BadgeGallery({
                     alignItems: 'center',
                     gap: 0.5,
                     height: '100%',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    border: '1px solid',
                   }}
                   onClick={() => onSelect(badge.id)}
                 >
@@ -87,7 +91,7 @@ export default function BadgeGallery({
                   >
                     {badge.title}
                   </Typography>
-                </Paper>
+                </ButtonBase>
               </Grid>
             );
           })}

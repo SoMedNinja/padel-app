@@ -424,14 +424,6 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
   if (isLoading) return <CircularProgress />;
 
-  const hasSupabaseUrl = Boolean(supabaseUrl);
-  const hasSupabaseAnonKey = Boolean(supabaseAnonKey);
-  const showEnvStatus = true;
-  // Note for non-coders: this masks secrets so we can confirm they exist without exposing them.
-  const maskedSupabaseAnonKey = hasSupabaseAnonKey
-    ? `${supabaseAnonKey.slice(0, 6)}...${supabaseAnonKey.slice(-4)}`
-    : "";
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Paper sx={{ p: 3, borderRadius: 4 }}>
