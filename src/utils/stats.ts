@@ -114,21 +114,23 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
     // Optimization: use ISO string comparison instead of new Date() in loop
     const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    matches.forEach(m => {
-      if (m.created_at < thirtyDaysAgoISO) return;
+    // Optimization: use for-loop with early break since matches are sorted descending
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      if (m.created_at < thirtyDaysAgoISO) break;
 
       const team1 = normalizeTeam(m.team1);
       const team2 = normalizeTeam(m.team2);
       const isTeam1 = team1.includes(playerName);
       const isTeam2 = team2.includes(playerName);
 
-      if (!isTeam1 && !isTeam2) return;
+      if (!isTeam1 && !isTeam2) continue;
 
       const partner = isTeam1
         ? team1.find(p => p !== playerName)
         : team2.find(p => p !== playerName);
 
-      if (!partner || partner === "Gäst") return;
+      if (!partner || partner === "Gäst") continue;
 
       const won = (isTeam1 && m.team1_sets > m.team2_sets) || (isTeam2 && m.team2_sets > m.team1_sets);
 
@@ -136,7 +138,7 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
       synergy[partner].games++;
       if (won) synergy[partner].wins++;
       // Note: eloGain per partner is tricky without player stats, but we can track wins/games.
-    });
+    }
 
     // Optimization: find best partner in a single pass instead of sort()
     let bestPartner = null;
@@ -171,15 +173,17 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
     // Optimization: use ISO string comparison instead of new Date() in loop
     const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    matches.forEach(m => {
-      if (m.created_at < thirtyDaysAgoISO) return;
+    // Optimization: use for-loop with early break since matches are sorted descending
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      if (m.created_at < thirtyDaysAgoISO) break;
 
       const team1 = normalizeTeam(m.team1);
       const team2 = normalizeTeam(m.team2);
       const isTeam1 = team1.includes(playerName);
       const isTeam2 = team2.includes(playerName);
 
-      if (!isTeam1 && !isTeam2) return;
+      if (!isTeam1 && !isTeam2) continue;
 
       const opponents = isTeam1 ? team2 : team1;
       const won = (isTeam1 && m.team1_sets > m.team2_sets) || (isTeam2 && m.team2_sets > m.team1_sets);
@@ -190,7 +194,7 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
         rivals[opp].games++;
         if (!won) rivals[opp].losses++;
       });
-    });
+    }
 
     // Optimization: find toughest opponent in a single pass instead of sort()
     let toughestRival = null;
