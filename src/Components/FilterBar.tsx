@@ -7,7 +7,8 @@ import {
   SelectChangeEvent,
   Box,
   TextField,
-  Button
+  Button,
+  Tooltip
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { MatchFilter, MatchFilterType } from "../types";
@@ -93,15 +94,19 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           <MenuItem value="range">{filterLabels.range}</MenuItem>
         </Select>
       </FormControl>
-      <Button
-        size="small"
-        onClick={() => setFilter({ type: "all" })}
-        startIcon={<CloseIcon />}
-        disabled={filter.type === "all"}
-        sx={{ mt: 1, textTransform: "none", fontWeight: 700, borderRadius: "12px" }}
-      >
-        Återställ filter
-      </Button>
+      <Tooltip title="Visa alla matcher och nollställ aktiva filter" arrow>
+        <span>
+          <Button
+            size="small"
+            onClick={() => setFilter({ type: "all" })}
+            startIcon={<CloseIcon />}
+            disabled={filter.type === "all"}
+            sx={{ mt: 1, textTransform: "none", fontWeight: 700, borderRadius: "12px" }}
+          >
+            Återställ filter
+          </Button>
+        </span>
+      </Tooltip>
       <Box sx={{ mt: 1, px: 1, py: 0.5, borderRadius: 2, bgcolor: "grey.100" }}>
         {/* Note for non-coders: this label reminds people which filter is active right now. */}
         <Box component="span" sx={{ fontSize: 12, fontWeight: 700, color: "text.secondary" }}>
@@ -113,6 +118,7 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           <TextField
             id="filter-start-date"
             label="Från"
+            aria-label="Välj startdatum för filter"
             type="date"
             size="small"
             value={filter.startDate || ""}
@@ -122,6 +128,7 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           <TextField
             id="filter-end-date"
             label="Till"
+            aria-label="Välj slutdatum för filter"
             type="date"
             size="small"
             value={filter.endDate || ""}

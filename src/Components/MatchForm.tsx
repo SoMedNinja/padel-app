@@ -499,6 +499,7 @@ export default function MatchForm({
             variant={value === s ? "contained" : "outlined"}
             onClick={() => onChange(s)}
             aria-label={`Välj resultat: ${s}`}
+            aria-pressed={value === s}
             sx={{
               minWidth: 50,
               height: 50,
@@ -515,6 +516,7 @@ export default function MatchForm({
             variant={value === s ? "contained" : "outlined"}
             onClick={() => onChange(s)}
             aria-label={`Välj resultat: ${s}`}
+            aria-pressed={value === s}
             sx={{
               minWidth: 50,
               height: 50,
@@ -526,35 +528,39 @@ export default function MatchForm({
           </Button>
         ))}
         {!showExtraScores ? (
-          <Button
-            variant="outlined"
-            onClick={() => setShowExtraScores(true)}
-            aria-label="Visa fler poängalternativ"
-            sx={{
-              minWidth: 50,
-              height: 50,
-              fontSize: "0.8rem",
-              borderRadius: "50%",
-              textTransform: "none"
-            }}
-          >
-            Mer...
-          </Button>
+          <Tooltip title="Visa fler poängalternativ (8–12)" arrow>
+            <Button
+              variant="outlined"
+              onClick={() => setShowExtraScores(true)}
+              aria-label="Visa fler poängalternativ"
+              sx={{
+                minWidth: 50,
+                height: 50,
+                fontSize: "0.8rem",
+                borderRadius: "50%",
+                textTransform: "none"
+              }}
+            >
+              Mer...
+            </Button>
+          </Tooltip>
         ) : (
-          <Button
-            variant="outlined"
-            onClick={() => setShowExtraScores(false)}
-            aria-label="Visa färre poängalternativ"
-            sx={{
-              minWidth: 50,
-              height: 50,
-              fontSize: "0.8rem",
-              borderRadius: "50%",
-              textTransform: "none"
-            }}
-          >
-            Göm
-          </Button>
+          <Tooltip title="Visa färre poängalternativ (0–7)" arrow>
+            <Button
+              variant="outlined"
+              onClick={() => setShowExtraScores(false)}
+              aria-label="Visa färre poängalternativ"
+              sx={{
+                minWidth: 50,
+                height: 50,
+                fontSize: "0.8rem",
+                borderRadius: "50%",
+                textTransform: "none"
+              }}
+            >
+              Göm
+            </Button>
+          </Tooltip>
         )}
       </Box>
     );
@@ -762,7 +768,7 @@ export default function MatchForm({
                   startIcon={isSubmitting ? <CircularProgress size={20} /> : <CheckCircleIcon />}
                   sx={{ height: 56, fontSize: "1.1rem" }}
                 >
-                  Spara match
+                  {isSubmitting ? "Sparar..." : "Spara match"}
                 </Button>
                 <Button
                   variant="text"

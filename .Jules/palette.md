@@ -21,3 +21,7 @@
 ## 2025-05-24 - [Micro-UX: Progressive Disclosure & Contextual Feedback]
 **Learning:** For dense forms (like score selection), allowing users to collapse extra options ("Göm") keeps the UI tidy and reduces cognitive load. Providing immediate, contextual loading feedback (like a spinner inside a button) for administrative actions prevents double-clicks and uncertainty.
 **Action:** Use "Mer.../Göm" patterns for optional high-density inputs. Always replace icons with a `CircularProgress` (size 16) in buttons during active async operations. Use `cursor: 'help'` on tooltipped headers to signal interactivity.
+
+## 2026-01-31 - [UX: Contextual Feedback & A11y States]
+**Learning:** For dense selection grids (like score entry), screen readers need explicit state cues like `aria-pressed`. Visual feedback for async operations (changing "Spara" to "Sparar...") prevents user uncertainty. Tooltips on disabled buttons require a wrapper `span` to ensure the tooltip is triggerable.
+**Action:** Always use `aria-pressed` on selection buttons. Implement "Sparar..." text changes in submit buttons. Wrap disabled tooltipped buttons in a `span`.
