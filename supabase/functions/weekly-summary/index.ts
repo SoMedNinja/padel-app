@@ -53,8 +53,10 @@ const MID_POINTS_MAX = 21;
 const SHORT_MATCH_WEIGHT = 0.5;
 const MID_MATCH_WEIGHT = 0.5;
 const LONG_MATCH_WEIGHT = 1;
+const SINGLES_MATCH_WEIGHT = 0.5;
 const ALLOWED_TEST_ROLES = new Set(["authenticated", "service_role"]);
 const ALLOWED_BROADCAST_ROLES = new Set(["admin", "service_role"]);
+const WEEKLY_MIN_GAMES = 1;
 
 // --- ELO HELPERS ---
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -91,14 +93,35 @@ const getMatchWeight = (match: Match) => {
   return MID_MATCH_WEIGHT;
 };
 
-const getIsoWeekNumber = (date: Date) => {
-  // Non-coder note: ISO week numbers use a Thursday-based calendar; this calculates that week index.
-  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayOfWeek = utcDate.getUTCDay() || 7;
-  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayOfWeek);
-  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
-  const weekNumber = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return weekNumber;
+const getSinglesAdjustedMatchWeight = (match: Match, isSinglesMatch: boolean) => {
+  return getMatchWeight(match) * (isSinglesMatch ? SINGLES_MATCH_WEIGHT : 1);
+};
+
+const getIsoWeek = (date: Date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayNum = d.getDay() || 7;
+  d.setDate(d.getDate() + 4 - dayNum);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { week: weekNo, year: d.getFullYear() };
+};
+
+const getISOWeekRange = (week: number, year: number) => {
+  const firstThursday = new Date(year, 0, 1);
+  while (firstThursday.getDay() !== 4) {
+    firstThursday.setDate(firstThursday.getDate() + 1);
+  }
+  const week1Monday = new Date(firstThursday);
+  week1Monday.setDate(firstThursday.getDate() - 3);
+  week1Monday.setHours(0, 0, 0, 0);
+
+  const start = new Date(week1Monday);
+  start.setDate(week1Monday.getDate() + (week - 1) * 7);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  return { start, end };
 };
 
 const buildPlayerDelta = ({
@@ -212,6 +235,44 @@ const getBadgeLabelById = (badgeId: string | null | undefined) => {
   return `${BADGE_ICON_MAP[prefix] ?? ""} ${toRoman(index)}`.trim();
 };
 
+// --- MVP HELPERS ---
+const getMvpWinner = (candidates: any[]) => {
+  let winner: any = null;
+
+  for (let i = 0; i < candidates.length; i++) {
+    const r = candidates[i];
+    if (r.matchesPlayed < WEEKLY_MIN_GAMES) continue;
+    if (!winner) {
+      winner = r;
+      continue;
+    }
+
+    const scoreDiff = r.score - winner.score;
+    if (scoreDiff > 0.001) {
+      winner = r;
+    } else if (scoreDiff > -0.001) {
+      const eloGainDiff = r.periodEloGain - winner.periodEloGain;
+      if (eloGainDiff > 0.001) {
+        winner = r;
+      } else if (eloGainDiff > -0.001) {
+        if (r.eloNet > winner.eloNet) {
+          winner = r;
+        } else if (r.eloNet === winner.eloNet) {
+          if (r.wins > winner.wins) {
+            winner = r;
+          } else if (r.wins === winner.wins) {
+            if (r.name.localeCompare(winner.name) < 0) {
+              winner = r;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return winner;
+};
+
 // --- AUTH HELPERS ---
 const getBearerToken = (req: Request) => {
   const header = req.headers.get("Authorization") ?? "";
@@ -244,7 +305,8 @@ function calculateEloAt(matches: Match[], profiles: Profile[], untilDate?: strin
     const exp1 = getExpectedScore(e1, e2);
     const team1Won = m.team1_sets > m.team2_sets;
     const marginMultiplier = getMarginMultiplier(m.team1_sets, m.team2_sets);
-    const matchWeight = getMatchWeight(m);
+    const isSinglesMatch = t1Active.length === 1 && t2Active.length === 1;
+    const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
 
     t1Active.forEach(id => {
       const p = players[id];
@@ -319,8 +381,10 @@ function findWeekHighlight(
     const margin = Math.abs(match.team1_sets - match.team2_sets);
 
     const teamsLabel = buildTeamLabel(match, profiles);
-    // Upsets are significant underdog wins (< 30% win chance)
-    if (winnerExp < 0.30) {
+    const totalElo = avg1 + avg2;
+
+    // 1. Upset?
+    if (winnerExp < 0.35) {
       highlights.push({
         type: 'upset',
         score: (0.5 - winnerExp) * 100,
@@ -328,6 +392,7 @@ function findWeekHighlight(
         description: `Underdog-seger! Laget med endast ${Math.round(winnerExp * 100)}% vinstchans vann med ${match.team1_sets}-${match.team2_sets}. Lag: ${teamsLabel}.`
       });
     }
+    // 2. Thriller?
     if (margin <= 1) {
        highlights.push({
         type: 'thriller',
@@ -336,6 +401,7 @@ function findWeekHighlight(
         description: `En riktig nagelbitare som avgjordes med minsta möjliga marginal (${match.team1_sets}-${match.team2_sets}). Lag: ${teamsLabel}.`
       });
     }
+    // 3. Crush?
     if (margin >= 3) {
       highlights.push({
         type: 'crush',
@@ -344,9 +410,18 @@ function findWeekHighlight(
         description: `Total dominans! En övertygande seger med ${match.team1_sets}-${match.team2_sets}. Lag: ${teamsLabel}.`
       });
     }
+    // 4. Titans?
+    if (totalElo > 2200) {
+      highlights.push({
+        type: 'titans',
+        score: (totalElo - 2000) / 10,
+        title: 'Veckans Giganter',
+        description: `Mötet med veckans högsta samlade ELO-poäng (${Math.round(totalElo)}). Lag: ${teamsLabel}.`
+      });
+    }
   });
 
-  const priority: Record<string, number> = { upset: 3, thriller: 2, crush: 1 };
+  const priority: Record<string, number> = { upset: 4, thriller: 3, crush: 2, titans: 1 };
   highlights.sort((a, b) => {
     if (priority[a.type] !== priority[b.type]) return priority[b.type] - priority[a.type];
     return b.score - a.score;
@@ -366,13 +441,20 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Check for specific player request (test mode)
+    // Parse request body
     let targetPlayerId: string | null = null;
+    let requestedTimeframe: string | null = null;
+    let requestedWeek: number | null = null;
+    let requestedYear: number | null = null;
+
     try {
       const body = await req.json();
       targetPlayerId = body.playerId || null;
+      requestedTimeframe = body.timeframe || null;
+      requestedWeek = body.week || null;
+      requestedYear = body.year || null;
     } catch {
-      // No body or not JSON, proceed as normal
+      // No body or not JSON, proceed with defaults
     }
 
     const token = getBearerToken(req);
@@ -423,12 +505,38 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Determine timeframe
+    let start: Date;
+    let end: Date;
+    let weekLabel: string;
+
     const now = new Date();
-    const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const startOfWeekISO = startOfWeek.toISOString();
-    const endOfWeekISO = now.toISOString();
-    // Non-coder note: this label is used in the email subject and header to show which week it summarizes.
-    const weekLabel = `VECKA ${getIsoWeekNumber(now)} I PADEL`;
+
+    if (requestedTimeframe === "7days") {
+      end = now;
+      start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      weekLabel = "SENASTE 7 DAGARNA";
+    } else if (requestedTimeframe === "30days") {
+      end = now;
+      start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      weekLabel = "SENASTE 30 DAGARNA";
+    } else if (requestedTimeframe === "isoWeek" && requestedWeek && requestedYear) {
+      const range = getISOWeekRange(requestedWeek, requestedYear);
+      start = range.start;
+      end = range.end;
+      weekLabel = `VECKA ${requestedWeek} I PADEL`;
+    } else {
+      // Default to the previous full ISO week
+      const lastWeekDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const { week, year } = getIsoWeek(lastWeekDate);
+      const range = getISOWeekRange(week, year);
+      start = range.start;
+      end = range.end;
+      weekLabel = `VECKA ${week} I PADEL`;
+    }
+
+    const startOfWeekISO = start.toISOString();
+    const endOfWeekISO = end.toISOString();
 
     const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url, featured_badge_id').eq('is_deleted', false);
     if (profilesError) {
@@ -589,10 +697,12 @@ Deno.serve(async (req) => {
 
     const mvpCandidates = Object.values(weeklyStats).map(s => ({
       ...s,
-      mvpScore: s.eloDelta + (s.matchesPlayed > 0 ? (s.wins / s.matchesPlayed) * 15 : 0) + s.matchesPlayed * 0.5
-    })).sort((a, b) => b.mvpScore - a.mvpScore);
+      score: s.eloDelta + (s.matchesPlayed > 0 ? (s.wins / s.matchesPlayed) * 15 : 0) + s.matchesPlayed * 0.5,
+      periodEloGain: s.eloDelta,
+      eloNet: s.currentElo
+    }));
 
-    const mvp = mvpCandidates.length > 0 ? mvpCandidates[0] : null;
+    const mvp = getMvpWinner(mvpCandidates);
     const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart, profiles);
     // Non-coder note: we keep the leaderboard short so the email matches the preview layout.
     const leaderboard = Object.values(eloEnd)

@@ -14,7 +14,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useEloStats } from "../../hooks/useEloStats";
-import { calculateEloWithStats, ELO_BASELINE } from "../../utils/elo";
+import { calculateEloWithStats, ELO_BASELINE, getExpectedScore } from "../../utils/elo";
+import { calculateMvpScore, getMvpWinner } from "../../utils/mvp";
 import { getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
@@ -58,7 +59,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const { allMatches: matches = [], profiles = [], isLoading } = useEloStats();
   const [useMock, setUseMock] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
-  const [timeframe, setTimeframe] = useState<"current" | "previous" | "custom">("current");
+  const [timeframe, setTimeframe] = useState<"7days" | "30days" | "isoWeek">("7days");
   const [selectedWeek, setSelectedWeek] = useState<string>(""); // format "YYYY-Www"
   const [isSending, setIsSending] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
@@ -128,15 +129,13 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     const now = new Date();
     let start, end;
 
-    if (timeframe === "current") {
-      // Past 7 days
+    if (timeframe === "7days") {
       end = now;
       start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else if (timeframe === "previous") {
-      // 7-14 days ago
-      end = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      start = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-    } else if (timeframe === "custom" && selectedWeek) {
+    } else if (timeframe === "30days") {
+      end = now;
+      start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else if (timeframe === "isoWeek" && selectedWeek) {
       const [year, weekStr] = selectedWeek.split("-W");
       const range = getISOWeekRange(parseInt(weekStr), parseInt(year));
       start = range.start;
@@ -152,8 +151,10 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     const matchesBeforeEnd = activeMatches.filter(m => m.created_at < endISO);
     const weeklyMatches = activeMatches.filter(m => m.created_at >= startISO && m.created_at < endISO);
 
-    const eloStart = calculateEloWithStats(matchesBeforeStart, activeProfiles).players;
-    const eloEnd = calculateEloWithStats(matchesBeforeEnd, activeProfiles).players;
+    const eloStartData = calculateEloWithStats(matchesBeforeStart, activeProfiles);
+    const eloEndData = calculateEloWithStats(matchesBeforeEnd, activeProfiles);
+    const eloStart = eloStartData.players;
+    const eloEnd = eloEndData.players;
 
     const playerStart = eloStart.find(p => p.id === selectedPlayerId) || { elo: ELO_BASELINE };
     const playerEnd = eloEnd.find(p => p.id === selectedPlayerId);
@@ -284,21 +285,91 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     const stats = buildWeeklyStats(selectedPlayerId);
     // Note for non-coders: this pulls the ISO week number so the email title can say "Week X".
-    const { week: weekNumber } = getISOWeek(end);
-    const weekLabel = `VECKA ${weekNumber} I PADEL`;
+    let weekLabel = "";
+    if (timeframe === "7days") {
+      weekLabel = "SENASTE 7 DAGARNA";
+    } else if (timeframe === "30days") {
+      weekLabel = "SENASTE 30 DAGARNA";
+    } else {
+      const { week: weekNumber } = getISOWeek(start);
+      weekLabel = `VECKA ${weekNumber} I PADEL`;
+    }
 
-    // MVP & Highlights (simplified for preview)
+    // MVP & Highlights
     const findWeekHighlight = () => {
       if (!weeklyMatches.length) return null;
-      // Just pick one for preview
-      const m = weeklyMatches[0];
-      const margin = Math.abs(m.team1_sets - m.team2_sets);
-      const teamsLabel = formatTeamLabel(m);
 
-      if (margin >= 3) {
-        return { title: "Veckans Kross", description: `Total dominans! En övertygande seger med ${m.team1_sets}-${m.team2_sets}. Lag: ${teamsLabel}.` };
-      }
-      return { title: "Veckans Rysare", description: `En riktig nagelbitare som avgjordes med minsta möjliga marginal (${m.team1_sets}-${m.team2_sets}). Lag: ${teamsLabel}.` };
+      const highlights: any[] = [];
+      const { eloDeltaByMatch, eloRatingByMatch } = eloEndData;
+
+      weeklyMatches.forEach(match => {
+        const getPreElo = (id: string | null) => {
+          if (!id || id === GUEST_ID) return 1000;
+          const postElo = eloRatingByMatch[match.id]?.[id];
+          const delta = eloDeltaByMatch[match.id]?.[id];
+          if (postElo === undefined || delta === undefined) {
+            // If match wasn't in eloEndData (shouldn't happen), check eloStart
+            return eloStart.find(p => p.id === id)?.elo || 1000;
+          }
+          return postElo - delta;
+        };
+
+        const t1PreElo = match.team1_ids.map(getPreElo);
+        const t2PreElo = match.team2_ids.map(getPreElo);
+        const avg1 = t1PreElo.reduce((a, b) => a + b, 0) / (t1PreElo.length || 1);
+        const avg2 = t2PreElo.reduce((a, b) => a + b, 0) / (t2PreElo.length || 1);
+        const exp1 = getExpectedScore(avg1, avg2);
+        const team1Won = match.team1_sets > match.team2_sets;
+        const winnerExp = team1Won ? exp1 : (1 - exp1);
+        const margin = Math.abs(match.team1_sets - match.team2_sets);
+        const teamsLabel = formatTeamLabel(match);
+        const totalElo = avg1 + avg2;
+
+        // 1. Upset?
+        if (winnerExp < 0.35) {
+          highlights.push({
+            type: 'upset',
+            score: (0.5 - winnerExp) * 100,
+            title: 'Veckans Skräll',
+            description: `Underdog-seger! Laget med endast ${Math.round(winnerExp * 100)}% vinstchans vann med ${match.team1_sets}-${match.team2_sets}. Lag: ${teamsLabel}.`
+          });
+        }
+        // 2. Thriller?
+        if (margin <= 1) {
+          highlights.push({
+            type: 'thriller',
+            score: 50 - (winnerExp > 0.5 ? winnerExp - 0.5 : 0.5 - winnerExp) * 20,
+            title: 'Veckans Rysare',
+            description: `En riktig nagelbitare som avgjordes med minsta möjliga marginal (${match.team1_sets}-${match.team2_sets}). Lag: ${teamsLabel}.`
+          });
+        }
+        // 3. Crush?
+        if (margin >= 3) {
+          highlights.push({
+            type: 'crush',
+            score: margin * 10,
+            title: 'Veckans Kross',
+            description: `Total dominans! En övertygande seger med ${match.team1_sets}-${match.team2_sets}. Lag: ${teamsLabel}.`
+          });
+        }
+        // 4. Titans?
+        if (totalElo > 2200) {
+          highlights.push({
+            type: 'titans',
+            score: (totalElo - 2000) / 10,
+            title: 'Veckans Giganter',
+            description: `Mötet med veckans högsta samlade ELO-poäng (${Math.round(totalElo)}). Lag: ${teamsLabel}.`
+          });
+        }
+      });
+
+      const priority: Record<string, number> = { upset: 4, thriller: 3, crush: 2, titans: 1 };
+      highlights.sort((a, b) => {
+        if (priority[a.type] !== priority[b.type]) return priority[b.type] - priority[a.type];
+        return b.score - a.score;
+      });
+
+      return highlights[0] || null;
     };
 
     const leaderboard = eloEnd
@@ -307,14 +378,19 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       .map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
 
     // Note for non-coders: MVP scores reward both performance and activity in the week.
+    // We align this with the dashboard MVP logic (score + tie-breakers).
     const mvpCandidates = activeProfiles.map(profile => {
-      const playerStats = buildWeeklyStats(profile.id);
+      const ps = buildWeeklyStats(profile.id);
       return {
-        ...playerStats,
-        mvpScore: playerStats.eloDelta + (playerStats.matchesPlayed > 0 ? (playerStats.wins / playerStats.matchesPlayed) * 15 : 0) + playerStats.matchesPlayed * 0.5,
+        ...ps,
+        score: calculateMvpScore(ps.wins, ps.matchesPlayed, ps.eloDelta),
+        periodEloGain: ps.eloDelta,
+        eloNet: ps.currentElo,
+        isEligible: ps.matchesPlayed >= 1 // Weekly min games
       };
-    }).filter(candidate => candidate.matchesPlayed > 0);
-    const mvp = mvpCandidates.sort((a, b) => b.mvpScore - a.mvpScore)[0] || null;
+    }).filter(c => c.matchesPlayed > 0);
+
+    const mvp = getMvpWinner(mvpCandidates as any);
 
     return {
       stats,
@@ -602,8 +678,15 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         }
       }
       // Note for non-coders: Supabase adds the login token for us when we call a server function.
+      const body: any = { playerId: selectedPlayerId, timeframe };
+      if (timeframe === "isoWeek" && selectedWeek) {
+        const [year, week] = selectedWeek.split("-W");
+        body.week = parseInt(week);
+        body.year = parseInt(year);
+      }
+
       const { data, error } = await supabase.functions.invoke("weekly-summary", {
-        body: { playerId: selectedPlayerId },
+        body,
       });
 
       if (error) {
@@ -687,13 +770,13 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 label="Tidsperiod"
                 onChange={(e) => setTimeframe(e.target.value as any)}
               >
-                <MenuItem value="current">Senaste 7 dagarna</MenuItem>
-                <MenuItem value="previous">7-14 dagar sedan</MenuItem>
-                <MenuItem value="custom">Välj specifik vecka</MenuItem>
+                <MenuItem value="7days">Senaste 7 dagarna</MenuItem>
+                <MenuItem value="30days">Senaste 30 dagarna</MenuItem>
+                <MenuItem value="isoWeek">Välj specifik vecka</MenuItem>
               </Select>
             </FormControl>
           </Grid>
-          {timeframe === 'custom' && (
+          {timeframe === 'isoWeek' && (
             <Grid size={{ xs: 12, sm: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Välj vecka</InputLabel>
