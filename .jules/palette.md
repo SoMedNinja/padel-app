@@ -25,3 +25,7 @@
 ## 2026-01-29 - [Micro-UX: Visual Feedback for Async Actions]
 **Learning:** Buttons performing asynchronous operations (save, delete, start) without visual loading states can lead to user uncertainty and double-clicks.
 **Action:** Always implement a `CircularProgress` (size 16) spinner within the button's `startIcon` or as the main icon during active async states (e.g., `isSaving`, `deleteId === id`). Use `color="inherit"` to ensure the spinner matches the button's text color.
+
+## 2026-01-31 - [Micro-UX: Enhanced Loading Feedback]
+**Learning:** Static "Laddar data..." text without a moving visual indicator can feel stalled. Adding a CircularProgress spinner reinforces the active state of data fetching.
+**Action:** Always pair loading text with a `CircularProgress` (size 24) and use `flexDirection: 'column'` with appropriate `gap` to maintain visual balance in overlays.
