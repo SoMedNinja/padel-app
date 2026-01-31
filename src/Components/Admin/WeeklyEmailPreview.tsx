@@ -341,6 +341,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     const player = activeProfiles.find(p => p.id === selectedPlayerId);
     // Note for non-coders: we ask Supabase who is logged in right now before we attempt to send email.
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    // Note for non-coders: the access token proves to the server that this logged-in user is allowed to call the function.
     const accessToken = sessionData.session?.access_token;
     if (sessionError || !accessToken) {
       setHasSession(false);
@@ -354,9 +355,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     setIsSending(true);
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!sessionData.session?.access_token) {
+      if (!accessToken) {
         // Note for non-coders: Edge Functions require a valid login session to prove who is calling.
         alert("Du måste vara inloggad för att skicka test-mail. Logga in och försök igen.");
         return;
@@ -383,7 +382,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
           "Content-Type": "application/json",
           apikey: supabaseAnonKey,
           "x-client-info": "padel-app-web",
-          Authorization: `Bearer ${sessionData.session.access_token}`,
+          // Note for non-coders: "Bearer" means we are sending a short-lived session token for authentication.
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ playerId: selectedPlayerId }),
       });
