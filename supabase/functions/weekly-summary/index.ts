@@ -405,7 +405,11 @@ Deno.serve(async (req) => {
 
     const mvp = mvpCandidates.length > 0 ? mvpCandidates[0] : null;
     const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart);
-    const leaderboard = Object.values(eloEnd).sort((a, b) => b.elo - a.elo).map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
+    // Non-coder note: we keep the leaderboard short so the email matches the preview layout.
+    const leaderboard = Object.values(eloEnd)
+      .sort((a, b) => b.elo - a.elo)
+      .slice(0, 5)
+      .map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) throw new Error("RESEND_API_KEY missing");
