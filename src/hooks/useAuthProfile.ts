@@ -25,11 +25,12 @@ const isAvatarColumnMissing = (error?: { message?: string } | null) =>
 
 // Note for non-coders: this hook keeps login info and player profile data in sync in one place.
 export const useAuthProfile = () => {
-  const { user: currentUser, setUser, setIsGuest } = useStore();
+  const { setUser, setIsGuest } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const loadingTimeoutRef = useRef<number | null>(null);
+  const syncLockRef = useRef<string | null>(null);
   const syncCounterRef = useRef(0);
   const userRef = useRef(currentUser);
 
@@ -57,11 +58,13 @@ export const useAuthProfile = () => {
 
   const syncProfile = useCallback(
     async (authUser: User | null) => {
-      const syncId = ++syncCounterRef.current;
       if (!authUser) {
         setUser(null);
         return;
       }
+
+      if (syncLockRef.current === authUser.id) return;
+      syncLockRef.current = authUser.id;
 
       const metadataName = getMetadataName(authUser);
       const metadataAvatar = getMetadataAvatar(authUser);
@@ -72,14 +75,12 @@ export const useAuthProfile = () => {
         .eq("id", authUser.id)
         .single();
 
-      // Note for non-coders: if another sync started after this one, we ignore this stale result.
-      if (syncId !== syncCounterRef.current) return;
-
       if (error) {
         // PGRST116 means no profile found - this is normal for new users
         if (error.code !== "PGRST116") {
           setErrorMessage(error.message);
           setUser({ ...authUser } as AppUser);
+          syncLockRef.current = null;
           return;
         }
 
@@ -96,8 +97,6 @@ export const useAuthProfile = () => {
             .select()
             .single();
 
-          if (syncId !== syncCounterRef.current) return;
-
           if (createError && isAvatarColumnMissing(createError) && payload.avatar_url) {
             ({ data: createdProfile, error: createError } = await supabase
               .from("profiles")
@@ -106,20 +105,21 @@ export const useAuthProfile = () => {
               .single());
           }
 
-          if (syncId !== syncCounterRef.current) return;
-
           if (createError) {
             setErrorMessage(createError.message);
             setUser({ ...authUser } as AppUser);
+            syncLockRef.current = null;
             return;
           }
 
           setIsGuest(false);
           setUser(toAppUser(authUser, createdProfile));
+          syncLockRef.current = null;
           return;
         }
 
         setUser({ ...authUser } as AppUser);
+        syncLockRef.current = null;
         return;
       }
 
@@ -160,10 +160,9 @@ export const useAuthProfile = () => {
         }
 
         if (!updateError) {
-          if (syncId === syncCounterRef.current) {
-            setIsGuest(false);
-            setUser(toAppUser(authUser, updatedProfile));
-          }
+          setIsGuest(false);
+          setUser(toAppUser(authUser, updatedProfile));
+          syncLockRef.current = null;
           return;
         }
       }
@@ -185,11 +184,8 @@ export const useAuthProfile = () => {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
-    // Note for non-coders: we only reset checking state if we don't already have a valid user,
-    // otherwise we just refresh the data in the background without unmounting the UI.
-    if (!userRef.current) {
-      setHasCheckedProfile(false);
-    }
+    // Note for non-coders: we track when the profile check finishes so we don't show setup too early.
+    setHasCheckedProfile(false);
     startLoadingTimeout();
     const timeoutMs = 8000;
     // Note for non-coders: we use a timeout so the loading screen doesn't get stuck forever.
@@ -197,56 +193,58 @@ export const useAuthProfile = () => {
       setTimeout(() => resolve(null), timeoutMs);
     });
 
-    try {
-      // Note for non-coders: getSession is a fast local check, so we avoid waiting on the network.
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        setErrorMessage(sessionError.message);
-        return;
-      }
-      if (sessionData.session?.user) {
-        await syncProfile(sessionData.session.user);
-        return;
-      }
-
-      const result = await Promise.race([supabase.auth.getUser(), timeoutPromise]);
-
-      if (!result) {
-        // Note for non-coders: if login is slow, we show the normal login screen instead of an error loop.
-        setUser(null);
-        setIsGuest(false);
-        return;
-      }
-
-      if ("error" in result && result.error) {
-        setErrorMessage(result.error.message);
-        return;
-      }
-
-      await syncProfile(result.data.user ?? null);
-    } finally {
+    // Note for non-coders: getSession is a fast local check, so we avoid waiting on the network.
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      setErrorMessage(sessionError.message);
       clearLoadingTimeout();
       setIsLoading(false);
       setHasCheckedProfile(true);
+      return;
     }
+    if (sessionData.session?.user) {
+      await syncProfile(sessionData.session.user);
+      clearLoadingTimeout();
+      setIsLoading(false);
+      setHasCheckedProfile(true);
+      return;
+    }
+
+    const result = await Promise.race([supabase.auth.getUser(), timeoutPromise]);
+
+    if (!result) {
+      // Note for non-coders: if login is slow, we show the normal login screen instead of an error loop.
+      setUser(null);
+      setIsGuest(false);
+      clearLoadingTimeout();
+      setIsLoading(false);
+      setHasCheckedProfile(true);
+      return;
+    }
+
+    if ("error" in result && result.error) {
+      setErrorMessage(result.error.message);
+      clearLoadingTimeout();
+      setIsLoading(false);
+      setHasCheckedProfile(true);
+      return;
+    }
+
+    await syncProfile(result.data.user ?? null);
+    clearLoadingTimeout();
+    setIsLoading(false);
+    setHasCheckedProfile(true);
   }, [clearLoadingTimeout, startLoadingTimeout, syncProfile, setIsGuest, setUser]);
 
   useEffect(() => {
     let isMounted = true;
     refresh();
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!isMounted) return;
-
-      // Note for non-coders: we ignore minor token refreshes to avoid UI flickering,
-      // but we always sync on logins, signouts, or user updates.
-      const isCriticalEvent = ["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED"].includes(event);
-      if (!isCriticalEvent && session?.user) return;
-
       setErrorMessage(null);
-      if (!userRef.current) {
-        setHasCheckedProfile(false);
-      }
+      // Note for non-coders: whenever the login state changes, we re-check the profile details.
+      setHasCheckedProfile(false);
       await syncProfile(session?.user ?? null);
       setIsLoading(false);
       setHasCheckedProfile(true);

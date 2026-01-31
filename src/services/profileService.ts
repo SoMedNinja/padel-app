@@ -33,8 +33,8 @@ export const profileService = {
       throw new Error("Profilbilden är för stor.");
     }
 
-    if (filteredUpdates.name !== undefined) {
-      filteredUpdates.name = (filteredUpdates.name || "").trim();
+    if (filteredUpdates.name) {
+      filteredUpdates.name = filteredUpdates.name.trim();
       if (!filteredUpdates.name) {
         throw new Error("Namn får inte vara tomt");
       }
@@ -74,8 +74,8 @@ export const profileService = {
       throw new Error("Profilbilden är för stor.");
     }
 
-    if (filteredProfile.name !== undefined) {
-      filteredProfile.name = (filteredProfile.name || "").trim();
+    if (filteredProfile.name) {
+      filteredProfile.name = filteredProfile.name.trim();
       if (!filteredProfile.name) {
         throw new Error("Namn får inte vara tomt");
       }

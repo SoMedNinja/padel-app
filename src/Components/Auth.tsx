@@ -94,7 +94,9 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
         setIsSubmitting(false);
         return;
       }
-      onAuth(data.user);
+      if (data.user) {
+        onAuth(data.user);
+      }
     }
     setIsSubmitting(false);
   };
@@ -112,12 +114,13 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: resolveSiteUrl(),
     });
-    setIsSubmitting(false);
     if (error) {
       toast.error(error.message);
+      setIsSubmitting(false);
       return;
     }
     setNotice("Återställningslänk skickad! Kolla din e-post.");
+    setIsSubmitting(false);
   };
 
   return (
