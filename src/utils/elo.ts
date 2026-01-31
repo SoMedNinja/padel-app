@@ -226,9 +226,18 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
   const resolveName = (id: string) => getIdDisplayName(id, profileMap);
 
+  // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort and copy.
+  let isSorted = true;
+  for (let i = 1; i < matches.length; i++) {
+    if (matches[i].created_at < matches[i - 1].created_at) {
+      isSorted = false;
+      break;
+    }
+  }
+
   // Optimization: use string comparison for sorting to avoid expensive new Date() calls.
   // ISO 8601 strings sort correctly lexicographically.
-  const sortedMatches = [...matches].sort((a, b) => {
+  const sortedMatches = isSorted ? matches : [...matches].sort((a, b) => {
     if (a.created_at < b.created_at) return -1;
     if (a.created_at > b.created_at) return 1;
     return 0;

@@ -93,8 +93,9 @@ export default function Heatmap({
   }, [profiles]);
 
   const sortedMatches = useMemo(() => {
+    // Optimization: Use ISO string lexicographical comparison instead of expensive new Date() calls.
     return [...matches].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) => (b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : 0)
     );
   }, [matches]);
 
@@ -113,26 +114,44 @@ export default function Heatmap({
 
       teams.forEach(({ players, won, servedFirst }) => {
         if (!Array.isArray(players) || !players.length) return;
-        const resolvedPlayers = players
-          .map(player => {
-            const key = normalizeProfileName(player);
-            if (!key) return null;
-            return allowedNameMap.get(key) || null;
-          })
-          .filter((p): p is string => Boolean(p));
+
+        // Optimization: Single-pass player resolution instead of map() + filter()
+        const resolvedPlayers: string[] = [];
+        for (let i = 0; i < players.length; i++) {
+          const key = normalizeProfileName(players[i]);
+          if (!key) continue;
+          const resolved = allowedNameMap.get(key);
+          if (resolved) resolvedPlayers.push(resolved);
+        }
 
         if (!resolvedPlayers.length) return;
-        if (resolvedPlayers.some(player => normalizeProfileName(player) === normalizeProfileName(GUEST_NAME))) {
-          return;
-        }
-        if (allowedNameMap.size && resolvedPlayers.some(player => !allowedNameMap.has(normalizeProfileName(player)))) {
-          return;
+
+        // Optimization: Early return for common filter patterns
+        let hasGuest = false;
+        let hasUnknown = false;
+        const guestKey = normalizeProfileName(GUEST_NAME);
+
+        for (let i = 0; i < resolvedPlayers.length; i++) {
+          const pk = normalizeProfileName(resolvedPlayers[i]);
+          if (pk === guestKey) {
+            hasGuest = true;
+            break;
+          }
+          if (allowedNameMap.size && !allowedNameMap.has(pk)) {
+            hasUnknown = true;
+            break;
+          }
         }
 
-        const key = [...resolvedPlayers].sort().join(" + ");
+        if (hasGuest || hasUnknown) return;
+
+        // Optimization: Sort once and reuse for both key and the Combo object
+        const sortedPair = resolvedPlayers.length > 1 ? [...resolvedPlayers].sort() : resolvedPlayers;
+        const key = sortedPair.join(" + ");
+
         if (!comboMap[key]) {
           comboMap[key] = {
-            players: [...resolvedPlayers].sort(),
+            players: sortedPair,
             games: 0,
             wins: 0,
             serveFirstGames: 0,
@@ -142,81 +161,95 @@ export default function Heatmap({
             recentResults: [],
           };
         }
-        comboMap[key].games++;
-        if (won) comboMap[key].wins++;
+        const c = comboMap[key];
+        c.games++;
+        if (won) c.wins++;
         if (servedFirst === true) {
-          comboMap[key].serveFirstGames++;
-          if (won) comboMap[key].serveFirstWins++;
+          c.serveFirstGames++;
+          if (won) c.serveFirstWins++;
         }
         if (servedFirst === false) {
-          comboMap[key].serveSecondGames++;
-          if (won) comboMap[key].serveSecondWins++;
+          c.serveSecondGames++;
+          if (won) c.serveSecondWins++;
         }
-        if (comboMap[key].recentResults.length < 5) {
-          comboMap[key].recentResults.push(won ? "V" : "F");
+        if (c.recentResults.length < 5) {
+          c.recentResults.push(won ? "V" : "F");
         }
       });
     });
     return comboMap;
   }, [sortedMatches, profileMap, allowedNameMap]);
 
+  // Optimization: Memoize the baseline rows to avoid expensive statistics re-calculation on every render
+  const allRows = useMemo(() => {
+    return Object.values(combos).map((c) => {
+      const avgElo = c.players.length
+        ? Math.round(
+          c.players.reduce(
+            (sum, name) => sum + (eloMap.get(normalizeProfileName(name)) ?? ELO_BASELINE),
+            0
+          ) / c.players.length
+        )
+        : ELO_BASELINE;
+      const serveFirstWinPct = c.serveFirstGames
+        ? Math.round((c.serveFirstWins / c.serveFirstGames) * 100)
+        : null;
+      const serveSecondWinPct = c.serveSecondGames
+        ? Math.round((c.serveSecondWins / c.serveSecondGames) * 100)
+        : null;
+      return {
+        ...c,
+        winPct: Math.round((c.wins / c.games) * 100),
+        serveFirstWinPct,
+        serveSecondWinPct,
+        avgElo,
+      };
+    });
+  }, [combos, eloMap]);
+
+  // Optimization: Memoize filtered rows separately
+  const filteredRows = useMemo(() => {
+    let rows = allRows;
+    if (currentUserOnly) {
+      const currentProfile = profiles.find(p => p.id === currentUserOnly);
+      const currentName = currentProfile ? getProfileDisplayName(currentProfile) : null;
+      if (currentName) {
+        rows = rows.filter(r => r.players.includes(currentName));
+      }
+    } else if (playerFilter !== "all") {
+      rows = rows.filter(r => r.players.includes(playerFilter));
+    }
+    return rows;
+  }, [allRows, currentUserOnly, playerFilter, profiles]);
+
+  // Optimization: Memoize sorted rows
+  const rows = useMemo(() => {
+    const sorted = [...filteredRows];
+    sorted.sort((a: any, b: any) => {
+      let valA = a[sortKey], valB = b[sortKey];
+      if (sortKey === "winPct") {
+        valA = a.winPct; valB = b.winPct;
+      }
+      if (sortKey === "serveFirstWinPct") {
+        valA = a.serveFirstWinPct ?? -1;
+        valB = b.serveFirstWinPct ?? -1;
+      }
+      if (sortKey === "serveSecondWinPct") {
+        valA = a.serveSecondWinPct ?? -1;
+        valB = b.serveSecondWinPct ?? -1;
+      }
+      if (sortKey === "avgElo") {
+        valA = a.avgElo; valB = b.avgElo;
+      }
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return asc ? valA - valB : valB - valA;
+    });
+    return sorted;
+  }, [filteredRows, sortKey, asc]);
+
   if (!matches.length) return null;
-
-  let rows = Object.values(combos).map((c) => {
-    const avgElo = c.players.length
-      ? Math.round(
-        c.players.reduce(
-          (sum, name) => sum + (eloMap.get(normalizeProfileName(name)) ?? ELO_BASELINE),
-          0
-        ) / c.players.length
-      )
-      : ELO_BASELINE;
-    const serveFirstWinPct = c.serveFirstGames
-      ? Math.round((c.serveFirstWins / c.serveFirstGames) * 100)
-      : null;
-    const serveSecondWinPct = c.serveSecondGames
-      ? Math.round((c.serveSecondWins / c.serveSecondGames) * 100)
-      : null;
-    return {
-      ...c,
-      winPct: Math.round((c.wins / c.games) * 100),
-      serveFirstWinPct,
-      serveSecondWinPct,
-      avgElo,
-    };
-  });
-
-  if (currentUserOnly) {
-    const currentProfile = profiles.find(p => p.id === currentUserOnly);
-    const currentName = currentProfile ? getProfileDisplayName(currentProfile) : null;
-    if (currentName) {
-      rows = rows.filter(r => r.players.includes(currentName));
-    }
-  } else if (playerFilter !== "all") {
-    rows = rows.filter(r => r.players.includes(playerFilter));
-  }
-
-  rows.sort((a: any, b: any) => {
-    let valA = a[sortKey], valB = b[sortKey];
-    if (sortKey === "winPct") {
-      valA = a.winPct; valB = b.winPct;
-    }
-    if (sortKey === "serveFirstWinPct") {
-      valA = a.serveFirstWinPct ?? -1;
-      valB = b.serveFirstWinPct ?? -1;
-    }
-    if (sortKey === "serveSecondWinPct") {
-      valA = a.serveSecondWinPct ?? -1;
-      valB = b.serveSecondWinPct ?? -1;
-    }
-    if (sortKey === "avgElo") {
-      valA = a.avgElo; valB = b.avgElo;
-    }
-    if (typeof valA === 'string' && typeof valB === 'string') {
-      return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    }
-    return asc ? valA - valB : valB - valA;
-  });
 
   const handleSort = (key: string) => {
     if (key === sortKey) setAsc(!asc);
