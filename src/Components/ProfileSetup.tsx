@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import Avatar from "./Avatar";
 import { profileService } from "../services/profileService";
+import { supabase } from "../supabaseClient";
 import Cropper, { Area } from "react-easy-crop";
 import BadgeGallery from "./BadgeGallery";
 import { useEloStats } from "../hooks/useEloStats";
@@ -77,6 +78,23 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
 
   const isAvatarColumnMissing = (error) =>
     error?.message?.includes("avatar_url") && error.message.includes("schema cache");
+  const isAbortError = (error: any) =>
+    error?.name === "AbortError" || error?.message?.toLowerCase?.().includes("aborted");
+
+  const saveNameToAuthMetadata = async (playerName: string, avatar?: string | null) => {
+    // Note for non-coders: this stores your name in the login profile as a fallback if the
+    // player profile table is temporarily unreachable.
+    const metadata: Record<string, string> = {
+      full_name: playerName,
+      name: playerName,
+    };
+    if (avatar) {
+      metadata.avatar_url = avatar;
+    }
+    const { data, error } = await supabase.auth.updateUser({ data: metadata });
+    if (error) throw error;
+    return data?.user?.user_metadata ?? metadata;
+  };
 
   const onCropComplete = useCallback((_: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -183,6 +201,20 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
       }
       onComplete?.(data || { name: trimmed, avatar_url: avatarUrl });
     } catch (error: any) {
+      if (isAbortError(error)) {
+        try {
+          const fallbackMetadata = await saveNameToAuthMetadata(trimmed, avatarUrl);
+          onComplete?.({
+            name: trimmed,
+            avatar_url: avatarUrl,
+            user_metadata: fallbackMetadata,
+          });
+          return;
+        } catch (fallbackError: any) {
+          alert(fallbackError.message || "Kunde inte spara profilen.");
+          return;
+        }
+      }
       alert(error.message || "Kunde inte spara profilen.");
     } finally {
       setSaving(false);
