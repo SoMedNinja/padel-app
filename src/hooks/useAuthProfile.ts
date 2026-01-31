@@ -31,6 +31,13 @@ export const useAuthProfile = () => {
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const loadingTimeoutRef = useRef<number | null>(null);
   const syncLockRef = useRef<string | null>(null);
+  const syncCounterRef = useRef(0);
+  const userRef = useRef(currentUser);
+
+  // Keep userRef in sync with the latest store value
+  useEffect(() => {
+    userRef.current = currentUser;
+  }, [currentUser]);
 
   const startLoadingTimeout = useCallback(() => {
     // Note for non-coders: if login checks take too long, we stop showing the loading screen.
@@ -53,7 +60,6 @@ export const useAuthProfile = () => {
     async (authUser: User | null) => {
       if (!authUser) {
         setUser(null);
-        syncLockRef.current = null;
         return;
       }
 
@@ -161,15 +167,16 @@ export const useAuthProfile = () => {
         }
       }
 
-      setIsGuest(false);
-      setUser(
-        toAppUser(authUser, {
-          ...profile,
-          name: resolvedName || profile?.name || "",
-          avatar_url: resolvedAvatar ?? profile?.avatar_url,
-        })
-      );
-      syncLockRef.current = null;
+      if (syncId === syncCounterRef.current) {
+        setIsGuest(false);
+        setUser(
+          toAppUser(authUser, {
+            ...profile,
+            name: resolvedName || profile?.name || "",
+            avatar_url: resolvedAvatar ?? profile?.avatar_url,
+          })
+        );
+      }
     },
     [setIsGuest, setUser]
   );
@@ -231,9 +238,7 @@ export const useAuthProfile = () => {
 
   useEffect(() => {
     let isMounted = true;
-    // Note for non-coders: we rely on onAuthStateChange's INITIAL_SESSION event to trigger
-    // the first load. Calling refresh() here causes redundant session checks and can
-    // lead to token revocation (replay protection) in some browsers.
+    refresh();
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!isMounted) return;
