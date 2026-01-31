@@ -32,6 +32,7 @@ import {
   Tooltip,
   CircularProgress,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -294,6 +295,7 @@ export default function History({
 
           const tournamentType = m.source_tournament_type || "standalone";
           const isActually1v1 = tournamentType === "standalone_1v1";
+          const isUserParticipant = t1Ids.includes(user?.id) || t2Ids.includes(user?.id);
 
           const teamAEntries = t1Ids.map((id, index) => ({
             id,
@@ -348,7 +350,17 @@ export default function History({
                   : tournamentType;
 
           return (
-            <Card key={m.id} variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+            <Card
+              key={m.id}
+              variant="outlined"
+              sx={{
+                borderRadius: 3,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'background.paper',
+                borderColor: isUserParticipant ? 'primary.light' : 'divider',
+                borderWidth: isUserParticipant ? 1.5 : 1,
+              }}
+            >
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                 <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
