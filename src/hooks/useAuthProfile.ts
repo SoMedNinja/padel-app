@@ -28,6 +28,7 @@ export const useAuthProfile = () => {
   const { setUser, setIsGuest } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const loadingTimeoutRef = useRef<number | null>(null);
 
   const startLoadingTimeout = useCallback(() => {
@@ -165,6 +166,8 @@ export const useAuthProfile = () => {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
+    // Note for non-coders: we track when the profile check finishes so we don't show setup too early.
+    setHasCheckedProfile(false);
     startLoadingTimeout();
     const timeoutMs = 8000;
     // Note for non-coders: we use a timeout so the loading screen doesn't get stuck forever.
@@ -202,6 +205,7 @@ export const useAuthProfile = () => {
     } finally {
       clearLoadingTimeout();
       setIsLoading(false);
+      setHasCheckedProfile(true);
     }
   }, [clearLoadingTimeout, startLoadingTimeout, syncProfile, setIsGuest, setUser]);
 
@@ -212,8 +216,11 @@ export const useAuthProfile = () => {
     const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!isMounted) return;
       setErrorMessage(null);
+      // Note for non-coders: whenever the login state changes, we re-check the profile details.
+      setHasCheckedProfile(false);
       await syncProfile(session?.user ?? null);
       setIsLoading(false);
+      setHasCheckedProfile(true);
     });
 
     return () => {
@@ -223,5 +230,5 @@ export const useAuthProfile = () => {
     };
   }, [clearLoadingTimeout, refresh, syncProfile]);
 
-  return { isLoading, errorMessage, refresh };
+  return { isLoading, errorMessage, hasCheckedProfile, refresh };
 };

@@ -13,7 +13,7 @@ import AppAlert from "./Components/Shared/AppAlert";
 
 export default function App() {
   const { user, setUser, isGuest, setIsGuest } = useStore();
-  const { isLoading, errorMessage, refresh } = useAuthProfile();
+  const { isLoading, errorMessage, hasCheckedProfile, refresh } = useAuthProfile();
 
   useRealtime();
   // Note for non-coders: we sign out locally first so the browser forgets the login right away.
@@ -71,6 +71,18 @@ export default function App() {
         }}
         onGuest={() => setIsGuest(true)}
       />
+    );
+  }
+
+  if (user && !hasCheckedProfile && !isGuest) {
+    // Note for non-coders: we wait to show the profile screen until we know the latest profile details.
+    return (
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, textAlign: 'center' }}>
+          <CircularProgress size={40} sx={{ mb: 2 }} />
+          <Typography color="text.secondary">Verifierar profilen...</Typography>
+        </Box>
+      </Container>
     );
   }
 
