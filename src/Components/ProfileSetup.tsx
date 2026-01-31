@@ -183,14 +183,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
       }
       onComplete?.(data || { name: trimmed, avatar_url: avatarUrl });
     } catch (error: any) {
-      if (error.name === "AbortError" || error.message?.includes("aborted")) {
-        console.warn("Profile save was aborted, possibly due to a navigation or component unmount.");
-        // Note for non-coders: if the save was aborted by the browser but technically succeeded in the database,
-        // we call onComplete anyway to let the user proceed.
-        onComplete?.({ name: trimmed, avatar_url: avatarUrl });
-      } else {
-        alert(error.message || "Kunde inte spara profilen.");
-      }
+      alert(error.message || "Kunde inte spara profilen.");
     } finally {
       setSaving(false);
     }
