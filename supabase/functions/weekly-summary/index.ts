@@ -116,6 +116,19 @@ const renderAvatar = (avatarUrl: string | null | undefined, name: string) => {
     : `<div style="width: 56px; height: 56px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">${initial}</div>`;
 };
 
+// Non-coder note: this helper turns player ids into a readable "Team A vs Team B" label.
+const buildTeamLabel = (match: Match, profiles: Profile[]) => {
+  const team1 = match.team1_ids
+    .map(pid => profiles.find(p => p.id === pid)?.name)
+    .filter(Boolean)
+    .join(" + ");
+  const team2 = match.team2_ids
+    .map(pid => profiles.find(p => p.id === pid)?.name)
+    .filter(Boolean)
+    .join(" + ");
+  return `${team1 || "Okänt lag"} vs ${team2 || "Okänt lag"}`;
+};
+
 const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 const toRoman = (index: number) => romanNumerals[index] || `${index + 1}`;
 const BADGE_ICON_MAP: Record<string, string> = {
@@ -263,7 +276,12 @@ function calculateEloAt(matches: Match[], profiles: Profile[], untilDate?: strin
   return players;
 }
 
-function findWeekHighlight(weekMatches: Match[], playersEnd: Record<string, PlayerStats>, playersStart: Record<string, PlayerStats>) {
+function findWeekHighlight(
+  weekMatches: Match[],
+  playersEnd: Record<string, PlayerStats>,
+  playersStart: Record<string, PlayerStats>,
+  profiles: Profile[]
+) {
   if (!weekMatches.length) return null;
 
   const highlights: any[] = [];
@@ -292,13 +310,14 @@ function findWeekHighlight(weekMatches: Match[], playersEnd: Record<string, Play
     const winnerExp = team1Won ? exp1 : (1 - exp1);
     const margin = Math.abs(match.team1_sets - match.team2_sets);
 
+    const teamsLabel = buildTeamLabel(match, profiles);
     // Upsets are significant underdog wins (< 30% win chance)
     if (winnerExp < 0.30) {
       highlights.push({
         type: 'upset',
         score: (0.5 - winnerExp) * 100,
         title: 'Veckans Skräll',
-        description: `Underdog-seger! Laget med endast ${Math.round(winnerExp * 100)}% vinstchans vann med ${match.team1_sets}-${match.team2_sets}.`
+        description: `Underdog-seger! Laget med endast ${Math.round(winnerExp * 100)}% vinstchans vann med ${match.team1_sets}-${match.team2_sets}. Lag: ${teamsLabel}.`
       });
     }
     if (margin <= 1) {
@@ -306,7 +325,7 @@ function findWeekHighlight(weekMatches: Match[], playersEnd: Record<string, Play
         type: 'thriller',
         score: 50 - (winnerExp > 0.5 ? winnerExp - 0.5 : 0.5 - winnerExp) * 20,
         title: 'Veckans Rysare',
-        description: `En riktig nagelbitare som avgjordes med minsta möjliga marginal (${match.team1_sets}-${match.team2_sets}).`
+        description: `En riktig nagelbitare som avgjordes med minsta möjliga marginal (${match.team1_sets}-${match.team2_sets}). Lag: ${teamsLabel}.`
       });
     }
     if (margin >= 3) {
@@ -314,7 +333,7 @@ function findWeekHighlight(weekMatches: Match[], playersEnd: Record<string, Play
         type: 'crush',
         score: margin * 10,
         title: 'Veckans Kross',
-        description: `Total dominans! En övertygande seger med ${match.team1_sets}-${match.team2_sets}.`
+        description: `Total dominans! En övertygande seger med ${match.team1_sets}-${match.team2_sets}. Lag: ${teamsLabel}.`
       });
     }
   });
@@ -547,6 +566,7 @@ Deno.serve(async (req) => {
           ? {
             score: `${comebackMatch.match.team1_sets}-${comebackMatch.match.team2_sets}`,
             margin: comebackMatch.margin,
+            teamsLabel: buildTeamLabel(comebackMatch.match, profiles),
           }
           : null,
         recentResults,
@@ -563,7 +583,7 @@ Deno.serve(async (req) => {
     })).sort((a, b) => b.mvpScore - a.mvpScore);
 
     const mvp = mvpCandidates.length > 0 ? mvpCandidates[0] : null;
-    const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart);
+    const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart, profiles);
     // Non-coder note: we keep the leaderboard short so the email matches the preview layout.
     const leaderboard = Object.values(eloEnd)
       .sort((a, b) => b.elo - a.elo)
@@ -671,8 +691,11 @@ Deno.serve(async (req) => {
                   <tr>
                     <td style="padding: 0 40px 40px 40px;">
                       <div style="background-color: #000; border-radius: 8px; padding: 30px; text-align: center; color: #fff;">
-                        <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
-                        <h3 style="margin: 10px 0; font-size: 32px; color: #fff;">${mvp.name}</h3>
+                      <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
+                      <div style="margin: 14px 0 10px 0;">
+                        ${renderAvatar(mvp.avatarUrl || null, mvp.name)}
+                      </div>
+                      <h3 style="margin: 0; font-size: 32px; color: #fff;">${mvp.name}</h3>
                         <p style="margin: 0; font-size: 14px; color: #999;">Grym insats i veckan!</p>
                       </div>
                     </td>
@@ -739,7 +762,7 @@ Deno.serve(async (req) => {
                             <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff; min-height: 120px;">
                               <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #d4af37;">Bästa comeback</p>
                               <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700;">${stats.bestComeback ? stats.bestComeback.score : "Ingen vinst i veckan"}</p>
-                              <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? "Tajtaste vinst (proxy för comeback)." : "Spela fler matcher för att få en comeback!"}</p>
+                              <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? `Lag: ${stats.bestComeback.teamsLabel}` : "Spela fler matcher för att få en comeback!"}</p>
                             </div>
                           </td>
                           <td width="50%" style="padding-left: 10px;">

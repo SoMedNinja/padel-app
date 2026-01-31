@@ -160,112 +160,131 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     if (!playerEnd && !useMock) return null;
 
-    const pMatches = weeklyMatches.filter(m => m.team1_ids.includes(selectedPlayerId) || m.team2_ids.includes(selectedPlayerId));
-    const wins = pMatches.filter(m => {
-      const isT1 = m.team1_ids.includes(selectedPlayerId);
-      return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
-    }).length;
-
-    const sortedMatches = [...pMatches].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    // Note for non-coders: we track the last 5 wins/losses to draw the mini "form curve" sparkline.
-    const recentResults = sortedMatches.slice(-5).map(m => {
-      const isT1 = m.team1_ids.includes(selectedPlayerId);
-      const didWin = isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
-      return didWin ? "W" : "L";
-    });
-
-    const partners: Record<string, number> = {};
-    const partnerStats: Record<string, { games: number; wins: number }> = {};
-    const opponentStats: Record<string, { games: number; wins: number }> = {};
-    pMatches.forEach(m => {
-      const isTeam1 = m.team1_ids.includes(selectedPlayerId);
-      const didWin = isTeam1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
-      const team = isTeam1 ? m.team1_ids : m.team2_ids;
-      const opponents = isTeam1 ? m.team2_ids : m.team1_ids;
-
-      team.forEach(pid => {
-        if (pid && pid !== selectedPlayerId && pid !== GUEST_ID) {
-          partners[pid] = (partners[pid] || 0) + 1;
-          partnerStats[pid] = partnerStats[pid] || { games: 0, wins: 0 };
-          partnerStats[pid].games += 1;
-          partnerStats[pid].wins += didWin ? 1 : 0;
-        }
-      });
-
-      opponents.forEach(pid => {
-        if (pid && pid !== GUEST_ID) {
-          opponentStats[pid] = opponentStats[pid] || { games: 0, wins: 0 };
-          opponentStats[pid].games += 1;
-          opponentStats[pid].wins += didWin ? 1 : 0;
-        }
-      });
-    });
-
-    // Note for non-coders: "synergy" is the partner you played with the most this week.
-    const bestPartnerEntry = Object.entries(partnerStats).sort((a, b) => b[1].games - a[1].games)[0];
-    const synergy = bestPartnerEntry
-      ? {
-        id: bestPartnerEntry[0],
-        name: activeProfiles.find(p => p.id === bestPartnerEntry[0])?.name || "Okänd",
-        avatarUrl: activeProfiles.find(p => p.id === bestPartnerEntry[0])?.avatar_url || null,
-        games: bestPartnerEntry[1].games,
-        winRate: Math.round((bestPartnerEntry[1].wins / bestPartnerEntry[1].games) * 100),
-      }
-      : null;
-
-    // Note for non-coders: "rivalry" is the opponent you faced the most in the same week.
-    const topOpponentEntry = Object.entries(opponentStats).sort((a, b) => b[1].games - a[1].games)[0];
-    const rivalry = topOpponentEntry
-      ? {
-        id: topOpponentEntry[0],
-        name: activeProfiles.find(p => p.id === topOpponentEntry[0])?.name || "Okänd",
-        avatarUrl: activeProfiles.find(p => p.id === topOpponentEntry[0])?.avatar_url || null,
-        games: topOpponentEntry[1].games,
-        winRate: Math.round((topOpponentEntry[1].wins / topOpponentEntry[1].games) * 100),
-      }
-      : null;
-
-    const selectedProfile = activeProfiles.find(p => p.id === selectedPlayerId);
-
-    // Note for non-coders: we only have final set totals, so "best comeback" is a proxy for the tightest win.
-    const comebackMatch = sortedMatches
-      .filter(m => {
-        const isT1 = m.team1_ids.includes(selectedPlayerId);
-        return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
-      })
-      .map(m => {
-        const isT1 = m.team1_ids.includes(selectedPlayerId);
-        const teamSets = isT1 ? m.team1_sets : m.team2_sets;
-        const oppSets = isT1 ? m.team2_sets : m.team1_sets;
-        return { match: m, margin: teamSets - oppSets };
-      })
-      .sort((a, b) => a.margin - b.margin)[0];
-
-    const stats = {
-      name: playerEnd?.name || activeProfiles.find(p => p.id === selectedPlayerId)?.name || "Okänd",
-      matchesPlayed: pMatches.length,
-      eloDelta: (playerEnd?.elo || ELO_BASELINE) - (playerStart?.elo || ELO_BASELINE),
-      currentElo: playerEnd?.elo || ELO_BASELINE,
-      winRate: pMatches.length > 0 ? Math.round((wins / pMatches.length) * 100) : 0,
-      partners: Object.entries(partners).map(([pid, count]) => ({
-        name: activeProfiles.find(p => p.id === pid)?.name || "Okänd",
-        count
-      })),
-      avatarUrl: selectedProfile?.avatar_url || null,
-      synergy,
-      rivalry,
-      bestComeback: comebackMatch
-        ? {
-          score: `${comebackMatch.match.team1_sets}-${comebackMatch.match.team2_sets}`,
-          margin: comebackMatch.margin,
-        }
-        : null,
-      recentResults,
-      results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
-      wins,
-      id: selectedPlayerId,
-      featuredBadgeId: selectedProfile?.featured_badge_id || null
+    // Note for non-coders: this builds a readable "Team A vs Team B" label from player ids.
+    const formatTeamLabel = (match: Match) => {
+      const team1 = match.team1_ids
+        .map(pid => activeProfiles.find(p => p.id === pid)?.name)
+        .filter(Boolean)
+        .join(" + ");
+      const team2 = match.team2_ids
+        .map(pid => activeProfiles.find(p => p.id === pid)?.name)
+        .filter(Boolean)
+        .join(" + ");
+      return `${team1 || "Okänt lag"} vs ${team2 || "Okänt lag"}`;
     };
+
+    // Note for non-coders: this helper collects weekly stats for any player so we can rank MVPs.
+    const buildWeeklyStats = (playerId: string) => {
+      const pMatches = weeklyMatches.filter(m => m.team1_ids.includes(playerId) || m.team2_ids.includes(playerId));
+      const wins = pMatches.filter(m => {
+        const isT1 = m.team1_ids.includes(playerId);
+        return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+      }).length;
+
+      const sortedMatches = [...pMatches].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      // Note for non-coders: we track the last 5 wins/losses to draw the mini "form curve" sparkline.
+      const recentResults = sortedMatches.slice(-5).map(m => {
+        const isT1 = m.team1_ids.includes(playerId);
+        const didWin = isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+        return didWin ? "W" : "L";
+      });
+
+      const partners: Record<string, number> = {};
+      const partnerStats: Record<string, { games: number; wins: number }> = {};
+      const opponentStats: Record<string, { games: number; wins: number }> = {};
+      pMatches.forEach(m => {
+        const isTeam1 = m.team1_ids.includes(playerId);
+        const didWin = isTeam1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+        const team = isTeam1 ? m.team1_ids : m.team2_ids;
+        const opponents = isTeam1 ? m.team2_ids : m.team1_ids;
+
+        team.forEach(pid => {
+          if (pid && pid !== playerId && pid !== GUEST_ID) {
+            partners[pid] = (partners[pid] || 0) + 1;
+            partnerStats[pid] = partnerStats[pid] || { games: 0, wins: 0 };
+            partnerStats[pid].games += 1;
+            partnerStats[pid].wins += didWin ? 1 : 0;
+          }
+        });
+
+        opponents.forEach(pid => {
+          if (pid && pid !== GUEST_ID) {
+            opponentStats[pid] = opponentStats[pid] || { games: 0, wins: 0 };
+            opponentStats[pid].games += 1;
+            opponentStats[pid].wins += didWin ? 1 : 0;
+          }
+        });
+      });
+
+      // Note for non-coders: "synergy" is the partner you played with the most this week.
+      const bestPartnerEntry = Object.entries(partnerStats).sort((a, b) => b[1].games - a[1].games)[0];
+      const synergy = bestPartnerEntry
+        ? {
+          id: bestPartnerEntry[0],
+          name: activeProfiles.find(p => p.id === bestPartnerEntry[0])?.name || "Okänd",
+          avatarUrl: activeProfiles.find(p => p.id === bestPartnerEntry[0])?.avatar_url || null,
+          games: bestPartnerEntry[1].games,
+          winRate: Math.round((bestPartnerEntry[1].wins / bestPartnerEntry[1].games) * 100),
+        }
+        : null;
+
+      // Note for non-coders: "rivalry" is the opponent you faced the most in the same week.
+      const topOpponentEntry = Object.entries(opponentStats).sort((a, b) => b[1].games - a[1].games)[0];
+      const rivalry = topOpponentEntry
+        ? {
+          id: topOpponentEntry[0],
+          name: activeProfiles.find(p => p.id === topOpponentEntry[0])?.name || "Okänd",
+          avatarUrl: activeProfiles.find(p => p.id === topOpponentEntry[0])?.avatar_url || null,
+          games: topOpponentEntry[1].games,
+          winRate: Math.round((topOpponentEntry[1].wins / topOpponentEntry[1].games) * 100),
+        }
+        : null;
+
+      // Note for non-coders: we only have final set totals, so "best comeback" is a proxy for the tightest win.
+      const comebackMatch = sortedMatches
+        .filter(m => {
+          const isT1 = m.team1_ids.includes(playerId);
+          return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+        })
+        .map(m => {
+          const isT1 = m.team1_ids.includes(playerId);
+          const teamSets = isT1 ? m.team1_sets : m.team2_sets;
+          const oppSets = isT1 ? m.team2_sets : m.team1_sets;
+          return { match: m, margin: teamSets - oppSets };
+        })
+        .sort((a, b) => a.margin - b.margin)[0];
+
+      const selectedProfile = activeProfiles.find(p => p.id === playerId);
+
+      return {
+        name: eloEnd.find(p => p.id === playerId)?.name || selectedProfile?.name || "Okänd",
+        matchesPlayed: pMatches.length,
+        eloDelta: (eloEnd.find(p => p.id === playerId)?.elo || ELO_BASELINE) - (eloStart.find(p => p.id === playerId)?.elo || ELO_BASELINE),
+        currentElo: eloEnd.find(p => p.id === playerId)?.elo || ELO_BASELINE,
+        winRate: pMatches.length > 0 ? Math.round((wins / pMatches.length) * 100) : 0,
+        partners: Object.entries(partners).map(([pid, count]) => ({
+          name: activeProfiles.find(p => p.id === pid)?.name || "Okänd",
+          count
+        })),
+        avatarUrl: selectedProfile?.avatar_url || null,
+        synergy,
+        rivalry,
+        bestComeback: comebackMatch
+          ? {
+            score: `${comebackMatch.match.team1_sets}-${comebackMatch.match.team2_sets}`,
+            margin: comebackMatch.margin,
+            teamsLabel: formatTeamLabel(comebackMatch.match),
+          }
+          : null,
+        recentResults,
+        results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
+        wins,
+        id: playerId,
+        featuredBadgeId: selectedProfile?.featured_badge_id || null
+      };
+    };
+
+    const stats = buildWeeklyStats(selectedPlayerId);
 
     // MVP & Highlights (simplified for preview)
     const findWeekHighlight = () => {
@@ -273,9 +292,12 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       // Just pick one for preview
       const m = weeklyMatches[0];
       const margin = Math.abs(m.team1_sets - m.team2_sets);
+      const teamsLabel = formatTeamLabel(m);
 
-      if (margin >= 3) return { title: "Veckans Kross", description: `Total dominans! En övertygande seger med ${m.team1_sets}-${m.team2_sets}.` };
-      return { title: "Veckans Rysare", description: `En riktig nagelbitare som avgjordes med minsta möjliga marginal (${m.team1_sets}-${m.team2_sets}).` };
+      if (margin >= 3) {
+        return { title: "Veckans Kross", description: `Total dominans! En övertygande seger med ${m.team1_sets}-${m.team2_sets}. Lag: ${teamsLabel}.` };
+      }
+      return { title: "Veckans Rysare", description: `En riktig nagelbitare som avgjordes med minsta möjliga marginal (${m.team1_sets}-${m.team2_sets}). Lag: ${teamsLabel}.` };
     };
 
     const leaderboard = eloEnd
@@ -283,9 +305,19 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       .slice(0, 5)
       .map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
 
+    // Note for non-coders: MVP scores reward both performance and activity in the week.
+    const mvpCandidates = activeProfiles.map(profile => {
+      const playerStats = buildWeeklyStats(profile.id);
+      return {
+        ...playerStats,
+        mvpScore: playerStats.eloDelta + (playerStats.matchesPlayed > 0 ? (playerStats.wins / playerStats.matchesPlayed) * 15 : 0) + playerStats.matchesPlayed * 0.5,
+      };
+    }).filter(candidate => candidate.matchesPlayed > 0);
+    const mvp = mvpCandidates.sort((a, b) => b.mvpScore - a.mvpScore)[0] || null;
+
     return {
       stats,
-      mvp: stats.matchesPlayed > 0 ? { name: stats.name } : null,
+      mvp,
       highlight: findWeekHighlight(),
       leaderboard
     };
@@ -395,7 +427,10 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                   <td style="padding: 0 40px 40px 40px;">
                     <div style="background-color: #000; border-radius: 8px; padding: 30px; text-align: center; color: #fff;">
                       <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
-                      <h3 style="margin: 10px 0; font-size: 32px; color: #fff;">${mvp.name}</h3>
+                      <div style="margin: 14px 0 10px 0;">
+                        ${renderAvatar(mvp.avatarUrl || null, mvp.name)}
+                      </div>
+                      <h3 style="margin: 0; font-size: 32px; color: #fff;">${mvp.name}</h3>
                       <p style="margin: 0; font-size: 14px; color: #999;">Grym insats i veckan!</p>
                     </div>
                   </td>
@@ -462,7 +497,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                           <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff; min-height: 120px;">
                             <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #d4af37;">Bästa comeback</p>
                             <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700;">${stats.bestComeback ? stats.bestComeback.score : "Ingen vinst i veckan"}</p>
-                            <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? "Tajtaste vinst (proxy för comeback)." : "Spela fler matcher för att få en comeback!"}</p>
+                            <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? `Lag: ${stats.bestComeback.teamsLabel}` : "Spela fler matcher för att få en comeback!"}</p>
                           </div>
                         </td>
                         <td width="50%" style="padding-left: 10px;">
