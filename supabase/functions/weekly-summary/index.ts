@@ -51,6 +51,7 @@ const MID_POINTS_MAX = 21;
 const SHORT_MATCH_WEIGHT = 0.5;
 const MID_MATCH_WEIGHT = 0.5;
 const LONG_MATCH_WEIGHT = 1;
+const ALLOWED_TEST_ROLES = new Set(["authenticated", "service_role"]);
 
 // --- ELO HELPERS ---
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -102,6 +103,25 @@ const buildPlayerDelta = ({
   return Math.round(
     playerK * marginMultiplier * matchWeight * effectiveWeight * ((didWin ? 1 : 0) - expectedScore)
   );
+};
+
+// --- AUTH HELPERS ---
+const getBearerToken = (req: Request) => {
+  const header = req.headers.get("Authorization") ?? "";
+  if (!header.startsWith("Bearer ")) return null;
+  return header.slice("Bearer ".length).trim();
+};
+
+const decodeJwtClaims = (token: string) => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(normalized);
+    return JSON.parse(json) as { role?: string };
+  } catch {
+    return null;
+  }
 };
 
 // --- CORE LOGIC ---
@@ -252,6 +272,46 @@ Deno.serve(async (req) => {
       targetPlayerId = body.playerId || null;
     } catch {
       // No body or not JSON, proceed as normal
+    }
+
+    if (targetPlayerId) {
+      const token = getBearerToken(req);
+      if (!token) {
+        // Non-coder note: we require a login token for "test" emails so strangers can't trigger sends.
+        return new Response(JSON.stringify({ error: "Missing bearer token for test mode" }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const claims = decodeJwtClaims(token);
+      const role = claims?.role;
+      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
+        // Non-coder note: only logged-in users (or trusted service tokens) can send a test.
+        return new Response(JSON.stringify({ error: "Insufficient role for test mode" }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (role !== "service_role") {
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+        if (!anonKey) {
+          // Non-coder note: the anon key is used only to validate a user login token.
+          throw new Error("SUPABASE_ANON_KEY missing");
+        }
+        const authClient = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          anonKey
+        );
+        const { data, error } = await authClient.auth.getUser(token);
+        if (error || !data?.user) {
+          return new Response(JSON.stringify({ error: "Invalid user token for test mode" }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
     }
 
     const now = new Date();
