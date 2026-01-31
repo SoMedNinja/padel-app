@@ -69,10 +69,17 @@ export const matchService = {
     }
 
     // Security: ensure created_by matches the current user to prevent spoofing
-    const matchToInsert = {
-      ...match,
-      created_by: currentUser.id,
-    };
+    // Note for non-coders: if we save many matches at once, we need to attach the user ID to each item,
+    // not just the whole list. Otherwise the database thinks the list indices (0, 1, 2...) are column names.
+    const matchToInsert = Array.isArray(match)
+      ? match.map(item => ({
+          ...item,
+          created_by: currentUser.id,
+        }))
+      : {
+          ...match,
+          created_by: currentUser.id,
+        };
 
     const { error } = await supabase
       .from("matches")
