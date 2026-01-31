@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   LineChart,
   Line,
@@ -574,8 +575,9 @@ export default function PlayerSection({
       setSelectedBadgeId(badgeId);
       setBadgeGalleryOpen(false);
       onProfileUpdate?.(data);
+      toast.success("Meriten har uppdaterats!");
     } catch (error: any) {
-      alert(error.message || "Kunde inte uppdatera meriten.");
+      toast.error(error.message || "Kunde inte uppdatera meriten.");
     }
   };
 
@@ -583,14 +585,18 @@ export default function PlayerSection({
     if (!user?.id) return;
     const cleanedName = stripBadgeLabelFromName(editedName, playerProfile?.featured_badge_id);
     // Note for non-coders: this keeps badge tags out of the saved name since badges are stored separately.
-    if (!cleanedName) return alert("Spelarnamn krävs.");
+    if (!cleanedName) {
+      toast.error("Spelarnamn krävs.");
+      return;
+    }
     setIsSavingName(true);
     try {
       const data = await profileService.updateProfile(user.id, { name: cleanedName });
       setIsEditingName(false);
       onProfileUpdate?.(data);
+      toast.success("Namnet har uppdaterats!");
     } catch (error: any) {
-      alert(error.message || "Kunde inte uppdatera namnet.");
+      toast.error(error.message || "Kunde inte uppdatera namnet.");
     } finally {
       setIsSavingName(false);
     }
@@ -798,12 +804,13 @@ export default function PlayerSection({
         try {
           const data = await profileService.updateProfile(user.id, { avatar_url: cropped });
           onProfileUpdate?.(data);
+          toast.success("Profilbilden har sparats!");
         } catch (error: any) {
-          alert(error.message || "Kunde inte spara profilbilden.");
+          toast.error(error.message || "Kunde inte spara profilbilden.");
         }
       }
     } catch (error: any) {
-      alert(error.message || "Kunde inte beskära bilden.");
+      toast.error(error.message || "Kunde inte beskära bilden.");
     } finally {
       setSavingAvatar(false);
     }
@@ -825,8 +832,9 @@ export default function PlayerSection({
       try {
         const data = await profileService.updateProfile(user.id, { avatar_url: null });
         onProfileUpdate?.(data);
+        toast.success("Profilbilden har återställts.");
       } catch (error: any) {
-        alert(error.message || "Kunde inte återställa profilbilden.");
+        toast.error(error.message || "Kunde inte återställa profilbilden.");
       }
     }
   };
@@ -870,12 +878,14 @@ export default function PlayerSection({
                   </MenuItem>
                 ))}
               </TextField>
-              <IconButton
-                onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}
-                aria-label={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"}
-              >
-                {isEloChartFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-              </IconButton>
+              <MuiTooltip title={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"} arrow>
+                <IconButton
+                  onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}
+                  aria-label={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"}
+                >
+                  {isEloChartFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                </IconButton>
+              </MuiTooltip>
             </Stack>
           </Box>
 

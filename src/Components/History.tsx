@@ -382,24 +382,30 @@ export default function History({
                   {!isEditing && (
                     <Stack direction="row" spacing={1}>
                       {canEdit && (
-                        <Button size="small" startIcon={<EditIcon />} onClick={() => startEdit(m)}>
-                          Ändra
-                        </Button>
+                        <Tooltip title="Redigera match" arrow>
+                          <Button size="small" startIcon={<EditIcon />} onClick={() => startEdit(m)}>
+                            Ändra
+                          </Button>
+                        </Tooltip>
                       )}
                       {canDelete(m) && (
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => deleteMatch(m.id)}
-                          aria-label="Radera match"
-                          disabled={deletingId === m.id}
-                        >
-                          {deletingId === m.id ? (
-                            <CircularProgress size={16} color="inherit" />
-                          ) : (
-                            <DeleteIcon fontSize="small" />
-                          )}
-                        </IconButton>
+                        <Tooltip title="Radera match" arrow>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => deleteMatch(m.id)}
+                              aria-label="Radera match"
+                              disabled={deletingId === m.id}
+                            >
+                              {deletingId === m.id ? (
+                                <CircularProgress size={16} color="inherit" />
+                              ) : (
+                                <DeleteIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       )}
                     </Stack>
                   )}

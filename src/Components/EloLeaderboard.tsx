@@ -21,6 +21,7 @@ import {
   TableRow,
   Paper,
   TableSortLabel,
+  CircularProgress,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { InfoOutlined } from "@mui/icons-material";
@@ -183,12 +184,15 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                 position: 'absolute',
                 inset: 0,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: 2,
                 bgcolor: 'rgba(255,255,255,0.8)',
                 zIndex: 1
               }}
             >
+              <CircularProgress size={24} />
               <Typography variant="body2" sx={{ fontWeight: 600 }}>Laddar data…</Typography>
             </Box>
           )}
