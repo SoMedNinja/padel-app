@@ -19,6 +19,7 @@ import { getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
 import { supabase, supabaseAnonKey, supabaseUrl } from "../../supabaseClient";
+import { getBadgeLabelById } from "../../utils/badges";
 
 interface WeeklyEmailPreviewProps {
   currentUserId?: string;
@@ -26,9 +27,9 @@ interface WeeklyEmailPreviewProps {
 
 const MOCK_PROFILES: Profile[] = [
   // Note for non-coders: these mock avatar links let the preview show how "player icons" look in the email.
-  { id: "1", name: "Kalle Kula", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Kalle", is_approved: true, is_admin: false, is_deleted: false },
+  { id: "1", name: "Kalle Kula", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Kalle", is_approved: true, is_admin: false, is_deleted: false, featured_badge_id: "king-of-elo" },
   { id: "2", name: "Padel-Pelle", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Pelle", is_approved: true, is_admin: false, is_deleted: false },
-  { id: "3", name: "Smasher-Sven", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Sven", is_approved: true, is_admin: false, is_deleted: false },
+  { id: "3", name: "Smasher-Sven", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Sven", is_approved: true, is_admin: false, is_deleted: false, featured_badge_id: "wins-10" },
   { id: "4", name: "Boll-Berit", avatar_url: "https://api.dicebear.com/8.x/thumbs/svg?seed=Berit", is_approved: true, is_admin: false, is_deleted: false },
 ];
 
@@ -262,7 +263,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       recentResults,
       results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
       wins,
-      id: selectedPlayerId
+      id: selectedPlayerId,
+      featuredBadgeId: selectedProfile?.featured_badge_id || null
     };
 
     // MVP & Highlights (simplified for preview)
@@ -295,6 +297,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     const { stats, mvp, highlight, leaderboard } = emailData;
     const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
     const deltaSign = stats.eloDelta > 0 ? "+" : "";
+    // Note for non-coders: this converts a badge id into a small emoji/tier label we can print beside the name.
+    const featuredBadgeLabel = getBadgeLabelById(stats.featuredBadgeId);
     // Note for non-coders: we build tiny HTML snippets so the same avatar styling is reused in multiple sections.
     const renderAvatar = (avatarUrl: string | null, name: string) => {
       const initial = name.trim().charAt(0).toUpperCase() || "?";
@@ -311,6 +315,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       })
       .join(" ");
 
+    // Note for non-coders: matching min-heights keeps the comeback and form cards aligned in the email layout.
     return `
       <!DOCTYPE html>
       <html>
@@ -349,9 +354,9 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                           ${renderAvatar(stats.avatarUrl, stats.name)}
                         </td>
                         <td style="padding: 20px 20px 20px 0;">
-                          <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #d4af37;">Din ikon</p>
-                          <h3 style="margin: 6px 0 0 0; font-size: 20px; color: #fff;">${stats.name}</h3>
-                          <p style="margin: 6px 0 0 0; font-size: 14px; color: #bbb;">Din valda ikon visas här i veckans mail.</p>
+                          <h3 style="margin: 0; font-size: 20px; color: #fff;">
+                            ${stats.name}${featuredBadgeLabel ? ` <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; border: 1px solid #333; border-radius: 999px; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 1px;">${featuredBadgeLabel}</span>` : ""}
+                          </h3>
                         </td>
                       </tr>
                     </table>
@@ -454,14 +459,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
                       <tr>
                         <td width="50%" style="padding-right: 10px;">
-                          <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff;">
+                          <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff; min-height: 120px;">
                             <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #d4af37;">Bästa comeback</p>
                             <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700;">${stats.bestComeback ? stats.bestComeback.score : "Ingen vinst i veckan"}</p>
                             <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? "Tajtaste vinst (proxy för comeback)." : "Spela fler matcher för att få en comeback!"}</p>
                           </div>
                         </td>
                         <td width="50%" style="padding-left: 10px;">
-                          <div style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px;">
+                          <div style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px; min-height: 120px;">
                             <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Formkurva (senaste 5)</p>
                             ${stats.recentResults.length ? `
                               <svg width="120" height="26" viewBox="0 0 120 26" xmlns="http://www.w3.org/2000/svg" aria-label="Formkurva">

@@ -5,6 +5,7 @@ interface Profile {
   id: string;
   name: string;
   avatar_url?: string | null;
+  featured_badge_id?: string | null;
 }
 
 interface Match {
@@ -113,6 +114,81 @@ const renderAvatar = (avatarUrl: string | null | undefined, name: string) => {
   return avatarUrl
     ? `<img src="${avatarUrl}" alt="${name}" width="56" height="56" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
     : `<div style="width: 56px; height: 56px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">${initial}</div>`;
+};
+
+const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+const toRoman = (index: number) => romanNumerals[index] || `${index + 1}`;
+const BADGE_ICON_MAP: Record<string, string> = {
+  matches: "🏟️",
+  wins: "🏆",
+  losses: "🧱",
+  streak: "🔥",
+  activity: "📅",
+  elo: "📈",
+  upset: "🎯",
+  "win-rate": "📊",
+  "elo-lift": "🚀",
+  marathon: "⏱️",
+  "fast-win": "⚡",
+  clutch: "🧊",
+  partners: "🤝",
+  rivals: "👀",
+  "tournaments-played": "🎲",
+  "tournaments-wins": "🥇",
+  "tournaments-podiums": "🥉",
+  "americano-wins": "🇺🇸",
+  "mexicano-wins": "🇲🇽",
+  "night-owl": "🦉",
+  "early-bird": "🌅",
+  "clean-sheets": "🧹",
+  "giant-slayer": "⚔️",
+  "king-of-elo": "👑",
+  "most-active": "🐜",
+  "win-machine": "🤖",
+  "upset-king": "⚡",
+  "marathon-pro": "🏃",
+  "clutch-pro": "🧊",
+  "social-butterfly": "🦋",
+  "monthly-giant": "🐘",
+  "the-wall": "🧱"
+};
+const BADGE_THRESHOLD_MAP: Record<string, number[]> = {
+  matches: [1, 5, 10, 25, 50, 75, 100, 150, 200],
+  wins: [1, 5, 10, 25, 50, 75, 100, 150],
+  losses: [1, 5, 10, 25, 50, 75],
+  streak: [3, 5, 7, 10, 15],
+  activity: [3, 6, 10, 15, 20],
+  elo: [1100, 1200, 1300, 1400, 1500],
+  upset: [25, 50, 100, 150, 200, 250],
+  "win-rate": [50, 60, 70, 80, 90],
+  "elo-lift": [50, 100],
+  marathon: [1, 3, 5, 10, 15],
+  "fast-win": [1, 3, 5, 8, 12],
+  clutch: [1, 3, 5, 8, 12],
+  partners: [2, 4, 6, 10, 15],
+  rivals: [3, 5, 8, 12, 20],
+  "tournaments-played": [1, 3, 5, 8],
+  "tournaments-wins": [1, 2, 3],
+  "tournaments-podiums": [1, 3, 5],
+  "americano-wins": [1, 3, 5],
+  "mexicano-wins": [1, 3, 5],
+  "night-owl": [5, 10, 25],
+  "early-bird": [5, 10, 25],
+  "clean-sheets": [5, 10, 25, 50]
+};
+const getBadgeLabelById = (badgeId: string | null | undefined) => {
+  if (!badgeId) return "";
+  if (BADGE_ICON_MAP[badgeId]) return BADGE_ICON_MAP[badgeId];
+  const lastDash = badgeId.lastIndexOf("-");
+  if (lastDash < 0) return "";
+  const prefix = badgeId.slice(0, lastDash);
+  const target = badgeId.slice(lastDash + 1);
+  const thresholds = BADGE_THRESHOLD_MAP[prefix];
+  if (!thresholds) return "";
+  const index = thresholds.indexOf(Number(target));
+  if (index < 0) return "";
+  // Non-coder note: we add a roman numeral tier so the badge looks like the in-app merit label.
+  return `${BADGE_ICON_MAP[prefix] ?? ""} ${toRoman(index)}`.trim();
 };
 
 // --- AUTH HELPERS ---
@@ -325,7 +401,7 @@ Deno.serve(async (req) => {
     const startOfWeekISO = startOfWeek.toISOString();
     const endOfWeekISO = now.toISOString();
 
-    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url').eq('is_deleted', false);
+    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url, featured_badge_id').eq('is_deleted', false);
     if (profilesError) {
       console.error("Profiles fetch error:", profilesError);
       throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
@@ -476,7 +552,8 @@ Deno.serve(async (req) => {
         recentResults,
         results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
         wins,
-        id
+        id,
+        featuredBadgeId: profile?.featured_badge_id || null
       };
     });
 
@@ -504,6 +581,8 @@ Deno.serve(async (req) => {
 
       const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
       const deltaSign = stats.eloDelta > 0 ? "+" : "";
+      // Non-coder note: we turn the stored badge id into a short label shown beside the player name.
+      const featuredBadgeLabel = getBadgeLabelById(stats.featuredBadgeId);
       // Non-coder note: the form curve turns W/L into SVG points so it renders in email clients.
       const sparklinePoints = stats.recentResults
         .map((result: string, index: number) => {
@@ -513,6 +592,7 @@ Deno.serve(async (req) => {
         })
         .join(" ");
 
+      // Non-coder note: the min-height styles keep the comeback and form cards the same visual size.
       const html = `
         <!DOCTYPE html>
         <html>
@@ -551,9 +631,9 @@ Deno.serve(async (req) => {
                             ${renderAvatar(stats.avatarUrl, stats.name)}
                           </td>
                           <td style="padding: 20px 20px 20px 0;">
-                            <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #d4af37;">Din ikon</p>
-                            <h3 style="margin: 6px 0 0 0; font-size: 20px; color: #fff;">${stats.name}</h3>
-                            <p style="margin: 6px 0 0 0; font-size: 14px; color: #bbb;">Din valda ikon visas här i veckans mail.</p>
+                            <h3 style="margin: 0; font-size: 20px; color: #fff;">
+                              ${stats.name}${featuredBadgeLabel ? ` <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; border: 1px solid #333; border-radius: 999px; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 1px;">${featuredBadgeLabel}</span>` : ""}
+                            </h3>
                           </td>
                         </tr>
                       </table>
@@ -656,14 +736,14 @@ Deno.serve(async (req) => {
                       <table width="100%" border="0" cellspacing="0" cellpadding="0">
                         <tr>
                           <td width="50%" style="padding-right: 10px;">
-                            <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff;">
+                            <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff; min-height: 120px;">
                               <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #d4af37;">Bästa comeback</p>
                               <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700;">${stats.bestComeback ? stats.bestComeback.score : "Ingen vinst i veckan"}</p>
                               <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? "Tajtaste vinst (proxy för comeback)." : "Spela fler matcher för att få en comeback!"}</p>
                             </div>
                           </td>
                           <td width="50%" style="padding-left: 10px;">
-                            <div style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px;">
+                            <div style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px; min-height: 120px;">
                               <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Formkurva (senaste 5)</p>
                               ${stats.recentResults.length ? `
                                 <svg width="120" height="26" viewBox="0 0 120 26" xmlns="http://www.w3.org/2000/svg" aria-label="Formkurva">
