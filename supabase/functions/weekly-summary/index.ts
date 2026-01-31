@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 interface Profile {
   id: string;
   name: string;
+  avatar_url?: string | null;
 }
 
 interface Match {
@@ -104,6 +105,14 @@ const buildPlayerDelta = ({
   return Math.round(
     playerK * marginMultiplier * matchWeight * effectiveWeight * ((didWin ? 1 : 0) - expectedScore)
   );
+};
+
+const renderAvatar = (avatarUrl: string | null | undefined, name: string) => {
+  // Non-coder note: this helper builds the round avatar HTML used in multiple email sections.
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  return avatarUrl
+    ? `<img src="${avatarUrl}" alt="${name}" width="56" height="56" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
+    : `<div style="width: 56px; height: 56px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">${initial}</div>`;
 };
 
 // --- AUTH HELPERS ---
@@ -316,7 +325,7 @@ Deno.serve(async (req) => {
     const startOfWeekISO = startOfWeek.toISOString();
     const endOfWeekISO = now.toISOString();
 
-    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name').eq('is_deleted', false);
+    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url').eq('is_deleted', false);
     if (profilesError) {
       console.error("Profiles fetch error:", profilesError);
       throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
@@ -369,7 +378,8 @@ Deno.serve(async (req) => {
     const weeklyStats: Record<string, any> = {};
     Array.from(activePlayerIds).forEach(id => {
       const pStart = eloStart[id] || { elo: ELO_BASELINE };
-      const pEnd = eloEnd[id] || { elo: ELO_BASELINE, name: profiles.find(p => p.id === id)?.name || "Okänd" };
+      const profile = profiles.find(p => p.id === id);
+      const pEnd = eloEnd[id] || { elo: ELO_BASELINE, name: profile?.name || "Okänd" };
       const pMatches = weeklyMatches.filter(m => m.team1_ids.includes(id) || m.team2_ids.includes(id));
       const wins = pMatches.filter(m => {
         const isT1 = m.team1_ids.includes(id);
@@ -377,10 +387,72 @@ Deno.serve(async (req) => {
       }).length;
 
       const partners: Record<string, number> = {};
+      const partnerStats: Record<string, { games: number; wins: number }> = {};
+      const opponentStats: Record<string, { games: number; wins: number }> = {};
       pMatches.forEach(m => {
-        const team = m.team1_ids.includes(id) ? m.team1_ids : m.team2_ids;
-        team.forEach(pid => { if (pid && pid !== id && pid !== GUEST_ID) partners[pid] = (partners[pid] || 0) + 1; });
+        const isTeam1 = m.team1_ids.includes(id);
+        const didWin = isTeam1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+        const team = isTeam1 ? m.team1_ids : m.team2_ids;
+        const opponents = isTeam1 ? m.team2_ids : m.team1_ids;
+        team.forEach(pid => {
+          if (pid && pid !== id && pid !== GUEST_ID) {
+            partners[pid] = (partners[pid] || 0) + 1;
+            partnerStats[pid] = partnerStats[pid] || { games: 0, wins: 0 };
+            partnerStats[pid].games += 1;
+            partnerStats[pid].wins += didWin ? 1 : 0;
+          }
+        });
+        opponents.forEach(pid => {
+          if (pid && pid !== GUEST_ID) {
+            opponentStats[pid] = opponentStats[pid] || { games: 0, wins: 0 };
+            opponentStats[pid].games += 1;
+            opponentStats[pid].wins += didWin ? 1 : 0;
+          }
+        });
       });
+
+      const sortedMatches = [...pMatches].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      // Non-coder note: we take the last five wins/losses to build the tiny form curve in the email.
+      const recentResults = sortedMatches.slice(-5).map(m => {
+        const isT1 = m.team1_ids.includes(id);
+        const didWin = isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+        return didWin ? "W" : "L";
+      });
+
+      const bestPartnerEntry = Object.entries(partnerStats).sort((a, b) => b[1].games - a[1].games)[0];
+      const synergy = bestPartnerEntry
+        ? {
+          id: bestPartnerEntry[0],
+          name: profiles.find(p => p.id === bestPartnerEntry[0])?.name || "Okänd",
+          avatarUrl: profiles.find(p => p.id === bestPartnerEntry[0])?.avatar_url || null,
+          games: bestPartnerEntry[1].games,
+          winRate: Math.round((bestPartnerEntry[1].wins / bestPartnerEntry[1].games) * 100),
+        }
+        : null;
+
+      const topOpponentEntry = Object.entries(opponentStats).sort((a, b) => b[1].games - a[1].games)[0];
+      const rivalry = topOpponentEntry
+        ? {
+          id: topOpponentEntry[0],
+          name: profiles.find(p => p.id === topOpponentEntry[0])?.name || "Okänd",
+          avatarUrl: profiles.find(p => p.id === topOpponentEntry[0])?.avatar_url || null,
+          games: topOpponentEntry[1].games,
+          winRate: Math.round((topOpponentEntry[1].wins / topOpponentEntry[1].games) * 100),
+        }
+        : null;
+
+      const comebackMatch = sortedMatches
+        .filter(m => {
+          const isT1 = m.team1_ids.includes(id);
+          return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
+        })
+        .map(m => {
+          const isT1 = m.team1_ids.includes(id);
+          const teamSets = isT1 ? m.team1_sets : m.team2_sets;
+          const oppSets = isT1 ? m.team2_sets : m.team1_sets;
+          return { match: m, margin: teamSets - oppSets };
+        })
+        .sort((a, b) => a.margin - b.margin)[0];
 
       weeklyStats[id] = {
         name: pEnd.name,
@@ -392,6 +464,16 @@ Deno.serve(async (req) => {
           name: profiles.find(p => p.id === pid)?.name || "Okänd",
           count
         })),
+        avatarUrl: profile?.avatar_url || null,
+        synergy,
+        rivalry,
+        bestComeback: comebackMatch
+          ? {
+            score: `${comebackMatch.match.team1_sets}-${comebackMatch.match.team2_sets}`,
+            margin: comebackMatch.margin,
+          }
+          : null,
+        recentResults,
         results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
         wins,
         id
@@ -422,6 +504,14 @@ Deno.serve(async (req) => {
 
       const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
       const deltaSign = stats.eloDelta > 0 ? "+" : "";
+      // Non-coder note: the form curve turns W/L into SVG points so it renders in email clients.
+      const sparklinePoints = stats.recentResults
+        .map((result: string, index: number) => {
+          const x = 8 + index * 18;
+          const y = result === "W" ? 6 : 20;
+          return `${x},${y}`;
+        })
+        .join(" ");
 
       const html = `
         <!DOCTYPE html>
@@ -440,7 +530,7 @@ Deno.serve(async (req) => {
                 <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
                   <!-- Header -->
                   <tr>
-                    <td style="background-color: #000000; padding: 40px 20px; text-align: center;">
+                    <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
                       <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">Veckan i Padel</h1>
                       <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
                     </td>
@@ -450,6 +540,23 @@ Deno.serve(async (req) => {
                     <td style="padding: 40px 40px 20px 40px;">
                       <h2 style="margin: 0; font-size: 28px; color: #000;">Hej ${stats.name}!</h2>
                       <p style="font-size: 16px; color: #666; line-height: 1.6;">Här är din personliga sammanfattning av veckans matcher och prestationer på banan.</p>
+                    </td>
+                  </tr>
+                  <!-- Player Icon -->
+                  <tr>
+                    <td style="padding: 0 40px 30px 40px;">
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #111; border-radius: 10px; color: #fff;">
+                        <tr>
+                          <td style="padding: 20px;" width="80" align="center">
+                            ${renderAvatar(stats.avatarUrl, stats.name)}
+                          </td>
+                          <td style="padding: 20px 20px 20px 0;">
+                            <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #d4af37;">Din ikon</p>
+                            <h3 style="margin: 6px 0 0 0; font-size: 20px; color: #fff;">${stats.name}</h3>
+                            <p style="margin: 6px 0 0 0; font-size: 14px; color: #bbb;">Din valda ikon visas här i veckans mail.</p>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
                   <!-- Stats Grid -->
@@ -499,6 +606,83 @@ Deno.serve(async (req) => {
                         <h3 style="margin: 0; font-size: 20px; color: #000;">✨ ${highlight.title}</h3>
                         <p style="margin: 10px 0 0 0; font-size: 16px; color: #444; line-height: 1.5;">${highlight.description}</p>
                       </div>
+                    </td>
+                  </tr>
+                  ` : ""}
+                  <!-- Synergy & Rivalry -->
+                  ${(stats.synergy || stats.rivalry) ? `
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Synergi & Rivalitet</h3>
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td width="50%" style="padding-right: 10px;">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                              <tr>
+                                <td style="padding: 16px;" align="center" width="70">
+                                  ${stats.synergy ? renderAvatar(stats.synergy.avatarUrl, stats.synergy.name) : ""}
+                                </td>
+                                <td style="padding: 16px 16px 16px 0;">
+                                  <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Veckans synergi</p>
+                                  <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #111;">${stats.synergy ? stats.synergy.name : "Ingen partner spelad"}</p>
+                                  ${stats.synergy ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #666;">${stats.synergy.games} matcher • ${stats.synergy.winRate}% vinster</p>` : ""}
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                          <td width="50%" style="padding-left: 10px;">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                              <tr>
+                                <td style="padding: 16px;" align="center" width="70">
+                                  ${stats.rivalry ? renderAvatar(stats.rivalry.avatarUrl, stats.rivalry.name) : ""}
+                                </td>
+                                <td style="padding: 16px 16px 16px 0;">
+                                  <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Veckans rival</p>
+                                  <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #111;">${stats.rivalry ? stats.rivalry.name : "Ingen rival denna vecka"}</p>
+                                  ${stats.rivalry ? `<p style="margin: 6px 0 0 0; font-size: 13px; color: #666;">${stats.rivalry.games} möten • ${stats.rivalry.winRate}% vinster</p>` : ""}
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  ` : ""}
+                  <!-- Best Comeback & Form Curve -->
+                  ${(stats.bestComeback || stats.recentResults.length) ? `
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td width="50%" style="padding-right: 10px;">
+                            <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff;">
+                              <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #d4af37;">Bästa comeback</p>
+                              <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700;">${stats.bestComeback ? stats.bestComeback.score : "Ingen vinst i veckan"}</p>
+                              <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? "Tajtaste vinst (proxy för comeback)." : "Spela fler matcher för att få en comeback!"}</p>
+                            </div>
+                          </td>
+                          <td width="50%" style="padding-left: 10px;">
+                            <div style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px;">
+                              <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Formkurva (senaste 5)</p>
+                              ${stats.recentResults.length ? `
+                                <svg width="120" height="26" viewBox="0 0 120 26" xmlns="http://www.w3.org/2000/svg" aria-label="Formkurva">
+                                  <polyline points="${sparklinePoints}" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                                  ${stats.recentResults.map((result: string, index: number) => {
+                                    const x = 8 + index * 18;
+                                    const y = result === "W" ? 6 : 20;
+                                    const color = result === "W" ? "#2e7d32" : "#d32f2f";
+                                    return `<circle cx="${x}" cy="${y}" r="4" fill="${color}" />`;
+                                  }).join("")}
+                                </svg>
+                                <p style="margin: 6px 0 0 0; font-size: 12px; color: #666;">${stats.recentResults.join(" ")}</p>
+                              ` : `
+                                <p style="margin: 8px 0 0 0; font-size: 13px; color: #666;">Ingen formkurva ännu.</p>
+                              `}
+                            </div>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
                   ` : ""}
