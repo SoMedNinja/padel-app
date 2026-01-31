@@ -52,9 +52,13 @@ const createMockSupabase = (): any => ({
   // Note for non-coders: this mock makes missing setup obvious without crashing the whole app.
   auth: {
     getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-    onAuthStateChange: () => ({
-      data: { subscription: { unsubscribe: () => {} } },
-    }),
+    onAuthStateChange: (callback: any) => {
+      // Simulate the immediate firing of the initial session event
+      setTimeout(() => callback("INITIAL_SESSION", null), 0);
+      return {
+        data: { subscription: { unsubscribe: () => {} } },
+      };
+    },
     signUp: () => Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
     signInWithPassword: () => Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
     resetPasswordForEmail: () => Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
