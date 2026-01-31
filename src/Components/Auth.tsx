@@ -62,41 +62,43 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
       return;
     }
     setIsSubmitting(true);
-    if (isSignup) {
-      const siteUrl = resolveSiteUrl();
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: siteUrl,
-        },
-      });
+    try {
+      if (isSignup) {
+        const siteUrl = resolveSiteUrl();
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: siteUrl,
+          },
+        });
 
-      if (error) {
-        toast.error(error.message);
-        setIsSubmitting(false);
-        return;
-      }
-      if (data?.session?.user) {
-        onAuth(data.session.user);
-        setIsSubmitting(false);
-        return;
-      }
-      setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
-    } else {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        if (data?.session?.user) {
+          onAuth(data.session.user);
+          return;
+        }
+        setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) {
-        toast.error(error.message);
-        setIsSubmitting(false);
-        return;
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        if (data.user) {
+          onAuth(data.user);
+        }
       }
-      onAuth(data.user);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handlePasswordReset = async () => {
@@ -109,15 +111,18 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
       return;
     }
     setIsSubmitting(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: resolveSiteUrl(),
-    });
-    setIsSubmitting(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: resolveSiteUrl(),
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setNotice("Återställningslänk skickad! Kolla din e-post.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setNotice("Återställningslänk skickad! Kolla din e-post.");
   };
 
   return (

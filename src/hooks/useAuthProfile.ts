@@ -30,6 +30,7 @@ export const useAuthProfile = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const loadingTimeoutRef = useRef<number | null>(null);
+  const syncLockRef = useRef<string | null>(null);
 
   const startLoadingTimeout = useCallback(() => {
     // Note for non-coders: if login checks take too long, we stop showing the loading screen.
@@ -52,10 +53,15 @@ export const useAuthProfile = () => {
     async (authUser: User | null) => {
       if (!authUser) {
         setUser(null);
+        syncLockRef.current = null;
         return;
       }
 
-      const metadataName = getMetadataName(authUser);
+      if (syncLockRef.current === authUser.id) return;
+      syncLockRef.current = authUser.id;
+
+      try {
+        const metadataName = getMetadataName(authUser);
       const metadataAvatar = getMetadataAvatar(authUser);
 
       const { data: profile, error } = await supabase
@@ -151,14 +157,17 @@ export const useAuthProfile = () => {
         }
       }
 
-      setIsGuest(false);
-      setUser(
-        toAppUser(authUser, {
-          ...profile,
-          name: resolvedName || profile?.name || "",
-          avatar_url: resolvedAvatar ?? profile?.avatar_url,
-        })
-      );
+        setIsGuest(false);
+        setUser(
+          toAppUser(authUser, {
+            ...profile,
+            name: resolvedName || profile?.name || "",
+            avatar_url: resolvedAvatar ?? profile?.avatar_url,
+          })
+        );
+      } finally {
+        syncLockRef.current = null;
+      }
     },
     [setIsGuest, setUser]
   );
@@ -211,7 +220,9 @@ export const useAuthProfile = () => {
 
   useEffect(() => {
     let isMounted = true;
-    refresh();
+    // Note for non-coders: we rely on onAuthStateChange's INITIAL_SESSION event to trigger
+    // the first load. Calling refresh() here causes redundant session checks and can
+    // lead to token revocation (replay protection) in some browsers.
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!isMounted) return;

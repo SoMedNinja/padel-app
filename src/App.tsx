@@ -66,8 +66,8 @@ export default function App() {
       <Auth
         onAuth={() => {
           setIsGuest(false);
-          // Note for non-coders: we re-check the saved profile so we can reuse your existing name.
-          refresh();
+          // Note for non-coders: we don't call refresh() here because onAuthStateChange
+          // in useAuthProfile will automatically pick up the new session and sync the profile.
         }}
         onGuest={() => setIsGuest(true)}
       />
