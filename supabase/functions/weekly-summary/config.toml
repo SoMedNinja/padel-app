@@ -1,2 +1,2 @@
 # User-provided custom instructions
-verify_jwt = true
+verify_jwt = false
