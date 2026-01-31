@@ -22,3 +22,8 @@
 **Vulnerability:** Service-layer authorization logic that only checks if `currentUser.id === id` to strip sensitive fields, but fails to account for non-admins updating OTHER users' profiles.
 **Learning:** Checking for identity (`uid = id`) is insufficient for cross-resource updates. A non-admin can bypass frontend field stripping by attempting to update another user's ID, which leads to a potential IDOR if RLS is not perfectly configured for column-level security.
 **Prevention:** Implement a server-side or service-layer role check (e.g., `checkIsAdmin`). Enforce that non-admins can only update their own resources and ALWAYS have sensitive fields stripped, regardless of whose resource they are attempting to modify.
+
+## 2025-05-27 - Incomplete Service-Layer Authorization
+**Vulnerability:** Several service methods in `matchService` and `tournamentService` lacked any authorization checks, relying solely on Row Level Security (RLS) which can be bypassable if misconfigured or if the client uses the service directly without proper frontend guards. Specifically, `matchService.createMatch` allowed spoofing of `created_by`.
+**Learning:** Relying on RLS as the ONLY line of defense is risky. Service-layer authorization provides defense-in-depth and ensures that even if RLS has a gap, the application logic still enforces business rules.
+**Prevention:** Always verify the user's session and roles in service-layer methods before performing mutations. Explicitly set ownership fields (like `created_by`) from the trusted session data rather than accepting them from the client payload.

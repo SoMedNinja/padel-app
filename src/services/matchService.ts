@@ -54,6 +54,13 @@ export const matchService = {
   },
 
   async createMatch(match: any): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData.session?.user;
+
+    if (!currentUser) {
+      throw new Error("Du måste vara inloggad för att registrera en match.");
+    }
+
     if (match.team1_sets !== undefined && (typeof match.team1_sets !== "number" || match.team1_sets < 0)) {
       throw new Error("Ogiltigt resultat för Lag 1");
     }
@@ -61,9 +68,15 @@ export const matchService = {
       throw new Error("Ogiltigt resultat för Lag 2");
     }
 
+    // Security: ensure created_by matches the current user to prevent spoofing
+    const matchToInsert = {
+      ...match,
+      created_by: currentUser.id,
+    };
+
     const { error } = await supabase
       .from("matches")
-      .insert(match);
+      .insert(matchToInsert);
     if (error) throw error;
   },
 
