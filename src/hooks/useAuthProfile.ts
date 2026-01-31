@@ -25,7 +25,7 @@ const isAvatarColumnMissing = (error?: { message?: string } | null) =>
 
 // Note for non-coders: this hook keeps login info and player profile data in sync in one place.
 export const useAuthProfile = () => {
-  const { setUser, setIsGuest } = useStore();
+  const { user: currentUser, setUser, setIsGuest } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
@@ -65,6 +65,9 @@ export const useAuthProfile = () => {
 
       if (syncLockRef.current === authUser.id) return;
       syncLockRef.current = authUser.id;
+
+      syncCounterRef.current++;
+      const syncId = syncCounterRef.current;
 
       const metadataName = getMetadataName(authUser);
       const metadataAvatar = getMetadataAvatar(authUser);
