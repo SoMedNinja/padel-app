@@ -60,6 +60,7 @@ import {
   Paper,
   Tab,
   Tabs,
+  CircularProgress,
   MenuItem,
   Chip,
   Dialog,
@@ -559,6 +560,7 @@ export default function PlayerSection({
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
 
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
   const [editedName, setEditedName] = useState(playerName);
 
   useEffect(() => {
@@ -582,12 +584,15 @@ export default function PlayerSection({
     const cleanedName = stripBadgeLabelFromName(editedName, playerProfile?.featured_badge_id);
     // Note for non-coders: this keeps badge tags out of the saved name since badges are stored separately.
     if (!cleanedName) return alert("Spelarnamn krävs.");
+    setIsSavingName(true);
     try {
       const data = await profileService.updateProfile(user.id, { name: cleanedName });
       setIsEditingName(false);
       onProfileUpdate?.(data);
     } catch (error: any) {
       alert(error.message || "Kunde inte uppdatera namnet.");
+    } finally {
+      setIsSavingName(false);
     }
   };
 
@@ -929,14 +934,35 @@ export default function PlayerSection({
 
           <Box sx={{ flex: 1, minWidth: 240 }}>
             {isEditingName ? (
-              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Stack direction="row" spacing={1} sx={{ mb: 2, alignItems: "flex-start" }}>
                 <TextField
                   size="small"
+                  label="Spelarnamn"
                   value={editedName}
                   onChange={(e) => setEditedName(e.target.value)}
+                  helperText={`${editedName.length}/50`}
+                  slotProps={{ htmlInput: { maxLength: 50 } }}
+                  disabled={isSavingName}
                 />
-                <Button variant="contained" size="small" onClick={handleNameSave}>Spara</Button>
-                <Button variant="outlined" size="small" onClick={() => setIsEditingName(false)}>Avbryt</Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleNameSave}
+                  disabled={isSavingName}
+                  startIcon={isSavingName ? <CircularProgress size={16} color="inherit" /> : null}
+                  sx={{ mt: 0.5 }}
+                >
+                  Spara
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setIsEditingName(false)}
+                  disabled={isSavingName}
+                  sx={{ mt: 0.5 }}
+                >
+                  Avbryt
+                </Button>
               </Stack>
             ) : (
               <Box sx={{ mb: 2 }}>
