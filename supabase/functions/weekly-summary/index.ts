@@ -91,6 +91,16 @@ const getMatchWeight = (match: Match) => {
   return MID_MATCH_WEIGHT;
 };
 
+const getIsoWeekNumber = (date: Date) => {
+  // Non-coder note: ISO week numbers use a Thursday-based calendar; this calculates that week index.
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayOfWeek = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayOfWeek);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNumber;
+};
+
 const buildPlayerDelta = ({
   playerElo,
   playerGames,
@@ -118,14 +128,12 @@ const renderAvatar = (avatarUrl: string | null | undefined, name: string) => {
 
 // Non-coder note: this helper turns player ids into a readable "Team A vs Team B" label.
 const buildTeamLabel = (match: Match, profiles: Profile[]) => {
-  const team1 = match.team1_ids
-    .map(pid => profiles.find(p => p.id === pid)?.name)
-    .filter(Boolean)
-    .join(" + ");
-  const team2 = match.team2_ids
-    .map(pid => profiles.find(p => p.id === pid)?.name)
-    .filter(Boolean)
-    .join(" + ");
+  const resolveName = (pid: string | null) => {
+    if (!pid || pid === GUEST_ID) return "Gästspelare";
+    return profiles.find(p => p.id === pid)?.name || "Gästspelare";
+  };
+  const team1 = match.team1_ids.map(resolveName).join(" + ");
+  const team2 = match.team2_ids.map(resolveName).join(" + ");
   return `${team1 || "Okänt lag"} vs ${team2 || "Okänt lag"}`;
 };
 
@@ -419,6 +427,8 @@ Deno.serve(async (req) => {
     const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startOfWeekISO = startOfWeek.toISOString();
     const endOfWeekISO = now.toISOString();
+    // Non-coder note: this label is used in the email subject and header to show which week it summarizes.
+    const weekLabel = `VECKA ${getIsoWeekNumber(now)} I PADEL`;
 
     const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url, featured_badge_id').eq('is_deleted', false);
     if (profilesError) {
@@ -631,7 +641,7 @@ Deno.serve(async (req) => {
                   <!-- Header -->
                   <tr>
                     <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">Veckan i Padel</h1>
+                      <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">${weekLabel}</h1>
                       <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
                     </td>
                   </tr>
@@ -692,7 +702,7 @@ Deno.serve(async (req) => {
                     <td style="padding: 0 40px 40px 40px;">
                       <div style="background-color: #000; border-radius: 8px; padding: 30px; text-align: center; color: #fff;">
                       <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
-                      <div style="margin: 14px 0 10px 0;">
+                      <div style="margin: 14px 0 10px 0; display: inline-block;">
                         ${renderAvatar(mvp.avatarUrl || null, mvp.name)}
                       </div>
                       <h3 style="margin: 0; font-size: 32px; color: #fff;">${mvp.name}</h3>
@@ -834,7 +844,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: 'Padel-appen <onboarding@resend.dev>',
           to: [email],
-          subject: 'Veckan i padel',
+          subject: weekLabel,
           html: html
         })
       });

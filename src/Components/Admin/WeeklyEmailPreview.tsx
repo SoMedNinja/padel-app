@@ -162,14 +162,12 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
     // Note for non-coders: this builds a readable "Team A vs Team B" label from player ids.
     const formatTeamLabel = (match: Match) => {
-      const team1 = match.team1_ids
-        .map(pid => activeProfiles.find(p => p.id === pid)?.name)
-        .filter(Boolean)
-        .join(" + ");
-      const team2 = match.team2_ids
-        .map(pid => activeProfiles.find(p => p.id === pid)?.name)
-        .filter(Boolean)
-        .join(" + ");
+      const resolveName = (pid: string | null) => {
+        if (!pid || pid === GUEST_ID) return "Gästspelare";
+        return activeProfiles.find(p => p.id === pid)?.name || "Gästspelare";
+      };
+      const team1 = match.team1_ids.map(resolveName).join(" + ");
+      const team2 = match.team2_ids.map(resolveName).join(" + ");
       return `${team1 || "Okänt lag"} vs ${team2 || "Okänt lag"}`;
     };
 
@@ -285,6 +283,9 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     };
 
     const stats = buildWeeklyStats(selectedPlayerId);
+    // Note for non-coders: this pulls the ISO week number so the email title can say "Week X".
+    const { week: weekNumber } = getISOWeek(end);
+    const weekLabel = `VECKA ${weekNumber} I PADEL`;
 
     // MVP & Highlights (simplified for preview)
     const findWeekHighlight = () => {
@@ -366,7 +367,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- Header -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">Veckan i Padel</h1>
+                    <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">${weekLabel}</h1>
                     <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
                   </td>
                 </tr>
@@ -427,7 +428,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                   <td style="padding: 0 40px 40px 40px;">
                     <div style="background-color: #000; border-radius: 8px; padding: 30px; text-align: center; color: #fff;">
                       <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
-                      <div style="margin: 14px 0 10px 0;">
+                      <div style="margin: 14px 0 10px 0; display: inline-block;">
                         ${renderAvatar(mvp.avatarUrl || null, mvp.name)}
                       </div>
                       <h3 style="margin: 0; font-size: 32px; color: #fff;">${mvp.name}</h3>
