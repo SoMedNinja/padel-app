@@ -396,5 +396,5 @@ entrypoint = "./functions/hello-world/index.ts"
 
 [functions.weekly-summary]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 entrypoint = "./functions/weekly-summary/index.ts"
