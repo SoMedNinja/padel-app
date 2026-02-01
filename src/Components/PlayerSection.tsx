@@ -596,10 +596,9 @@ const buildHeadToHeadServeStats = (
     const against = (isTeam1 && opponentTeam2) || (isTeam2 && opponentTeam1);
     if ((mode === "together" && !together) || (mode === "against" && !against)) return;
 
-    const normalizedServeFlag = normalizeServeFlag(match.team1_serves_first);
-    // Note for non-coders: missing serve flags are treated as "team 1 served first"
-    // since team A always opens the serve in this app.
-    const team1ServesFirst = normalizedServeFlag ?? true;
+    // Note for non-coders: Team A (team 1) always serves first in this app,
+    // so we can confidently treat team 1 as the starter for head-to-head splits.
+    const team1ServesFirst = true;
     const playerServedFirst = (team1ServesFirst && isTeam1) || (!team1ServesFirst && isTeam2);
 
     const team1Won = match.team1_sets > match.team2_sets;
