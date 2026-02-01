@@ -21,18 +21,21 @@ import { formatDate } from '../../utils/format';
 
 const LOGO_BOX_SIZE = 80;
 
+// Note for non-coders: we use flex here because it exports more reliably than CSS grid in saved images.
 const GSLogo = () => (
   <Box
     sx={{
       width: LOGO_BOX_SIZE,
       height: LOGO_BOX_SIZE,
       borderRadius: 3,
-      display: 'grid',
-      placeItems: 'center',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       background: 'linear-gradient(140deg, #b71c1c, #ff8f00)',
       color: '#fff',
       fontWeight: 900,
       fontSize: 32,
+      lineHeight: 1,
       letterSpacing: '0.08em',
       boxShadow: '0 12px 24px rgba(183, 28, 28, 0.3)',
     }}
@@ -1058,6 +1061,15 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
+                boxSizing: 'border-box',
+                // Note for non-coders: forcing border-box keeps borders inside the 1080×1080 export so layouts don't shift.
+                '& *, & *::before, & *::after': {
+                  boxSizing: 'border-box',
+                },
+                // Note for non-coders: exporting SVG icons is more stable when they render as block elements.
+                '& svg': {
+                  display: 'block',
+                },
               }}
             >
              {type === 'match' && data.match && data.highlight && (
