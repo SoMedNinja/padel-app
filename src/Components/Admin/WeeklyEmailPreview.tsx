@@ -488,21 +488,33 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         <!-- Note for non-coders: these meta tags hint email clients to keep the light theme instead of auto-darkening. -->
         <meta name="color-scheme" content="light">
         <meta name="supported-color-schemes" content="light">
+        <!-- Note for non-coders: "light only" is a stronger hint for some Apple mail clients. -->
+        <meta name="color-scheme" content="light only">
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
         <style>
           /* Note for non-coders: we explicitly declare a light color scheme to discourage email apps from auto-darkening. */
           :root { color-scheme: light; supported-color-schemes: light; }
           html, body { background-color: #f4f4f4; color: #1a1a1a; }
-          body { font-family: 'Inter', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a; }
+          body { font-family: 'Inter', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a; -webkit-text-size-adjust: 100%; }
           h1, h2, h3 { font-family: 'Playfair Display', serif; }
           /* Note for non-coders: this keeps key wrappers light even if a client tries to force dark mode. */
-          [data-ogsc] body, [data-ogsc] table, [data-ogsc] td { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
+          [data-ogsc] body,
+          [data-ogsc] table,
+          [data-ogsc] td,
+          [data-ogsc] p,
+          [data-ogsc] h1,
+          [data-ogsc] h2,
+          [data-ogsc] h3,
+          [data-ogsc] span,
+          [data-ogsc] div { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
           [data-ogsc] .email-container { background-color: #ffffff !important; }
+          [data-ogsc] .email-card { background-color: #fafafa !important; color: #1a1a1a !important; }
+          [data-ogsc] .email-invert-allowed { background-color: #111111 !important; color: #ffffff !important; }
           /* Note for non-coders: prefers-color-scheme is a fallback for clients that honor dark-mode CSS. */
           @media (prefers-color-scheme: dark) {
-            body, table, td { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
+            body, table, td, p, h1, h2, h3, span, div { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
             .email-container { background-color: #ffffff !important; }
-            .email-card { background-color: #ffffff !important; color: #1a1a1a !important; }
+            .email-card { background-color: #fafafa !important; color: #1a1a1a !important; }
             .email-invert-allowed { background-color: #111111 !important; color: #ffffff !important; }
           }
         </style>
