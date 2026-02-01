@@ -32,3 +32,8 @@
 **Vulnerability:** Relying on `user_metadata.role` for admin authorization in Edge Functions and rendering user-controlled names directly into email HTML.
 **Learning:** `user_metadata` is client-controlled and easily tampered with. Authorization must always rely on server-side sources like `app_metadata` or the database. Additionally, automated emails are a unique XSS/injection vector if user strings aren't escaped.
 **Prevention:** Always escape user input when building HTML for emails. Use database-backed roles even in Edge Functions to ensure authoritative authorization.
+
+## 2025-05-29 - Service-Layer Mass Assignment & Bulk Validation
+**Vulnerability:** Generic update and create methods that accepted `any` payloads, allowing potential modification of internal metadata (like `id`, `created_at`) or bypassing validation in bulk operations.
+**Learning:** Even with admin checks, service-layer methods should explicitly strip internal metadata from update payloads to provide defense-in-depth against accidental or malicious data corruption. Additionally, validation logic must account for bulk operations (arrays) to ensure every record meets security constraints.
+**Prevention:** Always strip `id`, `created_at`, and owner-specific fields from update payloads in services. When a service accepts both objects and arrays, normalize to an array and iterate to ensure uniform validation across all items.

@@ -61,11 +61,14 @@ export const matchService = {
       throw new Error("Du måste vara inloggad för att registrera en match.");
     }
 
-    if (match.team1_sets !== undefined && (typeof match.team1_sets !== "number" || match.team1_sets < 0)) {
-      throw new Error("Ogiltigt resultat för Lag 1");
-    }
-    if (match.team2_sets !== undefined && (typeof match.team2_sets !== "number" || match.team2_sets < 0)) {
-      throw new Error("Ogiltigt resultat för Lag 2");
+    const matches = Array.isArray(match) ? match : [match];
+    for (const m of matches) {
+      if (m.team1_sets !== undefined && (typeof m.team1_sets !== "number" || m.team1_sets < 0)) {
+        throw new Error("Ogiltigt resultat för Lag 1");
+      }
+      if (m.team2_sets !== undefined && (typeof m.team2_sets !== "number" || m.team2_sets < 0)) {
+        throw new Error("Ogiltigt resultat för Lag 2");
+      }
     }
 
     // Security: ensure created_by matches the current user to prevent spoofing
@@ -103,9 +106,15 @@ export const matchService = {
       throw new Error("Ogiltigt resultat för Lag 2");
     }
 
+    // Security: strip sensitive metadata fields that should not be manually updated
+    const filteredUpdates = { ...updates };
+    delete filteredUpdates.id;
+    delete filteredUpdates.created_at;
+    delete filteredUpdates.created_by;
+
     const { error } = await supabase
       .from("matches")
-      .update(updates)
+      .update(filteredUpdates)
       .eq("id", matchId);
     if (error) throw error;
   },
