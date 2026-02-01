@@ -25,6 +25,7 @@ import {
   StepLabel,
   Divider,
   CircularProgress,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -253,15 +254,17 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     )}
                   </Stack>
                   {avatarNotice && <Alert severity="warning" sx={{ py: 0 }}>{avatarNotice}</Alert>}
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<TrophyIcon />}
-                    onClick={() => setBadgeGalleryOpen(true)}
-                    sx={{ alignSelf: 'flex-start' }}
-                  >
-                    Välj merit
-                  </Button>
+                  <Tooltip title="Visa dina prestationer med en profilmerit" arrow>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<TrophyIcon />}
+                      onClick={() => setBadgeGalleryOpen(true)}
+                      sx={{ alignSelf: 'flex-start' }}
+                    >
+                      Välj merit
+                    </Button>
+                  </Tooltip>
                 </Stack>
               </Box>
 

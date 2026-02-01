@@ -210,16 +210,44 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                 }}
               >
                 <TableCell component="div" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none' }}>
-                  <TableSortLabel active={sortKey === "name"} direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("name")}>Spelare</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "name"}
+                    direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => toggleSort("name")}
+                    aria-label="Sortera efter spelare"
+                  >
+                    Spelare
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "elo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
-                  <TableSortLabel active={sortKey === "elo"} direction={sortKey === "elo" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("elo")}>ELO</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "elo"}
+                    direction={sortKey === "elo" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => toggleSort("elo")}
+                    aria-label="Sortera efter ELO"
+                  >
+                    ELO
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
-                  <TableSortLabel active={sortKey === "games"} direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("games")}>Matcher</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "games"}
+                    direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => toggleSort("games")}
+                    aria-label="Sortera efter matcher"
+                  >
+                    Matcher
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
-                  <TableSortLabel active={sortKey === "wins"} direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("wins")}>Vinster</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "wins"}
+                    direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => toggleSort("wins")}
+                    aria-label="Sortera efter vinster"
+                  >
+                    Vinster
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <Tooltip title="Antal vinster (V) eller förluster (F) i rad" arrow>
@@ -232,7 +260,14 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                   </Tooltip>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
-                  <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => toggleSort("winPct")}>Vinst %</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "winPct"}
+                    direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => toggleSort("winPct")}
+                    aria-label="Sortera efter vinstprocent"
+                  >
+                    Vinst %
+                  </TableSortLabel>
                 </TableCell>
               </TableRow>
             </TableHead>
