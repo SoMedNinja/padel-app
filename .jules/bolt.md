@@ -65,3 +65,7 @@
 ## 2026-05-22 - [Short-Circuiting Redundant Sorts]
 **Learning:** The application frequently sorts match lists by `created_at` DESC. Since the database/service often provides them in this order already, performing an $O(N \log N)$ sort and array clone on every render cycle is a major waste.
 **Action:** Implement a linear $O(N)$ check for sort order before calling `.sort()`. Return the original array reference if already sorted to preserve referential stability and skip the work.
+
+## 2026-06-15 - [Leveraging Pre-Calculated ELO Maps]
+**Learning:** Redundant scans through player histories ($O(P \times H)$) to calculate period-specific stats (MVP, Synergy, Highlights) become a massive bottleneck as the match history grows. Since the ELO calculation already builds the entire history in a single pass, it can produce $O(1)$ lookup maps for deltas and ratings.
+**Action:** Pass `eloDeltaByMatch` and `eloRatingByMatch` maps to all statistical utility functions. Replace $O(P \times H)$ history scans with $O(M \times P_{per\_match})$ lookups using these maps. This reduces computation from millions of iterations to a few thousand for a typical dashboard load.

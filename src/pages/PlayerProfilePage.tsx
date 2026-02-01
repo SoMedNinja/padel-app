@@ -27,7 +27,8 @@ export default function PlayerProfilePage() {
     profiles,
     isLoading: isLoadingElo,
     isError: isEloError,
-    error: eloError
+    error: eloError,
+    eloDeltaByMatch,
   } = useEloStats();
 
   useScrollToFragment();
@@ -157,6 +158,7 @@ export default function PlayerProfilePage() {
                     tournamentResults={tournamentResults}
                     onProfileUpdate={() => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() })}
                     mode="overview"
+                    eloDeltaByMatch={eloDeltaByMatch}
                   />
                 </Box>
               )}
@@ -171,6 +173,7 @@ export default function PlayerProfilePage() {
                     tournamentResults={tournamentResults}
                     onProfileUpdate={() => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() })}
                     mode="chart"
+                    eloDeltaByMatch={eloDeltaByMatch}
                   />
                 </Box>
               )}

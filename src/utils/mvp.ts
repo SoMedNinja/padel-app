@@ -35,8 +35,55 @@ export function calculateMvpScore(
 export function scorePlayersForMvp(
   matches: Match[],
   players: PlayerStats[],
-  minGames: number
+  minGames: number,
+  eloDeltaByMatch?: Record<string, Record<string, number>>
 ): MvpScoreResult[] {
+  // Optimization: If we have pre-calculated deltas, use them to avoid O(P * H) scan.
+  // This reduces complexity from O(Players * History) to O(Matches * 4).
+  if (eloDeltaByMatch) {
+    const stats: Record<string, { wins: number; games: number; periodEloGain: number }> = {};
+
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      const deltas = eloDeltaByMatch[m.id];
+      if (!deltas) continue;
+
+      const team1Won = m.team1_sets > m.team2_sets;
+      for (const pid in deltas) {
+        if (!stats[pid]) stats[pid] = { wins: 0, games: 0, periodEloGain: 0 };
+        const s = stats[pid];
+        s.games++;
+        const delta = deltas[pid];
+        s.periodEloGain += delta;
+
+        // Determine if this player won by checking team participation
+        const inT1 = m.team1_ids.includes(pid);
+        const won = (inT1 && team1Won) || (!inT1 && !team1Won);
+        if (won) s.wins++;
+      }
+    }
+
+    return players.map(player => {
+      const s = stats[player.id] || { wins: 0, games: 0, periodEloGain: 0 };
+      const winRate = s.games > 0 ? s.wins / s.games : 0;
+      const score = calculateMvpScore(s.wins, s.games, s.periodEloGain);
+
+      return {
+        name: player.name,
+        id: player.id,
+        wins: s.wins,
+        games: s.games,
+        winRate,
+        periodEloGain: s.periodEloGain,
+        eloNet: player.elo,
+        score,
+        isEligible: s.games >= minGames,
+        badgeId: player.featuredBadgeId || null,
+      };
+    });
+  }
+
+  // Fallback for when deltas aren't provided (e.g. tests or legacy calls)
   const matchIds = new Set<string>();
   for (let i = 0; i < matches.length; i++) {
     const id = matches[i].id;

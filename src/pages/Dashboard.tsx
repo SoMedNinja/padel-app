@@ -49,7 +49,8 @@ export default function Dashboard() {
     isLoading: isLoadingElo,
     isError: isEloError,
     error: eloError,
-    eloDeltaByMatch
+    eloDeltaByMatch,
+    eloRatingByMatch
   } = useEloStats();
 
   const {
@@ -86,8 +87,8 @@ export default function Dashboard() {
 
   const highlight = useMemo(() => {
     if (!allMatches.length || !eloPlayers.length) return null;
-    return findMatchHighlight(allMatches, eloPlayers);
-  }, [allMatches, eloPlayers]);
+    return findMatchHighlight(allMatches, eloPlayers, eloDeltaByMatch, eloRatingByMatch);
+  }, [allMatches, eloPlayers, eloDeltaByMatch, eloRatingByMatch]);
 
   useEffect(() => {
     if (highlight?.matchDate) {
@@ -199,6 +200,7 @@ export default function Dashboard() {
                       players={eloPlayers}
                       mode="evening"
                       title="Kvällens MVP"
+                      eloDeltaByMatch={eloDeltaByMatch}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
@@ -207,6 +209,7 @@ export default function Dashboard() {
                       players={eloPlayers}
                       mode="30days"
                       title="Månadens MVP"
+                      eloDeltaByMatch={eloDeltaByMatch}
                     />
                   </Grid>
                 </Grid>
@@ -225,6 +228,7 @@ export default function Dashboard() {
                       matches={filteredMatches}
                       allEloPlayers={eloPlayers}
                       tournamentResults={tournamentResults}
+                      eloDeltaByMatch={eloDeltaByMatch}
                     />
                   </Box>
                 )}
