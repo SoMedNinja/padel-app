@@ -303,7 +303,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                           onClick={() => toggleApproval(profile)}
                           disabled={toggleId === profile.id}
                         >
-                          {profile.is_approved ? "Återkalla" : "Godkänn"}
+                          {toggleId === profile.id ? "Sparar..." : (profile.is_approved ? "Återkalla" : "Godkänn")}
                         </Button>
                         <Tooltip title="Radera profil">
                           <span>

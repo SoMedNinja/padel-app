@@ -165,7 +165,7 @@ export default function MeritsSection({
                               startIcon={savingBadgeId === badge.id ? <CircularProgress size={16} color="inherit" /> : null}
                               sx={{ mt: 1, fontWeight: 700 }}
                             >
-                              {selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn"}
+                              {savingBadgeId === badge.id ? "Sparar..." : (selectedBadgeId === badge.id ? "Ta bort visning" : "Visa vid namn")}
                             </Button>
                           </Paper>
                         </Grid>

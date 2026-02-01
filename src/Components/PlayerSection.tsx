@@ -1140,7 +1140,7 @@ export default function PlayerSection({
                   startIcon={isSavingName ? <CircularProgress size={16} color="inherit" /> : null}
                   sx={{ mt: 0.5 }}
                 >
-                  Spara
+                  {isSavingName ? "Sparar..." : "Spara"}
                 </Button>
                 <Button
                   variant="outlined"
