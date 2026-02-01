@@ -445,8 +445,17 @@ export const buildAllPlayersBadgeStats = (
     opponentSets[profile.id] = new Set();
   });
 
+  // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort and copy.
+  let isSorted = true;
+  for (let i = 1; i < safeMatches.length; i++) {
+    if (safeMatches[i].created_at < safeMatches[i - 1].created_at) {
+      isSorted = false;
+      break;
+    }
+  }
+
   // Optimization: use string comparison for sorting to avoid expensive new Date() calls.
-  const sortedMatches = [...safeMatches].sort((a, b) => {
+  const sortedMatches = isSorted ? safeMatches : [...safeMatches].sort((a, b) => {
     if (a.created_at < b.created_at) return -1;
     if (a.created_at > b.created_at) return 1;
     return 0;

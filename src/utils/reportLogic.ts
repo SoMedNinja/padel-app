@@ -97,15 +97,31 @@ export const calculateEveningStats = (
     winRate: p.games ? p.wins / p.games : 0,
   }));
 
-  const mvp = players
-    .slice()
-    .sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      const winPctA = a.games ? a.wins / a.games : 0;
-      const winPctB = b.games ? b.wins / b.games : 0;
-      if (winPctB !== winPctA) return winPctB - winPctA;
-      return b.games - a.games;
-    })[0];
+  // Optimization: Find MVP in a single pass O(N) instead of O(N log N) sort
+  let mvp = null;
+  let winPctM = 0;
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i];
+    if (!mvp) {
+      mvp = p;
+      winPctM = p.games ? p.wins / p.games : 0;
+      continue;
+    }
+    const winPctP = p.games ? p.wins / p.games : 0;
+
+    let isBetter = false;
+    if (p.wins > mvp.wins) isBetter = true;
+    else if (p.wins === mvp.wins) {
+      if (winPctP > winPctM) isBetter = true;
+      else if (winPctP === winPctM) {
+        if (p.games > mvp.games) isBetter = true;
+      }
+    }
+    if (isBetter) {
+      mvp = p;
+      winPctM = winPctP;
+    }
+  }
 
   const leaders = (players as EveningRecapLeader[])
     .slice()
@@ -114,7 +130,18 @@ export const calculateEveningStats = (
 
   const mostRotations = [...players].sort((a, b) => b.rotations - a.rotations).slice(0, 3);
   const strongest = players.filter(p => p.games >= 2).sort((a, b) => b.winRate - a.winRate).slice(0, 3);
-  const marathon = [...players].sort((a, b) => (b.setsFor + b.setsAgainst) - (a.setsFor + a.setsAgainst))[0] || null;
+
+  // Optimization: Find marathon winner in a single pass O(N) instead of O(N log N) sort
+  let marathonPlayer = null;
+  let maxSets = -1;
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i];
+    const totalSets = p.setsFor + p.setsAgainst;
+    if (totalSets > maxSets) {
+      maxSets = totalSets;
+      marathonPlayer = p;
+    }
+  }
 
   return {
     dateLabel: formatFullDate(targetDate),
@@ -125,7 +152,7 @@ export const calculateEveningStats = (
     funFacts: {
       mostRotations,
       strongest,
-      marathon: marathon ? { name: marathon.name, sets: marathon.setsFor + marathon.setsAgainst } : null
+      marathon: marathonPlayer ? { name: marathonPlayer.name, sets: maxSets } : null
     }
   };
 };
