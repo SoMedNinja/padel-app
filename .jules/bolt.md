@@ -69,3 +69,11 @@
 ## 2026-06-15 - [Leveraging Pre-Calculated ELO Maps]
 **Learning:** Redundant scans through player histories ($O(P \times H)$) to calculate period-specific stats (MVP, Synergy, Highlights) become a massive bottleneck as the match history grows. Since the ELO calculation already builds the entire history in a single pass, it can produce $O(1)$ lookup maps for deltas and ratings.
 **Action:** Pass `eloDeltaByMatch` and `eloRatingByMatch` maps to all statistical utility functions. Replace $O(P \times H)$ history scans with $O(M \times P_{per\_match})$ lookups using these maps. This reduces computation from millions of iterations to a few thousand for a typical dashboard load.
+
+## 2026-02-01 - [Lazy Metadata Resolution in ELO loop]
+**Learning:** Calling metadata resolution utilities (like name or badge lookups) for every player in every match within the main ELO calculation loop results in thousands of redundant Map lookups and string operations.
+**Action:** Move metadata resolution inside the lazy initialization logic of the player record. Only resolve and store metadata when a player is first encountered in the history.
+
+## 2026-02-01 - [Single-Pass Loop for Array Transformation]
+**Learning:** Using chained array methods like `.filter().map().filter()` for ID-to-name resolution creates multiple intermediate array objects and iterates over the list multiple times.
+**Action:** Use a single `for` loop to perform filtering and mapping in a single pass with zero extra allocations.

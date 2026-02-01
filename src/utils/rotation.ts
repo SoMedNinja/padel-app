@@ -1,10 +1,18 @@
 import { getExpectedScore, ELO_BASELINE } from "./elo";
 
 export const getTeamAverageElo = (team: string[], eloMap: Record<string, number>) => {
-  const active = team.filter(id => id && id !== "guest-id");
-  if (!active.length) return ELO_BASELINE;
-  const total = active.reduce((sum, id) => sum + (eloMap[id] ?? ELO_BASELINE), 0);
-  return total / active.length;
+  let total = 0;
+  let count = 0;
+  // Optimization: Single pass instead of .filter().reduce() to avoid intermediate array allocation.
+  for (let i = 0; i < team.length; i++) {
+    const id = team[i];
+    if (id && id !== "guest-id") {
+      total += (eloMap[id] ?? ELO_BASELINE);
+      count++;
+    }
+  }
+  if (count === 0) return ELO_BASELINE;
+  return total / count;
 };
 
 export const getWinProbability = getExpectedScore;

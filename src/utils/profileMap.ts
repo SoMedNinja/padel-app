@@ -40,10 +40,19 @@ export const resolveTeamIds = (
 };
 
 export const idsToNames = (ids: (string | null)[], profileMap: Map<string, Profile>): string[] => {
-  return ids
-    .filter(id => id !== undefined && id !== "")
-    .map(id => getIdDisplayName(id, profileMap))
-    .filter(name => name !== "Okänd");
+  const result: string[] = [];
+  // Optimization: Single pass with O(N) instead of multiple .filter().map().filter()
+  // This avoids intermediate array allocations and redundant iterations.
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    if (id !== undefined && id !== null && id !== "") {
+      const name = getIdDisplayName(id, profileMap);
+      if (name !== "Okänd") {
+        result.push(name);
+      }
+    }
+  }
+  return result;
 };
 
 export const resolveTeamNames = (
@@ -57,7 +66,12 @@ export const resolveTeamNames = (
 
   if (Array.isArray(names)) return names;
   if (typeof names === "string") {
-    return names.split(",").map(n => n.trim()).filter(Boolean);
+    const trimmed = names.trim();
+    if (!trimmed) return [];
+    if (trimmed.includes(",")) {
+      return trimmed.split(",").map(n => n.trim()).filter(Boolean);
+    }
+    return [trimmed];
   }
   return [];
 };
