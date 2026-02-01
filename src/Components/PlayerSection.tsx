@@ -144,7 +144,12 @@ const renderPlayerOptionLabel = (profile: Profile | null | undefined): ReactNode
 const normalizeTeam = (team: any): string[] =>
   Array.isArray(team) ? team.filter(id => id && id !== GUEST_ID) : [];
 
-const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: PlayerStats[]) => {
+const buildMvpSummary = (
+  matches: Match[],
+  profiles: Profile[],
+  allEloPlayers: PlayerStats[],
+  eloDeltaByMatch?: Record<string, Record<string, number>>
+) => {
   const profileMap = makeProfileMap(profiles);
   const dateMap = new Map<string, Match[]>();
   const matchEntries = matches
@@ -279,7 +284,8 @@ const buildMvpSummary = (matches: Match[], profiles: Profile[], allEloPlayers: P
 
   const eveningMvpCounts: Record<string, number> = {};
   dateMap.forEach((dayMatches) => {
-    const results = scorePlayersForMvp(dayMatches, allEloPlayers, EVENING_MIN_GAMES);
+    // Optimization: passing eloDeltaByMatch here avoids O(P * H) scan for every day
+    const results = scorePlayersForMvp(dayMatches, allEloPlayers, EVENING_MIN_GAMES, eloDeltaByMatch);
     const winner = getMvpWinner(results);
     if (!winner) return;
     eveningMvpCounts[winner.name] = (eveningMvpCounts[winner.name] || 0) + 1;
@@ -683,6 +689,7 @@ interface PlayerSectionProps {
   tournamentResults?: TournamentResult[];
   onProfileUpdate?: (profile: Profile) => void;
   mode?: "overview" | "chart";
+  eloDeltaByMatch?: Record<string, Record<string, number>>;
 }
 
 export default function PlayerSection({
@@ -693,6 +700,7 @@ export default function PlayerSection({
   tournamentResults = [],
   onProfileUpdate,
   mode = "overview",
+  eloDeltaByMatch,
 }: PlayerSectionProps) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
@@ -817,9 +825,16 @@ export default function PlayerSection({
       .reduce((sum, h) => sum + h.delta, 0);
   }, [globalStats]);
 
-  // Optimization: memoize synergy/rivalry stats to avoid expensive O(M) re-scans on every render
-  const synergy = useMemo(() => getPartnerSynergy(matches, playerName), [matches, playerName]);
-  const rival = useMemo(() => getToughestOpponent(matches, playerName), [matches, playerName]);
+  // Optimization: memoize synergy/rivalry stats to avoid expensive O(M) re-scans on every render.
+  // Using eloDeltaByMatch and user.id avoids expensive O(M * P) string-based lookups.
+  const synergy = useMemo(
+    () => getPartnerSynergy(matches, playerName, user?.id, eloDeltaByMatch),
+    [matches, playerName, user?.id, eloDeltaByMatch]
+  );
+  const rival = useMemo(
+    () => getToughestOpponent(matches, playerName, user?.id, eloDeltaByMatch),
+    [matches, playerName, user?.id, eloDeltaByMatch]
+  );
 
   const tournamentMerits = useMemo(() => {
     if (!user?.id) return [];
@@ -1314,6 +1329,7 @@ interface HeadToHeadSectionProps {
   matches?: Match[];
   allEloPlayers?: PlayerStats[];
   tournamentResults?: TournamentResult[];
+  eloDeltaByMatch?: Record<string, Record<string, number>>;
 }
 
 export function HeadToHeadSection({
@@ -1321,7 +1337,8 @@ export function HeadToHeadSection({
   profiles = [],
   matches = [],
   allEloPlayers = [],
-  tournamentResults = []
+  tournamentResults = [],
+  eloDeltaByMatch,
 }: HeadToHeadSectionProps) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
@@ -1347,13 +1364,29 @@ export function HeadToHeadSection({
     "";
 
   const playerDeltaMap = useMemo(() => {
+    // Optimization: If eloDeltaByMatch is passed, we can build this map in O(M_player)
+    // instead of scanning all player history.
     const map = new Map<string, number>();
-    const currentPlayerStats = allEloPlayers.find(p => p.id === user?.id);
+    const uid = user?.id;
+    if (!uid) return map;
+
+    if (eloDeltaByMatch) {
+      for (let i = 0; i < matches.length; i++) {
+        const mid = matches[i].id;
+        const delta = eloDeltaByMatch[mid]?.[uid];
+        if (delta !== undefined) {
+          map.set(mid, delta);
+        }
+      }
+      return map;
+    }
+
+    const currentPlayerStats = allEloPlayers.find(p => p.id === uid);
     currentPlayerStats?.history.forEach(h => {
       map.set(h.matchId, h.delta);
     });
     return map;
-  }, [allEloPlayers, user?.id]);
+  }, [allEloPlayers, user?.id, eloDeltaByMatch, matches]);
 
   const headToHead = useMemo(
     () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap),
@@ -1385,8 +1418,8 @@ export function HeadToHeadSection({
   );
 
   const mvpSummary = useMemo(
-    () => buildMvpSummary(matches, profiles, allEloPlayers),
-    [matches, profiles, allEloPlayers]
+    () => buildMvpSummary(matches, profiles, allEloPlayers, eloDeltaByMatch),
+    [matches, profiles, allEloPlayers, eloDeltaByMatch]
   );
 
   const opponentProfile = selectablePlayers.find(player => player.id === resolvedOpponentId);

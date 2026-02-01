@@ -11,7 +11,9 @@ export interface MatchHighlight {
 
 export const findMatchHighlight = (
   allMatches: Match[],
-  playerStats: PlayerStats[]
+  playerStats: PlayerStats[],
+  eloDeltaByMatch?: Record<string, Record<string, number>>,
+  eloRatingByMatch?: Record<string, Record<string, number>>
 ): MatchHighlight | null => {
   if (!allMatches.length || !playerStats.length) return null;
 
@@ -33,17 +35,23 @@ export const findMatchHighlight = (
   // 2. Pre-index player history for $O(1)$ lookup in the match loop
   // matchHistoryMap: MatchID -> PlayerID -> HistoryEntry
   const matchHistoryMap = new Map<string, Map<string, any>>();
-  for (let i = 0; i < latestMatches.length; i++) {
-    matchHistoryMap.set(latestMatches[i].id, new Map());
-  }
 
-  for (let i = 0; i < playerStats.length; i++) {
-    const p = playerStats[i];
-    for (let j = 0; j < p.history.length; j++) {
-      const h = p.history[j];
-      const playerMatchMap = matchHistoryMap.get(h.matchId);
-      if (playerMatchMap) {
-        playerMatchMap.set(p.id, h);
+  // Optimization: If we have pre-calculated deltas/ratings, we skip the O(P * H) scan.
+  const hasPreCalculatedData = eloDeltaByMatch && eloRatingByMatch;
+
+  if (!hasPreCalculatedData) {
+    for (let i = 0; i < latestMatches.length; i++) {
+      matchHistoryMap.set(latestMatches[i].id, new Map());
+    }
+
+    for (let i = 0; i < playerStats.length; i++) {
+      const p = playerStats[i];
+      for (let j = 0; j < p.history.length; j++) {
+        const h = p.history[j];
+        const playerMatchMap = matchHistoryMap.get(h.matchId);
+        if (playerMatchMap) {
+          playerMatchMap.set(p.id, h);
+        }
       }
     }
   }
@@ -51,9 +59,19 @@ export const findMatchHighlight = (
   const highlights: { match: Match; score: number; type: MatchHighlight['reason']; title: string; description: string }[] = [];
 
   latestMatches.forEach(match => {
-    // Get pre-match ELO for all players from pre-indexed map
+    // Get pre-match ELO for all players
     const getPreElo = (id: string | null) => {
       if (!id) return 1000;
+
+      if (hasPreCalculatedData) {
+        const rating = eloRatingByMatch[match.id]?.[id];
+        const delta = eloDeltaByMatch[match.id]?.[id];
+        if (rating !== undefined && delta !== undefined) {
+          return rating - delta;
+        }
+        return 1000;
+      }
+
       const historyEntry = matchHistoryMap.get(match.id)?.get(id);
       return historyEntry ? historyEntry.elo - historyEntry.delta : 1000;
     };

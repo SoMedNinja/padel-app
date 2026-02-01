@@ -15,6 +15,7 @@ interface MVPProps {
   players?: PlayerStats[];
   mode: "evening" | "30days";
   title: string;
+  eloDeltaByMatch?: Record<string, Record<string, number>>;
 }
 
 export default function MVP({
@@ -22,6 +23,7 @@ export default function MVP({
   players = [],
   mode,
   title,
+  eloDeltaByMatch,
 }: MVPProps) {
   const mvp = useMemo(() => {
     if (!matches.length) return null;
@@ -60,9 +62,9 @@ export default function MVP({
 
     const minGames = mode === "evening" ? EVENING_MIN_GAMES : MONTH_MIN_GAMES;
 
-    const results = scorePlayersForMvp(relevantMatches, players, minGames);
+    const results = scorePlayersForMvp(relevantMatches, players, minGames, eloDeltaByMatch);
     return getMvpWinner(results);
-  }, [matches, players, mode]);
+  }, [matches, players, mode, eloDeltaByMatch]);
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
   const explanation = mode === "evening"
