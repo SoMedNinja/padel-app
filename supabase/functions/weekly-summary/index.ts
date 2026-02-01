@@ -68,10 +68,12 @@ const getKFactor = (games = 0) => {
 const getExpectedScore = (rating: number, opponentRating: number) =>
   1 / (1 + Math.pow(10, (opponentRating - rating) / EXPECTED_SCORE_DIVISOR));
 const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
+  if (!Number.isFinite(team1Sets) || !Number.isFinite(team2Sets)) return 1;
   const margin = Math.min(2, Math.abs(team1Sets - team2Sets));
   return 1 + Math.min(MAX_MARGIN_MULTIPLIER - 1, margin * 0.1);
 };
 const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
+  if (!Number.isFinite(playerElo) || !Number.isFinite(teamAverageElo)) return 1;
   const adjustment = 1 + (teamAverageElo - playerElo) / PLAYER_WEIGHT_DIVISOR;
   return clamp(adjustment, MIN_PLAYER_WEIGHT, MAX_PLAYER_WEIGHT);
 };
@@ -162,6 +164,7 @@ const renderAvatar = (avatarUrl: string | null | undefined, name: string) => {
 const buildTeamLabel = (match: Match, profiles: Profile[]) => {
   const resolveName = (pid: string | null) => {
     if (!pid || pid === GUEST_ID) return "Gästspelare";
+    if (pid.startsWith("name:")) return pid.replace("name:", "");
     return profiles.find(p => p.id === pid)?.name || "Gästspelare";
   };
   const team1 = match.team1_ids.map(resolveName).join(" + ");
@@ -292,8 +295,15 @@ const getBearerToken = (req: Request) => {
 // --- CORE LOGIC ---
 function calculateEloAt(matches: Match[], profiles: Profile[], untilDate?: string): Record<string, PlayerStats> {
   const players: Record<string, PlayerStats> = {};
+  const ensurePlayer = (id: string) => {
+    if (players[id]) return;
+    const p = profiles.find(p => p.id === id);
+    const name = p ? p.name : (id.startsWith("name:") ? id.replace("name:", "") : "Okänd");
+    players[id] = { id, name, elo: ELO_BASELINE, wins: 0, losses: 0, games: 0, history: [] };
+  };
+
   profiles.forEach(p => {
-    players[p.id] = { id: p.id, name: p.name, elo: ELO_BASELINE, wins: 0, losses: 0, games: 0, history: [] };
+    ensurePlayer(p.id);
   });
 
   const sortedMatches = [...matches]
@@ -301,10 +311,20 @@ function calculateEloAt(matches: Match[], profiles: Profile[], untilDate?: strin
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   sortedMatches.forEach(m => {
-    const t1Ids = m.team1_ids.filter(id => id && id !== GUEST_ID) as string[];
-    const t2Ids = m.team2_ids.filter(id => id && id !== GUEST_ID) as string[];
-    const t1Active = t1Ids.filter(id => players[id]);
-    const t2Active = t2Ids.filter(id => players[id]);
+    const t1Raw = m.team1_ids.filter(id => id && id !== GUEST_ID) as string[];
+    const t2Raw = m.team2_ids.filter(id => id && id !== GUEST_ID) as string[];
+
+    const t1Active: string[] = [];
+    const t2Active: string[] = [];
+
+    t1Raw.forEach(id => {
+      ensurePlayer(id);
+      if (players[id]) t1Active.push(id);
+    });
+    t2Raw.forEach(id => {
+      ensurePlayer(id);
+      if (players[id]) t2Active.push(id);
+    });
 
     if (!t1Active.length || !t2Active.length) return;
 
@@ -369,7 +389,9 @@ function findWeekHighlight(
     const getPreElo = (id: string | null) => {
       if (!id || id === GUEST_ID) return 1000;
       const pEnd = playersEnd[id];
-      if (!pEnd) return 1000;
+      // If pEnd doesn't exist, it might be a guest not active in the current calculation
+      if (!pEnd) return playersStart[id]?.elo ?? 1000;
+
       const matchIdx = pEnd.history.findIndex(h => h.matchId === match.id);
       if (matchIdx === -1) return playersStart[id]?.elo ?? 1000;
 
