@@ -1489,6 +1489,22 @@ export function HeadToHeadSection({
   const opponentMvpDays = mvpSummary.monthlyMvpDays[opponentName] || 0;
   const playerEveningMvps = mvpSummary.eveningMvpCounts[playerName] || 0;
   const opponentEveningMvps = mvpSummary.eveningMvpCounts[opponentName] || 0;
+  // Note for non-coders: these helpers build the colored win/loss text without repeating UI markup everywhere.
+  const renderWinLossSplit = (wins: number, losses: number) => (
+    <>
+      <Box component="span" sx={{ color: 'success.main' }}>{wins}</Box>
+      <Box component="span" sx={{ color: 'text.secondary', mx: 0.5 }}>–</Box>
+      <Box component="span" sx={{ color: 'error.main' }}>{losses}</Box>
+    </>
+  );
+  // Note for non-coders: set scores are shown as "you-opponent", so we color each side separately for clarity.
+  const renderSetSplit = (setsFor: number, setsAgainst: number) => (
+    <>
+      <Box component="span" sx={{ color: 'success.main' }}>{setsFor}</Box>
+      <Box component="span" sx={{ color: 'text.secondary', mx: 0.5 }}>–</Box>
+      <Box component="span" sx={{ color: 'error.main' }}>{setsAgainst}</Box>
+    </>
+  );
 
   return (
     <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
@@ -1570,15 +1586,15 @@ export function HeadToHeadSection({
                 { label: "Vinst %", value: `${percent(headToHead.wins, headToHead.losses)}%` },
                 {
                   label: "Totala set",
-                  value: `${headToHead.totalSetsFor} – ${headToHead.totalSetsAgainst}`,
+                  value: renderSetSplit(headToHead.totalSetsFor, headToHead.totalSetsAgainst),
                 },
                 {
-                  label: "Serve först (du)",
-                  value: renderWinLossSplit(headToHeadServeStats.serveFirstWins, headToHeadServeStats.serveFirstLosses, true),
+                  label: "Din vinst/förlust med start-serve",
+                  value: renderWinLossSplit(headToHeadServeStats.serveFirstWins, headToHeadServeStats.serveFirstLosses),
                 },
                 {
-                  label: "Serve andra (du)",
-                  value: renderWinLossSplit(headToHeadServeStats.serveSecondWins, headToHeadServeStats.serveSecondLosses, true),
+                  label: "Din vinst/förlust utan start-serve",
+                  value: renderWinLossSplit(headToHeadServeStats.serveSecondWins, headToHeadServeStats.serveSecondLosses),
                 },
                 ...(mode === "against" ? [
                   {
