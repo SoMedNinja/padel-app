@@ -93,57 +93,78 @@ export default function Heatmap({
   }, [profiles]);
 
   const sortedMatches = useMemo(() => {
+    // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort.
+    let isSorted = true;
+    for (let i = 1; i < matches.length; i++) {
+      if (matches[i].created_at > matches[i - 1].created_at) {
+        isSorted = false;
+        break;
+      }
+    }
+
+    if (isSorted) return matches;
+
     // Optimization: Use ISO string lexicographical comparison instead of expensive new Date() calls.
     return [...matches].sort(
       (a, b) => (b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : 0)
     );
   }, [matches]);
 
-  const combos = useMemo(() => {
-    const comboMap: Record<string, Combo> = {};
-    sortedMatches.forEach((m) => {
-      const team1 = resolveTeamNames(m.team1_ids, m.team1, profileMap);
-      const team2 = resolveTeamNames(m.team2_ids, m.team2, profileMap);
-      const normalizedServeFlag = normalizeServeFlag(m.team1_serves_first);
-      const team1ServedFirst = normalizedServeFlag === true;
-      const team2ServedFirst = normalizedServeFlag === false;
-      const teams = [
-        { players: team1, won: m.team1_sets > m.team2_sets, servedFirst: team1ServedFirst },
-        { players: team2, won: m.team2_sets > m.team1_sets, servedFirst: team2ServedFirst },
-      ];
+  // Optimization: Pre-resolve match data to avoid expensive ID resolution and normalization in the hot loop.
+  const resolvedMatches = useMemo(() => {
+    const guestKey = normalizeProfileName(GUEST_NAME);
+    return sortedMatches.map(m => {
+      const team1Raw = resolveTeamNames(m.team1_ids, m.team1, profileMap);
+      const team2Raw = resolveTeamNames(m.team2_ids, m.team2, profileMap);
 
-      teams.forEach(({ players, won, servedFirst }) => {
-        if (!Array.isArray(players) || !players.length) return;
-
-        // Optimization: Single-pass player resolution instead of map() + filter()
-        const resolvedPlayers: string[] = [];
+      const resolve = (players: string[]) => {
+        const resolved: string[] = [];
+        let hasGuest = false;
+        let hasUnknown = false;
         for (let i = 0; i < players.length; i++) {
           const key = normalizeProfileName(players[i]);
           if (!key) continue;
-          const resolved = allowedNameMap.get(key);
-          if (resolved) resolvedPlayers.push(resolved);
-        }
-
-        if (!resolvedPlayers.length) return;
-
-        // Optimization: Early return for common filter patterns
-        let hasGuest = false;
-        let hasUnknown = false;
-        const guestKey = normalizeProfileName(GUEST_NAME);
-
-        for (let i = 0; i < resolvedPlayers.length; i++) {
-          const pk = normalizeProfileName(resolvedPlayers[i]);
-          if (pk === guestKey) {
+          if (key === guestKey) {
             hasGuest = true;
             break;
           }
-          if (allowedNameMap.size && !allowedNameMap.has(pk)) {
+          const name = allowedNameMap.get(key);
+          if (name) {
+            resolved.push(name);
+          } else if (allowedNameMap.size) {
             hasUnknown = true;
             break;
           }
         }
+        return { resolved, hasGuest, hasUnknown };
+      };
 
-        if (hasGuest || hasUnknown) return;
+      const t1 = resolve(team1Raw);
+      const t2 = resolve(team2Raw);
+
+      return {
+        m,
+        t1,
+        t2,
+        normalizedServeFlag: normalizeServeFlag(m.team1_serves_first)
+      };
+    });
+  }, [sortedMatches, profileMap, allowedNameMap]);
+
+  const combos = useMemo(() => {
+    const comboMap: Record<string, Combo> = {};
+    resolvedMatches.forEach(({ m, t1, t2, normalizedServeFlag }) => {
+      const team1ServedFirst = normalizedServeFlag === true;
+      const team2ServedFirst = normalizedServeFlag === false;
+      const teams = [
+        { data: t1, won: m.team1_sets > m.team2_sets, servedFirst: team1ServedFirst },
+        { data: t2, won: m.team2_sets > m.team1_sets, servedFirst: team2ServedFirst },
+      ];
+
+      teams.forEach(({ data, won, servedFirst }) => {
+        if (!data.resolved.length || data.hasGuest || data.hasUnknown) return;
+
+        const resolvedPlayers = data.resolved;
 
         // Optimization: Sort once and reuse for both key and the Combo object
         const sortedPair = resolvedPlayers.length > 1 ? [...resolvedPlayers].sort() : resolvedPlayers;
@@ -178,7 +199,7 @@ export default function Heatmap({
       });
     });
     return comboMap;
-  }, [sortedMatches, profileMap, allowedNameMap]);
+  }, [resolvedMatches]);
 
   // Optimization: Memoize the baseline rows to avoid expensive statistics re-calculation on every render
   const allRows = useMemo(() => {
