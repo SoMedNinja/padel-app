@@ -150,13 +150,23 @@ const buildPlayerDelta = ({
   );
 };
 
-const renderAvatar = (avatarUrl: string | null | undefined, name: string) => {
+const renderAvatar = (avatarUrl: string | null | undefined, name: string, size = 56) => {
   // Non-coder note: this helper builds the round avatar HTML used in multiple email sections.
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   return avatarUrl
-    ? `<img src="${avatarUrl}" alt="${name}" width="56" height="56" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
-    : `<div style="width: 56px; height: 56px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">${initial}</div>`;
+    ? `<img src="${avatarUrl}" alt="${name}" width="${size}" height="${size}" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
+    : `<div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: ${Math.max(12, Math.round(size / 2.8))}px;">${initial}</div>`;
 };
+
+// Non-coder note: this formats dates like "12 maj" so we can label result groups.
+const formatShortDate = (value: string | Date) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short" }).format(date);
+};
+
+// Non-coder note: this keeps scores consistent across the email.
+const formatScore = (s1: number, s2: number) => `${s1}–${s2}`;
 
 // Non-coder note: this helper turns player ids into a readable "Team A vs Team B" label.
 const buildTeamLabel = (match: Match, profiles: Profile[]) => {
@@ -700,6 +710,22 @@ Deno.serve(async (req) => {
         })
         .sort((a, b) => a.margin - b.margin)[0];
 
+      // Non-coder note: we group scores by date so one date label can cover multiple games.
+      const resultsByDate = [...pMatches]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .reduce((acc: { dateLabel: string; scores: string[] }[], match) => {
+          const dateLabel = formatShortDate(match.created_at);
+          if (!dateLabel) return acc;
+          const scoreLabel = formatScore(match.team1_sets, match.team2_sets);
+          const existing = acc.find(entry => entry.dateLabel === dateLabel);
+          if (existing) {
+            existing.scores.push(scoreLabel);
+          } else {
+            acc.push({ dateLabel, scores: [scoreLabel] });
+          }
+          return acc;
+        }, []);
+
       weeklyStats[id] = {
         name: pEnd.name,
         matchesPlayed: pMatches.length,
@@ -721,7 +747,7 @@ Deno.serve(async (req) => {
           }
           : null,
         recentResults,
-        results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
+        resultsByDate,
         wins,
         id,
         featuredBadgeId: profile?.featured_badge_id || null
@@ -737,11 +763,31 @@ Deno.serve(async (req) => {
 
     const mvp = getMvpWinner(mvpCandidates);
     const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart, profiles);
+    // Non-coder note: we compare the current leaderboard to last week's to show movement arrows.
+    const previousRanks = new Map(
+      Object.values(eloStart)
+        .sort((a, b) => b.elo - a.elo)
+        .map((player, index) => [player.id, index + 1])
+    );
     // Non-coder note: we keep the leaderboard short so the email matches the preview layout.
     const leaderboard = Object.values(eloEnd)
       .sort((a, b) => b.elo - a.elo)
       .slice(0, 5)
-      .map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
+      .map((player, index) => {
+        const currentRank = index + 1;
+        const previousRank = previousRanks.get(player.id);
+        const movement = previousRank ? previousRank - currentRank : 0;
+        const trend = movement > 0 ? "up" : movement < 0 ? "down" : "same";
+        const avatarUrl = profiles.find(p => p.id === player.id)?.avatar_url || null;
+        return {
+          id: player.id,
+          name: player.name,
+          elo: player.elo,
+          rank: currentRank,
+          trend,
+          avatarUrl,
+        };
+      });
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) throw new Error("RESEND_API_KEY missing");
@@ -756,6 +802,15 @@ Deno.serve(async (req) => {
       const deltaSign = stats.eloDelta > 0 ? "+" : "";
       // Non-coder note: we turn the stored badge id into a short label shown beside the player name.
       const featuredBadgeLabel = getBadgeLabelById(stats.featuredBadgeId);
+      // Non-coder note: arrows make it easy to spot who climbed or fell compared to last week.
+      const renderTrendIndicator = (trend: "up" | "down" | "same") => {
+        const config = trend === "up"
+          ? { symbol: "▲", color: "#2e7d32" }
+          : trend === "down"
+            ? { symbol: "▼", color: "#d32f2f" }
+            : { symbol: "→", color: "#999" };
+        return `<span style="color: ${config.color}; font-weight: 700; margin-right: 6px;">${config.symbol}</span>`;
+      };
       // Non-coder note: the form curve turns W/L into SVG points so it renders in email clients.
       const sparklinePoints = stats.recentResults
         .map((result: string, index: number) => {
@@ -943,25 +998,36 @@ Deno.serve(async (req) => {
                   </tr>
                   ` : ""}
                   <!-- Results Section -->
-                  ${stats.results.length > 0 ? `
+                  ${stats.resultsByDate.length > 0 ? `
                   <tr>
                     <td style="padding: 0 40px 40px 40px;">
                       <h3 style="margin: 0 0 10px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Dina resultat</h3>
-                      <p style="margin: 0; font-size: 14px; color: #666;">${stats.results.join(', ')}</p>
+                      ${stats.resultsByDate.map((entry: { dateLabel: string; scores: string[] }) => `
+                        <p style="margin: 0 0 6px 0; font-size: 14px; color: #666;">
+                          <span style="font-weight: 600; color: #111;">${entry.dateLabel}:</span> ${entry.scores.join(", ")}
+                        </p>
+                      `).join("")}
                     </td>
                   </tr>
                   ` : ""}
                   <!-- Leaderboard Section -->
                   <tr>
                     <td style="padding: 0 40px 40px 40px;">
-                      <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Topplistan just nu</h3>
-                      <table width="100%" border="0" cellspacing="0" cellpadding="5">
-                        ${leaderboard.map(line => `
+                    <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Topplistan just nu</h3>
+                    <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                        ${leaderboard.map(entry => `
                           <tr>
-                            <td style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">${line}</td>
+                            <td width="24" align="center" style="font-size: 13px; color: #999; border-bottom: 1px solid #eee; padding: 10px 0;">${entry.rank}</td>
+                            <td width="44" align="center" style="border-bottom: 1px solid #eee; padding: 10px 0;">
+                              ${renderAvatar(entry.avatarUrl, entry.name, 32)}
+                            </td>
+                            <td style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">
+                              ${renderTrendIndicator(entry.trend)}${entry.name}
+                            </td>
+                            <td align="right" style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">${entry.elo}</td>
                           </tr>
                         `).join('')}
-                      </table>
+                    </table>
                     </td>
                   </tr>
                   <!-- Footer -->
