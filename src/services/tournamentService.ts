@@ -103,6 +103,9 @@ export const tournamentService = {
     if (!isAdmin) throw new Error("Endast administratörer kan ändra turneringar.");
 
     const sanitized = { ...updates };
+    delete sanitized.id;
+    delete sanitized.created_at;
+
     if (sanitized.name !== undefined) {
       sanitized.name = sanitized.name?.trim();
       if (sanitized.name === "") {
@@ -143,6 +146,8 @@ export const tournamentService = {
       name: tournament.name?.trim(),
       location: tournament.location?.trim(),
     };
+    delete sanitized.id;
+    delete sanitized.created_at;
 
     if (!sanitized.name) {
       throw new Error("Turneringsnamn får inte vara tomt");
@@ -177,9 +182,14 @@ export const tournamentService = {
     const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
     if (!isAdmin) throw new Error("Endast administratörer kan uppdatera rundor.");
 
+    const filteredUpdates = { ...updates };
+    delete filteredUpdates.id;
+    delete filteredUpdates.tournament_id;
+    delete filteredUpdates.created_at;
+
     const { error } = await supabase
       .from("mexicana_rounds")
-      .update(updates)
+      .update(filteredUpdates)
       .eq("id", roundId);
     if (error) throw error;
   }

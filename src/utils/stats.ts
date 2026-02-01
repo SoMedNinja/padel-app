@@ -160,11 +160,16 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
     const synergy: Record<string, { games: number; wins: number; eloGain: number }> = {};
     const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+    const isDescending = matches.length > 1 && matches[0].created_at > matches[matches.length - 1].created_at;
+
     if (eloDeltaByMatch && playerId) {
       // High-performance path: use pre-calculated deltas and player IDs
       for (let i = 0; i < matches.length; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) break;
+        if (m.created_at < thirtyDaysAgoISO) {
+          if (isDescending) break;
+          continue;
+        }
         if (!eloDeltaByMatch[m.id]?.[playerId]) continue;
 
         // Optimization: use direct indexed access instead of includes() + find()
@@ -186,7 +191,10 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
       // Fallback: use player name (legacy/less efficient)
       for (let i = 0; i < matches.length; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) break;
+        if (m.created_at < thirtyDaysAgoISO) {
+          if (isDescending) break;
+          continue;
+        }
 
         const team1 = normalizeTeam(m.team1);
         const team2 = normalizeTeam(m.team2);
@@ -246,11 +254,16 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
     const rivals: Record<string, { games: number; losses: number }> = {};
     const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+    const isDescending = matches.length > 1 && matches[0].created_at > matches[matches.length - 1].created_at;
+
     if (eloDeltaByMatch && playerId) {
       // High-performance path: use pre-calculated deltas and player IDs
       for (let i = 0; i < matches.length; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) break;
+        if (m.created_at < thirtyDaysAgoISO) {
+          if (isDescending) break;
+          continue;
+        }
         if (!eloDeltaByMatch[m.id]?.[playerId]) continue;
 
         // Optimization: use direct indexed access instead of includes()
@@ -271,7 +284,10 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
       // Fallback: use player name (legacy/less efficient)
       for (let i = 0; i < matches.length; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) break;
+        if (m.created_at < thirtyDaysAgoISO) {
+          if (isDescending) break;
+          continue;
+        }
 
         const team1 = normalizeTeam(m.team1);
         const team2 = normalizeTeam(m.team2);

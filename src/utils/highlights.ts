@@ -90,7 +90,7 @@ export const findMatchHighlight = (
     const totalElo = avg1 + avg2;
 
     // 1. Upset?
-    if (winnerExp < 0.45) {
+    if (winnerExp < 0.35) {
       highlights.push({
         match,
         type: 'upset',
@@ -123,13 +123,15 @@ export const findMatchHighlight = (
     }
 
     // 4. Titans?
-    highlights.push({
-      match,
-      type: 'titans',
-      score: (totalElo - 2000) / 10,
-      title: 'Giganternas Kamp',
-      description: `Mötet med kvällens högsta samlade ELO-poäng (${Math.round(totalElo)}).`
-    });
+    if (totalElo > 2200) {
+      highlights.push({
+        match,
+        type: 'titans',
+        score: (totalElo - 2000) / 10,
+        title: 'Giganternas Kamp',
+        description: `Mötet med kvällens högsta samlade ELO-poäng (${Math.round(totalElo)}).`
+      });
+    }
   });
 
   // Pick the best highlight
