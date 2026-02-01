@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -10,12 +10,12 @@ import {
   ReferenceLine
 } from "recharts";
 import { getPlayerColor } from "../utils/colors";
-import { Typography, Box, Paper } from "@mui/material";
+import { Typography, Box, Paper, TextField } from "@mui/material";
 import { formatDate, formatShortDate } from "../utils/format";
 
 export default function EloTrend({ players = [] }) {
-  const { data, playerNames } = useMemo(() => {
-    if (!players.length) return { data: [], playerNames: [] };
+  const { data, playerNames, minDateISO, maxDateISO } = useMemo(() => {
+    if (!players.length) return { data: [], playerNames: [], minDateISO: null, maxDateISO: null };
 
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -31,7 +31,7 @@ export default function EloTrend({ players = [] }) {
     });
 
     const dates = Array.from(dateSet).sort();
-    if (!dates.length) return { data: [], playerNames: [] };
+    if (!dates.length) return { data: [], playerNames: [], minDateISO: null, maxDateISO: null };
 
     // 2️⃣ Bygg grafdata (Optimerad: O(D * P))
     // Eftersom p.history redan är sorterad kronologiskt i elo.ts kan vi använda en pekar-baserad approach.
@@ -66,10 +66,68 @@ export default function EloTrend({ players = [] }) {
       .map(p => p.name)
       .filter(name => name !== "Gäst");
 
-    return { data: chartData, playerNames: names };
+    return {
+      data: chartData,
+      playerNames: names,
+      minDateISO: dates[0],
+      maxDateISO: dates[dates.length - 1]
+    };
   }, [players]);
 
   if (!data.length) return null;
+
+  const toInputDate = (isoDate: string | null) => {
+    if (!isoDate) return "";
+    return new Date(isoDate).toISOString().slice(0, 10);
+  };
+
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  useEffect(() => {
+    if (!startDate && minDateISO) setStartDate(toInputDate(minDateISO));
+  }, [minDateISO, startDate]);
+
+  useEffect(() => {
+    if (!endDate && maxDateISO) setEndDate(toInputDate(maxDateISO));
+  }, [endDate, maxDateISO]);
+
+  const filteredData = useMemo(() => {
+    if (!startDate && !endDate) return data;
+
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T23:59:59`) : null;
+
+    return data.filter(row => {
+      const rowDate = new Date(row.date);
+      if (start && rowDate < start) return false;
+      if (end && rowDate > end) return false;
+      return true;
+    });
+  }, [data, endDate, startDate]);
+
+  const yDomain = useMemo(() => {
+    // Note for non-coders: we calculate the y-axis range from the chosen dates without recalculating ELO.
+    if (!filteredData.length) return ["auto", "auto"] as const;
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    filteredData.forEach(row => {
+      playerNames.forEach(name => {
+        const value = row[name];
+        if (typeof value === "number") {
+          min = Math.min(min, value);
+          max = Math.max(max, value);
+        }
+      });
+    });
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return ["auto", "auto"] as const;
+
+    const padding = Math.max(5, Math.round((max - min) * 0.05));
+    return [min - padding, max + padding] as const;
+  }, [filteredData, playerNames]);
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>
@@ -78,12 +136,34 @@ export default function EloTrend({ players = [] }) {
           <Typography variant="h6" sx={{ fontWeight: 800 }}>ELO Trend</Typography>
           <Typography variant="caption" color="text.secondary">Tryck och dra för att se detaljer</Typography>
         </Box>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+          <TextField
+            id="elo-trend-start-date"
+            label="Startdatum"
+            aria-label="Välj startdatum för ELO-trend"
+            type="date"
+            size="small"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            id="elo-trend-end-date"
+            label="Slutdatum"
+            aria-label="Välj slutdatum för ELO-trend"
+            type="date"
+            size="small"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        </Box>
       </Box>
 
       <Box sx={{ width: "100%", height: 350, minWidth: 0 }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
           <LineChart
-            data={data}
+            data={filteredData}
             margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
@@ -93,7 +173,7 @@ export default function EloTrend({ players = [] }) {
               style={{ fontSize: '0.75rem' }}
             />
             <YAxis
-              domain={['auto', 'auto']}
+              domain={yDomain}
               style={{ fontSize: '0.75rem' }}
             />
             <Tooltip
