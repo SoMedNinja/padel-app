@@ -16,7 +16,7 @@ import {
 import { useEloStats } from "../../hooks/useEloStats";
 import { calculateEloWithStats, ELO_BASELINE, getExpectedScore } from "../../utils/elo";
 import { calculateMvpScore, getMvpWinner } from "../../utils/mvp";
-import { getISOWeek, getISOWeekRange } from "../../utils/format";
+import { formatShortDate, formatScore, getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
 import { supabase, supabaseAnonKey, supabaseUrl } from "../../supabaseClient";
@@ -264,6 +264,22 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
       const selectedProfile = activeProfiles.find(p => p.id === playerId);
 
+      // Note for non-coders: we group scores by date so one date label can cover multiple games.
+      const resultsByDate = [...pMatches]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .reduce((acc: { dateLabel: string; scores: string[] }[], match) => {
+          const dateLabel = formatShortDate(match.created_at);
+          if (!dateLabel) return acc;
+          const existing = acc.find(entry => entry.dateLabel === dateLabel);
+          const scoreLabel = formatScore(match.team1_sets, match.team2_sets);
+          if (existing) {
+            existing.scores.push(scoreLabel);
+          } else {
+            acc.push({ dateLabel, scores: [scoreLabel] });
+          }
+          return acc;
+        }, []);
+
       return {
         name: eloEnd.find(p => p.id === playerId)?.name || selectedProfile?.name || "Okänd",
         matchesPlayed: pMatches.length,
@@ -285,7 +301,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
           }
           : null,
         recentResults,
-        results: pMatches.map(m => `${m.team1_sets}-${m.team2_sets}`),
+        resultsByDate,
         wins,
         id: playerId,
         featuredBadgeId: selectedProfile?.featured_badge_id || null
@@ -381,10 +397,29 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       return highlights[0] || null;
     };
 
-    const leaderboard = eloEnd
+    // Note for non-coders: we compare the current leaderboard to last week's to show movement arrows.
+    const previousRanks = new Map(
+      [...eloStart].sort((a, b) => b.elo - a.elo).map((player, index) => [player.id, index + 1])
+    );
+    const leaderboard = [...eloEnd]
       .sort((a, b) => b.elo - a.elo)
       .slice(0, 5)
-      .map((p, i) => `${i + 1}. ${p.name}: ${p.elo}`);
+      .map((player, index) => {
+        const currentRank = index + 1;
+        const previousRank = previousRanks.get(player.id);
+        const movement = previousRank ? previousRank - currentRank : 0;
+        const trend = movement > 0 ? "up" : movement < 0 ? "down" : "same";
+        const avatarUrl = activeProfiles.find(p => p.id === player.id)?.avatar_url || null;
+        return {
+          id: player.id,
+          name: player.name,
+          elo: player.elo,
+          rank: currentRank,
+          previousRank,
+          trend,
+          avatarUrl,
+        };
+      });
 
     // Note for non-coders: MVP scores reward both performance and activity in the week.
     // We align this with the dashboard MVP logic (score + tie-breakers).
@@ -420,11 +455,21 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     // Note for non-coders: this converts a badge id into a small emoji/tier label we can print beside the name.
     const featuredBadgeLabel = getBadgeLabelById(stats.featuredBadgeId);
     // Note for non-coders: we build tiny HTML snippets so the same avatar styling is reused in multiple sections.
-    const renderAvatar = (avatarUrl: string | null, name: string) => {
+    // Note for non-coders: this helper returns a consistent avatar block, and we can reuse it at smaller sizes.
+    const renderAvatar = (avatarUrl: string | null, name: string, size = 56) => {
       const initial = name.trim().charAt(0).toUpperCase() || "?";
       return avatarUrl
-        ? `<img src="${avatarUrl}" alt="${name}" width="56" height="56" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
-        : `<div style="width: 56px; height: 56px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">${initial}</div>`;
+        ? `<img src="${avatarUrl}" alt="${name}" width="${size}" height="${size}" style="border-radius: 50%; border: 2px solid #fff; display: block;" />`
+        : `<div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: ${Math.max(12, Math.round(size / 2.8))}px;">${initial}</div>`;
+    };
+    // Note for non-coders: arrows make it easy to spot who climbed or fell compared to last week.
+    const renderTrendIndicator = (trend: "up" | "down" | "same") => {
+      const config = trend === "up"
+        ? { symbol: "▲", color: "#2e7d32" }
+        : trend === "down"
+          ? { symbol: "▼", color: "#d32f2f" }
+          : { symbol: "→", color: "#999" };
+      return `<span style="color: ${config.color}; font-weight: 700; margin-right: 6px;">${config.symbol}</span>`;
     };
     // Note for non-coders: the sparkline turns W/L into points so we can draw a tiny form curve.
     const sparklinePoints = stats.recentResults
@@ -617,11 +662,15 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 </tr>
                 ` : ""}
                 <!-- Results Section -->
-                ${stats.results.length > 0 ? `
+                ${stats.resultsByDate.length > 0 ? `
                 <tr>
                   <td style="padding: 0 40px 40px 40px;">
                     <h3 style="margin: 0 0 10px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Dina resultat</h3>
-                    <p style="margin: 0; font-size: 14px; color: #666;">${stats.results.join(', ')}</p>
+                    ${stats.resultsByDate.map(entry => `
+                      <p style="margin: 0 0 6px 0; font-size: 14px; color: #666;">
+                        <span style="font-weight: 600; color: #111;">${entry.dateLabel}:</span> ${entry.scores.join(", ")}
+                      </p>
+                    `).join("")}
                   </td>
                 </tr>
                 ` : ""}
@@ -630,9 +679,16 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                   <td style="padding: 0 40px 40px 40px;">
                     <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Topplistan just nu</h3>
                     <table width="100%" border="0" cellspacing="0" cellpadding="5">
-                      ${leaderboard.map(line => `
+                      ${leaderboard.map(entry => `
                         <tr>
-                          <td style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">${line}</td>
+                          <td width="24" align="center" style="font-size: 13px; color: #999; border-bottom: 1px solid #eee; padding: 10px 0;">${entry.rank}</td>
+                          <td width="44" align="center" style="border-bottom: 1px solid #eee; padding: 10px 0;">
+                            ${renderAvatar(entry.avatarUrl, entry.name, 32)}
+                          </td>
+                          <td style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">
+                            ${renderTrendIndicator(entry.trend)}${entry.name}
+                          </td>
+                          <td align="right" style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">${entry.elo}</td>
                         </tr>
                       `).join('')}
                     </table>
