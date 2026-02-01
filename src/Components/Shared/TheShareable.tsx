@@ -1019,12 +1019,14 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
               display: 'flex',
               flexDirection: 'column',
               position: 'relative',
-              // We scale it down for preview, but capture at full size
-              transform: {
-                xs: 'scale(0.24)',
-                sm: 'scale(0.32)',
-                md: 'scale(0.42)'
-              },
+              // Note for non-coders: we shrink the preview to fit the dialog, but export the full size.
+              transform: isExporting
+                ? 'scale(1)'
+                : {
+                    xs: 'scale(0.24)',
+                    sm: 'scale(0.32)',
+                    md: 'scale(0.42)'
+                  },
               transformOrigin: 'center center',
               flexShrink: 0,
             }}
