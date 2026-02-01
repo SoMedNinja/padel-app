@@ -91,13 +91,23 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   React.useEffect(() => {
     let isMounted = true;
     // Note for non-coders: we check if the user is logged in so we can safely send emails.
-    supabase.auth.getSession().then(({ data, error }) => {
+    const updateSessionState = (hasAccessToken: boolean, error?: Error | null) => {
       if (!isMounted) return;
-      const hasAccessToken = Boolean(data.session?.access_token);
       setHasSession(hasAccessToken && !error);
+    };
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      updateSessionState(Boolean(data.session?.access_token), error);
     });
+
+    // Note for non-coders: this keeps the button in sync if someone logs in or out.
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      updateSessionState(Boolean(session?.access_token), null);
+    });
+
     return () => {
       isMounted = false;
+      authListener?.subscription.unsubscribe();
     };
   }, []);
 
@@ -803,12 +813,12 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 2 }}>
-            {/* Note for non-coders: we keep this button disabled until we know the user is logged in. */}
+            {/* Note for non-coders: the button is only blocked once we know you're logged out. */}
             <Button
               variant="contained"
               fullWidth
               onClick={handleSendTest}
-              disabled={isSending || useMock || !hasSession}
+              disabled={isSending || useMock || hasSession === false}
               startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
             >
               Skicka test
