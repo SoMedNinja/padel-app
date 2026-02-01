@@ -959,9 +959,14 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
       // Note for non-coders: waiting a moment ensures fonts are loaded before we capture the image.
       await document.fonts?.ready;
       await new Promise(requestAnimationFrame);
+      // Note for non-coders: newer phones have denser screens, so we export more pixels for sharper sharing.
+      const devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      // Note for non-coders: we treat smaller screens as "mobile" and boost quality to avoid blurry exports.
+      const isMobileScreen = typeof window !== 'undefined' ? window.innerWidth <= 600 : false;
+      const exportPixelRatio = Math.min(3, Math.max(isMobileScreen ? 3 : 2, devicePixelRatio));
       const dataUrl = await toPng(templateRef.current, {
         quality: 1.0,
-        pixelRatio: 2, // Higher resolution for sharing
+        pixelRatio: exportPixelRatio, // Higher resolution for sharing, especially on mobile
         cacheBust: true,
       });
       const link = document.createElement('a');
