@@ -28,11 +28,11 @@ This project uses `pnpm`. If Vercel shows a build warning/error about the pnpm v
 
 **Note for non-coders:** `packageManager` is just a small hint that tells Vercel which version of pnpm to use so builds are consistent.
 
-### Cache headers for `index.html`
+### PWA deploy caching (avoid gray screens)
 
-To avoid stale app shells after deploys, Vercel should serve `index.html` (and `/`) with `Cache-Control: no-store` while keeping fingerprinted assets long-cached.
+We add Vercel cache headers for `index.html` so the installed app fetches the latest HTML after a deploy, plus longer caching for hashed JS assets. See `docs/pwa-deploy-cache.md` for the reasoning and hosting steps. 
 
-**Note for non-coders:** `index.html` is the entry “map” that points at the real JS/CSS files. If the map is cached but the files change, the app can show a blank screen because it’s looking for files that no longer exist.
+**Note for non-coders:** think of `index.html` as the app’s table of contents. If that file is stale, the app looks for files that no longer exist and you get a blank screen.
 
 ## Expanding the ESLint configuration
 
