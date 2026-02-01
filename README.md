@@ -28,6 +28,12 @@ This project uses `pnpm`. If Vercel shows a build warning/error about the pnpm v
 
 **Note for non-coders:** `packageManager` is just a small hint that tells Vercel which version of pnpm to use so builds are consistent.
 
+### Cache headers for `index.html`
+
+To avoid stale app shells after deploys, Vercel should serve `index.html` (and `/`) with `Cache-Control: no-store` while keeping fingerprinted assets long-cached.
+
+**Note for non-coders:** `index.html` is the entry “map” that points at the real JS/CSS files. If the map is cached but the files change, the app can show a blank screen because it’s looking for files that no longer exist.
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
