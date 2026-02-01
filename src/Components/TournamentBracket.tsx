@@ -22,6 +22,8 @@ export default function TournamentBracket({ rounds, profileMap }: TournamentBrac
       <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
         {sortedRounds.map((round) => {
           const isPlayed = round.team1_score !== null && round.team2_score !== null && round.team1_score !== undefined && round.team2_score !== undefined;
+          const t1Won = isPlayed && (round.team1_score ?? 0) > (round.team2_score ?? 0);
+          const t2Won = isPlayed && (round.team2_score ?? 0) > (round.team1_score ?? 0);
           const t1Names = idsToNames(round.team1_ids, profileMap).join(" & ");
           const t2Names = idsToNames(round.team2_ids, profileMap).join(" & ");
 
@@ -43,13 +45,13 @@ export default function TournamentBracket({ rounds, profileMap }: TournamentBrac
 
               <Stack spacing={1}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, maxWidth: 160 }}>{t1Names}</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 800 }}>{round.team1_score ?? '-'}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: t1Won ? 900 : 600, maxWidth: 160, color: t1Won ? 'primary.main' : 'text.primary' }}>{t1Names}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 800, color: t1Won ? 'primary.main' : 'text.primary' }}>{round.team1_score ?? '-'}</Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block' }}>vs</Typography>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, maxWidth: 160 }}>{t2Names}</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 800 }}>{round.team2_score ?? '-'}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: t2Won ? 900 : 600, maxWidth: 160, color: t2Won ? 'primary.main' : 'text.primary' }}>{t2Names}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 800, color: t2Won ? 'primary.main' : 'text.primary' }}>{round.team2_score ?? '-'}</Typography>
                 </Box>
               </Stack>
 

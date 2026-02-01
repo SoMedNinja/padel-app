@@ -475,9 +475,11 @@ export default function History({
                           <TextField
                             key={`team1-${index}`}
                             select
+                            label={`Spelare ${index + 1}`}
                             size="small"
                             value={value || ""}
                             onChange={(e) => updateTeam("team1_ids", index, e.target.value)}
+                            slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag A` } }}
                           >
                             <MenuItem value="">Välj spelare</MenuItem>
                             {playerOptions.map(option => (
@@ -544,9 +546,11 @@ export default function History({
                           <TextField
                             key={`team2-${index}`}
                             select
+                            label={`Spelare ${index + 1}`}
                             size="small"
                             value={value || ""}
                             onChange={(e) => updateTeam("team2_ids", index, e.target.value)}
+                            slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag B` } }}
                           >
                             <MenuItem value="">Välj spelare</MenuItem>
                             {playerOptions.map(option => (
