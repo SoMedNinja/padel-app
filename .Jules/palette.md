@@ -29,3 +29,7 @@
 ## 2026-02-05 - [A11y: Native Validation & Sort Labels]
 **Learning:** MUI `TextField` does not always apply `aria-required` to the underlying input element when the `required` prop is used on the component. Explicitly passing it via `slotProps.htmlInput` ensures screen reader compliance. Table sorting headers require descriptive `aria-label` attributes on `TableSortLabel` to explain the action to non-visual users.
 **Action:** Use `slotProps.htmlInput` for `aria-required` in `TextField`. Always add `aria-label` to `TableSortLabel` describing the column being sorted.
+
+## 2026-02-12 - [UX: Contextual Clarity & Scannability]
+**Learning:** In multi-slot forms (like match editing), missing labels on identical inputs cause cognitive friction. Visual cues like bolding/coloring winners in dense brackets significantly reduce scanning time. Lowering search thresholds (e.g., from 8 to 5) for player grids ensures filter tools are available before the list becomes overwhelming.
+**Action:** Always label repeating form slots (e.g., "Spelare 1"). Use `primary.main` highlighting for winners in tournament views. Standardize search visibility at 5+ items.

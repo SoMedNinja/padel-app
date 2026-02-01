@@ -427,9 +427,25 @@ export default function MatchForm({
     const filtered = sorted.filter(p => p.id === GUEST_ID || getProfileDisplayName(p).toLowerCase().includes(query.toLowerCase()));
     return (
       <Box>
-        {selectablePlayers.length > 8 && (
-          <TextField fullWidth size="small" placeholder="Sök spelare..." value={query} onChange={e => setQuery(e.target.value)} sx={{ mb: 2 }}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+        {selectablePlayers.length > 5 && (
+          <TextField
+            fullWidth
+            size="small"
+            label="Sök spelare"
+            placeholder="Skriv namn..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            sx={{ mb: 2 }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                "aria-label": "Sök spelare",
+              },
+            }}
           />
         )}
         <Grid container spacing={1}>
