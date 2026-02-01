@@ -802,6 +802,19 @@ export default function PlayerSection({
     return results.slice(-5);
   }, [filteredStats]);
 
+  const profileNameById = useMemo(() => {
+    // Note for non-coders: we build a quick lookup so we can swap IDs for readable player names.
+    return profiles.reduce((acc, profile) => {
+      acc[profile.id] = getProfileDisplayName(profile);
+      return acc;
+    }, {} as Record<string, string>);
+  }, [profiles]);
+
+  const resolvePlayerName = (nameOrId?: string) => {
+    // Note for non-coders: if we get a raw ID from stats, replace it with the human-friendly name.
+    return nameOrId ? (profileNameById[nameOrId] ?? nameOrId) : "";
+  };
+
   const recentFormStats = useMemo(() => {
     const wins = recentForm.filter(result => result === "W").length;
     return { wins, losses: recentForm.length - wins };
@@ -1281,7 +1294,7 @@ export default function PlayerSection({
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Bästa Partner</Typography>
                   {synergy ? (
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{synergy.name}</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{resolvePlayerName(synergy.name)}</Typography>
                       <Typography variant="caption">
                         {synergy.wins} vinster på {synergy.games} matcher ({Math.round((synergy.wins / synergy.games) * 100)}%)
                       </Typography>
@@ -1305,7 +1318,7 @@ export default function PlayerSection({
                   <Typography variant="overline" sx={{ fontWeight: 700, opacity: 0.9 }}>Tuffaste Motståndare</Typography>
                   {rival ? (
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{rival.name}</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{resolvePlayerName(rival.name)}</Typography>
                       <Typography variant="caption">
                         {rival.losses} förluster på {rival.games} matcher ({Math.round((rival.losses / rival.games) * 100)}%)
                       </Typography>
