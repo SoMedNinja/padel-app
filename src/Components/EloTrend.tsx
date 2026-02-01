@@ -75,8 +75,6 @@ export default function EloTrend({ players = [] }) {
     };
   }, [players]);
 
-  if (!data.length) return null;
-
   const toInputDate = (isoDate: string | null) => {
     if (!isoDate) return "";
     return new Date(isoDate).toISOString().slice(0, 10);
@@ -85,7 +83,6 @@ export default function EloTrend({ players = [] }) {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [hasCustomRange, setHasCustomRange] = useState(false);
-  const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     // Note for non-coders: we only auto-fill dates before the user customizes the range.
@@ -133,6 +130,10 @@ export default function EloTrend({ players = [] }) {
     const padding = Math.max(5, Math.round((max - min) * 0.05));
     return [min - padding, max + padding] as const;
   }, [filteredData, playerNames]);
+
+  if (!data.length) return null;
+  const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>

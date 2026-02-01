@@ -23,7 +23,7 @@ import { makeProfileMap, makeNameToIdMap, getProfileDisplayName } from "../../ut
 import { calculateEveningStats } from "../../utils/reportLogic";
 import { getTournamentState } from "../../utils/tournamentLogic";
 import TheShareable from "../Shared/TheShareable";
-import { ELO_BASELINE, calculateElo } from "../../utils/elo";
+import { ELO_BASELINE, calculateEloWithStats } from "../../utils/elo";
 import { GUEST_ID, GUEST_NAME } from "../../utils/guest";
 import { formatDate } from "../../utils/format";
 import { toast } from "sonner";
@@ -117,25 +117,32 @@ export default function ReportsSection() {
     }
   }, [gameEvenings, selectedDate]);
 
+  // Optimization: Memoize full ELO stats to avoid redundant O(M) calculations.
+  const eloStats = useMemo(() => {
+    if (!matches.length || !profiles.length) return { players: [], eloDeltaByMatch: {}, eloRatingByMatch: {} };
+    return calculateEloWithStats(matches, profiles);
+  }, [matches, profiles]);
+
   const eloMap = useMemo(() => {
-    if (!matches.length || !profiles.length) return { [GUEST_ID]: ELO_BASELINE };
-    const res = calculateElo(matches, profiles);
     const map: Record<string, number> = { [GUEST_ID]: ELO_BASELINE };
-    res.forEach(p => {
+    eloStats.players.forEach(p => {
       map[p.id] = p.elo;
     });
     return map;
-  }, [matches, profiles]);
+  }, [eloStats]);
 
   const handleGenerateEveningReport = () => {
     if (!selectedDate) return;
     const targetDate = new Date(selectedDate);
+    // Optimization: Pass pre-calculated ELO data to skip expensive full-history re-calculation.
     const stats = calculateEveningStats(
       matches,
       targetDate,
       eloMap,
       profileMap,
-      nameToIdMap
+      nameToIdMap,
+      eloStats.players,
+      eloStats.eloDeltaByMatch
     );
 
     if (!stats) {

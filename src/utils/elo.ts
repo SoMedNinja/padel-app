@@ -181,22 +181,6 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     ensurePlayer(p.id);
   });
 
-  const normalizeTeam = (team: any): string[] => {
-    if (!Array.isArray(team)) return [];
-    // Optimization: check if filter is needed before allocating new array
-    for (let i = 0; i < team.length; i++) {
-      if (!team[i]) return team.filter(Boolean);
-    }
-    return team;
-  };
-  const activeTeam = (team: string[]) => {
-    const active = [];
-    for (let i = 0; i < team.length; i++) {
-      const id = team[i];
-      if (id !== GUEST_ID && players[id]) active.push(id);
-    }
-    return active;
-  };
   const avg = (team: string[]) => {
     let sum = 0;
     const len = team.length;
@@ -245,14 +229,28 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     // We only instantiate Date once per match in the sorted loop
     const historyStamp = new Date(m.created_at).getTime();
 
-    const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
-    const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
-    // Optimization: avoid redundant resolution calls inside the loop.
-    // ensurePlayer now handles lazy resolution from pre-calculated maps.
-    for (let i = 0; i < t1.length; i++) ensurePlayer(t1[i]);
-    for (let i = 0; i < t2.length; i++) ensurePlayer(t2[i]);
-    const t1Active = activeTeam(t1);
-    const t2Active = activeTeam(t2);
+    // Optimization: Consolidate team resolution, player insurance, and active filtering into single-pass loops.
+    // This reduces iterations and avoids multiple intermediate array allocations per match.
+    const t1Raw = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
+    const t2Raw = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
+
+    const t1Active: string[] = [];
+    const t2Active: string[] = [];
+
+    for (let i = 0; i < t1Raw.length; i++) {
+      const id = t1Raw[i];
+      if (id && id !== GUEST_ID) {
+        ensurePlayer(id);
+        if (players[id]) t1Active.push(id);
+      }
+    }
+    for (let i = 0; i < t2Raw.length; i++) {
+      const id = t2Raw[i];
+      if (id && id !== GUEST_ID) {
+        ensurePlayer(id);
+        if (players[id]) t2Active.push(id);
+      }
+    }
 
     if (!t1Active.length || !t2Active.length) return;
     if (!Number.isFinite(m.team1_sets) || !Number.isFinite(m.team2_sets)) return;

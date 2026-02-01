@@ -65,7 +65,7 @@ import {
   EveningRecapLeader,
 } from "../types";
 import TheShareable from "./Shared/TheShareable";
-import { formatFullDate, formatScore } from "../utils/format";
+import { formatScore } from "../utils/format";
 
 
 interface MatchFormProps {
@@ -73,6 +73,7 @@ interface MatchFormProps {
   profiles: Profile[];
   matches: Match[];
   eloPlayers: PlayerStats[];
+  eloDeltaByMatch?: Record<string, Record<string, number>>;
   mode?: "1v1" | "2v2";
 }
 
@@ -81,6 +82,7 @@ export default function MatchForm({
   profiles = [],
   matches = [],
   eloPlayers = [],
+  eloDeltaByMatch = {},
   mode = "2v2",
 }: MatchFormProps) {
   const teamSize = mode === "1v1" ? 1 : 2;
@@ -211,12 +213,15 @@ export default function MatchForm({
 
   const buildEveningRecap = (allMatches: Match[], latestMatch: Match) => {
     const now = new Date();
+    // Optimization: Pass pre-calculated ELO players and deltas to avoid O(M) re-calculation.
     const stats = calculateEveningStats(
       [...allMatches, latestMatch],
       now,
       eloMap,
       profileMap,
-      nameToIdMap
+      nameToIdMap,
+      eloPlayers,
+      eloDeltaByMatch
     );
     setEveningRecap(stats);
   };
