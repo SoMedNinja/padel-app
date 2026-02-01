@@ -12,7 +12,7 @@ import {
   Paper,
 } from '@mui/material';
 import { Close, Download, EmojiEvents, ChevronLeft, ChevronRight } from '@mui/icons-material';
-import { toPng } from 'html-to-image';
+import { toBlob, toPng } from 'html-to-image';
 import { Match, Tournament, TournamentResult } from '../../types';
 import { MatchHighlight } from '../../utils/highlights';
 import { Grid } from '@mui/material';
@@ -952,27 +952,48 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
   const [isExporting, setIsExporting] = useState(false);
   const [variant, setVariant] = useState(0);
 
+  const createShareImage = async () => {
+    if (!templateRef.current) {
+      throw new Error('Shareable template missing');
+    }
+    // Note for non-coders: waiting a moment ensures fonts are loaded before we capture the image.
+    await document.fonts?.ready;
+    await new Promise(requestAnimationFrame);
+    // Note for non-coders: newer phones have denser screens, so we export more pixels for sharper sharing.
+    const devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    // Note for non-coders: we treat smaller screens as "mobile" and boost quality to avoid blurry exports.
+    const isMobileScreen = typeof window !== 'undefined' ? window.innerWidth <= 600 : false;
+    const exportPixelRatio = Math.min(3, Math.max(isMobileScreen ? 3 : 2, devicePixelRatio));
+    const exportOptions = {
+      quality: 1.0,
+      pixelRatio: exportPixelRatio, // Higher resolution for sharing, especially on mobile
+      cacheBust: true,
+    };
+    const timestamp = new Date().getTime();
+    const fileName = `padel-${type}-${timestamp}.png`;
+    // Note for non-coders: blobs keep the file as an actual image so phones can "View" or "Save" it properly.
+    let blob = await toBlob(templateRef.current, exportOptions);
+    if (!blob) {
+      const dataUrl = await toPng(templateRef.current, exportOptions);
+      const response = await fetch(dataUrl);
+      blob = await response.blob();
+    }
+    return {
+      blob,
+      url: URL.createObjectURL(blob),
+      fileName,
+    };
+  };
+
   const handleExport = async () => {
-    if (!templateRef.current) return;
     setIsExporting(true);
     try {
-      // Note for non-coders: waiting a moment ensures fonts are loaded before we capture the image.
-      await document.fonts?.ready;
-      await new Promise(requestAnimationFrame);
-      // Note for non-coders: newer phones have denser screens, so we export more pixels for sharper sharing.
-      const devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-      // Note for non-coders: we treat smaller screens as "mobile" and boost quality to avoid blurry exports.
-      const isMobileScreen = typeof window !== 'undefined' ? window.innerWidth <= 600 : false;
-      const exportPixelRatio = Math.min(3, Math.max(isMobileScreen ? 3 : 2, devicePixelRatio));
-      const dataUrl = await toPng(templateRef.current, {
-        quality: 1.0,
-        pixelRatio: exportPixelRatio, // Higher resolution for sharing, especially on mobile
-        cacheBust: true,
-      });
+      const { url, fileName } = await createShareImage();
       const link = document.createElement('a');
-      link.download = `padel-${type}-${new Date().getTime()}.png`;
-      link.href = dataUrl;
+      link.download = fileName;
+      link.href = url;
       link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('Failed to export image', err);
       toast.error('Kunde inte skapa bilden. Försök igen.');
@@ -980,6 +1001,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
       setIsExporting(false);
     }
   };
+
 
   return (
     <Dialog
