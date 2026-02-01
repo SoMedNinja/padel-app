@@ -1,4 +1,5 @@
 import { getExpectedScore, ELO_BASELINE } from "./elo";
+import { GUEST_ID } from "./guest";
 
 export const getTeamAverageElo = (team: string[], eloMap: Record<string, number>) => {
   let total = 0;
@@ -6,7 +7,7 @@ export const getTeamAverageElo = (team: string[], eloMap: Record<string, number>
   // Optimization: Single pass instead of .filter().reduce() to avoid intermediate array allocation.
   for (let i = 0; i < team.length; i++) {
     const id = team[i];
-    if (id && id !== "guest-id") {
+    if (id && id !== GUEST_ID) {
       total += (eloMap[id] ?? ELO_BASELINE);
       count++;
     }
