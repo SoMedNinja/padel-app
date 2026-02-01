@@ -8,9 +8,11 @@ import {
   Box,
   TextField,
   Button,
-  Tooltip
+  Tooltip,
+  InputAdornment,
+  IconButton
 } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
+import { Close as CloseIcon, Autorenew as ResetIcon } from "@mui/icons-material";
 import { MatchFilter, MatchFilterType } from "../types";
 
 interface FilterBarProps {
@@ -54,8 +56,19 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
   };
 
   return (
-    <Box className="filter-bar" sx={{ mb: 2, display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-      <FormControl size="small" sx={{ minWidth: 160, mt: 1 }}>
+    <Box
+      className="filter-bar"
+      sx={{
+        mb: 2,
+        display: "flex",
+        justifyContent: "flex-start",
+        alignItems: { xs: "stretch", sm: "center" },
+        gap: 2,
+        flexWrap: "wrap",
+        flexDirection: { xs: "column", sm: "row" }
+      }}
+    >
+      <FormControl size="small" sx={{ minWidth: 160, mt: 1, width: { xs: "100%", sm: "auto" } }}>
         <InputLabel
           id="filter-select-label"
           sx={{
@@ -107,14 +120,14 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           </Button>
         </span>
       </Tooltip>
-      <Box sx={{ mt: 1, px: 1, py: 0.5, borderRadius: 2, bgcolor: "grey.100" }}>
+      <Box sx={{ mt: 1, px: 1, py: 0.5, borderRadius: 2, bgcolor: "grey.100", width: { xs: "100%", sm: "auto" } }}>
         {/* Note for non-coders: this label reminds people which filter is active right now. */}
         <Box component="span" sx={{ fontSize: 12, fontWeight: 700, color: "text.secondary" }}>
           Aktivt: {filterLabels[filter.type]}
         </Box>
       </Box>
       {filter.type === "range" && (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1, flexDirection: { xs: "column", sm: "row" }, width: "100%" }}>
           <TextField
             id="filter-start-date"
             label="Från"
@@ -124,6 +137,23 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
             value={filter.startDate || ""}
             onChange={(event) => handleDateChange("startDate", event.target.value)}
             slotProps={{ inputLabel: { shrink: true } }}
+            // Note for non-coders: resetting to empty means "show everything from the earliest match."
+            InputProps={{
+              endAdornment: filter.startDate ? (
+                <InputAdornment position="end">
+                  <Tooltip title="Återställ till tidigaste datum" arrow>
+                    <IconButton
+                      aria-label="Återställ startdatum"
+                      size="small"
+                      onClick={() => handleDateChange("startDate", "")}
+                    >
+                      <ResetIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </InputAdornment>
+              ) : undefined
+            }}
+            sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
           />
           <TextField
             id="filter-end-date"
@@ -134,6 +164,22 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
             value={filter.endDate || ""}
             onChange={(event) => handleDateChange("endDate", event.target.value)}
             slotProps={{ inputLabel: { shrink: true } }}
+            InputProps={{
+              endAdornment: filter.endDate ? (
+                <InputAdornment position="end">
+                  <Tooltip title="Återställ till idag" arrow>
+                    <IconButton
+                      aria-label="Återställ slutdatum"
+                      size="small"
+                      onClick={() => handleDateChange("endDate", getTodayDateString())}
+                    >
+                      <ResetIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </InputAdornment>
+              ) : undefined
+            }}
+            sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
           />
         </Box>
       )}
