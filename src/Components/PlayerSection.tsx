@@ -58,6 +58,7 @@ import {
   Slider,
   IconButton,
   Tooltip as MuiTooltip,
+  InputAdornment,
   Paper,
   Tab,
   Tabs,
@@ -889,6 +890,7 @@ export default function PlayerSection({
   const [isEloChartFullscreen, setIsEloChartFullscreen] = useState(false);
   const [eloTrendStartDate, setEloTrendStartDate] = useState<string>("");
   const [eloTrendEndDate, setEloTrendEndDate] = useState<string>("");
+  const [eloTrendRangeTouched, setEloTrendRangeTouched] = useState(false);
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
@@ -952,13 +954,16 @@ export default function PlayerSection({
     if (!minComparisonDate || !maxComparisonDate) {
       setEloTrendStartDate("");
       setEloTrendEndDate("");
+      setEloTrendRangeTouched(false);
       return;
     }
+    if (eloTrendRangeTouched) return;
+    // Note for non-coders: we only auto-fill the range before the user makes their own choice.
     const minDateInput = toInputDate(minComparisonDate);
     const maxDateInput = toInputDate(maxComparisonDate);
     setEloTrendStartDate((prev) => prev || minDateInput);
     setEloTrendEndDate((prev) => prev || maxDateInput);
-  }, [maxComparisonDate, minComparisonDate]);
+  }, [eloTrendRangeTouched, maxComparisonDate, minComparisonDate]);
 
   const filteredComparisonData = useMemo(() => {
     if (!eloTrendStartDate && !eloTrendEndDate) return comparisonData;
@@ -1117,16 +1122,27 @@ export default function PlayerSection({
         }}
       >
         <CardContent sx={{ height: isEloChartFullscreen ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems={{ xs: "stretch", sm: "flex-start" }}
+            justifyContent="space-between"
+            sx={{ mb: 2 }}
+          >
             <Typography variant="h6" sx={{ fontWeight: 800 }}>ELO-utveckling (senaste året)</Typography>
-            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              alignItems={{ xs: "stretch", sm: "center" }}
+              flexWrap="wrap"
+            >
               <TextField
                 select
                 size="small"
                 label="Jämför med"
                 value={compareTarget}
                 onChange={(e) => setCompareTarget(e.target.value)}
-                sx={{ minWidth: 160 }}
+                sx={{ minWidth: { sm: 160 }, width: { xs: "100%", sm: "auto" } }}
               >
                 <MenuItem value="none">Ingen</MenuItem>
                 <MenuItem value="all">Alla</MenuItem>
@@ -1143,8 +1159,30 @@ export default function PlayerSection({
                 type="date"
                 size="small"
                 value={eloTrendStartDate}
-                onChange={(event) => setEloTrendStartDate(event.target.value)}
+                onChange={(event) => {
+                  setEloTrendRangeTouched(true);
+                  setEloTrendStartDate(event.target.value);
+                }}
                 slotProps={{ inputLabel: { shrink: true } }}
+                InputProps={{
+                  endAdornment: eloTrendStartDate ? (
+                    <InputAdornment position="end">
+                      <MuiTooltip title="Rensa datum" arrow>
+                        <IconButton
+                          aria-label="Rensa startdatum"
+                          size="small"
+                          onClick={() => {
+                            setEloTrendRangeTouched(true);
+                            setEloTrendStartDate("");
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </MuiTooltip>
+                    </InputAdornment>
+                  ) : undefined
+                }}
+                sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
               />
               <TextField
                 id="elo-trend-end-date"
@@ -1153,19 +1191,42 @@ export default function PlayerSection({
                 type="date"
                 size="small"
                 value={eloTrendEndDate}
-                onChange={(event) => setEloTrendEndDate(event.target.value)}
+                onChange={(event) => {
+                  setEloTrendRangeTouched(true);
+                  setEloTrendEndDate(event.target.value);
+                }}
                 slotProps={{ inputLabel: { shrink: true } }}
+                InputProps={{
+                  endAdornment: eloTrendEndDate ? (
+                    <InputAdornment position="end">
+                      <MuiTooltip title="Rensa datum" arrow>
+                        <IconButton
+                          aria-label="Rensa slutdatum"
+                          size="small"
+                          onClick={() => {
+                            setEloTrendRangeTouched(true);
+                            setEloTrendEndDate("");
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </MuiTooltip>
+                    </InputAdornment>
+                  ) : undefined
+                }}
+                sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
               />
               <MuiTooltip title={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"} arrow>
                 <IconButton
                   onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}
                   aria-label={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"}
+                  sx={{ alignSelf: { xs: "flex-end", sm: "center" } }}
                 >
                   {isEloChartFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                 </IconButton>
               </MuiTooltip>
             </Stack>
-          </Box>
+          </Stack>
 
           <Box sx={{ height: isEloChartFullscreen ? 'auto' : 300, flex: isEloChartFullscreen ? 1 : 'none', minHeight: 300, width: '100%', mt: 2 }}>
             {comparisonData.length ? (
