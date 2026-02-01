@@ -5,6 +5,7 @@ import { formatFullDate } from "./format";
 import { GUEST_ID } from "./guest";
 import { calculateEloWithStats } from "./elo";
 import { EVENING_MIN_GAMES, getMvpWinner, scorePlayersForMvp } from "./mvp";
+import { PlayerStats } from "../types";
 
 /**
  * Utility to calculate evening statistics for a recap.
@@ -15,26 +16,26 @@ export const calculateEveningStats = (
   targetDate: Date,
   eloMap: Record<string, number>,
   profileMap: Map<string, Profile>,
-  nameToIdMap: Map<string, string>
+  nameToIdMap: Map<string, string>,
+  eloPlayers?: PlayerStats[],
+  eloDeltaByMatch?: Record<string, Record<string, number>>
 ): EveningRecap | null => {
   // Optimization: Use ISO string comparison for faster filtering and avoid redundant mapping
   // of matches that aren't part of the target evening.
   const targetISO = targetDate.toISOString().slice(0, 10);
 
-  const eveningMatches = matches
-    .filter(match => {
-      if (!match.created_at) return false;
-      return match.created_at.slice(0, 10) === targetISO;
-    })
-    .map(match => {
-      const team1Ids = resolveTeamIds(match.team1_ids, match.team1, nameToIdMap);
-      const team2Ids = resolveTeamIds(match.team2_ids, match.team2, nameToIdMap);
-      return {
+  // Optimization: Use a single pass to filter and map matches to avoid intermediate array allocations.
+  const eveningMatches: Match[] = [];
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i];
+    if (match.created_at?.slice(0, 10) === targetISO) {
+      eveningMatches.push({
         ...match,
-        team1_ids: team1Ids,
-        team2_ids: team2Ids,
-      };
-    });
+        team1_ids: resolveTeamIds(match.team1_ids, match.team1, nameToIdMap),
+        team2_ids: resolveTeamIds(match.team2_ids, match.team2, nameToIdMap),
+      });
+    }
+  }
 
   if (!eveningMatches.length) {
     return null;
@@ -99,10 +100,14 @@ export const calculateEveningStats = (
     winRate: p.games ? p.wins / p.games : 0,
   }));
 
-  // Note for non-coders: we re-use the same MVP scoring used across the app so recaps match everywhere.
-  const profiles = Array.from(profileMap.values());
-  const { players: eloPlayers, eloDeltaByMatch } = calculateEloWithStats(matches, profiles);
-  const mvpResults = scorePlayersForMvp(eveningMatches, eloPlayers, EVENING_MIN_GAMES, eloDeltaByMatch);
+  // Optimization: Skip expensive full-history ELO calculation if data is already provided by the caller.
+  // This reduces complexity from O(M) to O(1) for the ELO part when generating recaps.
+  // We check if eloDeltaByMatch has keys to ensure we don't skip calculation when provided with empty objects.
+  const eloData = (eloPlayers && eloDeltaByMatch && Object.keys(eloDeltaByMatch).length > 0)
+    ? { players: eloPlayers, eloDeltaByMatch }
+    : calculateEloWithStats(matches, Array.from(profileMap.values()));
+
+  const mvpResults = scorePlayersForMvp(eveningMatches, eloData.players, EVENING_MIN_GAMES, eloData.eloDeltaByMatch);
   const mvpWinner = getMvpWinner(mvpResults);
   const mvp = mvpWinner ? players.find(p => p.id === mvpWinner.id) || null : null;
 

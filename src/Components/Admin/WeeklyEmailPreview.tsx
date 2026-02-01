@@ -156,7 +156,6 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     const eloStart = eloStartData.players;
     const eloEnd = eloEndData.players;
 
-    const playerStart = eloStart.find(p => p.id === selectedPlayerId) || { elo: ELO_BASELINE };
     const playerEnd = eloEnd.find(p => p.id === selectedPlayerId);
 
     if (!playerEnd && !useMock) return null;

@@ -2,10 +2,7 @@ import React from "react";
 import { useSearchParams } from "react-router-dom";
 import MatchForm from "../Components/MatchForm";
 import { useStore } from "../store/useStore";
-import { useProfiles } from "../hooks/useProfiles";
-import { useMatches } from "../hooks/useMatches";
-import { calculateElo } from "../utils/elo";
-import { Match, Profile } from "../types";
+import { useEloStats } from "../hooks/useEloStats";
 import { Box, Container, Typography } from "@mui/material";
 import AppAlert from "../Components/Shared/AppAlert";
 
@@ -14,10 +11,10 @@ export default function SingleGamePage() {
   const mode = (searchParams.get("mode") as "1v1" | "2v2") || "2v2";
 
   const { user, isGuest } = useStore();
-  const { data: profiles = [] as Profile[] } = useProfiles();
-  const { data: matches = [] as Match[] } = useMatches({ type: "all" });
 
-  const allEloPlayers = calculateElo(matches, profiles);
+  // Optimization: Use the memoized useEloStats hook instead of manually fetching and
+  // re-calculating ELO on every render. This ensures referential stability and performance.
+  const { eloPlayers, allMatches, profiles, eloDeltaByMatch, isLoading } = useEloStats();
 
   if (isGuest) {
     return (
@@ -34,13 +31,20 @@ export default function SingleGamePage() {
 
   return (
     <div id="single-game">
-      <MatchForm
-        user={user}
-        profiles={profiles}
-        matches={matches}
-        eloPlayers={allEloPlayers}
-        mode={mode}
-      />
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <Typography color="text.secondary">Laddar speldata...</Typography>
+        </Box>
+      ) : (
+        <MatchForm
+          user={user}
+          profiles={profiles}
+          matches={allMatches}
+          eloPlayers={eloPlayers}
+          eloDeltaByMatch={eloDeltaByMatch}
+          mode={mode}
+        />
+      )}
     </div>
   );
 }

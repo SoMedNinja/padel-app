@@ -136,13 +136,6 @@ const formatMvpDays = (days: number) => {
   return `${days} dagar`;
 };
 
-const normalizeServeFlag = (value: any) => {
-  // Note for non-coders: matches can store "true"/"false" in a few formats,
-  // so we standardize them to a real boolean before doing any math.
-  if (value === true || value === 1 || value === "1" || value === "true") return true;
-  if (value === false || value === 0 || value === "0" || value === "false") return false;
-  return null;
-};
 
 const formatChartTimestamp = (value: string | number, includeTime = false) => {
   if (!value) return "";
