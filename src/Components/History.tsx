@@ -614,7 +614,7 @@ export default function History({
                       onClick={() => saveEdit(m.id)}
                       disabled={isSavingEdit}
                     >
-                      Spara
+                      {isSavingEdit ? "Sparar..." : "Spara"}
                     </Button>
                     <Button variant="outlined" startIcon={<CloseIcon />} onClick={cancelEdit} disabled={isSavingEdit}>Avbryt</Button>
                   </Box>

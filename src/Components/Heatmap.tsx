@@ -19,6 +19,7 @@ import {
   MenuItem,
   Chip,
   Stack,
+  TableSortLabel,
 } from "@mui/material";
 
 const ELO_BASELINE = 1000;
@@ -303,17 +304,31 @@ export default function Heatmap({
         </Box>
 
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
-          <Table sx={{ minWidth: 800 }}>
+          <Table sx={{ minWidth: 800 }} aria-label="Lagkombinationer och statistik">
             <TableHead sx={{ bgcolor: 'grey.50' }}>
               <TableRow>
-                <TableCell onClick={() => handleSort("players")} sx={{ cursor: 'pointer', fontWeight: 700 }}>Lag</TableCell>
-                <TableCell onClick={() => handleSort("games")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Matcher</TableCell>
-                <TableCell onClick={() => handleSort("wins")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinster</TableCell>
-                <TableCell onClick={() => handleSort("winPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst %</TableCell>
-                <TableCell onClick={() => handleSort("serveFirstWinPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst % (servade)</TableCell>
-                <TableCell onClick={() => handleSort("serveSecondWinPct")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Vinst % (mottagning)</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="center">Senaste 5</TableCell>
-                <TableCell onClick={() => handleSort("avgElo")} sx={{ cursor: 'pointer', fontWeight: 700 }} align="center">Snitt-ELO</TableCell>
+                <TableCell sortDirection={sortKey === "players" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "players"} direction={sortKey === "players" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("players")}>Lag</TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "games"} direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("games")}>Matcher</TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "wins"} direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("wins")}>Vinster</TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("winPct")}>Vinst %</TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sortDirection={sortKey === "serveFirstWinPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "serveFirstWinPct"} direction={sortKey === "serveFirstWinPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("serveFirstWinPct")}>Vinst % (servade)</TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sortDirection={sortKey === "serveSecondWinPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "serveSecondWinPct"} direction={sortKey === "serveSecondWinPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("serveSecondWinPct")}>Vinst % (mottagning)</TableSortLabel>
+                </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>Senaste 5</TableCell>
+                <TableCell align="center" sortDirection={sortKey === "avgElo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
+                  <TableSortLabel active={sortKey === "avgElo"} direction={sortKey === "avgElo" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("avgElo")}>Snitt-ELO</TableSortLabel>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
