@@ -12,7 +12,7 @@ import {
   InputAdornment,
   IconButton
 } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
+import { Close as CloseIcon, Autorenew as ResetIcon } from "@mui/icons-material";
 import { MatchFilter, MatchFilterType } from "../types";
 
 interface FilterBarProps {
@@ -137,17 +137,17 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
             value={filter.startDate || ""}
             onChange={(event) => handleDateChange("startDate", event.target.value)}
             slotProps={{ inputLabel: { shrink: true } }}
-            // Note for non-coders: the small X button lets someone clear the date in one tap.
+            // Note for non-coders: resetting to empty means "show everything from the earliest match."
             InputProps={{
               endAdornment: filter.startDate ? (
                 <InputAdornment position="end">
-                  <Tooltip title="Rensa datum" arrow>
+                  <Tooltip title="Återställ till tidigaste datum" arrow>
                     <IconButton
-                      aria-label="Rensa startdatum"
+                      aria-label="Återställ startdatum"
                       size="small"
                       onClick={() => handleDateChange("startDate", "")}
                     >
-                      <CloseIcon fontSize="small" />
+                      <ResetIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </InputAdornment>
@@ -167,13 +167,13 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
             InputProps={{
               endAdornment: filter.endDate ? (
                 <InputAdornment position="end">
-                  <Tooltip title="Rensa datum" arrow>
+                  <Tooltip title="Återställ till idag" arrow>
                     <IconButton
-                      aria-label="Rensa slutdatum"
+                      aria-label="Återställ slutdatum"
                       size="small"
-                      onClick={() => handleDateChange("endDate", "")}
+                      onClick={() => handleDateChange("endDate", getTodayDateString())}
                     >
-                      <CloseIcon fontSize="small" />
+                      <ResetIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </InputAdornment>

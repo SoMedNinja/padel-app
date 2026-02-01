@@ -73,6 +73,7 @@ import {
 import {
   Edit as EditIcon,
   Save as SaveIcon,
+  Autorenew as ResetIcon,
   Close as CloseIcon,
   PhotoCamera as PhotoIcon,
   Delete as DeleteIcon,
@@ -891,6 +892,7 @@ export default function PlayerSection({
   const [eloTrendStartDate, setEloTrendStartDate] = useState<string>("");
   const [eloTrendEndDate, setEloTrendEndDate] = useState<string>("");
   const [eloTrendRangeTouched, setEloTrendRangeTouched] = useState(false);
+  const getTodayDateString = () => new Date().toISOString().slice(0, 10);
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
@@ -1167,16 +1169,17 @@ export default function PlayerSection({
                 InputProps={{
                   endAdornment: eloTrendStartDate ? (
                     <InputAdornment position="end">
-                      <MuiTooltip title="Rensa datum" arrow>
+                      <MuiTooltip title="Återställ till tidigaste datum" arrow>
                         <IconButton
-                          aria-label="Rensa startdatum"
+                          aria-label="Återställ startdatum"
                           size="small"
                           onClick={() => {
+                            // Note for non-coders: this reset jumps to the first day we have ELO data for.
                             setEloTrendRangeTouched(true);
-                            setEloTrendStartDate("");
+                            setEloTrendStartDate(minComparisonDate ? toInputDate(minComparisonDate) : "");
                           }}
                         >
-                          <CloseIcon fontSize="small" />
+                          <ResetIcon fontSize="small" />
                         </IconButton>
                       </MuiTooltip>
                     </InputAdornment>
@@ -1199,16 +1202,17 @@ export default function PlayerSection({
                 InputProps={{
                   endAdornment: eloTrendEndDate ? (
                     <InputAdornment position="end">
-                      <MuiTooltip title="Rensa datum" arrow>
+                      <MuiTooltip title="Återställ till idag" arrow>
                         <IconButton
-                          aria-label="Rensa slutdatum"
+                          aria-label="Återställ slutdatum"
                           size="small"
                           onClick={() => {
+                            // Note for non-coders: end date resets to today so newer matches show up again.
                             setEloTrendRangeTouched(true);
-                            setEloTrendEndDate("");
+                            setEloTrendEndDate(getTodayDateString());
                           }}
                         >
-                          <CloseIcon fontSize="small" />
+                          <ResetIcon fontSize="small" />
                         </IconButton>
                       </MuiTooltip>
                     </InputAdornment>

@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { getPlayerColor } from "../utils/colors";
 import { Typography, Box, Paper, TextField, Stack, InputAdornment, IconButton, Tooltip } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
+import { Autorenew as ResetIcon } from "@mui/icons-material";
 import { formatDate, formatShortDate } from "../utils/format";
 
 export default function EloTrend({ players = [] }) {
@@ -85,6 +85,7 @@ export default function EloTrend({ players = [] }) {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [hasCustomRange, setHasCustomRange] = useState(false);
+  const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     // Note for non-coders: we only auto-fill dates before the user customizes the range.
@@ -166,16 +167,17 @@ export default function EloTrend({ players = [] }) {
             InputProps={{
               endAdornment: startDate ? (
                 <InputAdornment position="end">
-                  <Tooltip title="Rensa datum" arrow>
+                  <Tooltip title="Återställ till tidigaste datum" arrow>
                     <IconButton
-                      aria-label="Rensa startdatum"
+                      aria-label="Återställ startdatum"
                       size="small"
                       onClick={() => {
+                        // Note for non-coders: resetting uses the earliest data we have, not an empty value.
                         setHasCustomRange(true);
-                        setStartDate("");
+                        setStartDate(minDateISO ? toInputDate(minDateISO) : "");
                       }}
                     >
-                      <CloseIcon fontSize="small" />
+                      <ResetIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </InputAdornment>
@@ -198,16 +200,17 @@ export default function EloTrend({ players = [] }) {
             InputProps={{
               endAdornment: endDate ? (
                 <InputAdornment position="end">
-                  <Tooltip title="Rensa datum" arrow>
+                  <Tooltip title="Återställ till idag" arrow>
                     <IconButton
-                      aria-label="Rensa slutdatum"
+                      aria-label="Återställ slutdatum"
                       size="small"
                       onClick={() => {
+                        // Note for non-coders: end date resets to today so the chart includes the latest days.
                         setHasCustomRange(true);
-                        setEndDate("");
+                        setEndDate(getTodayDateString());
                       }}
                     >
-                      <CloseIcon fontSize="small" />
+                      <ResetIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </InputAdornment>
