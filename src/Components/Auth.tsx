@@ -12,6 +12,7 @@ import {
   Stack,
   Container,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import AppAlert from "./Shared/AppAlert";
 import {
@@ -144,9 +145,11 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
               label="E-post"
               variant="outlined"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               type="email"
               autoComplete="email"
+              required
+              slotProps={{ htmlInput: { "aria-required": "true" } }}
             />
             <TextField
               fullWidth
@@ -154,8 +157,10 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
               variant="outlined"
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               autoComplete={isSignup ? "new-password" : "current-password"}
+              required
+              slotProps={{ htmlInput: { "aria-required": "true" } }}
             />
 
             {notice && <AppAlert severity="info" sx={{ py: 0 }}>{notice}</AppAlert>}
@@ -182,17 +187,25 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
             </Button>
 
             {!isSignup && (
-              <Button
-                fullWidth
-                variant="text"
-                size="small"
-                onClick={handlePasswordReset}
-                disabled={isSubmitting}
-                startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : <ResetIcon />}
-                sx={{ opacity: 0.7 }}
-              >
-                Glömt lösenord?
-              </Button>
+              <Tooltip title="Skicka en återställningslänk till din e-post" arrow>
+                <Button
+                  fullWidth
+                  variant="text"
+                  size="small"
+                  onClick={handlePasswordReset}
+                  disabled={isSubmitting}
+                  startIcon={
+                    isSubmitting ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <ResetIcon />
+                    )
+                  }
+                  sx={{ opacity: 0.7 }}
+                >
+                  Glömt lösenord?
+                </Button>
+              </Tooltip>
             )}
 
             <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>

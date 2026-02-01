@@ -25,3 +25,7 @@
 ## 2026-01-31 - [UX: Contextual Feedback & A11y States]
 **Learning:** For dense selection grids (like score entry), screen readers need explicit state cues like `aria-pressed`. Visual feedback for async operations (changing "Spara" to "Sparar...") prevents user uncertainty. Tooltips on disabled buttons require a wrapper `span` to ensure the tooltip is triggerable.
 **Action:** Always use `aria-pressed` on selection buttons. Implement "Sparar..." text changes in submit buttons. Wrap disabled tooltipped buttons in a `span`.
+
+## 2026-02-05 - [A11y: Native Validation & Sort Labels]
+**Learning:** MUI `TextField` does not always apply `aria-required` to the underlying input element when the `required` prop is used on the component. Explicitly passing it via `slotProps.htmlInput` ensures screen reader compliance. Table sorting headers require descriptive `aria-label` attributes on `TableSortLabel` to explain the action to non-visual users.
+**Action:** Use `slotProps.htmlInput` for `aria-required` in `TextField`. Always add `aria-label` to `TableSortLabel` describing the column being sorted.
