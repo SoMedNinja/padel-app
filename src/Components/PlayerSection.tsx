@@ -888,6 +888,8 @@ export default function PlayerSection({
 
   const [compareTarget, setCompareTarget] = useState<string>("none");
   const [isEloChartFullscreen, setIsEloChartFullscreen] = useState(false);
+  const [eloTrendStartDate, setEloTrendStartDate] = useState<string>("");
+  const [eloTrendEndDate, setEloTrendEndDate] = useState<string>("");
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
@@ -933,6 +935,68 @@ export default function PlayerSection({
     });
     return map;
   }, [comparisonData]);
+
+  const toInputDate = (isoDate: string | null) => {
+    if (!isoDate) return "";
+    return new Date(isoDate).toISOString().slice(0, 10);
+  };
+
+  const { minComparisonDate, maxComparisonDate } = useMemo(() => {
+    if (!comparisonData.length) return { minComparisonDate: null, maxComparisonDate: null };
+    return {
+      minComparisonDate: comparisonData[0].date ?? null,
+      maxComparisonDate: comparisonData[comparisonData.length - 1].date ?? null,
+    };
+  }, [comparisonData]);
+
+  useEffect(() => {
+    if (!minComparisonDate || !maxComparisonDate) {
+      setEloTrendStartDate("");
+      setEloTrendEndDate("");
+      return;
+    }
+    const minDateInput = toInputDate(minComparisonDate);
+    const maxDateInput = toInputDate(maxComparisonDate);
+    setEloTrendStartDate((prev) => prev || minDateInput);
+    setEloTrendEndDate((prev) => prev || maxDateInput);
+  }, [maxComparisonDate, minComparisonDate]);
+
+  const filteredComparisonData = useMemo(() => {
+    if (!eloTrendStartDate && !eloTrendEndDate) return comparisonData;
+
+    const start = eloTrendStartDate ? new Date(`${eloTrendStartDate}T00:00:00`) : null;
+    const end = eloTrendEndDate ? new Date(`${eloTrendEndDate}T23:59:59`) : null;
+
+    return comparisonData.filter(row => {
+      const rowDate = new Date(row.date);
+      if (start && rowDate < start) return false;
+      if (end && rowDate > end) return false;
+      return true;
+    });
+  }, [comparisonData, eloTrendEndDate, eloTrendStartDate]);
+
+  const comparisonYDomain = useMemo(() => {
+    // Note for non-coders: we only use the dates to zoom the chart, not to recalculate any ELO numbers.
+    if (!filteredComparisonData.length) return ["dataMin - 20", "dataMax + 20"] as const;
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    filteredComparisonData.forEach(row => {
+      comparisonNames.forEach(name => {
+        const value = row[name];
+        if (typeof value === "number") {
+          min = Math.min(min, value);
+          max = Math.max(max, value);
+        }
+      });
+    });
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return ["dataMin - 20", "dataMax + 20"] as const;
+
+    const padding = Math.max(5, Math.round((max - min) * 0.05));
+    return [min - padding, max + padding] as const;
+  }, [comparisonNames, filteredComparisonData]);
 
   useEffect(() => {
     // Lock the page scroll while the full-screen chart is open so it feels like a modal.
@@ -1056,7 +1120,7 @@ export default function PlayerSection({
         <CardContent sx={{ height: isEloChartFullscreen ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>ELO-utveckling (senaste året)</Typography>
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
               <TextField
                 select
                 size="small"
@@ -1073,6 +1137,26 @@ export default function PlayerSection({
                   </MenuItem>
                 ))}
               </TextField>
+              <TextField
+                id="elo-trend-start-date"
+                label="Startdatum"
+                aria-label="Välj startdatum för ELO-trend"
+                type="date"
+                size="small"
+                value={eloTrendStartDate}
+                onChange={(event) => setEloTrendStartDate(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                id="elo-trend-end-date"
+                label="Slutdatum"
+                aria-label="Välj slutdatum för ELO-trend"
+                type="date"
+                size="small"
+                value={eloTrendEndDate}
+                onChange={(event) => setEloTrendEndDate(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
               <MuiTooltip title={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"} arrow>
                 <IconButton
                   onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}
@@ -1094,13 +1178,13 @@ export default function PlayerSection({
                 minHeight={0}
                 debounce={50}
               >
-                <LineChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <LineChart data={filteredComparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
                     tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
                   />
-                  <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
+                  <YAxis domain={comparisonYDomain} />
                   <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
                   <Legend />
                   {comparisonNames.map((name, index) => (
