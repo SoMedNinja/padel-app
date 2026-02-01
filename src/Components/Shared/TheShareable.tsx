@@ -1032,27 +1032,34 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
           }}
         >
           {/* This is the element we will capture */}
+          {/* Note for non-coders: we only scale the preview wrapper so the exported element stays full-size and crisp. */}
           <Box
-            ref={templateRef}
             sx={{
               width: 1080,
               height: 1080,
-              bgcolor: 'background.paper',
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative',
-              // Note for non-coders: we shrink the preview to fit the dialog, but export the full size.
-              transform: isExporting
-                ? 'scale(1)'
-                : {
-                    xs: 'scale(0.24)',
-                    sm: 'scale(0.32)',
-                    md: 'scale(0.42)'
-                  },
-              transformOrigin: 'center center',
               flexShrink: 0,
+              display: 'flex',
+              alignItems: 'stretch',
+              justifyContent: 'center',
+              transform: {
+                xs: 'scale(0.24)',
+                sm: 'scale(0.32)',
+                md: 'scale(0.42)'
+              },
+              transformOrigin: 'center center',
             }}
           >
+            <Box
+              ref={templateRef}
+              sx={{
+                width: '100%',
+                height: '100%',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+              }}
+            >
              {type === 'match' && data.match && data.highlight && (
                <MatchTemplate
                  match={data.match}
@@ -1075,6 +1082,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
              {type === 'recap-evening' && data.recap && (
                 <RecapEveningTemplate data={data.recap} variant={variant} />
              )}
+            </Box>
           </Box>
         </Box>
       </DialogContent>
