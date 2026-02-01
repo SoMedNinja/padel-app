@@ -847,35 +847,47 @@ Deno.serve(async (req) => {
         <!DOCTYPE html>
         <html>
         <head>
+          <!-- Non-coder note: these meta tags tell email apps to prefer the light theme (helps Apple Mail dark mode). -->
+          <meta name="color-scheme" content="light">
+          <meta name="supported-color-schemes" content="light">
+          <!-- Non-coder note: "light only" is a stronger hint for Apple Mail clients. -->
+          <meta name="color-scheme" content="light only">
           <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
           <style>
+            /* Non-coder note: we declare a light color scheme to discourage auto-darkening. */
+            :root { color-scheme: light; supported-color-schemes: light; }
             body { font-family: 'Inter', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a; }
             h1, h2, h3 { font-family: 'Playfair Display', serif; }
+            /* Non-coder note: Apple Mail may flip colors, so we pin light backgrounds on tables/cells. */
+            table, td { background-color: #ffffff; color: #1a1a1a; }
+            /* Non-coder note: allow the intentionally dark hero/feature blocks to stay dark. */
+            .email-invert-allowed,
+            .email-invert-allowed td { background-color: #111111 !important; color: #ffffff !important; }
           </style>
         </head>
-        <body>
-          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4; padding: 20px;">
+        <body style="margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4" style="background-color: #f4f4f4; padding: 20px; color: #1a1a1a;">
             <tr>
-              <td align="center">
-                <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+              <td align="center" style="background-color: #f4f4f4; color: #1a1a1a;">
+                <table width="600" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="background-color: #ffffff; color: #1a1a1a; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
                   <!-- Header -->
                   <tr>
-                    <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
+                    <td class="email-invert-allowed" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
                       <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">${escapeHtml(weekLabel)}</h1>
                       <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
                     </td>
                   </tr>
                   <!-- Intro -->
                   <tr>
-                    <td style="padding: 40px 40px 20px 40px;">
+                    <td style="padding: 40px 40px 20px 40px; background-color: #ffffff; color: #1a1a1a;">
                       <h2 style="margin: 0; font-size: 28px; color: #000;">Hej ${stats.name}!</h2>
                       <p style="font-size: 16px; color: #666; line-height: 1.6;">Här är din personliga sammanfattning av veckans matcher och prestationer på banan.</p>
                     </td>
                   </tr>
                   <!-- Player Icon -->
                   <tr>
-                    <td style="padding: 0 40px 30px 40px;">
-                      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #111; border-radius: 10px; color: #fff;">
+                    <td style="padding: 0 40px 30px 40px; background-color: #ffffff; color: #1a1a1a;">
+                      <table class="email-invert-allowed" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#111111" style="background: #111; border-radius: 10px; color: #fff;">
                         <tr>
                           <td style="padding: 20px;" width="80" align="center">
                             ${renderAvatar(stats.avatarUrl, stats.name)}
@@ -891,8 +903,8 @@ Deno.serve(async (req) => {
                   </tr>
                   <!-- Stats Grid -->
                   <tr>
-                    <td style="padding: 0 40px 40px 40px;">
-                      <table width="100%" border="0" cellspacing="0" cellpadding="10" style="background-color: #fafafa; border-radius: 8px; border: 1px solid #eee;">
+                    <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                      <table width="100%" border="0" cellspacing="0" cellpadding="10" bgcolor="#fafafa" style="background-color: #fafafa; border-radius: 8px; border: 1px solid #eee;">
                         <tr>
                           <td width="50%" align="center" style="border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
                             <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Matcher</p>
@@ -919,7 +931,7 @@ Deno.serve(async (req) => {
                   <!-- MVP Section -->
                   ${mvp ? `
                   <tr>
-                    <td style="padding: 0 40px 40px 40px;">
+                    <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                       <div style="background-color: #000; border-radius: 8px; padding: 30px; text-align: center; color: #fff;">
                       <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
                       <div style="margin: 14px 0 10px 0; display: inline-block;">
@@ -934,7 +946,7 @@ Deno.serve(async (req) => {
                   <!-- Highlight Section -->
                   ${highlight ? `
                   <tr>
-                    <td style="padding: 0 40px 40px 40px;">
+                    <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                       <div style="border-left: 4px solid #000; padding: 10px 20px; background-color: #f9f9f9;">
                         <h3 style="margin: 0; font-size: 20px; color: #000;">✨ ${highlight.title}</h3>
                         <p style="margin: 10px 0 0 0; font-size: 16px; color: #444; line-height: 1.5;">${highlight.description}</p>
@@ -945,12 +957,12 @@ Deno.serve(async (req) => {
                   <!-- Synergy & Rivalry -->
                   ${(stats.synergy || stats.rivalry) ? `
                   <tr>
-                    <td style="padding: 0 40px 40px 40px;">
+                    <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                       <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Synergi & Rivalitet</h3>
                       <table width="100%" border="0" cellspacing="0" cellpadding="0">
                         <tr>
                           <td width="50%" style="padding-right: 10px;">
-                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f7f7f7" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
                               <tr>
                                 <td style="padding: 16px;" align="center" width="70">
                                   ${stats.synergy ? renderAvatar(stats.synergy.avatarUrl, stats.synergy.name) : ""}
@@ -964,7 +976,7 @@ Deno.serve(async (req) => {
                             </table>
                           </td>
                           <td width="50%" style="padding-left: 10px;">
-                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f7f7f7" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
                               <tr>
                                 <td style="padding: 16px;" align="center" width="70">
                                   ${stats.rivalry ? renderAvatar(stats.rivalry.avatarUrl, stats.rivalry.name) : ""}
@@ -985,7 +997,7 @@ Deno.serve(async (req) => {
                   <!-- Best Comeback & Form Curve -->
                   ${(stats.bestComeback || stats.recentResults.length) ? `
                   <tr>
-                    <td style="padding: 0 40px 40px 40px;">
+                    <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                       <table width="100%" border="0" cellspacing="0" cellpadding="0">
                         <tr>
                           <td width="50%" style="padding-right: 10px;">
@@ -1022,7 +1034,7 @@ Deno.serve(async (req) => {
                   <!-- Results Section -->
                   ${stats.resultsByDate.length > 0 ? `
                   <tr>
-                    <td style="padding: 0 40px 40px 40px;">
+                    <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                       <h3 style="margin: 0 0 10px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Dina resultat</h3>
                       ${stats.resultsByDate.map((entry: { dateLabel: string; scores: string[] }) => `
                         <p style="margin: 0 0 6px 0; font-size: 14px; color: #666;">
@@ -1034,7 +1046,7 @@ Deno.serve(async (req) => {
                   ` : ""}
                   <!-- Leaderboard Section -->
                   <tr>
-                    <td style="padding: 0 40px 40px 40px;">
+                    <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                     <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Topplistan just nu</h3>
                     <table width="100%" border="0" cellspacing="0" cellpadding="5">
                         ${leaderboard.map(entry => `
@@ -1054,7 +1066,7 @@ Deno.serve(async (req) => {
                   </tr>
                   <!-- Footer -->
                   <tr>
-                    <td style="background-color: #fafafa; padding: 30px; text-align: center; border-top: 1px solid #eee;">
+                    <td style="background-color: #fafafa; padding: 30px; text-align: center; border-top: 1px solid #eee; color: #1a1a1a;">
                       <p style="margin: 0; font-size: 12px; color: #999;">
                         Detta är ett automatiskt utskick från Grabbarnas Serie.<br>
                         Vi ses på banan!
