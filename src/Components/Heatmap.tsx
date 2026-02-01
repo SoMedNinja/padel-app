@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { getProfileDisplayName, makeProfileMap, resolveTeamNames } from "../utils/profileMap";
+import { getProfileDisplayName, makeProfileMap } from "../utils/profileMap";
 import ProfileName from "./ProfileName";
 import { GUEST_NAME } from "../utils/guest";
 import { Match, Profile, PlayerStats } from "../types";
@@ -115,23 +115,33 @@ export default function Heatmap({
   const resolvedMatches = useMemo(() => {
     const guestKey = normalizeProfileName(GUEST_NAME);
     return sortedMatches.map(m => {
-      const team1Raw = resolveTeamNames(m.team1_ids, m.team1, profileMap);
-      const team2Raw = resolveTeamNames(m.team2_ids, m.team2, profileMap);
-
-      const resolve = (players: string[]) => {
+      // Optimization: Resolve and normalize in a single pass directly from IDs/Names to final names.
+      // This avoids multiple iterations and intermediate array allocations in the hot loop.
+      const resolveTeam = (ids: (string | null)[] | undefined, names: string | string[] | undefined) => {
         const resolved: string[] = [];
         let hasGuest = false;
         let hasUnknown = false;
+
+        const players = (ids && ids.length > 0) ? ids : (Array.isArray(names) ? names : (typeof names === "string" ? names.split(",") : []));
+
         for (let i = 0; i < players.length; i++) {
-          const key = normalizeProfileName(players[i]);
-          if (!key) continue;
+          let p = players[i];
+          if (!p) continue;
+          if (typeof p === "string") p = p.trim();
+          if (!p) continue;
+
+          const key = normalizeProfileName(p);
           if (key === guestKey) {
             hasGuest = true;
             break;
           }
-          const name = allowedNameMap.get(key);
-          if (name) {
-            resolved.push(name);
+
+          // Try resolving by ID first if it's an ID string, then fallback to normalized name lookup.
+          const profile = (ids && ids.length > 0) ? profileMap.get(p as string) : null;
+          const finalName = profile ? getProfileDisplayName(profile) : allowedNameMap.get(key);
+
+          if (finalName && finalName !== "Okänd") {
+            resolved.push(finalName);
           } else if (allowedNameMap.size) {
             hasUnknown = true;
             break;
@@ -140,13 +150,10 @@ export default function Heatmap({
         return { resolved, hasGuest, hasUnknown };
       };
 
-      const t1 = resolve(team1Raw);
-      const t2 = resolve(team2Raw);
-
       return {
         m,
-        t1,
-        t2,
+        t1: resolveTeam(m.team1_ids, m.team1),
+        t2: resolveTeam(m.team2_ids, m.team2),
         normalizedServeFlag: normalizeServeFlag(m.team1_serves_first)
       };
     });
@@ -264,7 +271,10 @@ export default function Heatmap({
         valA = a.avgElo; valB = b.avgElo;
       }
       if (typeof valA === 'string' && typeof valB === 'string') {
-        return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        // Optimization: use native string comparison instead of expensive localeCompare
+        if (valA < valB) return asc ? -1 : 1;
+        if (valA > valB) return asc ? 1 : -1;
+        return 0;
       }
       return asc ? valA - valB : valB - valA;
     });

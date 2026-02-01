@@ -14,6 +14,11 @@ const DEFAULT_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "numeric",
 };
 
+// Optimization: Pre-define common options as constants to leverage identity-based cache hits
+// in getFormatter and skip expensive JSON.stringify calls.
+const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+const FULL_DATE_OPTIONS: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "short" };
+
 const getFormatter = (options: Intl.DateTimeFormatOptions) => {
   // Optimization: Use a constant key for default options to avoid JSON.stringify overhead
   const isDefault = options === DEFAULT_OPTIONS;
@@ -46,7 +51,7 @@ export const formatDate = (
  * Example: "12 maj"
  */
 export const formatShortDate = (date: string | Date | undefined) => {
-  return formatDate(date, { month: "short", day: "numeric" });
+  return formatDate(date, SHORT_DATE_OPTIONS);
 };
 
 /**
@@ -54,7 +59,7 @@ export const formatShortDate = (date: string | Date | undefined) => {
  * Example: "måndag 12 maj"
  */
 export const formatFullDate = (date: string | Date | undefined) => {
-  return formatDate(date, { weekday: "long", day: "numeric", month: "short" });
+  return formatDate(date, FULL_DATE_OPTIONS);
 };
 
 /**
