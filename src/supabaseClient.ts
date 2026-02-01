@@ -60,6 +60,7 @@ const createMockSupabase = (): any => ({
     resetPasswordForEmail: () => Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
     signOut: () => Promise.resolve({ error: new Error(missingSupabaseMessage) }),
     getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    refreshSession: () => Promise.resolve({ data: { session: null }, error: new Error(missingSupabaseMessage) }),
   },
   from: () => createMockQuery(),
   channel: () => {
