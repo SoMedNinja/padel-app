@@ -91,10 +91,28 @@ const percent = (wins: number, losses: number) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
-const formatServeSplit = (wins: number, losses: number) => {
+const renderWinLossSplit = (wins: number, losses: number, includePercent = false) => {
   const total = wins + losses;
   if (!total) return "—";
-  return `${wins}-${losses} (${percent(wins, losses)}%)`;
+  // Note for non-coders: we render wins/losses as separate colored spans so it's easy to scan at a glance.
+  return (
+    <Box component="span" sx={{ display: "inline-flex", alignItems: "baseline", gap: 0.75, flexWrap: "wrap" }}>
+      <Typography component="span" variant="inherit" sx={{ color: "success.main", fontWeight: 800 }}>
+        {wins}
+      </Typography>
+      <Typography component="span" variant="inherit" sx={{ color: "text.primary" }}>
+        -
+      </Typography>
+      <Typography component="span" variant="inherit" sx={{ color: "error.main", fontWeight: 800 }}>
+        {losses}
+      </Typography>
+      {includePercent && (
+        <Typography component="span" variant="body2" sx={{ color: "text.secondary", fontWeight: 600 }}>
+          ({percent(wins, losses)}%)
+        </Typography>
+      )}
+    </Box>
+  );
 };
 
 const formatEloDelta = (delta: number | string) => {
@@ -1256,13 +1274,21 @@ export default function PlayerSection({
           ))}
           {[
             { label: "Matcher", value: filteredStats ? filteredStats.wins + filteredStats.losses : 0 },
-            { label: "Vinster", value: filteredStats ? filteredStats.wins : 0 },
-            { label: "Förluster", value: filteredStats ? filteredStats.losses : 0 },
+            {
+              label: "Vinst/förlust",
+              value: renderWinLossSplit(filteredStats?.wins ?? 0, filteredStats?.losses ?? 0),
+            },
             { label: "Vinst %", value: `${filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%` },
-            { label: "Serve först", value: formatServeSplit(serveSplitStats.serveFirstWins, serveSplitStats.serveFirstLosses) },
-            { label: "Serve andra", value: formatServeSplit(serveSplitStats.serveSecondWins, serveSplitStats.serveSecondLosses) },
+            {
+              label: "Vinst/förlust med start-serve",
+              value: renderWinLossSplit(serveSplitStats.serveFirstWins, serveSplitStats.serveFirstLosses, true),
+            },
+            {
+              label: "Vinst/förlust utan start-serve",
+              value: renderWinLossSplit(serveSplitStats.serveSecondWins, serveSplitStats.serveSecondLosses, true),
+            },
             { label: "ELO +/- (30d)", value: formatEloDelta(last30DaysDelta), color: getEloDeltaClass(last30DaysDelta) },
-            { label: "ELO +/- (Pass)", value: formatEloDelta(lastSessionDelta), color: getEloDeltaClass(lastSessionDelta) },
+            { label: "ELO +/- (Kväll)", value: formatEloDelta(lastSessionDelta), color: getEloDeltaClass(lastSessionDelta) },
             { label: "Form (L5)", value: `${recentFormStats.wins}V - ${recentFormStats.losses}F` },
           ].map(stat => (
             <Grid key={stat.label} size={{ xs: 6, sm: 4, md: 3 }}>
@@ -1537,8 +1563,10 @@ export function HeadToHeadSection({
             <Grid container spacing={2}>
               {[
                 { label: "Matcher", value: headToHead.matches },
-                { label: "Vinster", value: headToHead.wins },
-                { label: "Förluster", value: headToHead.losses },
+                {
+                  label: "Vinst/förlust",
+                  value: renderWinLossSplit(headToHead.wins, headToHead.losses),
+                },
                 { label: "Vinst %", value: `${percent(headToHead.wins, headToHead.losses)}%` },
                 {
                   label: "Totala set",
@@ -1546,11 +1574,11 @@ export function HeadToHeadSection({
                 },
                 {
                   label: "Serve först (du)",
-                  value: formatServeSplit(headToHeadServeStats.serveFirstWins, headToHeadServeStats.serveFirstLosses),
+                  value: renderWinLossSplit(headToHeadServeStats.serveFirstWins, headToHeadServeStats.serveFirstLosses, true),
                 },
                 {
                   label: "Serve andra (du)",
-                  value: formatServeSplit(headToHeadServeStats.serveSecondWins, headToHeadServeStats.serveSecondLosses),
+                  value: renderWinLossSplit(headToHeadServeStats.serveSecondWins, headToHeadServeStats.serveSecondLosses, true),
                 },
                 ...(mode === "against" ? [
                   {
