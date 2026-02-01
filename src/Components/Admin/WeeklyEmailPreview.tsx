@@ -440,17 +440,21 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       <!DOCTYPE html>
       <html>
       <head>
+        <!-- Note for non-coders: these meta tags hint email clients to keep the light theme instead of auto-darkening. -->
+        <meta name="color-scheme" content="light">
+        <meta name="supported-color-schemes" content="light">
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
         <style>
+          html, body { background-color: #f4f4f4; color: #1a1a1a; }
           body { font-family: 'Inter', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a; }
           h1, h2, h3 { font-family: 'Playfair Display', serif; }
         </style>
       </head>
-      <body>
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4; padding: 20px;">
+      <body style="margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4" style="background-color: #f4f4f4; padding: 20px;">
           <tr>
             <td align="center">
-              <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+              <table width="600" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
                 <!-- Header -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
