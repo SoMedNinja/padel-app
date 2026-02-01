@@ -10,7 +10,8 @@ import {
   ReferenceLine
 } from "recharts";
 import { getPlayerColor } from "../utils/colors";
-import { Typography, Box, Paper, TextField } from "@mui/material";
+import { Typography, Box, Paper, TextField, Stack, InputAdornment, IconButton, Tooltip } from "@mui/material";
+import { Close as CloseIcon } from "@mui/icons-material";
 import { formatDate, formatShortDate } from "../utils/format";
 
 export default function EloTrend({ players = [] }) {
@@ -83,14 +84,17 @@ export default function EloTrend({ players = [] }) {
 
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [hasCustomRange, setHasCustomRange] = useState(false);
 
   useEffect(() => {
-    if (!startDate && minDateISO) setStartDate(toInputDate(minDateISO));
-  }, [minDateISO, startDate]);
+    // Note for non-coders: we only auto-fill dates before the user customizes the range.
+    if (!hasCustomRange && !startDate && minDateISO) setStartDate(toInputDate(minDateISO));
+  }, [hasCustomRange, minDateISO, startDate]);
 
   useEffect(() => {
-    if (!endDate && maxDateISO) setEndDate(toInputDate(maxDateISO));
-  }, [endDate, maxDateISO]);
+    // Note for non-coders: this keeps the default range unless the user clears it.
+    if (!hasCustomRange && !endDate && maxDateISO) setEndDate(toInputDate(maxDateISO));
+  }, [endDate, hasCustomRange, maxDateISO]);
 
   const filteredData = useMemo(() => {
     if (!startDate && !endDate) return data;
@@ -131,12 +135,22 @@ export default function EloTrend({ players = [] }) {
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        alignItems={{ xs: "stretch", sm: "flex-start" }}
+        justifyContent="space-between"
+        sx={{ mb: 3 }}
+      >
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 800 }}>ELO Trend</Typography>
           <Typography variant="caption" color="text.secondary">Tryck och dra för att se detaljer</Typography>
         </Box>
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          alignItems={{ xs: "stretch", sm: "center" }}
+        >
           <TextField
             id="elo-trend-start-date"
             label="Startdatum"
@@ -144,8 +158,30 @@ export default function EloTrend({ players = [] }) {
             type="date"
             size="small"
             value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
+            onChange={(event) => {
+              setHasCustomRange(true);
+              setStartDate(event.target.value);
+            }}
             slotProps={{ inputLabel: { shrink: true } }}
+            InputProps={{
+              endAdornment: startDate ? (
+                <InputAdornment position="end">
+                  <Tooltip title="Rensa datum" arrow>
+                    <IconButton
+                      aria-label="Rensa startdatum"
+                      size="small"
+                      onClick={() => {
+                        setHasCustomRange(true);
+                        setStartDate("");
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </InputAdornment>
+              ) : undefined
+            }}
+            sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
           />
           <TextField
             id="elo-trend-end-date"
@@ -154,11 +190,33 @@ export default function EloTrend({ players = [] }) {
             type="date"
             size="small"
             value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
+            onChange={(event) => {
+              setHasCustomRange(true);
+              setEndDate(event.target.value);
+            }}
             slotProps={{ inputLabel: { shrink: true } }}
+            InputProps={{
+              endAdornment: endDate ? (
+                <InputAdornment position="end">
+                  <Tooltip title="Rensa datum" arrow>
+                    <IconButton
+                      aria-label="Rensa slutdatum"
+                      size="small"
+                      onClick={() => {
+                        setHasCustomRange(true);
+                        setEndDate("");
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </InputAdornment>
+              ) : undefined
+            }}
+            sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
           />
-        </Box>
-      </Box>
+        </Stack>
+      </Stack>
 
       <Box sx={{ width: "100%", height: 350, minWidth: 0 }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
