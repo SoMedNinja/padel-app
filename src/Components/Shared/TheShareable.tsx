@@ -11,7 +11,7 @@ import {
   CircularProgress,
   Paper,
 } from '@mui/material';
-import { Close, Download, EmojiEvents, ChevronLeft, ChevronRight, OpenInNew } from '@mui/icons-material';
+import { Close, Download, EmojiEvents, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { toBlob, toPng } from 'html-to-image';
 import { Match, Tournament, TournamentResult } from '../../types';
 import { MatchHighlight } from '../../utils/highlights';
@@ -1002,26 +1002,6 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
     }
   };
 
-  const handleView = async () => {
-    const previewWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener') : null;
-    if (!previewWindow) {
-      toast.error('Kunde inte öppna förhandsvisningen. Tillåt popup-fönster.');
-      return;
-    }
-    setIsExporting(true);
-    try {
-      const { url } = await createShareImage();
-      previewWindow.location.href = url;
-      previewWindow.document.title = 'Shareable image';
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (err) {
-      console.error('Failed to preview image', err);
-      toast.error('Kunde inte visa bilden. Försök igen.');
-      previewWindow.close();
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   return (
     <Dialog
