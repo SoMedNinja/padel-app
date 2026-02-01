@@ -989,6 +989,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
     setIsExporting(true);
     try {
       const { url, fileName } = await createShareImage();
+      // Note for non-coders: we create a temporary download link so the browser saves the image to your device.
       const link = document.createElement('a');
       link.download = fileName;
       link.href = url;
@@ -1001,7 +1002,6 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
       setIsExporting(false);
     }
   };
-
 
   return (
     <Dialog
@@ -1100,17 +1100,6 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
           </IconButton>
         </Stack>
 
-        <Button
-          fullWidth
-          variant="outlined"
-          size="large"
-          startIcon={isExporting ? <CircularProgress size={20} /> : <OpenInNew />}
-          onClick={handleView}
-          disabled={isExporting}
-          sx={{ borderRadius: 2 }}
-        >
-          Visa bild
-        </Button>
         <Button
           fullWidth
           variant="contained"
