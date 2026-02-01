@@ -24,6 +24,7 @@ export default function App() {
     recoveryError,
   } = useAuthProfile();
   const [showAuthScreen, setShowAuthScreen] = useState(false);
+  const toaster = <Toaster position="top-center" richColors />;
 
   useRealtime();
 
@@ -33,48 +34,55 @@ export default function App() {
       setShowAuthScreen(false);
     }
   }, [user, isGuest]);
-  // Note for non-coders: we sign out locally first so the browser forgets the login right away.
+  // Note for non-coders: signing out clears the saved login so you return to the login screen immediately.
   const handleSignOut = async () => {
-    await supabase.auth.signOut({ scope: "local" });
+    // Note for non-coders: we revoke the session on the server so the app doesn't auto-log you back in.
+    await supabase.auth.signOut();
     setIsGuest(false);
     setUser(null);
   };
 
   if (isLoading) {
     return (
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 8, textAlign: 'center' }}>
-          <CircularProgress size={40} sx={{ mb: 2 }} />
-          <Typography color="text.secondary">Laddar inloggning...</Typography>
-        </Box>
-      </Container>
+      <>
+        {toaster}
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8, textAlign: 'center' }}>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography color="text.secondary">Laddar inloggning...</Typography>
+          </Box>
+        </Container>
+      </>
     );
   }
 
   if (errorMessage) {
     return (
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 8 }}>
-          <AppAlert
-            severity="error"
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <Typography variant="body2">{errorMessage}</Typography>
-              <Button color="inherit" size="small" onClick={refresh}>
-                Försök igen
-              </Button>
-            </Box>
-          </AppAlert>
-          <Button
-            fullWidth
-            variant="text"
-            sx={{ mt: 2 }}
-            onClick={handleSignOut}
-          >
-            Återgå till inloggningssidan
-          </Button>
-        </Box>
-      </Container>
+      <>
+        {toaster}
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8 }}>
+            <AppAlert
+              severity="error"
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <Typography variant="body2">{errorMessage}</Typography>
+                <Button color="inherit" size="small" onClick={refresh}>
+                  Försök igen
+                </Button>
+              </Box>
+            </AppAlert>
+            <Button
+              fullWidth
+              variant="text"
+              sx={{ mt: 2 }}
+              onClick={handleSignOut}
+            >
+              Återgå till inloggningssidan
+            </Button>
+          </Box>
+        </Container>
+      </>
     );
   }
 
@@ -82,63 +90,75 @@ export default function App() {
     if (isRecoveringSession) {
       // Note for non-coders: we try to restore your login quietly before asking you to sign in again.
       return (
-        <Container maxWidth="sm">
-          <Box sx={{ mt: 8, textAlign: "center" }}>
-            <CircularProgress size={40} sx={{ mb: 2 }} />
-            <Typography color="text.secondary">Återställer din inloggning...</Typography>
-          </Box>
-        </Container>
+        <>
+          {toaster}
+          <Container maxWidth="sm">
+            <Box sx={{ mt: 8, textAlign: "center" }}>
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography color="text.secondary">Återställer din inloggning...</Typography>
+            </Box>
+          </Container>
+        </>
       );
     }
 
     if (hasRecoveryFailed && !showAuthScreen) {
       return (
-        <Container maxWidth="sm">
-          <Box sx={{ mt: 8, textAlign: "center" }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Vi kunde inte återställa din session
-            </Typography>
-            <Typography color="text.secondary" sx={{ mb: 3 }}>
-              {recoveryError
-                ? `Teknisk detalj: ${recoveryError}`
-                : "Det händer ibland om webbläsaren rensar sin lagring eller om inloggningen har gått ut."}
-            </Typography>
-            <Stack direction="row" spacing={2} justifyContent="center">
-              <Button variant="contained" onClick={refresh}>
-                Försök igen
-              </Button>
-              <Button variant="outlined" onClick={() => setShowAuthScreen(true)}>
-                Gå till inloggning
-              </Button>
-            </Stack>
-          </Box>
-        </Container>
+        <>
+          {toaster}
+          <Container maxWidth="sm">
+            <Box sx={{ mt: 8, textAlign: "center" }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Vi kunde inte återställa din session
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 3 }}>
+                {recoveryError
+                  ? `Teknisk detalj: ${recoveryError}`
+                  : "Det händer ibland om webbläsaren rensar sin lagring eller om inloggningen har gått ut."}
+              </Typography>
+              <Stack direction="row" spacing={2} justifyContent="center">
+                <Button variant="contained" onClick={refresh}>
+                  Försök igen
+                </Button>
+                <Button variant="outlined" onClick={() => setShowAuthScreen(true)}>
+                  Gå till inloggning
+                </Button>
+              </Stack>
+            </Box>
+          </Container>
+        </>
       );
     }
 
     return (
-      <Auth
-        onAuth={(authUser) => {
-          setIsGuest(false);
-          // Note for non-coders: we set a temporary user right away so the login screen can disappear.
-          const metadataName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || "";
-          setUser({ ...authUser, name: typeof metadataName === "string" ? metadataName.trim() : "" });
-          // Note for non-coders: useAuthProfile will automatically pick up the new session via onAuthStateChange.
-        }}
-        onGuest={() => setIsGuest(true)}
-      />
+      <>
+        {toaster}
+        <Auth
+          onAuth={(authUser) => {
+            setIsGuest(false);
+            // Note for non-coders: we set a temporary user right away so the login screen can disappear.
+            const metadataName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || "";
+            setUser({ ...authUser, name: typeof metadataName === "string" ? metadataName.trim() : "" });
+            // Note for non-coders: useAuthProfile will automatically pick up the new session via onAuthStateChange.
+          }}
+          onGuest={() => setIsGuest(true)}
+        />
+      </>
     );
   }
 
   if (user && !hasCheckedProfile && !isGuest) {
     // Note for non-coders: we wait to show the profile screen until we know the latest profile details.
     return (
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 8, textAlign: 'center' }}>
-          <CircularProgress size={40} sx={{ mb: 2 }} />
-          <Typography color="text.secondary">Verifierar profilen...</Typography>
-        </Box>
-      </Container>
+      <>
+        {toaster}
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8, textAlign: 'center' }}>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography color="text.secondary">Verifierar profilen...</Typography>
+          </Box>
+        </Container>
+      </>
     );
   }
 
@@ -154,45 +174,51 @@ export default function App() {
     // Note for non-coders: we prefill the setup form with any name we can find.
 
     return (
-      <MainLayout>
-        <ProfileSetup
-          user={user}
-          initialName={metadataName}
-          onComplete={(updatedProfile: any) => {
-            setUser({ ...user, ...updatedProfile });
-          }}
-        />
-      </MainLayout>
+      <>
+        {toaster}
+        <MainLayout>
+          <ProfileSetup
+            user={user}
+            initialName={metadataName}
+            onComplete={(updatedProfile: any) => {
+              setUser({ ...user, ...updatedProfile });
+            }}
+          />
+        </MainLayout>
+      </>
     );
   }
 
   // Approval gate
   if (user && !user.is_admin && !user.is_approved && !isGuest) {
     return (
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 8, textAlign: 'center', p: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 800 }}>Väntar på godkännande</Typography>
-          <Typography color="text.secondary" sx={{ mb: 4 }}>
-            En administratör behöver godkänna din åtkomst innan du kan använda
-            appen fullt ut.
-          </Typography>
-          <Stack direction="row" spacing={2} justifyContent="center">
-            <Button variant="contained" onClick={refresh}>
-              Uppdatera status
-            </Button>
-            <Button variant="outlined" onClick={handleSignOut}>
-              Logga ut
-            </Button>
-          </Stack>
-        </Box>
-      </Container>
+      <>
+        {toaster}
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8, textAlign: 'center', p: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 800 }}>Väntar på godkännande</Typography>
+            <Typography color="text.secondary" sx={{ mb: 4 }}>
+              En administratör behöver godkänna din åtkomst innan du kan använda
+              appen fullt ut.
+            </Typography>
+            <Stack direction="row" spacing={2} justifyContent="center">
+              <Button variant="contained" onClick={refresh}>
+                Uppdatera status
+              </Button>
+              <Button variant="outlined" onClick={handleSignOut}>
+                Logga ut
+              </Button>
+            </Stack>
+          </Box>
+        </Container>
+      </>
     );
   }
 
   return (
     <>
       <ScrollToTop />
-      <Toaster position="top-center" richColors />
+      {toaster}
       <MainLayout>
         <AppRoutes />
       </MainLayout>

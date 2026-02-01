@@ -109,12 +109,14 @@ export const useAuthProfile = () => {
   }, []);
 
   const syncProfile = useCallback(
-    async (authUser: User | null) => {
+    async (authUser: User | null, options?: { skipRecovery?: boolean }) => {
       if (!authUser) {
-        const recoveredUser = await attemptSessionRecovery();
-        if (recoveredUser) {
-          await syncProfile(recoveredUser);
-          return;
+        if (!options?.skipRecovery) {
+          const recoveredUser = await attemptSessionRecovery();
+          if (recoveredUser) {
+            await syncProfile(recoveredUser);
+            return;
+          }
         }
 
         setHasCheckedProfile(false);
@@ -285,10 +287,11 @@ export const useAuthProfile = () => {
       if (isMounted) syncProfile(session?.user ?? null);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       setErrorMessage(null);
-      await syncProfile(session?.user ?? null);
+      // Note for non-coders: when a user signs out, we skip recovery so we return to the login screen right away.
+      await syncProfile(session?.user ?? null, { skipRecovery: event === "SIGNED_OUT" });
     });
 
     return () => {

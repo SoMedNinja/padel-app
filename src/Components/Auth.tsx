@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import {
   Box,
@@ -33,6 +32,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false);
   const [notice, setNotice] = useState("");
+  const [noticeSeverity, setNoticeSeverity] = useState<"info" | "error" | "success">("info");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,14 +52,17 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     if (isSubmitting) return;
     setNotice("");
     if (!email || !password) {
+      setNoticeSeverity("error");
       setNotice("Fyll i både e-post och lösenord.");
       return;
     }
     if (!emailRegex.test(email)) {
+      setNoticeSeverity("error");
       setNotice("Ange en giltig e-postadress.");
       return;
     }
     if (password.length < 8) {
+      setNoticeSeverity("error");
       setNotice("Lösenordet måste vara minst 8 tecken.");
       return;
     }
@@ -77,13 +80,15 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
         });
 
         if (error) {
-          toast.error(error.message);
+          setNoticeSeverity("error");
+          setNotice(error.message);
           return;
         }
         if (data?.session?.user) {
           onAuth(data.session.user);
           return;
         }
+        setNoticeSeverity("success");
         setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -92,7 +97,8 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
         });
 
         if (error) {
-          toast.error(error.message);
+          setNoticeSeverity("error");
+          setNotice(error.message);
           return;
         }
         if (data.user) {
@@ -108,10 +114,12 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
 
   const handlePasswordReset = async () => {
     if (!email) {
+      setNoticeSeverity("error");
       setNotice("Ange e-postadressen du vill återställa lösenordet för.");
       return;
     }
     if (!emailRegex.test(email)) {
+      setNoticeSeverity("error");
       setNotice("Ange en giltig e-postadress.");
       return;
     }
@@ -121,9 +129,11 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
         redirectTo: resolveSiteUrl(),
       });
       if (error) {
-        toast.error(error.message);
+        setNoticeSeverity("error");
+        setNotice(error.message);
         return;
       }
+      setNoticeSeverity("success");
       setNotice("Återställningslänk skickad! Kolla din e-post.");
     } finally {
       setIsSubmitting(false);
@@ -163,7 +173,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
               slotProps={{ htmlInput: { "aria-required": "true" } }}
             />
 
-            {notice && <AppAlert severity="info" sx={{ py: 0 }}>{notice}</AppAlert>}
+            {notice && <AppAlert severity={noticeSeverity} sx={{ py: 0 }}>{notice}</AppAlert>}
 
             <Button
               fullWidth

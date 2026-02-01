@@ -51,9 +51,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
     setIsMenuOpen(prev => !prev);
   }, []);
 
-  // Note for non-coders: clearing the local session stops the browser from auto-logging in on refresh.
+  // Note for non-coders: signing out clears the saved session so the app doesn't auto-log you back in.
   const handleSignOut = useCallback(async () => {
-    await supabase.auth.signOut({ scope: "local" });
+    // Note for non-coders: signing out on the server prevents the app from restoring the session.
+    await supabase.auth.signOut();
     setUser(null);
     setIsGuest(false);
   }, [setIsGuest, setUser]);
