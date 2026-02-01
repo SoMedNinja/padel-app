@@ -1,6 +1,5 @@
 import { GUEST_ID } from "./guest";
 import {
-  getIdDisplayName,
   getProfileDisplayName,
   resolveTeamIds,
 } from "./profileMap";
@@ -154,34 +153,32 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     badgeMap[p.id] = p.featured_badge_id || null;
   });
 
-  const ensurePlayer = (id: string, name = "Okänd", avatarUrl: string | null = null, featuredBadgeId: string | null = null) => {
+  const ensurePlayer = (id: string) => {
     if (id === GUEST_ID) return;
-    const existing = players[id];
-    if (!existing) {
-      players[id] = {
-        id,
-        name,
-        elo: ELO_BASELINE,
-        startElo: ELO_BASELINE,
-        wins: 0,
-        losses: 0,
-        games: 0,
-        history: [],
-        partners: {},
-        avatarUrl,
-        featuredBadgeId,
-        recentResults: [],
-      };
-    } else {
-      // Optimization: skip redundant checks if info is already present
-      if (existing.name === "Okänd" && name) existing.name = name;
-      if (!existing.avatarUrl && avatarUrl) existing.avatarUrl = avatarUrl;
-      if (!existing.featuredBadgeId && featuredBadgeId) existing.featuredBadgeId = featuredBadgeId;
-    }
+    if (players[id]) return;
+
+    // Optimization: avoid redundant Map lookups and string checks by resolving once
+    const p = profileMap.get(id);
+    const name = p ? getProfileDisplayName(p) : (id.startsWith("name:") ? id.replace("name:", "") : "Okänd");
+
+    players[id] = {
+      id,
+      name,
+      elo: ELO_BASELINE,
+      startElo: ELO_BASELINE,
+      wins: 0,
+      losses: 0,
+      games: 0,
+      history: [],
+      partners: {},
+      avatarUrl: p?.avatar_url || null,
+      featuredBadgeId: p?.featured_badge_id || null,
+      recentResults: [],
+    };
   };
 
   profiles.forEach(p => {
-    ensurePlayer(p.id, getProfileDisplayName(p), avatarMap[p.id], badgeMap[p.id]);
+    ensurePlayer(p.id);
   });
 
   const normalizeTeam = (team: any): string[] => {
@@ -224,8 +221,6 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     }
   };
 
-  const resolveName = (id: string) => getIdDisplayName(id, profileMap);
-
   // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort and copy.
   let isSorted = true;
   for (let i = 1; i < matches.length; i++) {
@@ -252,9 +247,10 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
     const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
     const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
-    // Optimization: avoid array spread allocation
-    for (let i = 0; i < t1.length; i++) ensurePlayer(t1[i], resolveName(t1[i]), null, badgeMap[t1[i]]);
-    for (let i = 0; i < t2.length; i++) ensurePlayer(t2[i], resolveName(t2[i]), null, badgeMap[t2[i]]);
+    // Optimization: avoid redundant resolution calls inside the loop.
+    // ensurePlayer now handles lazy resolution from pre-calculated maps.
+    for (let i = 0; i < t1.length; i++) ensurePlayer(t1[i]);
+    for (let i = 0; i < t2.length; i++) ensurePlayer(t2[i]);
     const t1Active = activeTeam(t1);
     const t2Active = activeTeam(t2);
 
@@ -387,7 +383,7 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     const bestPartner = bestPartnerEntry
       ? {
         ...bestPartnerEntry,
-        name: resolveName(bestPartnerEntry.partnerId),
+        name: players[bestPartnerEntry.partnerId]?.name || "Okänd",
       }
       : null;
 
