@@ -1002,6 +1002,21 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
     }
   };
 
+  const handleView = async () => {
+    setIsExporting(true);
+    try {
+      const { url } = await createShareImage();
+      // Note for non-coders: we open the image in a new tab so you can preview it before sharing.
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      console.error('Failed to preview image', err);
+      toast.error('Kunde inte förhandsvisa bilden. Försök igen.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
 
   return (
     <Dialog
