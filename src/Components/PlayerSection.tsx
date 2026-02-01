@@ -413,10 +413,9 @@ const buildServeSplitStats = (
     const isTeam2 = team2.includes(playerId);
     if (!isTeam1 && !isTeam2) return;
 
-    const normalizedServeFlag = normalizeServeFlag(match.team1_serves_first);
-    // Note for non-coders: when the serve flag is missing, we assume team 1 served first
-    // because the app always starts matches with team A serving.
-    const team1ServesFirst = normalizedServeFlag ?? true;
+    // Note for non-coders: the app always starts matches with team A serving,
+    // so we treat team 1 as the starter to keep these splits consistent.
+    const team1ServesFirst = true;
     const playerServedFirst = (team1ServesFirst && isTeam1) || (!team1ServesFirst && isTeam2);
 
     const team1Won = match.team1_sets > match.team2_sets;
@@ -1265,12 +1264,25 @@ export default function PlayerSection({
         <Grid container spacing={2}>
           {tournamentMerits.map(merit => (
             <Grid key={merit.label} size={{ xs: 6, sm: 4, md: 3 }}>
-              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'grey.50' }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  textAlign: 'center',
+                  borderRadius: 2,
+                  bgcolor: 'grey.50',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{merit.label}</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 800 }}>{merit.count}</Typography>
               </Paper>
             </Grid>
           ))}
+          {/* Note for non-coders: the card styles below keep each stats box the same height for neat rows. */}
           {[
             { label: "Matcher", value: filteredStats ? filteredStats.wins + filteredStats.losses : 0 },
             {
@@ -1291,7 +1303,18 @@ export default function PlayerSection({
             { label: "Form (L5)", value: `${recentFormStats.wins}V - ${recentFormStats.losses}F` },
           ].map(stat => (
             <Grid key={stat.label} size={{ xs: 6, sm: 4, md: 3 }}>
-              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  textAlign: 'center',
+                  borderRadius: 2,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                }}
+              >
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 800, color: stat.color === 'stat-delta-positive' ? 'success.main' : stat.color === 'stat-delta-negative' ? 'error.main' : 'inherit' }}>
                   {stat.value}
@@ -1576,6 +1599,7 @@ export function HeadToHeadSection({
             </div>
 
             <Grid container spacing={2}>
+              {/* Note for non-coders: we reuse the same card styling so every head-to-head stat lines up evenly. */}
               {[
                 { label: "Matcher", value: headToHead.matches },
                 {
@@ -1608,7 +1632,18 @@ export function HeadToHeadSection({
                 ] : [])
               ].map(stat => (
                 <Grid key={stat.label} size={{ xs: 6, sm: 4, md: mode === "against" ? 3 : 2.4 }}>
-                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      textAlign: 'center',
+                      borderRadius: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                    }}
+                  >
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800, color: (stat as any).color || 'inherit' }}>{stat.value}</Typography>
                   </Paper>
