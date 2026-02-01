@@ -310,9 +310,15 @@ export const getNextSuggestion = (rounds: Round[], participants: string[], mode:
     teams = pickMexicanoTeams(activePlayers, standings);
   }
 
+  const roundsInMode = rounds.filter(round => !round.mode || round.mode === mode);
+  const shouldSwapServeOrder = roundsInMode.length % 2 === 1;
+  // Note for non-coders: "team1" is Lag A in the UI, and Lag A always serves first.
+  // We swap team order every other round so the serving team alternates as fairly as possible.
+  const [team1_ids, team2_ids] = shouldSwapServeOrder ? [teams.t2, teams.t1] : [teams.t1, teams.t2];
+
   return {
-    team1_ids: teams.t1,
-    team2_ids: teams.t2,
+    team1_ids,
+    team2_ids,
     resting_ids,
   };
 };

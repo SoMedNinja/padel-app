@@ -106,10 +106,14 @@ export default function ActiveRound({
 
             {tournamentMode === "mexicano" && (
               <Box sx={{ mb: 4 }}>
+                {/* Note for non-coders: "Lag A" is always the left team, and that team serves first. */}
                 {!recordingRound ? (
                   <Stack spacing={2} sx={{ p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                       Föreslagen nästa match:
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Lag A (vänster) börjar serva. Serven alternerar mellan lagen varje rond så långt det går.
                     </Typography>
                     {currentSuggestion ? (
                       <>
@@ -138,7 +142,7 @@ export default function ActiveRound({
                       Registrera resultat (Rond {rounds.length + 1})
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
-                      Lag A (vänster) börjar serva.
+                      Lag A (vänster) börjar serva. Serven alternerar mellan lagen varje rond så långt det går.
                     </Typography>
 
                     <Grid container spacing={2} alignItems="center">
@@ -195,6 +199,10 @@ export default function ActiveRound({
               <Box sx={{ mb: 4 }}>
                 <Typography variant="body2" sx={{ mb: 3, color: "text.secondary" }}>
                   Americano: Alla spelar med alla. Fyll i poäng för respektive rond nedan.
+                </Typography>
+                {/* Note for non-coders: showing who serves first helps avoid confusion when teams swap sides. */}
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+                  Lag A (vänster) börjar serva. Serven alternerar mellan lagen varje rond så långt det går.
                 </Typography>
 
                 {nextRoundToPlay && (
