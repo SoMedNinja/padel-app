@@ -14,6 +14,8 @@ import {
   Divider,
   ButtonBase,
   Tooltip,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -26,6 +28,7 @@ import {
   PersonAdd as PersonAddIcon,
   Share as ShareIcon,
   ArrowForward as ArrowForwardIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
@@ -101,6 +104,8 @@ export default function MatchForm({
   const [showExtraScores, setShowExtraScores] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [query, setQuery] = useState("");
+  useEffect(() => { setQuery(""); }, [step]);
 
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
@@ -412,22 +417,19 @@ export default function MatchForm({
 
 
 
-  const renderPlayerGrid = (
-    onSelect: (id: string) => void,
-    selectedIds: string[] = [],
-    excludeIds: string[] = []
-  ) => {
-    // Sort players: Guest first, then alphabetical
-    const sortedPlayers = [...selectablePlayers].sort((a, b) => {
-      if (a.id === GUEST_ID) return -1;
-      if (b.id === GUEST_ID) return 1;
-      return a.name.localeCompare(b.name);
-    });
-
+  const renderPlayerGrid = (onSelect: (id: string) => void, selectedIds: string[] = [], excludeIds: string[] = []) => {
+    const sorted = [...selectablePlayers].sort((a, b) => a.id === GUEST_ID ? -1 : b.id === GUEST_ID ? 1 : a.name.localeCompare(b.name));
+    const filtered = sorted.filter(p => p.id === GUEST_ID || getProfileDisplayName(p).toLowerCase().includes(query.toLowerCase()));
     return (
-      <Grid container spacing={1}>
-        {sortedPlayers.map(p => {
-          const isSelected = selectedIds.includes(p.id) && p.id !== GUEST_ID;
+      <Box>
+        {selectablePlayers.length > 8 && (
+          <TextField fullWidth size="small" placeholder="Sök spelare..." value={query} onChange={e => setQuery(e.target.value)} sx={{ mb: 2 }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+          />
+        )}
+        <Grid container spacing={1}>
+          {filtered.map(p => {
+            const isSelected = selectedIds.includes(p.id) && p.id !== GUEST_ID;
           const isExcluded = excludeIds.includes(p.id) && p.id !== GUEST_ID;
 
           return (
@@ -495,8 +497,10 @@ export default function MatchForm({
               </ButtonBase>
             </Grid>
           );
-        })}
-      </Grid>
+          })}
+        </Grid>
+        {filtered.length === 0 && <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>Inga träffar för "{query}"</Typography>}
+      </Box>
     );
   };
 
@@ -979,22 +983,12 @@ export default function MatchForm({
               </Box>
             </Box>
             <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                variant={recapMode === "evening" ? "contained" : "outlined"}
-                size="small"
-                onClick={() => setRecapMode("evening")}
-                disabled={!eveningRecap}
-              >
-                Kväll
-              </Button>
-              <Button
-                variant={recapMode === "match" ? "contained" : "outlined"}
-                size="small"
-                onClick={() => setRecapMode("match")}
-                disabled={!matchRecap}
-              >
-                Match
-              </Button>
+              <Tooltip title="Visa kvällens sammanfattning">
+                <Button variant={recapMode === "evening" ? "contained" : "outlined"} size="small" onClick={() => setRecapMode("evening")} disabled={!eveningRecap} aria-pressed={recapMode === "evening"}>Kväll</Button>
+              </Tooltip>
+              <Tooltip title="Visa denna match-recap">
+                <Button variant={recapMode === "match" ? "contained" : "outlined"} size="small" onClick={() => setRecapMode("match")} disabled={!matchRecap} aria-pressed={recapMode === "match"}>Match</Button>
+              </Tooltip>
               {recapMode === "evening" && (
                 <IconButton size="small" onClick={() => setShowRecap(false)} aria-label="Stäng">
                   <CloseIcon />
