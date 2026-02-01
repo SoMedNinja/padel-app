@@ -61,3 +61,7 @@
 ## 2025-06-12 - [Filter-Before-Map and ISO String Slicing]
 **Learning:** Performing expensive operations (like ID resolution) on a full dataset before filtering it for a small subset results in significant redundant work. Additionally, comparing dates via ISO string slicing (`.slice(0, 10)`) is much faster than instantiating `new Date()` and calling `.toDateString()` inside large loops.
 **Action:** Always filter large datasets as early as possible and prefer string-based date comparisons for "same-day" logic when data is stored in ISO 8601 format.
+
+## 2026-05-22 - [Short-Circuiting Redundant Sorts]
+**Learning:** The application frequently sorts match lists by `created_at` DESC. Since the database/service often provides them in this order already, performing an $O(N \log N)$ sort and array clone on every render cycle is a major waste.
+**Action:** Implement a linear $O(N)$ check for sort order before calling `.sort()`. Return the original array reference if already sorted to preserve referential stability and skip the work.

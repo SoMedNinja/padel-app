@@ -45,18 +45,60 @@ export function getLatestMatchDate(matches: Match[]) {
 }
 
 export function getRecentResults(matches: Match[], playerName: string, limit = 5): ("W" | "L")[] {
-  // Optimization: filter and calculate results in a single pass to avoid multiple array allocations
-  // and redundant normalization in the later map().
-  const relevantResults: { date: string, res: "W" | "L" }[] = [];
+  if (!matches.length) return [];
 
+  // Optimization: Check if matches are already sorted to avoid expensive O(N log N) sort.
+  // Most callers provide matches in either ascending or descending order.
+  let isAscending = true;
+  let isDescending = true;
+  for (let i = 1; i < matches.length; i++) {
+    if (matches[i].created_at > matches[i - 1].created_at) isDescending = false;
+    if (matches[i].created_at < matches[i - 1].created_at) isAscending = false;
+    if (!isAscending && !isDescending) break;
+  }
+
+  const results: ("W" | "L")[] = [];
+
+  if (isDescending) {
+    // Optimization: find first 'limit' matches in O(N) and reverse them for chronological order.
+    for (let i = 0; i < matches.length && results.length < limit; i++) {
+      const m = matches[i];
+      const t1 = normalizeTeam(m.team1);
+      const t2 = normalizeTeam(m.team2);
+      const inT1 = t1.includes(playerName);
+      const inT2 = t2.includes(playerName);
+      if (inT1 || inT2) {
+        const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
+        results.push(won ? "W" : "L");
+      }
+    }
+    return results.reverse();
+  }
+
+  if (isAscending) {
+    // Optimization: find last 'limit' matches in O(N) using a reverse loop.
+    for (let i = matches.length - 1; i >= 0 && results.length < limit; i--) {
+      const m = matches[i];
+      const t1 = normalizeTeam(m.team1);
+      const t2 = normalizeTeam(m.team2);
+      const inT1 = t1.includes(playerName);
+      const inT2 = t2.includes(playerName);
+      if (inT1 || inT2) {
+        const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
+        results.push(won ? "W" : "L");
+      }
+    }
+    return results.reverse();
+  }
+
+  // Fallback for unsorted matches: filter and calculate results in a single pass
+  const relevantResults: { date: string; res: "W" | "L" }[] = [];
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i];
     const t1 = normalizeTeam(m.team1);
     const t2 = normalizeTeam(m.team2);
-
     const inT1 = t1.includes(playerName);
     const inT2 = t2.includes(playerName);
-
     if (inT1 || inT2) {
       const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
       relevantResults.push({ date: m.created_at || "", res: won ? "W" : "L" });
@@ -64,7 +106,6 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
   }
 
   return relevantResults
-    // ISO strings can be compared lexicographically
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     .slice(-limit)
     .map(r => r.res);

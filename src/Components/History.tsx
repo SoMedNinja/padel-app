@@ -109,10 +109,21 @@ export default function History({
     setVisibleCount(10);
   }, [matches.length]);
 
-  const sortedMatches = useMemo(
-    () => [...matches].sort((a, b) => (b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : 0)),
-    [matches]
-  );
+  const sortedMatches = useMemo(() => {
+    // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort.
+    let isSorted = true;
+    for (let i = 1; i < matches.length; i++) {
+      if (matches[i].created_at > matches[i - 1].created_at) {
+        isSorted = false;
+        break;
+      }
+    }
+    if (isSorted) return matches;
+
+    return [...matches].sort(
+      (a, b) => (b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : 0)
+    );
+  }, [matches]);
 
   if (!matches.length) return <Typography>Inga matcher ännu.</Typography>;
 
