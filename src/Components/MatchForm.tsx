@@ -118,6 +118,18 @@ export default function MatchForm({
     });
     return map;
   }, [profiles]);
+  const serveFirstLabel = mode === "1v1" ? "Spelare A" : "Lag A";
+  const nextServeFirst = useMemo(() => {
+    const matchType = mode === "1v1" ? "standalone_1v1" : "standalone";
+    const recentStandaloneMatches = matches
+      .filter(match => match.source_tournament_type === matchType)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const lastServeFirst = recentStandaloneMatches[0]?.team1_serves_first;
+    // Note for non-coders: "team1" is the A-side in the UI. We flip who serves first each match,
+    // when possible, to keep serving fair across standalone 1v1/2v2 games.
+    if (typeof lastServeFirst !== "boolean") return true;
+    return !lastServeFirst;
+  }, [matches, mode]);
   const eloMap = useMemo(() => {
     const map: Record<string, number> = { [GUEST_ID]: ELO_BASELINE };
     eloPlayers.forEach(player => {
@@ -259,7 +271,7 @@ export default function MatchForm({
         averageElo: Math.round(teamBElo),
         players: teamBPlayers,
       },
-      team1ServesFirst: true, // Standard for now
+      team1ServesFirst: nextServeFirst,
     };
 
     setMatchRecap(recap);
@@ -310,7 +322,7 @@ export default function MatchForm({
         score_target: null,
         source_tournament_id: null,
         source_tournament_type: mode === "1v1" ? "standalone_1v1" : "standalone",
-        team1_serves_first: true,
+        team1_serves_first: nextServeFirst,
         created_by: user.id,
       });
     } catch (error: any) {
@@ -327,6 +339,7 @@ export default function MatchForm({
       team2_ids: team2IdsForDb,
       team1_sets: scoreA,
       team2_sets: scoreB,
+      team1_serves_first: nextServeFirst,
       created_at: new Date().toISOString(),
     };
 
@@ -615,6 +628,10 @@ export default function MatchForm({
           </Box>
 
           <Divider sx={{ mb: 2 }} />
+          {/* Note for non-coders: this short line tells players who serves first before they pick scores. */}
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+            {serveFirstLabel} börjar serva. Serven alternerar mellan matcherna så långt det går.
+          </Typography>
 
           {/* Step Content */}
           <Box sx={{ minHeight: 200 }}>
