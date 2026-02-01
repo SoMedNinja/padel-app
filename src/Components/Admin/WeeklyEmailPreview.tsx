@@ -490,19 +490,31 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         <meta name="supported-color-schemes" content="light">
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
         <style>
+          /* Note for non-coders: we explicitly declare a light color scheme to discourage email apps from auto-darkening. */
+          :root { color-scheme: light; supported-color-schemes: light; }
           html, body { background-color: #f4f4f4; color: #1a1a1a; }
           body { font-family: 'Inter', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a; }
           h1, h2, h3 { font-family: 'Playfair Display', serif; }
+          /* Note for non-coders: this keeps key wrappers light even if a client tries to force dark mode. */
+          [data-ogsc] body, [data-ogsc] table, [data-ogsc] td { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
+          [data-ogsc] .email-container { background-color: #ffffff !important; }
+          /* Note for non-coders: prefers-color-scheme is a fallback for clients that honor dark-mode CSS. */
+          @media (prefers-color-scheme: dark) {
+            body, table, td { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
+            .email-container { background-color: #ffffff !important; }
+            .email-card { background-color: #ffffff !important; color: #1a1a1a !important; }
+            .email-invert-allowed { background-color: #111111 !important; color: #ffffff !important; }
+          }
         </style>
       </head>
       <body style="margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a;">
         <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4" style="background-color: #f4f4f4; padding: 20px;">
           <tr>
             <td align="center">
-              <table width="600" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+              <table class="email-container" width="600" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
                 <!-- Header -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
+                  <td class="email-invert-allowed" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
                     <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">${weekLabel}</h1>
                     <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
                   </td>
@@ -517,7 +529,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- Player Icon -->
                 <tr>
                   <td style="padding: 0 40px 30px 40px;">
-                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #111; border-radius: 10px; color: #fff;">
+                    <table class="email-invert-allowed" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #111; border-radius: 10px; color: #fff;">
                       <tr>
                         <td style="padding: 20px;" width="80" align="center">
                           ${renderAvatar(stats.avatarUrl, stats.name)}
@@ -534,7 +546,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- Stats Grid -->
                 <tr>
                   <td style="padding: 0 40px 40px 40px;">
-                    <table width="100%" border="0" cellspacing="0" cellpadding="10" style="background-color: #fafafa; border-radius: 8px; border: 1px solid #eee;">
+                    <table class="email-card" width="100%" border="0" cellspacing="0" cellpadding="10" style="background-color: #fafafa; border-radius: 8px; border: 1px solid #eee;">
                       <tr>
                         <td width="50%" align="center" style="border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
                           <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Matcher</p>
