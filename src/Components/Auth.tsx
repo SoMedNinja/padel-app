@@ -11,6 +11,7 @@ import {
   Button,
   Stack,
   Container,
+  CircularProgress,
 } from "@mui/material";
 import AppAlert from "./Shared/AppAlert";
 import {
@@ -165,7 +166,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
               size="large"
               onClick={submit}
               disabled={isSubmitting}
-              startIcon={isSignup ? <SignupIcon /> : <LoginIcon />}
+              startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : (isSignup ? <SignupIcon /> : <LoginIcon />)}
               sx={{ height: 48, fontWeight: 700 }}
             >
               {isSubmitting ? "Skickar..." : isSignup ? "Registrera" : "Logga in"}
@@ -187,7 +188,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
                 size="small"
                 onClick={handlePasswordReset}
                 disabled={isSubmitting}
-                startIcon={<ResetIcon />}
+                startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : <ResetIcon />}
                 sx={{ opacity: 0.7 }}
               >
                 Glömt lösenord?

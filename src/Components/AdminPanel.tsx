@@ -249,15 +249,21 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                             InputProps={{
                               endAdornment: hasNameChange && (
                                 <Tooltip title="Spara namn">
-                                  <IconButton
-                                    size="small"
-                                    color="primary"
-                                    onClick={() => saveName(profile)}
-                                    disabled={savingId === profile.id}
-                                    aria-label="Spara namnändring"
-                                  >
-                                    <SaveIcon fontSize="small" />
-                                  </IconButton>
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="primary"
+                                      onClick={() => saveName(profile)}
+                                      disabled={savingId === profile.id}
+                                      aria-label="Spara namnändring"
+                                    >
+                                      {savingId === profile.id ? (
+                                        <CircularProgress size={16} color="inherit" />
+                                      ) : (
+                                        <SaveIcon fontSize="small" />
+                                      )}
+                                    </IconButton>
+                                  </span>
                                 </Tooltip>
                               )
                             }}
