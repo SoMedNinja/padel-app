@@ -191,6 +191,7 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   };
   const recordPartners = (team: string[], didWin: boolean) => {
     const len = team.length;
+    if (len < 2) return; // Optimization: skip for singles matches
     for (let i = 0; i < len; i++) {
       const playerId = team[i];
       const player = players[playerId];
@@ -240,14 +241,14 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     for (let i = 0; i < t1Raw.length; i++) {
       const id = t1Raw[i];
       if (id && id !== GUEST_ID) {
-        ensurePlayer(id);
+        if (!players[id]) ensurePlayer(id);
         if (players[id]) t1Active.push(id);
       }
     }
     for (let i = 0; i < t2Raw.length; i++) {
       const id = t2Raw[i];
       if (id && id !== GUEST_ID) {
-        ensurePlayer(id);
+        if (!players[id]) ensurePlayer(id);
         if (players[id]) t2Active.push(id);
       }
     }

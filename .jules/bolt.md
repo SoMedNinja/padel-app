@@ -77,3 +77,11 @@
 ## 2026-02-01 - [Single-Pass Loop for Array Transformation]
 **Learning:** Using chained array methods like `.filter().map().filter()` for ID-to-name resolution creates multiple intermediate array objects and iterates over the list multiple times.
 **Action:** Use a single `for` loop to perform filtering and mapping in a single pass with zero extra allocations.
+
+## 2026-02-02 - [Native Comparison vs localeCompare in Tables]
+**Learning:** Using `localeCompare` in a sort function for a table with many rows adds significant overhead. Standard string comparison (`<`, `>`) is much faster and sufficient for most use cases where linguistic sorting is not strictly required.
+**Action:** Use native comparison operators in hot-path sort functions.
+
+## 2026-02-02 - [Identity-Based Hits for Intl Cache]
+**Learning:** Even with a Map-based cache for `Intl.DateTimeFormat`, passing inline options objects `{ month: 'short' }` forced the cache to rely on `JSON.stringify` for key generation.
+**Action:** Pre-define common options as constants to leverage identity equality (`===`) in the cache lookup.

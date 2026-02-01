@@ -167,10 +167,11 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
         if (m.created_at < thirtyDaysAgoISO) break;
         if (!eloDeltaByMatch[m.id]?.[playerId]) continue;
 
-        const isT1 = m.team1_ids.includes(playerId);
-        const partnerId = isT1
-          ? m.team1_ids.find(id => id !== playerId)
-          : m.team2_ids.find(id => id !== playerId);
+        // Optimization: use direct indexed access instead of includes() + find()
+        // for small team arrays (max 2 players).
+        const isT1 = m.team1_ids[0] === playerId || m.team1_ids[1] === playerId;
+        const team = isT1 ? m.team1_ids : m.team2_ids;
+        const partnerId = team[0] === playerId ? team[1] : team[0];
 
         if (!partnerId || partnerId === GUEST_ID) continue;
 
@@ -252,7 +253,8 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
         if (m.created_at < thirtyDaysAgoISO) break;
         if (!eloDeltaByMatch[m.id]?.[playerId]) continue;
 
-        const isT1 = m.team1_ids.includes(playerId);
+        // Optimization: use direct indexed access instead of includes()
+        const isT1 = m.team1_ids[0] === playerId || m.team1_ids[1] === playerId;
         const opponents = isT1 ? m.team2_ids : m.team1_ids;
         const team1Won = m.team1_sets > m.team2_sets;
         const won = (isT1 && team1Won) || (!isT1 && !team1Won);
