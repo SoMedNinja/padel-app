@@ -36,10 +36,60 @@ export default function ReportsSection() {
   const [shareType, setShareType] = useState<"recap-evening" | "tournament">("recap-evening");
   const [shareData, setShareData] = useState<any>(null);
 
-  const { data: tournaments = [], isLoading: isLoadingTournaments } = useTournaments();
-  const { data: profiles = [], isLoading: isLoadingProfiles } = useProfiles();
-  const { data: matches = [], isLoading: isLoadingMatches } = useMatches({ type: "all" });
-  const { data: tournamentDetails, isLoading: isLoadingDetails } = useTournamentDetails(selectedTournamentId);
+  const {
+    data: tournaments = [],
+    isLoading: isLoadingTournaments,
+    isError: isTournamentsError,
+    error: tournamentsError,
+    refetch: refetchTournaments,
+  } = useTournaments();
+  const {
+    data: profiles = [],
+    isLoading: isLoadingProfiles,
+    isError: isProfilesError,
+    error: profilesError,
+    refetch: refetchProfiles,
+  } = useProfiles();
+  const {
+    data: matches = [],
+    isLoading: isLoadingMatches,
+    isError: isMatchesError,
+    error: matchesError,
+    refetch: refetchMatches,
+  } = useMatches({ type: "all" });
+  const {
+    data: tournamentDetails,
+    isLoading: isLoadingDetails,
+    isError: isDetailsError,
+    error: detailsError,
+    refetch: refetchDetails,
+  } = useTournamentDetails(selectedTournamentId);
+
+  // Note for non-coders: this converts different error shapes into a readable message.
+  const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : "Okänt fel vid hämtning av data.";
+
+  // Note for non-coders: we only block the whole screen for the shared data both tabs need.
+  const isBaseLoading = isLoadingTournaments || isLoadingProfiles;
+  const isActiveTabMatchesLoading = tab === 0 && isLoadingMatches;
+  const isActiveTabDetailsLoading = tab === 1 && isLoadingDetails;
+  const hasLoadError =
+    isTournamentsError ||
+    isProfilesError ||
+    (tab === 0 && isMatchesError) ||
+    (tab === 1 && isDetailsError);
+
+  // Note for non-coders: retry the queries that matter for the current tab.
+  const handleRetry = () => {
+    refetchTournaments();
+    refetchProfiles();
+    if (tab === 0) {
+      refetchMatches();
+    }
+    if (tab === 1 && selectedTournamentId) {
+      refetchDetails();
+    }
+  };
 
   const selectableProfiles = useMemo(() => {
     const hasGuest = profiles.some(p => p.id === GUEST_ID);
@@ -129,7 +179,14 @@ export default function ReportsSection() {
     setShareOpen(true);
   };
 
-  const isLoading = isLoadingTournaments || isLoadingProfiles || isLoadingMatches;
+  const errorText = [
+    isTournamentsError ? getErrorMessage(tournamentsError) : null,
+    isProfilesError ? getErrorMessage(profilesError) : null,
+    tab === 0 && isMatchesError ? getErrorMessage(matchesError) : null,
+    tab === 1 && isDetailsError ? getErrorMessage(detailsError) : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -147,10 +204,22 @@ export default function ReportsSection() {
         </Tabs>
       </Paper>
 
-      {isLoading ? (
+      {isBaseLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress />
         </Box>
+      ) : hasLoadError ? (
+        <Paper sx={{ p: 4, borderRadius: 4 }}>
+          <Stack spacing={2} alignItems="flex-start">
+            <Typography variant="h6" fontWeight={800}>Kunde inte ladda rapporter</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {errorText || "Ett oväntat fel uppstod vid hämtning av data."}
+            </Typography>
+            <Button variant="outlined" onClick={handleRetry}>
+              Försök igen
+            </Button>
+          </Stack>
+        </Paper>
       ) : (
         <Paper sx={{ p: 4, borderRadius: 4 }}>
           {tab === 0 && (
@@ -168,13 +237,18 @@ export default function ReportsSection() {
                   value={selectedDate}
                   label="Välj spelkväll"
                   onChange={(e) => setSelectedDate(e.target.value)}
+                  disabled={isActiveTabMatchesLoading}
                 >
-                  {gameEvenings.map(date => (
-                    <MenuItem key={date} value={date}>
-                      {formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </MenuItem>
-                  ))}
-                  {gameEvenings.length === 0 && (
+                  {isActiveTabMatchesLoading && (
+                    <MenuItem disabled>Laddar spelkvällar...</MenuItem>
+                  )}
+                  {!isActiveTabMatchesLoading &&
+                    gameEvenings.map(date => (
+                      <MenuItem key={date} value={date}>
+                        {formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </MenuItem>
+                    ))}
+                  {!isActiveTabMatchesLoading && gameEvenings.length === 0 && (
                     <MenuItem disabled>Inga spelkvällar hittades</MenuItem>
                   )}
                 </Select>
@@ -184,10 +258,10 @@ export default function ReportsSection() {
                 size="large"
                 startIcon={<ShareIcon />}
                 onClick={handleGenerateEveningReport}
-                disabled={!selectedDate}
+                disabled={!selectedDate || isActiveTabMatchesLoading}
                 sx={{ py: 1.5, fontWeight: 700, borderRadius: 2 }}
               >
-                Generera & Dela
+                {isActiveTabMatchesLoading ? <CircularProgress size={24} color="inherit" /> : "Generera & Dela"}
               </Button>
             </Stack>
           )}
@@ -207,6 +281,7 @@ export default function ReportsSection() {
                   value={selectedTournamentId}
                   label="Välj turnering"
                   onChange={(e) => setSelectedTournamentId(e.target.value)}
+                  disabled={isLoadingTournaments}
                 >
                   {tournaments
                     .filter(t => t.status === "completed")
@@ -226,10 +301,10 @@ export default function ReportsSection() {
                 size="large"
                 startIcon={<ShareIcon />}
                 onClick={handleGenerateTournamentReport}
-                disabled={!selectedTournamentId || isLoadingDetails}
+                disabled={!selectedTournamentId || isActiveTabDetailsLoading}
                 sx={{ py: 1.5, fontWeight: 700, borderRadius: 2 }}
               >
-                {isLoadingDetails ? <CircularProgress size={24} color="inherit" /> : "Generera & Dela"}
+                {isActiveTabDetailsLoading ? <CircularProgress size={24} color="inherit" /> : "Generera & Dela"}
               </Button>
             </Stack>
           )}
