@@ -1102,6 +1102,17 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
 
         <Button
           fullWidth
+          variant="outlined"
+          size="large"
+          startIcon={isExporting ? <CircularProgress size={20} /> : <OpenInNew />}
+          onClick={handleView}
+          disabled={isExporting}
+          sx={{ borderRadius: 2 }}
+        >
+          Visa bild
+        </Button>
+        <Button
+          fullWidth
           variant="contained"
           size="large"
           startIcon={isExporting ? <CircularProgress size={20} /> : <Download />}
