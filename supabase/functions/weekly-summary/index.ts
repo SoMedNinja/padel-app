@@ -75,6 +75,15 @@ const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
   const adjustment = 1 + (teamAverageElo - playerElo) / PLAYER_WEIGHT_DIVISOR;
   return clamp(adjustment, MIN_PLAYER_WEIGHT, MAX_PLAYER_WEIGHT);
 };
+const escapeHtml = (unsafe: string) => {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
 const getMatchWeight = (match: Match) => {
   if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
   const scoreType = match.score_type || "sets";
@@ -487,7 +496,6 @@ Deno.serve(async (req) => {
     const role =
       data.user.role ??
       data.user.app_metadata?.role ??
-      data.user.user_metadata?.role ??
       null;
     if (targetPlayerId) {
       if (!role || !ALLOWED_TEST_ROLES.has(role)) {
@@ -538,11 +546,18 @@ Deno.serve(async (req) => {
     const startOfWeekISO = start.toISOString();
     const endOfWeekISO = end.toISOString();
 
-    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url, featured_badge_id').eq('is_deleted', false);
+    const { data: rawProfiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url, featured_badge_id, is_admin').eq('is_deleted', false);
     if (profilesError) {
       console.error("Profiles fetch error:", profilesError);
       throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
     }
+
+    // Security: Sanitize profile data early to prevent injection in emails
+    const profiles = (rawProfiles || []).map(p => ({
+      ...p,
+      name: escapeHtml(p.name || "Okänd"),
+      avatar_url: p.avatar_url ? escapeHtml(p.avatar_url) : null
+    }));
 
     const { data: matches, error: matchesError } = await supabase.from('matches').select('*');
     if (matchesError) {
@@ -564,6 +579,24 @@ Deno.serve(async (req) => {
     }
 
     if (!profiles || !matches) throw new Error("Failed to fetch data from database");
+
+    // Security: Verify admin status from database and enforce test email ownership
+    const currentUserProfile = profiles.find(p => p.id === data.user.id);
+    const isActualAdmin = currentUserProfile?.is_admin === true || role === 'service_role';
+
+    if (targetPlayerId && !isActualAdmin && targetPlayerId !== data.user.id) {
+      return new Response(JSON.stringify({ error: "Du kan bara skicka test-mail till dig själv" }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!targetPlayerId && !isActualAdmin) {
+      return new Response(JSON.stringify({ error: "Du saknar administratörsbehörighet för massutskick" }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const emailMap = new Map(allUsers.map(u => [u.id, u.email]));
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
@@ -751,7 +784,7 @@ Deno.serve(async (req) => {
                   <!-- Header -->
                   <tr>
                     <td style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">${weekLabel}</h1>
+                      <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">${escapeHtml(weekLabel)}</h1>
                       <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
                     </td>
                   </tr>

@@ -27,3 +27,8 @@
 **Vulnerability:** Several service methods in `matchService` and `tournamentService` lacked any authorization checks, relying solely on Row Level Security (RLS) which can be bypassable if misconfigured or if the client uses the service directly without proper frontend guards. Specifically, `matchService.createMatch` allowed spoofing of `created_by`.
 **Learning:** Relying on RLS as the ONLY line of defense is risky. Service-layer authorization provides defense-in-depth and ensures that even if RLS has a gap, the application logic still enforces business rules.
 **Prevention:** Always verify the user's session and roles in service-layer methods before performing mutations. Explicitly set ownership fields (like `created_by`) from the trusted session data rather than accepting them from the client payload.
+
+## 2025-05-28 - Metadata Trust & HTML Injection in Emails
+**Vulnerability:** Relying on `user_metadata.role` for admin authorization in Edge Functions and rendering user-controlled names directly into email HTML.
+**Learning:** `user_metadata` is client-controlled and easily tampered with. Authorization must always rely on server-side sources like `app_metadata` or the database. Additionally, automated emails are a unique XSS/injection vector if user strings aren't escaped.
+**Prevention:** Always escape user input when building HTML for emails. Use database-backed roles even in Edge Functions to ensure authoritative authorization.
