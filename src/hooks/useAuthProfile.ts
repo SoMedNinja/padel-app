@@ -29,10 +29,16 @@ export const useAuthProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
+  const [isRecoveringSession, setIsRecoveringSession] = useState(false);
+  const [hasRecoveryFailed, setHasRecoveryFailed] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const loadingTimeoutRef = useRef<number | null>(null);
   const syncPromiseRef = useRef<Promise<void> | null>(null);
   const syncCounterRef = useRef(0);
   const userRef = useRef(currentUser);
+  const recoveryAttemptRef = useRef(0);
+  const recoveryPromiseRef = useRef<Promise<User | null> | null>(null);
+  const maxRecoveryAttempts = 2;
 
   // Keep userRef in sync with the latest store value
   useEffect(() => {
@@ -56,9 +62,61 @@ export const useAuthProfile = () => {
     }
   }, []);
 
+  const attemptSessionRecovery = useCallback(async () => {
+    if (recoveryPromiseRef.current) {
+      return recoveryPromiseRef.current;
+    }
+
+    if (recoveryAttemptRef.current >= maxRecoveryAttempts) {
+      setHasRecoveryFailed(true);
+      return null;
+    }
+
+    setIsRecoveringSession(true);
+    setRecoveryError(null);
+    recoveryAttemptRef.current += 1;
+    const attemptNumber = recoveryAttemptRef.current;
+    const delayMs = attemptNumber === 1 ? 250 : 750;
+
+    // Note for non-coders: we wait a beat before retrying so temporary hiccups can clear.
+    recoveryPromiseRef.current = (async () => {
+      if (delayMs > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+      }
+
+      const { data, error } = await supabase.auth.refreshSession();
+      const recoveredUser = data.session?.user ?? null;
+
+      if (error) {
+        setRecoveryError(error.message);
+      }
+
+      if (!recoveredUser && attemptNumber >= maxRecoveryAttempts) {
+        setHasRecoveryFailed(true);
+      }
+
+      if (recoveredUser) {
+        setHasRecoveryFailed(false);
+        recoveryAttemptRef.current = 0;
+      }
+
+      setIsRecoveringSession(false);
+      recoveryPromiseRef.current = null;
+      return recoveredUser;
+    })();
+
+    return recoveryPromiseRef.current;
+  }, []);
+
   const syncProfile = useCallback(
     async (authUser: User | null) => {
       if (!authUser) {
+        const recoveredUser = await attemptSessionRecovery();
+        if (recoveredUser) {
+          await syncProfile(recoveredUser);
+          return;
+        }
+
         setHasCheckedProfile(false);
         syncPromiseRef.current = null;
         setUser(null);
@@ -68,6 +126,11 @@ export const useAuthProfile = () => {
         clearLoadingTimeout();
         return;
       }
+
+      setHasRecoveryFailed(false);
+      setIsRecoveringSession(false);
+      setRecoveryError(null);
+      recoveryAttemptRef.current = 0;
 
       // Only show verification screen if we don't have a user yet or if the user changed
       if (!userRef.current || userRef.current.id !== authUser.id) {
@@ -201,7 +264,7 @@ export const useAuthProfile = () => {
 
       return syncPromiseRef.current;
     },
-    [setIsGuest, setUser, clearLoadingTimeout]
+    [setIsGuest, setUser, clearLoadingTimeout, attemptSessionRecovery]
   );
 
   const refresh = useCallback(async () => {
@@ -235,5 +298,13 @@ export const useAuthProfile = () => {
     };
   }, [clearLoadingTimeout, startLoadingTimeout, syncProfile]);
 
-  return { isLoading, errorMessage, hasCheckedProfile, refresh };
+  return {
+    isLoading,
+    errorMessage,
+    hasCheckedProfile,
+    refresh,
+    isRecoveringSession,
+    hasRecoveryFailed,
+    recoveryError,
+  };
 };

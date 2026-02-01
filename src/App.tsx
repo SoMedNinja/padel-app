@@ -9,13 +9,30 @@ import { useRealtime } from "./hooks/useRealtime";
 import ScrollToTop from "./Components/ScrollToTop";
 import { useAuthProfile } from "./hooks/useAuthProfile";
 import { Container, Box, Typography, CircularProgress, Button, Stack } from "@mui/material";
+import { useEffect, useState } from "react";
 import AppAlert from "./Components/Shared/AppAlert";
 
 export default function App() {
   const { user, setUser, isGuest, setIsGuest } = useStore();
-  const { isLoading, errorMessage, hasCheckedProfile, refresh } = useAuthProfile();
+  const {
+    isLoading,
+    errorMessage,
+    hasCheckedProfile,
+    refresh,
+    isRecoveringSession,
+    hasRecoveryFailed,
+    recoveryError,
+  } = useAuthProfile();
+  const [showAuthScreen, setShowAuthScreen] = useState(false);
 
   useRealtime();
+
+  useEffect(() => {
+    // Note for non-coders: if we’re logged in or browsing as a guest, we hide the login screen toggle.
+    if (user || isGuest) {
+      setShowAuthScreen(false);
+    }
+  }, [user, isGuest]);
   // Note for non-coders: we sign out locally first so the browser forgets the login right away.
   const handleSignOut = async () => {
     await supabase.auth.signOut({ scope: "local" });
@@ -62,6 +79,43 @@ export default function App() {
   }
 
   if (!user && !isGuest) {
+    if (isRecoveringSession) {
+      // Note for non-coders: we try to restore your login quietly before asking you to sign in again.
+      return (
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8, textAlign: "center" }}>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography color="text.secondary">Återställer din inloggning...</Typography>
+          </Box>
+        </Container>
+      );
+    }
+
+    if (hasRecoveryFailed && !showAuthScreen) {
+      return (
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8, textAlign: "center" }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              Vi kunde inte återställa din session
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 3 }}>
+              {recoveryError
+                ? `Teknisk detalj: ${recoveryError}`
+                : "Det händer ibland om webbläsaren rensar sin lagring eller om inloggningen har gått ut."}
+            </Typography>
+            <Stack direction="row" spacing={2} justifyContent="center">
+              <Button variant="contained" onClick={refresh}>
+                Försök igen
+              </Button>
+              <Button variant="outlined" onClick={() => setShowAuthScreen(true)}>
+                Gå till inloggning
+              </Button>
+            </Stack>
+          </Box>
+        </Container>
+      );
+    }
+
     return (
       <Auth
         onAuth={() => {
