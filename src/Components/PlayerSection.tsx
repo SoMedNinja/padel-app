@@ -91,6 +91,12 @@ const percent = (wins: number, losses: number) => {
   return total === 0 ? 0 : Math.round((wins / total) * 100);
 };
 
+const formatServeSplit = (wins: number, losses: number) => {
+  const total = wins + losses;
+  if (!total) return "—";
+  return `${wins}-${losses} (${percent(wins, losses)}%)`;
+};
+
 const formatEloDelta = (delta: number | string) => {
   const numericDelta = Number(delta);
   if (!Number.isFinite(numericDelta) || numericDelta === 0) return "0";
@@ -108,6 +114,14 @@ const formatMvpDays = (days: number) => {
   if (!days) return "0 dagar";
   if (days >= 365) return `${(days / 365).toFixed(1)} år`;
   return `${days} dagar`;
+};
+
+const normalizeServeFlag = (value: any) => {
+  // Note for non-coders: matches can store "true"/"false" in a few formats,
+  // so we standardize them to a real boolean before doing any math.
+  if (value === true || value === 1 || value === "1" || value === "true") return true;
+  if (value === false || value === 0 || value === "0" || value === "false") return false;
+  return null;
 };
 
 const formatChartTimestamp = (value: string | number, includeTime = false) => {
@@ -347,6 +361,66 @@ const getHighestEloRating = (playerStats: PlayerStats | undefined) => {
   return Math.max(historyMax, playerStats.elo);
 };
 
+const buildServeSplitStats = (
+  matches: Match[],
+  playerId: string | undefined,
+  nameToIdMap: Map<string, string>
+) => {
+  if (!playerId) {
+    return {
+      serveFirstWins: 0,
+      serveFirstLosses: 0,
+      serveSecondWins: 0,
+      serveSecondLosses: 0,
+    };
+  }
+
+  let serveFirstWins = 0;
+  let serveFirstLosses = 0;
+  let serveSecondWins = 0;
+  let serveSecondLosses = 0;
+
+  matches.forEach(match => {
+    if (match.team1_sets == null || match.team2_sets == null) return;
+
+    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
+    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
+    const isTeam1 = team1.includes(playerId);
+    const isTeam2 = team2.includes(playerId);
+    if (!isTeam1 && !isTeam2) return;
+
+    const normalizedServeFlag = normalizeServeFlag(match.team1_serves_first);
+    // Note for non-coders: when the serve flag is missing, we assume team 1 served first
+    // because the app always starts matches with team A serving.
+    const team1ServesFirst = normalizedServeFlag ?? true;
+    const playerServedFirst = (team1ServesFirst && isTeam1) || (!team1ServesFirst && isTeam2);
+
+    const team1Won = match.team1_sets > match.team2_sets;
+    const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
+
+    if (playerServedFirst) {
+      if (playerWon) {
+        serveFirstWins += 1;
+      } else {
+        serveFirstLosses += 1;
+      }
+    } else {
+      if (playerWon) {
+        serveSecondWins += 1;
+      } else {
+        serveSecondLosses += 1;
+      }
+    }
+  });
+
+  return {
+    serveFirstWins,
+    serveFirstLosses,
+    serveSecondWins,
+    serveSecondLosses,
+  };
+};
+
 const buildHeadToHead = (
   matches: Match[],
   playerId: string | undefined,
@@ -456,6 +530,77 @@ const buildHeadToHead = (
     totalSetsAgainst,
     totalEloExchange,
     lastMatch
+  };
+};
+
+const buildHeadToHeadServeStats = (
+  matches: Match[],
+  playerId: string | undefined,
+  opponentId: string,
+  mode: string,
+  nameToIdMap: Map<string, string>
+) => {
+  if (!playerId || !opponentId) {
+    return {
+      serveFirstWins: 0,
+      serveFirstLosses: 0,
+      serveSecondWins: 0,
+      serveSecondLosses: 0,
+    };
+  }
+
+  let serveFirstWins = 0;
+  let serveFirstLosses = 0;
+  let serveSecondWins = 0;
+  let serveSecondLosses = 0;
+
+  matches.forEach(match => {
+    if (match.team1_sets == null || match.team2_sets == null) return;
+
+    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
+    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
+
+    const isTeam1 = team1.includes(playerId);
+    const isTeam2 = team2.includes(playerId);
+    if (!isTeam1 && !isTeam2) return;
+
+    const opponentTeam1 = team1.includes(opponentId);
+    const opponentTeam2 = team2.includes(opponentId);
+    if (!opponentTeam1 && !opponentTeam2) return;
+
+    const together = (isTeam1 && opponentTeam1) || (isTeam2 && opponentTeam2);
+    const against = (isTeam1 && opponentTeam2) || (isTeam2 && opponentTeam1);
+    if ((mode === "together" && !together) || (mode === "against" && !against)) return;
+
+    const normalizedServeFlag = normalizeServeFlag(match.team1_serves_first);
+    // Note for non-coders: missing serve flags are treated as "team 1 served first"
+    // since team A always opens the serve in this app.
+    const team1ServesFirst = normalizedServeFlag ?? true;
+    const playerServedFirst = (team1ServesFirst && isTeam1) || (!team1ServesFirst && isTeam2);
+
+    const team1Won = match.team1_sets > match.team2_sets;
+    const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
+
+    if (playerServedFirst) {
+      if (playerWon) {
+        serveFirstWins += 1;
+      } else {
+        serveFirstLosses += 1;
+      }
+    } else {
+      if (playerWon) {
+        serveSecondWins += 1;
+      } else {
+        serveSecondLosses += 1;
+      }
+    }
+  });
+
+  return {
+    serveFirstWins,
+    serveFirstLosses,
+    serveSecondWins,
+    serveSecondLosses,
   };
 };
 
@@ -635,6 +780,11 @@ export default function PlayerSection({
   const currentPlayerBadgeStats = useMemo(
     () => badgeStatsMap[user?.id || ""],
     [badgeStatsMap, user?.id]
+  );
+
+  const serveSplitStats = useMemo(
+    () => buildServeSplitStats(matches, user?.id, nameToIdMap),
+    [matches, user?.id, nameToIdMap]
   );
 
   const currentEloDisplay = globalStats?.elo ?? ELO_BASELINE;
@@ -1081,6 +1231,8 @@ export default function PlayerSection({
             { label: "Vinster", value: filteredStats ? filteredStats.wins : 0 },
             { label: "Förluster", value: filteredStats ? filteredStats.losses : 0 },
             { label: "Vinst %", value: `${filteredStats ? percent(filteredStats.wins, filteredStats.losses) : 0}%` },
+            { label: "Serve först", value: formatServeSplit(serveSplitStats.serveFirstWins, serveSplitStats.serveFirstLosses) },
+            { label: "Serve andra", value: formatServeSplit(serveSplitStats.serveSecondWins, serveSplitStats.serveSecondLosses) },
             { label: "ELO +/- (30d)", value: formatEloDelta(last30DaysDelta), color: getEloDeltaClass(last30DaysDelta) },
             { label: "ELO +/- (Pass)", value: formatEloDelta(lastSessionDelta), color: getEloDeltaClass(lastSessionDelta) },
             { label: "Form (L5)", value: `${recentFormStats.wins}V - ${recentFormStats.losses}F` },
@@ -1206,6 +1358,11 @@ export function HeadToHeadSection({
   const headToHead = useMemo(
     () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap),
     [matches, user, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap]
+  );
+
+  const headToHeadServeStats = useMemo(
+    () => buildHeadToHeadServeStats(matches, user?.id, resolvedOpponentId, mode, nameToIdMap),
+    [matches, user?.id, resolvedOpponentId, mode, nameToIdMap]
   );
 
   const recentResults = useMemo(
@@ -1340,6 +1497,14 @@ export function HeadToHeadSection({
                 {
                   label: "Totala set",
                   value: `${headToHead.totalSetsFor} – ${headToHead.totalSetsAgainst}`,
+                },
+                {
+                  label: "Serve först (du)",
+                  value: formatServeSplit(headToHeadServeStats.serveFirstWins, headToHeadServeStats.serveFirstLosses),
+                },
+                {
+                  label: "Serve andra (du)",
+                  value: formatServeSplit(headToHeadServeStats.serveSecondWins, headToHeadServeStats.serveSecondLosses),
                 },
                 ...(mode === "against" ? [
                   {
