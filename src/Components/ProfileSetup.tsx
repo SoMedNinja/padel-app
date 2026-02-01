@@ -1,9 +1,7 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import Avatar from "./Avatar";
 import { profileService } from "../services/profileService";
 import Cropper, { Area } from "react-easy-crop";
-import BadgeGallery from "./BadgeGallery";
-import { useEloStats } from "../hooks/useEloStats";
 import {
   getStoredAvatar,
   removeStoredAvatar,
@@ -25,7 +23,6 @@ import {
   StepLabel,
   Divider,
   CircularProgress,
-  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -37,13 +34,9 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { stripBadgeLabelFromName } from "../utils/profileName";
-import { EmojiEvents as TrophyIcon } from "@mui/icons-material";
 import { getCroppedImg } from "../utils/image";
-import { buildAllPlayersBadgeStats } from "../utils/badges";
-import { makeNameToIdMap } from "../utils/profileMap";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
-  const { allMatches, profiles } = useEloStats();
   const [name, setName] = useState(initialName);
   const [saving, setSaving] = useState(false);
   const avatarStorageId = user?.id || null;
@@ -56,10 +49,6 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState("");
-  const [badgeGalleryOpen, setBadgeGalleryOpen] = useState(false);
-  const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
-    user?.featured_badge_id || null
-  );
 
   const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
   const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -144,19 +133,6 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     setAvatarZoom(1);
   };
 
-  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
-
-  const badgeStatsMap = useMemo(() => {
-    // Note: tournamentResults is empty here for now in setup,
-    // but we still get all match-based badges.
-    return buildAllPlayersBadgeStats(allMatches, profiles, nameToIdMap, []);
-  }, [allMatches, profiles, nameToIdMap]);
-
-  const currentPlayerBadgeStats = useMemo(
-    () => badgeStatsMap[user?.id || ""],
-    [badgeStatsMap, user?.id]
-  );
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     const trimmed = name.trim();
@@ -166,7 +142,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     if (!user?.id) return;
 
     setSaving(true);
-    const payload: any = { id: user.id, name: trimmed, featured_badge_id: selectedBadgeId };
+    const payload: any = { id: user.id, name: trimmed };
     if (avatarUrl) {
       payload.avatar_url = avatarUrl;
     }
@@ -254,32 +230,8 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     )}
                   </Stack>
                   {avatarNotice && <Alert severity="warning" sx={{ py: 0 }}>{avatarNotice}</Alert>}
-                  <Tooltip title="Visa dina prestationer med en profilmerit" arrow>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<TrophyIcon />}
-                      onClick={() => setBadgeGalleryOpen(true)}
-                      sx={{ alignSelf: 'flex-start' }}
-                    >
-                      Välj merit
-                    </Button>
-                  </Tooltip>
                 </Stack>
               </Box>
-
-              <BadgeGallery
-                open={badgeGalleryOpen}
-                onClose={() => setBadgeGalleryOpen(false)}
-                onSelect={(id) => {
-                  setSelectedBadgeId(id);
-                  setBadgeGalleryOpen(false);
-                }}
-                currentBadgeId={selectedBadgeId}
-                stats={currentPlayerBadgeStats}
-                allPlayerStats={badgeStatsMap}
-                playerId={user?.id || ""}
-              />
 
               <Dialog open={Boolean(pendingAvatar)} onClose={cancelAvatar} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ fontWeight: 800 }}>Justera profilbild</DialogTitle>
