@@ -62,7 +62,6 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
       return;
     }
 
-    let shouldResetSubmitting = true;
     setIsSubmitting(true);
     try {
       if (isSignup) {
@@ -80,7 +79,6 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
           return;
         }
         if (data?.session?.user) {
-          shouldResetSubmitting = false;
           onAuth(data.session.user);
           return;
         }
@@ -96,15 +94,13 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
           return;
         }
         if (data.user) {
-          shouldResetSubmitting = false;
+          // Note for non-coders: we re-enable the button even after success so the UI never gets stuck.
           onAuth(data.user);
           return;
         }
       }
     } finally {
-      if (shouldResetSubmitting) {
-        setIsSubmitting(false);
-      }
+      setIsSubmitting(false);
     }
   };
 

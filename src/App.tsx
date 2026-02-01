@@ -118,9 +118,12 @@ export default function App() {
 
     return (
       <Auth
-        onAuth={() => {
+        onAuth={(authUser) => {
           setIsGuest(false);
-          // Note for non-coders: useAuthProfile will automatically pick up the new session via onAuthStateChange
+          // Note for non-coders: we set a temporary user right away so the login screen can disappear.
+          const metadataName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || "";
+          setUser({ ...authUser, name: typeof metadataName === "string" ? metadataName.trim() : "" });
+          // Note for non-coders: useAuthProfile will automatically pick up the new session via onAuthStateChange.
         }}
         onGuest={() => setIsGuest(true)}
       />
