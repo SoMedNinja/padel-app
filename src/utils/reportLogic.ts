@@ -3,6 +3,8 @@ import { getTeamAverageElo } from "./rotation";
 import { getIdDisplayName, resolveTeamIds } from "./profileMap";
 import { formatFullDate } from "./format";
 import { GUEST_ID } from "./guest";
+import { calculateEloWithStats } from "./elo";
+import { EVENING_MIN_GAMES, getMvpWinner, scorePlayersForMvp } from "./mvp";
 
 /**
  * Utility to calculate evening statistics for a recap.
@@ -97,15 +99,12 @@ export const calculateEveningStats = (
     winRate: p.games ? p.wins / p.games : 0,
   }));
 
-  const mvp = players
-    .slice()
-    .sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      const winPctA = a.games ? a.wins / a.games : 0;
-      const winPctB = b.games ? b.wins / b.games : 0;
-      if (winPctB !== winPctA) return winPctB - winPctA;
-      return b.games - a.games;
-    })[0];
+  // Note for non-coders: we re-use the same MVP scoring used across the app so recaps match everywhere.
+  const profiles = Array.from(profileMap.values());
+  const { players: eloPlayers, eloDeltaByMatch } = calculateEloWithStats(matches, profiles);
+  const mvpResults = scorePlayersForMvp(eveningMatches, eloPlayers, EVENING_MIN_GAMES, eloDeltaByMatch);
+  const mvpWinner = getMvpWinner(mvpResults);
+  const mvp = mvpWinner ? players.find(p => p.id === mvpWinner.id) || null : null;
 
   const leaders = (players as EveningRecapLeader[])
     .slice()
