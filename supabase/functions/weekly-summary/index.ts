@@ -630,7 +630,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const emailMap = new Map(allUsers.map(u => [u.id, u.email]));
+    // Non-coder note: Supabase stores emails in slightly different places depending on sign-in method,
+    // so we look in a few common spots before deciding an email is missing.
+    const resolveUserEmail = (user: any) => {
+      if (!user) return null;
+      const metadataEmail = user.user_metadata?.email ?? user.user_metadata?.email_address ?? null;
+      const identityEmail = Array.isArray(user.identities)
+        ? user.identities
+          .map((identity: any) => identity?.identity_data?.email ?? identity?.email ?? null)
+          .find((email: string | null) => Boolean(email))
+        : null;
+      return user.email ?? metadataEmail ?? identityEmail ?? null;
+    };
+
+    const emailMap = new Map(allUsers.map(u => [u.id, resolveUserEmail(u)]));
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
     const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
