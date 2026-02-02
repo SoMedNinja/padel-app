@@ -56,17 +56,16 @@ export default function PlayerProfilePage() {
 
   // Note for non-coders: this creates one refresh action that updates every profile-related dataset.
   const handleRefresh = useRefreshInvalidations([
-  // Note for non-coders: leaving guest mode triggers the login screen in the app shell.
-  const handleGuestLogin = () => {
-    setIsGuest(false);
-  };
-
-  const handleRefresh = usePullToRefresh([
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
     () => invalidateTournamentData(queryClient),
     refetchTournamentResults,
   ]);
+
+  // Note for non-coders: leaving guest mode triggers the login screen in the app shell.
+  const handleGuestLogin = () => {
+    setIsGuest(false);
+  };
 
   const isLoading = isLoadingElo || isLoadingTournamentResults;
   const hasError = isTournamentResultsError || isEloError;
