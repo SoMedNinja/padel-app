@@ -674,6 +674,8 @@ Deno.serve(async (req) => {
       return user.email ?? metadataEmail ?? identityEmail ?? null;
     };
 
+    // Non-coder note: this map lets us quickly check if a player has a matching auth user record.
+    const authUserMap = new Map(allUsers.map(u => [u.id, u]));
     const emailMap = new Map(allUsers.map(u => [u.id, resolveUserEmail(u)]));
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
     const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
@@ -861,7 +863,15 @@ Deno.serve(async (req) => {
     const emailResults = await Promise.all(Array.from(activePlayerIds).map(async (id) => {
       const email = emailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
-      if (!email) return { id, name, success: false, error: 'Email not found' };
+      const authUser = authUserMap.get(id);
+      if (!email) {
+        const missingEmailError = !authUser
+          ? "No auth user"
+          : !authUser.email
+            ? "Auth user email empty"
+            : "Email not found";
+        return { id, name, success: false, error: missingEmailError };
+      }
       const stats = weeklyStats[id];
 
       const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
