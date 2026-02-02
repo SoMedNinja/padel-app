@@ -257,6 +257,12 @@ Deno.serve(async (req) => {
               .email-pill { display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,0.15); color: #fff; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
               .email-avatar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
               .email-subtle { color: #666; font-size: 13px; margin: 6px 0 0; }
+              /* Non-coder note: soft shading and borders help the results table feel less harsh while staying readable. */
+              .email-table { width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid #e2e2e2; border-radius: 10px; overflow: hidden; background: #ffffff; }
+              .email-table th, .email-table td { padding: 8px 10px; color: #1a1a1a; }
+              .email-table thead th { background: #f1f3f5; font-weight: 700; }
+              .email-table tbody tr:nth-child(even) { background: #f9fafb; }
+              .email-table tbody td { border-top: 1px solid #ececec; }
             </style>
           </head>
           <body>
@@ -331,25 +337,29 @@ Deno.serve(async (req) => {
                       <td class="email-section" style="padding-top:0;">
                         <div class="email-card">
                           <h2 style="margin:0 0 12px;">Tabell</h2>
-                          <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-size: 14px;">
-                            <tr style="background:#ffffff;">
-                              <th align="left">Plac.</th>
-                              <th align="left">Namn</th>
-                              <th align="center">Poäng</th>
-                              <th align="center">Matcher</th>
-                              <th align="center">V/O/F</th>
-                              <th align="center">Diff</th>
-                            </tr>
-                            ${results.map(entry => `
+                          <table width="100%" cellpadding="0" cellspacing="0" class="email-table">
+                            <thead>
                               <tr>
-                                <td>${entry.rank}</td>
-                                <td>${resolveName(entry.profile_id)}</td>
-                                <td align="center">${entry.points_for ?? 0}</td>
-                                <td align="center">${entry.matches_played ?? "-"}</td>
-                                <td align="center">${formatRecord(entry)}</td>
-                                <td align="center">${(entry.points_for ?? 0) - (entry.points_against ?? 0)}</td>
+                                <th align="left">Plac.</th>
+                                <th align="left">Namn</th>
+                                <th align="center">Poäng</th>
+                                <th align="center">Matcher</th>
+                                <th align="center">V/O/F</th>
+                                <th align="center">Diff</th>
                               </tr>
-                            `).join("")}
+                            </thead>
+                            <tbody>
+                              ${results.map(entry => `
+                                <tr>
+                                  <td>${entry.rank}</td>
+                                  <td>${resolveName(entry.profile_id)}</td>
+                                  <td align="center">${entry.points_for ?? 0}</td>
+                                  <td align="center">${entry.matches_played ?? "-"}</td>
+                                  <td align="center">${formatRecord(entry)}</td>
+                                  <td align="center">${(entry.points_for ?? 0) - (entry.points_against ?? 0)}</td>
+                                </tr>
+                              `).join("")}
+                            </tbody>
                           </table>
                         </div>
                       </td>
