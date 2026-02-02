@@ -20,6 +20,7 @@ import {
   AlertTitle,
   Container,
   Chip,
+  Button,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -166,8 +167,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       {isGuest && (
         <Container maxWidth="lg" sx={{ mt: 2 }}>
-          <Alert severity="warning">
+          <Alert
+            severity="warning"
+            action={(
+              <Button color="primary" variant="contained" size="small" onClick={handleAuthAction}>
+                Logga in
+              </Button>
+            )}
+          >
             <AlertTitle>Gästläge</AlertTitle>
+            {/* Note for non-coders: this button exits guest mode so the login screen can open. */}
             Utforska statistik, men inga ändringar sparas.
           </Alert>
         </Container>
