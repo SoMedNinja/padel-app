@@ -3,7 +3,7 @@ create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
 -- Note: Before running this, you MUST:
--- 1. Add your service_role key to the vault (see docs/weekly_email_setup.md)
+-- 1. Add your weekly summary cron token to the vault (see docs/weekly_email_setup.md)
 -- 2. Deploy the edge function: `supabase functions deploy weekly-summary`
 -- 3. Replace YOUR_PROJECT_REF in the URL below.
 
@@ -17,7 +17,7 @@ select cron.schedule(
       url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/weekly-summary',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key' limit 1)
+        'x-cron-token', (select decrypted_secret from vault.decrypted_secrets where name = 'weekly_summary_cron_token' limit 1)
       )
     );
   $$
