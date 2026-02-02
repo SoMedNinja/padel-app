@@ -14,7 +14,7 @@ import { useStore } from "../store/useStore";
 import { useEloStats } from "../hooks/useEloStats";
 import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
-import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { findMatchHighlight } from "../utils/highlights";
 import { useTournaments } from "../hooks/useTournamentData";
 import { useNavigate } from "react-router-dom";
@@ -73,7 +73,8 @@ export default function Dashboard() {
 
   useScrollToFragment();
 
-  const handleRefresh = usePullToRefresh([
+  // Note for non-coders: this collects all the data refresh tasks into one pull-to-refresh handler.
+  const handleRefresh = useRefreshInvalidations([
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
     () => invalidateTournamentData(queryClient),
