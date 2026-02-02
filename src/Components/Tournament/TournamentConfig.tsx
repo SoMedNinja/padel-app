@@ -33,7 +33,7 @@ interface TournamentConfigProps {
   tournaments: any[];
   newTournament: any;
   setNewTournament: (t: any) => void;
-  createTournament: (e: React.FormEvent) => void;
+  createTournament: (e?: React.FormEvent) => void;
   participants: string[];
   selectableProfiles: any[];
   toggleParticipant: (id: string) => void;

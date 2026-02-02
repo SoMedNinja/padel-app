@@ -22,6 +22,14 @@ export const invalidateTournamentData = (queryClient: QueryClient, tournamentId?
   queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResultsHistory() });
 };
 
+export const refetchTournamentDetails = (queryClient: QueryClient, tournamentId?: string) => {
+  // Note for non-coders: refetch forces a "fresh pull" right now, even if the cache is still valid.
+  queryClient.refetchQueries({ queryKey: ["tournamentDetails"] });
+  if (tournamentId) {
+    queryClient.refetchQueries({ queryKey: queryKeys.tournamentDetails(tournamentId) });
+  }
+};
+
 export const invalidateStatsData = (queryClient: QueryClient) => {
   invalidateMatchData(queryClient);
   invalidateProfileData(queryClient);

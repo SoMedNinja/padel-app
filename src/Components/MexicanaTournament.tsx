@@ -31,7 +31,7 @@ import {
 import { Profile, PlayerStats, TournamentRound } from "../types";
 import AppAlert from "./Shared/AppAlert";
 import { useTheme } from "@mui/material/styles";
-import { invalidateTournamentData } from "../data/queryInvalidation";
+import { invalidateTournamentData, refetchTournamentDetails } from "../data/queryInvalidation";
 
 import TournamentConfig from "./Tournament/TournamentConfig";
 import ActiveRound from "./Tournament/ActiveRound";
@@ -99,6 +99,16 @@ export default function MexicanaTournament({
       return false;
     }
     return true;
+  };
+
+  const showRetryToast = (message: string, onRetry: () => void) => {
+    // Note for non-coders: this adds a "Try again" button directly in the error toast.
+    toast.error(message, {
+      action: {
+        label: "Försök igen",
+        onClick: onRetry,
+      },
+    });
   };
 
   const [newTournament, setNewTournament] = useState({
@@ -185,8 +195,8 @@ export default function MexicanaTournament({
     lastRedirectRef.current = redirectKey;
   }, [activeTournamentId, activeTournament?.status, activeTournament]);
 
-  const createTournament = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const createTournament = async (event?: React.FormEvent) => {
+    event?.preventDefault();
     const trimmedName = newTournament.name.trim();
     if (!trimmedName) {
       toast.error("Ange ett namn för turneringen.");
@@ -210,11 +220,15 @@ export default function MexicanaTournament({
         created_by: user.id,
       });
       invalidateTournamentData(queryClient, data.id);
+      refetchTournamentDetails(queryClient, data.id);
       setActiveTournamentId(data.id);
       toast.success(`"${data.name}" har skapats.`);
     } catch (error: any) {
       console.error("Error creating tournament:", error);
-      toast.error(error.message || "Kunde inte skapa turneringen. Kontrollera anslutningen.");
+      showRetryToast(
+        error.message || "Kunde inte skapa turneringen. Kontrollera anslutningen.",
+        () => void createTournament()
+      );
     }
     setIsSaving(false);
   };
@@ -240,11 +254,12 @@ export default function MexicanaTournament({
       // in one atomic step, instead of deleting first and hoping the insert succeeds.
       await tournamentService.replaceParticipants(activeTournamentId, rosterIds);
       invalidateTournamentData(queryClient, activeTournamentId);
+      refetchTournamentDetails(queryClient, activeTournamentId);
       toast.success("Roster sparad.");
       setIsSaving(false);
       return true;
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte spara roster.");
+      showRetryToast(error.message || "Kunde inte spara roster.", () => void saveRoster());
       setIsSaving(false);
       return false;
     }
@@ -294,10 +309,11 @@ export default function MexicanaTournament({
     try {
       await tournamentService.updateTournament(activeTournamentId, { status: "in_progress" });
       invalidateTournamentData(queryClient, activeTournamentId);
+      refetchTournamentDetails(queryClient, activeTournamentId);
       setActiveSection("run");
       toast.success("Turneringen har startat.");
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte starta turneringen.");
+      showRetryToast(error.message || "Kunde inte starta turneringen.", () => void startTournament());
     } finally {
       setIsSaving(false);
     }
@@ -351,10 +367,11 @@ export default function MexicanaTournament({
         mode: recordingRound.mode,
       }]);
       invalidateTournamentData(queryClient, activeTournamentId);
+      refetchTournamentDetails(queryClient, activeTournamentId);
       setRecordingRound(null);
       toast.success(`Rond ${nextRoundNumber} sparad.`);
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte spara rond.");
+      showRetryToast(error.message || "Kunde inte spara rond.", () => void saveRound());
     } finally {
       setIsSaving(false);
     }
@@ -373,10 +390,11 @@ export default function MexicanaTournament({
       // in one safe transaction before removing the tournament itself.
       await tournamentService.deleteTournament(tournament.id);
       invalidateTournamentData(queryClient, tournament.id);
+      refetchTournamentDetails(queryClient, tournament.id);
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
       toast.success("Turneringen borttagen.");
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte ta bort turneringen.");
+      showRetryToast(error.message || "Kunde inte ta bort turneringen.", () => void deleteTournament(tournament));
     } finally {
       setIsSaving(false);
     }
@@ -390,9 +408,10 @@ export default function MexicanaTournament({
     try {
       await tournamentService.updateTournament(activeTournamentId, { status: "abandoned" });
       invalidateTournamentData(queryClient, activeTournamentId);
+      refetchTournamentDetails(queryClient, activeTournamentId);
       toast.success("Turneringen avbruten.");
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte avbryta turneringen.");
+      showRetryToast(error.message || "Kunde inte avbryta turneringen.", () => void markAbandoned());
     } finally {
       setIsSaving(false);
     }
@@ -458,7 +477,7 @@ export default function MexicanaTournament({
     try {
       await matchService.createMatch(matchPayload);
     } catch (matchError: any) {
-      toast.error(matchError.message || "Kunde inte synka matcher.");
+      showRetryToast(matchError.message || "Kunde inte synka matcher.", () => void completeTournament());
       setIsSaving(false);
       return;
     }
@@ -486,11 +505,15 @@ export default function MexicanaTournament({
       });
 
       invalidateTournamentData(queryClient, activeTournamentId);
+      refetchTournamentDetails(queryClient, activeTournamentId);
       onTournamentSync?.();
       toast.success("Turneringen slutförd och synkad till historik.");
     } catch (error: any) {
       console.error("Error completing tournament:", error);
-      toast.error(error.message || "Ett oväntat fel uppstod vid slutföring.");
+      showRetryToast(
+        error.message || "Ett oväntat fel uppstod vid slutföring.",
+        () => void completeTournament()
+      );
     } finally {
       setIsSaving(false);
     }
@@ -518,9 +541,10 @@ export default function MexicanaTournament({
         team2_score: Number(s2),
       });
       invalidateTournamentData(queryClient, activeTournamentId);
+      refetchTournamentDetails(queryClient, activeTournamentId);
       toast.success("Resultat sparat.");
     } catch (error: any) {
-      toast.error(error.message || "Kunde inte spara resultat.");
+      showRetryToast(error.message || "Kunde inte spara resultat.", () => void updateRoundInDb(roundId, s1, s2));
     } finally {
       setIsSaving(false);
     }
