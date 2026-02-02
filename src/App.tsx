@@ -18,6 +18,7 @@ export default function App() {
     isLoading,
     errorMessage,
     hasCheckedProfile,
+    profileName,
     refresh,
     isRecoveringSession,
     hasRecoveryFailed,
@@ -166,9 +167,10 @@ export default function App() {
   // Note for non-coders: we look for a name in both the profile record and the login metadata so
   // returning users don't get stuck on the setup screen if their name was saved elsewhere.
   // Note for non-coders: some older profiles store the name under "full_name", so we check both fields.
-  const profileName = user?.name?.trim() || user?.full_name?.trim() || "";
   const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name || "";
-  const resolvedName = profileName || metadataName.trim();
+  // Note for non-coders: we use the profileName from the auth hook so existing users
+  // don't get sent back to the setup screen just because the local user object lagged behind.
+  const resolvedName = profileName || (typeof metadataName === "string" ? metadataName.trim() : "");
   const hasValidName = resolvedName.length > 0;
   if (user && !hasValidName && !isGuest) {
     // Note for non-coders: we prefill the setup form with any name we can find.
@@ -179,7 +181,7 @@ export default function App() {
         <MainLayout>
           <ProfileSetup
             user={user}
-            initialName={metadataName}
+            initialName={resolvedName}
             onComplete={(updatedProfile: any) => {
               setUser({ ...user, ...updatedProfile });
             }}
@@ -190,7 +192,9 @@ export default function App() {
   }
 
   // Approval gate
-  if (user && !user.is_admin && !user.is_approved && !isGuest) {
+  // Note for non-coders: we only block if approval is explicitly false,
+  // so a just-signed-in user isn't blocked before their profile is loaded.
+  if (user && !user.is_admin && user.is_approved === false && !isGuest) {
     return (
       <>
         {toaster}
