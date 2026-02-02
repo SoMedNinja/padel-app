@@ -13,11 +13,14 @@ import {
   Lock as LockIcon,
 } from "@mui/icons-material";
 
+// Note for non-coders: this type says the button click sends us a "mouse click" event object.
+type FabToggleHandler = React.MouseEventHandler<HTMLButtonElement>;
+
 interface BottomNavProps {
   isMenuOpen: boolean;
   isFabOpen: boolean;
   toggleMenu: () => void;
-  toggleFab: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  toggleFab: FabToggleHandler;
   closeMenu: () => void;
   isGuest?: boolean;
 }

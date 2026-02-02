@@ -137,14 +137,25 @@ export default function Dashboard() {
               borderColor: 'info.main',
               boxShadow: '0 4px 12px rgba(2, 136, 209, 0.15)'
             }}
-            onClick={() => navigate("/tournaments")}
+            // Note for non-coders: clicking the banner takes you to the tournament page.
+            onClick={() => navigate("/tournament")}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Turnering pågår!</Typography>
                 <Typography variant="caption">"{activeTournament.name}" är live nu. Klicka för att se ställningen.</Typography>
               </Box>
-              <Button size="small" variant="contained" color="info" sx={{ ml: 2, fontWeight: 700 }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="info"
+                sx={{ ml: 2, fontWeight: 700 }}
+                onClick={(event) => {
+                  // Note for non-coders: the button does the same navigation as the banner itself.
+                  event.stopPropagation();
+                  navigate("/tournament");
+                }}
+              >
                 Visa
               </Button>
             </Box>
