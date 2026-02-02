@@ -41,6 +41,7 @@ interface TournamentConfigProps {
   startTournament: () => void;
   isSaving: boolean;
   isGuest: boolean;
+  isAuthUnavailable: boolean;
 }
 
 export default function TournamentConfig({
@@ -57,7 +58,12 @@ export default function TournamentConfig({
   saveRoster,
   startTournament,
   isSaving,
+  isAuthUnavailable,
 }: TournamentConfigProps) {
+  const isActionDisabled = isSaving || isAuthUnavailable;
+  // Note for non-coders: "disabled" here means the button is shown but can't be clicked,
+  // which prevents confusion when someone hasn't logged in yet.
+
   const rosterCard = activeTournament && activeTournament.status === "draft" && (
     <Card variant="outlined" sx={{ borderRadius: 3 }}>
       <CardContent>
@@ -75,7 +81,7 @@ export default function TournamentConfig({
                     elevation={isSelected ? 4 : 1}
                     aria-pressed={isSelected}
                     aria-label={`Välj ${p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}`}
-                    disabled={activeTournament.status !== "draft"}
+                    disabled={activeTournament.status !== "draft" || isAuthUnavailable}
                     sx={{
                       p: 1.5,
                       width: "100%",
@@ -140,7 +146,7 @@ export default function TournamentConfig({
             <Button
               variant="contained"
               onClick={saveRoster}
-              disabled={isSaving}
+              disabled={isActionDisabled}
               startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             >
               Spara roster
@@ -150,7 +156,7 @@ export default function TournamentConfig({
                 variant="outlined"
                 startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <StartIcon />}
                 onClick={startTournament}
-                disabled={isSaving}
+                disabled={isActionDisabled}
               >
                 Starta turnering
               </Button>
@@ -201,7 +207,7 @@ export default function TournamentConfig({
                     required
                     value={newTournament.name}
                     onChange={(e) => setNewTournament({ ...newTournament, name: e.target.value })}
-                    disabled={isSaving}
+                    disabled={isSaving || isAuthUnavailable}
                     helperText={`${newTournament.name.length}/50`}
                     slotProps={{ htmlInput: { maxLength: 50 } }}
                   />
@@ -209,7 +215,7 @@ export default function TournamentConfig({
                     label="Plats (valfritt)"
                     value={newTournament.location}
                     onChange={(e) => setNewTournament({ ...newTournament, location: e.target.value })}
-                    disabled={isSaving}
+                    disabled={isSaving || isAuthUnavailable}
                     helperText={`${newTournament.location.length}/50`}
                     slotProps={{ htmlInput: { maxLength: 50 } }}
                   />
@@ -220,7 +226,7 @@ export default function TournamentConfig({
                     onChange={(e) =>
                       setNewTournament({ ...newTournament, scheduled_at: e.target.value })
                     }
-                    disabled={isSaving}
+                    disabled={isSaving || isAuthUnavailable}
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
                   <TextField
@@ -230,7 +236,7 @@ export default function TournamentConfig({
                     onChange={(e) =>
                       setNewTournament({ ...newTournament, tournament_type: e.target.value })
                     }
-                    disabled={isSaving}
+                    disabled={isSaving || isAuthUnavailable}
                   >
                     <MenuItem value="americano">Americano</MenuItem>
                     <MenuItem value="mexicano">Mexicano</MenuItem>
@@ -254,7 +260,7 @@ export default function TournamentConfig({
                     onChange={(e) =>
                       setNewTournament({ ...newTournament, score_target: e.target.value })
                     }
-                    disabled={isSaving}
+                    disabled={isSaving || isAuthUnavailable}
                   >
                     {POINTS_OPTIONS.map((p) => (
                       <MenuItem key={p} value={p}>
@@ -266,7 +272,7 @@ export default function TournamentConfig({
                   <Button
                     type="submit"
                     variant="contained"
-                    disabled={isSaving}
+                    disabled={isSaving || isAuthUnavailable}
                     startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
                   >
                     Skapa turnering

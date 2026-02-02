@@ -24,6 +24,7 @@ interface TournamentHistoryProps {
   onSelect: (id: string) => void;
   onDelete: (tournament: any) => void;
   isMobile: boolean;
+  isAuthUnavailable: boolean;
 }
 
 
@@ -32,6 +33,7 @@ export default function TournamentHistory({
   onSelect,
   onDelete,
   isMobile,
+  isAuthUnavailable,
 }: TournamentHistoryProps) {
   const navigate = useNavigate();
 
@@ -93,6 +95,7 @@ export default function TournamentHistory({
                     color="error"
                     onClick={() => onDelete(t)}
                     aria-label={`Radera turneringen ${t.name}`}
+                    disabled={isAuthUnavailable}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>

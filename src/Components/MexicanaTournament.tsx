@@ -87,6 +87,19 @@ export default function MexicanaTournament({
   const [isSaving, setIsSaving] = useState(false);
 
   const isLoading = isLoadingTournaments || (!!activeTournamentId && isLoadingDetails);
+  const isAuthUnavailable = isGuest || !user?.id;
+  // Note for non-coders: we treat "guest" and "not logged in yet" as the same for saving,
+  // so we can gently guide users to sign in before they try to change tournament data.
+
+  const ensureAuthenticated = (actionLabel: string) => {
+    // Note for non-coders: this helper shows a friendly message instead of silently doing nothing
+    // when someone isn't signed in yet.
+    if (isAuthUnavailable) {
+      toast.error(`Logga in för att ${actionLabel}.`);
+      return false;
+    }
+    return true;
+  };
 
   const [newTournament, setNewTournament] = useState({
     name: "",
@@ -214,7 +227,8 @@ export default function MexicanaTournament({
   };
 
   const saveRoster = async () => {
-    if (!activeTournamentId || isGuest || !user?.id) return;
+    if (!activeTournamentId) return;
+    if (!ensureAuthenticated("spara roster")) return;
     if (participants.length < 4 || participants.length > 8) {
       toast.error("Välj 4 till 8 spelare.");
       return;
@@ -244,7 +258,8 @@ export default function MexicanaTournament({
   // so this helper prevents us from sending empty or invalid values.
 
   const startTournament = async () => {
-    if (!activeTournamentId || isGuest) return;
+    if (!activeTournamentId) return;
+    if (!ensureAuthenticated("starta turneringen")) return;
 
     // Auto-save roster before starting
     const saved = await saveRoster();
@@ -302,7 +317,8 @@ export default function MexicanaTournament({
   };
 
   const saveRound = async () => {
-    if (!recordingRound || isGuest || !user?.id) return;
+    if (!recordingRound) return;
+    if (!ensureAuthenticated("spara ronden")) return;
     const s1 = Number(recordingRound.team1_score);
     const s2 = Number(recordingRound.team2_score);
     if (!Number.isFinite(s1) || !Number.isFinite(s2)) {
@@ -348,7 +364,8 @@ export default function MexicanaTournament({
   };
 
   const deleteTournament = async (tournament: any) => {
-    if (!tournament?.id || isGuest || !user?.id) return;
+    if (!tournament?.id) return;
+    if (!ensureAuthenticated("ta bort turneringen")) return;
     if (!window.confirm(`Ta bort turneringen "${tournament.name}"?`)) return;
     setIsSaving(true);
 
@@ -367,7 +384,8 @@ export default function MexicanaTournament({
   };
 
   const markAbandoned = async () => {
-    if (!activeTournamentId || isGuest) return;
+    if (!activeTournamentId) return;
+    if (!ensureAuthenticated("avbryta turneringen")) return;
     if (!window.confirm("Markera turneringen som avbruten?")) return;
     setIsSaving(true);
     try {
@@ -493,7 +511,7 @@ export default function MexicanaTournament({
   };
 
   const updateRoundInDb = async (roundId: string, s1: any, s2: any) => {
-    if (isGuest || !user?.id) return;
+    if (!ensureAuthenticated("spara resultat")) return;
     setIsSaving(true);
     try {
       await tournamentService.updateRound(roundId, {
@@ -616,6 +634,7 @@ export default function MexicanaTournament({
               startTournament={startTournament}
               isSaving={isSaving}
               isGuest={isGuest}
+              isAuthUnavailable={isAuthUnavailable}
             />
           )}
           {activeSection === "run" && (
@@ -638,6 +657,7 @@ export default function MexicanaTournament({
               markAbandoned={markAbandoned}
               completeTournament={completeTournament}
               isSaving={isSaving}
+              isAuthUnavailable={isAuthUnavailable}
               profileMap={profileMap}
               isMobile={isMobile}
             />
@@ -669,6 +689,7 @@ export default function MexicanaTournament({
               onSelect={setActiveTournamentId}
               onDelete={deleteTournament}
               isMobile={isMobile}
+              isAuthUnavailable={isAuthUnavailable}
             />
           )}
         </>
