@@ -529,21 +529,6 @@ Deno.serve(async (req) => {
       data.user.role ??
       data.user.app_metadata?.role ??
       null;
-    if (targetPlayerId) {
-      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
-        // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
-        return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    } else if (!role || !ALLOWED_BROADCAST_ROLES.has(role)) {
-      // Non-coder note: mass email sends are restricted to admins/service roles only.
-      return new Response(JSON.stringify({ error: "Roll saknar behörighet för massutskick" }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
     // Determine timeframe
     let start: Date;
@@ -616,15 +601,26 @@ Deno.serve(async (req) => {
     const currentUserProfile = profiles.find(p => p.id === data.user.id);
     const isActualAdmin = currentUserProfile?.is_admin === true || role === 'service_role';
 
-    if (targetPlayerId && !isActualAdmin && targetPlayerId !== data.user.id) {
-      return new Response(JSON.stringify({ error: "Du kan bara skicka test-mail till dig själv" }), {
+    if (targetPlayerId) {
+      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
+        if (!isActualAdmin) {
+          // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
+          return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    } else if (!isActualAdmin) {
+      // Non-coder note: mass email sends are restricted to admins/service roles only.
+      return new Response(JSON.stringify({ error: "Roll saknar behörighet för massutskick" }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    if (!targetPlayerId && !isActualAdmin) {
-      return new Response(JSON.stringify({ error: "Du saknar administratörsbehörighet för massutskick" }), {
+    if (targetPlayerId && !isActualAdmin && targetPlayerId !== data.user.id) {
+      return new Response(JSON.stringify({ error: "Du kan bara skicka test-mail till dig själv" }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
