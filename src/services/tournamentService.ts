@@ -132,7 +132,11 @@ export const tournamentService = {
     const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
     if (!isAdmin) throw new Error("Endast administratörer kan registrera turneringsresultat.");
 
-    const { error } = await supabase.from("mexicana_results").insert(results);
+    // Note for non-coders: we upsert by tournament+player so re-saving a tournament updates
+    // the same rows instead of crashing with a duplicate key error.
+    const { error } = await supabase
+      .from("mexicana_results")
+      .upsert(results, { onConflict: "tournament_id,profile_id" });
     if (error) throw error;
   },
 
