@@ -1060,7 +1060,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         )
       ) : (
         <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 4 }}>
-          <Typography color="text.secondary">Klicka på \"generera förhandsgranskning\" för att visa mailet.</Typography>
+          <Typography color="text.secondary">Ingen förhandsgranskning ännu — klicka på knappen ovan för att skapa en.</Typography>
         </Paper>
       )}
     </Box>

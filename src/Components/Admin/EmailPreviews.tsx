@@ -1,4 +1,5 @@
-import { Box, Divider, Typography } from "@mui/material";
+import React from "react";
+import { Box, Tabs, Tab, Typography } from "@mui/material";
 import WeeklyEmailPreview from "./WeeklyEmailPreview";
 import TournamentEmailPreview from "./TournamentEmailPreview";
 
@@ -7,6 +8,7 @@ interface EmailPreviewsProps {
 }
 
 export default function EmailPreviews({ currentUserId }: EmailPreviewsProps) {
+  const [tab, setTab] = React.useState(0);
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <Box>
@@ -18,28 +20,42 @@ export default function EmailPreviews({ currentUserId }: EmailPreviewsProps) {
         </Typography>
       </Box>
 
-      <Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-          Veckobrev
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Sammanfattar veckans spel och skickas till spelare.
-        </Typography>
-        {/* Note for non-coders: each preview card below shows a different type of email template. */}
-        <WeeklyEmailPreview currentUserId={currentUserId} />
-      </Box>
+      {/* Note for non-coders: the tabs separate weekly and tournament emails so admins can focus on one at a time. */}
+      <Tabs
+        value={tab}
+        onChange={(_, nextValue) => setTab(nextValue)}
+        indicatorColor="primary"
+        textColor="primary"
+        aria-label="Emails-flikar"
+      >
+        <Tab label="Veckobrev" />
+        <Tab label="Turneringar" />
+      </Tabs>
 
-      <Divider />
+      {tab === 0 && (
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+            Veckobrev
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Sammanfattar veckans spel och skickas till spelare.
+          </Typography>
+          {/* Note for non-coders: each preview card below shows a different type of email template. */}
+          <WeeklyEmailPreview currentUserId={currentUserId} />
+        </Box>
+      )}
 
-      <Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-          Turneringsmejl
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Skickas två timmar efter att en turnering avslutats.
-        </Typography>
-        <TournamentEmailPreview currentUserId={currentUserId} />
-      </Box>
+      {tab === 1 && (
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+            Turneringar
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Skickas två timmar efter att en turnering avslutats.
+          </Typography>
+          <TournamentEmailPreview currentUserId={currentUserId} />
+        </Box>
+      )}
     </Box>
   );
 }
