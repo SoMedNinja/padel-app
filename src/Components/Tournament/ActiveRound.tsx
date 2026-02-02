@@ -464,7 +464,7 @@ export default function ActiveRound({
             </TableContainer>
             {/* Note for non-coders: this reminder explains why completion can be blocked if emails are missing. */}
             <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
-              För att slutföra turneringen måste alla deltagare ha en e-postadress registrerad.
+              För att slutföra turneringen måste alla registrerade deltagare (inte gästspelaren) ha en e-postadress.
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
               <Button variant="outlined" color="error" startIcon={<StopIcon />} onClick={markAbandoned}>
