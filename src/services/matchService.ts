@@ -1,6 +1,6 @@
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter } from "../types";
-import { checkIsAdmin, requireAdmin } from "./authUtils";
+import { checkIsAdmin, ensureAuthSessionReady, requireAdmin } from "./authUtils";
 
 const getDateRange = (filter: MatchFilter) => {
   if (filter.type === "last7") {
@@ -25,6 +25,7 @@ const getDateRange = (filter: MatchFilter) => {
 
 export const matchService = {
   async getMatches(filter?: MatchFilter): Promise<Match[]> {
+    await ensureAuthSessionReady();
     let query = supabase
       .from("matches")
       .select("*")

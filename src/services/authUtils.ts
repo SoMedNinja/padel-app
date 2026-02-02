@@ -47,3 +47,9 @@ export async function requireAdmin(notAdminMessage: string) {
 
   return currentUser;
 }
+
+export async function ensureAuthSessionReady() {
+  // Note for non-coders: this waits for Supabase to finish restoring any saved login
+  // so first-load data requests don't run with a missing session and hang.
+  await supabase.auth.getSession();
+}

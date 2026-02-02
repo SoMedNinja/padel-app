@@ -1,11 +1,12 @@
 import { supabase } from "../supabaseClient";
 import { Profile } from "../types";
-import { checkIsAdmin } from "./authUtils";
+import { checkIsAdmin, ensureAuthSessionReady } from "./authUtils";
 
 const MAX_AVATAR_LENGTH = 3_000_000; // Security: Limit avatar data size to ~2.2MB
 
 export const profileService = {
   async getProfiles(): Promise<Profile[]> {
+    await ensureAuthSessionReady();
     const { data, error } = await supabase.from("profiles").select("*");
     if (error) throw error;
     return (data || []) as Profile[];
