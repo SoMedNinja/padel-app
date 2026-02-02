@@ -19,7 +19,7 @@ import { padelData } from "../data/padelData";
 
 export default function PlayerProfilePage() {
   const queryClient = useQueryClient();
-  const { matchFilter, setMatchFilter, user, isGuest } = useStore();
+  const { matchFilter, setMatchFilter, user, isGuest, setIsGuest } = useStore();
 
   const {
     eloPlayers,
@@ -54,6 +54,11 @@ export default function PlayerProfilePage() {
   // Simplified handling for admin and approval state for now
   const userWithAdmin = user ? { ...user, is_admin: user.is_admin } : null;
 
+  // Note for non-coders: leaving guest mode triggers the login screen in the app shell.
+  const handleGuestLogin = () => {
+    setIsGuest(false);
+  };
+
   const handleRefresh = usePullToRefresh([
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
@@ -74,6 +79,12 @@ export default function PlayerProfilePage() {
         <Box component="section" sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
           <Typography variant="h5" gutterBottom sx={{ fontWeight: 800 }}>Spelarprofil</Typography>
           <Typography color="text.secondary">Logga in för att se din spelprofil, meriter och statistik.</Typography>
+          <Box sx={{ mt: 2 }}>
+            {/* Note for non-coders: this sends you to the same login flow as the guest banner. */}
+            <Button variant="contained" onClick={handleGuestLogin}>
+              Logga in
+            </Button>
+          </Box>
         </Box>
       </Container>
     );
