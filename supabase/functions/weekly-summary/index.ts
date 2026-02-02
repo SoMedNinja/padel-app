@@ -896,7 +896,10 @@ Deno.serve(async (req) => {
         };
       });
 
-    const emailResults = await Promise.all(Array.from(activePlayerIds).map(async (id) => {
+    const emailResults = [];
+    const recipients = Array.from(activePlayerIds);
+    // Non-coder note: we send emails one at a time with a short pause so we avoid rate-limit errors.
+    for (const [index, id] of recipients.entries()) {
       const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
       const authUser = authUserMap.get(id);
@@ -906,7 +909,11 @@ Deno.serve(async (req) => {
           : !authUser.email
             ? "Auth user email empty"
             : "Email not found";
-        return { id, name, success: false, error: missingEmailError };
+        emailResults.push({ id, name, success: false, error: missingEmailError });
+        if (index < recipients.length - 1) {
+          await new Promise(r => setTimeout(r, 600));
+        }
+        continue;
       }
       const stats = weeklyStats[id];
 
@@ -1185,11 +1192,18 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorData = await response.json();
         console.error(`Failed to send email to ${email}:`, errorData);
-        return { id, name, success: false, error: errorData };
+        emailResults.push({ id, name, success: false, error: errorData });
+        if (index < recipients.length - 1) {
+          await new Promise(r => setTimeout(r, 600));
+        }
+        continue;
       }
 
-      return { id, name, success: true };
-    }));
+      emailResults.push({ id, name, success: true });
+      if (index < recipients.length - 1) {
+        await new Promise(r => setTimeout(r, 600));
+      }
+    }
 
     const successfulCount = emailResults.filter(r => r.success).length;
     console.log(`Successfully sent ${successfulCount}/${emailResults.length} emails`);
