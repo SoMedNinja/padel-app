@@ -88,6 +88,20 @@ export const tournamentService = {
     if (error) throw error;
   },
 
+  async replaceParticipants(tournamentId: string, profileIds: Array<string | null>) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
+    if (!isAdmin) throw new Error("Endast administratörer kan uppdatera deltagare.");
+
+    // Note for non-coders: this calls a database function so the delete + insert happens
+    // as one safe step, which prevents half-saved rosters if the connection drops.
+    const { error } = await supabase.rpc("replace_mexicana_participants", {
+      target_tournament_id: tournamentId,
+      new_profile_ids: profileIds,
+    });
+    if (error) throw error;
+  },
+
   async deleteTournament(tournamentId: string) {
     const { data: sessionData } = await supabase.auth.getSession();
     const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
