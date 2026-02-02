@@ -131,12 +131,12 @@ const buildEmailHtml = ({
           .email-pill { display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,0.15); color: #fff; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
           .email-avatar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
           .email-subtle { color: #666; font-size: 13px; margin: 6px 0 0; }
-          /* Note for non-coders: this styling adds gentle shading so the results table is easier to scan. */
-          .email-table { width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid #e2e2e2; border-radius: 10px; overflow: hidden; background: #ffffff; }
-          .email-table th, .email-table td { padding: 8px 10px; color: #1a1a1a; }
-          .email-table thead th { background: #f1f3f5; font-weight: 700; }
-          .email-table tbody tr:nth-child(even) { background: #f9fafb; }
-          .email-table tbody td { border-top: 1px solid #ececec; }
+          /* Note for non-coders: this styling matches the card look so the table feels like part of the same email design. */
+          .email-table { width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid #e6e6e6; border-radius: 12px; overflow: hidden; background: #ffffff; }
+          .email-table th, .email-table td { padding: 10px 12px; color: #1a1a1a; }
+          .email-table thead th { background: #f7f7f7; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #666; border-bottom: 1px solid #e6e6e6; }
+          .email-table tbody tr:nth-child(even) { background: #fcfcfd; }
+          .email-table tbody td { border-top: 1px solid #ededed; color: #333; }
         </style>
       </head>
       <body>
