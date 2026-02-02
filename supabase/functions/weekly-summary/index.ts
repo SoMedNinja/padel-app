@@ -896,9 +896,6 @@ Deno.serve(async (req) => {
         };
       });
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (!resendApiKey) throw new Error("RESEND_API_KEY missing");
-
     // Non-coder note: we send emails one-by-one with a short pause to avoid provider rate limits.
     const emailResults = [];
     for (const id of Array.from(activePlayerIds)) {
