@@ -896,7 +896,12 @@ Deno.serve(async (req) => {
         };
       });
 
-    const emailResults = await Promise.all(Array.from(activePlayerIds).map(async (id) => {
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) throw new Error("RESEND_API_KEY missing");
+
+    // Non-coder note: we send emails one-by-one with a short pause to avoid provider rate limits.
+    const emailResults = [];
+    for (const id of Array.from(activePlayerIds)) {
       const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
       const authUser = authUserMap.get(id);
@@ -906,7 +911,8 @@ Deno.serve(async (req) => {
           : !authUser.email
             ? "Auth user email empty"
             : "Email not found";
-        return { id, name, success: false, error: missingEmailError };
+        emailResults.push({ id, name, success: false, error: missingEmailError });
+        continue;
       }
       const stats = weeklyStats[id];
 
@@ -1175,8 +1181,8 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
         body: JSON.stringify({
-          // Non-coder note: Resend only lets you send emails from verified domains to reach real recipients.
-          from: 'Padel-appen <no-reply@din-domän.se>',
+          // Non-coder note: Resend requires a verified domain in the "from" address for real recipients.
+          from: 'Padel-appen <no-reply@padelgrabbarna.club>',
           to: [email],
           subject: weekLabel,
           html: html
@@ -1186,11 +1192,12 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorData = await response.json();
         console.error(`Failed to send email to ${email}:`, errorData);
-        return { id, name, success: false, error: errorData };
+        emailResults.push({ id, name, success: false, error: errorData });
+      } else {
+        emailResults.push({ id, name, success: true });
       }
-
-      return { id, name, success: true };
-    }));
+      await new Promise(resolve => setTimeout(resolve, 600));
+    }
 
     const successfulCount = emailResults.filter(r => r.success).length;
     console.log(`Successfully sent ${successfulCount}/${emailResults.length} emails`);
