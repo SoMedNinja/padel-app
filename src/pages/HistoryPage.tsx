@@ -9,7 +9,7 @@ import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRe
 import { useStore } from "../store/useStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEloStats } from "../hooks/useEloStats";
-import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { filterMatches } from "../utils/filters";
 import { invalidateMatchData, invalidateProfileData } from "../data/queryInvalidation";
 
@@ -34,10 +34,12 @@ export default function HistoryPage() {
     [allMatches, matchFilter]
   );
 
-  const handleRefresh = usePullToRefresh([
+  const refreshInvalidations = [
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
-  ]);
+  ];
+  // Note for non-coders: the helper makes one refresh callback that reloads all needed data.
+  const handleRefresh = useRefreshInvalidations(refreshInvalidations);
 
   return (
     <PullToRefresh

@@ -10,7 +10,7 @@ import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
-import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 import { useEloStats } from "../hooks/useEloStats";
@@ -54,12 +54,14 @@ export default function PlayerProfilePage() {
   // Simplified handling for admin and approval state for now
   const userWithAdmin = user ? { ...user, is_admin: user.is_admin } : null;
 
-  const handleRefresh = usePullToRefresh([
+  const refreshInvalidations = [
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
     () => invalidateTournamentData(queryClient),
     refetchTournamentResults,
-  ]);
+  ];
+  // Note for non-coders: this creates one refresh action that updates every profile-related dataset.
+  const handleRefresh = useRefreshInvalidations(refreshInvalidations);
 
   const isLoading = isLoadingElo || isLoadingTournamentResults;
   const hasError = isTournamentResultsError || isEloError;
