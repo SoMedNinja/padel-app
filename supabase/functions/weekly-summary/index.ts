@@ -6,6 +6,7 @@ interface Profile {
   name: string;
   avatar_url?: string | null;
   featured_badge_id?: string | null;
+  email?: string | null;
 }
 
 interface Match {
@@ -577,7 +578,7 @@ Deno.serve(async (req) => {
 
     const { data: rawProfiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, featured_badge_id, is_admin')
+      .select('id, name, avatar_url, featured_badge_id, is_admin, email')
       .eq('is_deleted', false);
     if (profilesError) {
       console.error("Profiles fetch error:", profilesError);
@@ -588,7 +589,8 @@ Deno.serve(async (req) => {
     const profiles = (rawProfiles || []).map(p => ({
       ...p,
       name: escapeHtml(p.name || "Okänd"),
-      avatar_url: p.avatar_url ? escapeHtml(p.avatar_url) : null
+      avatar_url: p.avatar_url ? escapeHtml(p.avatar_url) : null,
+      email: p.email ?? null
     }));
 
     const { data: matches, error: matchesError } = await supabase.from('matches').select('*');
@@ -677,6 +679,9 @@ Deno.serve(async (req) => {
     // Non-coder note: this map lets us quickly check if a player has a matching auth user record.
     const authUserMap = new Map(allUsers.map(u => [u.id, u]));
     const emailMap = new Map(allUsers.map(u => [u.id, resolveUserEmail(u)]));
+    const profileEmailMap = new Map(profiles.map(profile => [profile.id, profile.email ?? null]));
+    // Non-coder note: Auth is the primary email source, but we fall back to profile emails so weekly
+    // sends still go out if Auth doesn't return an address for someone.
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
     const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
@@ -861,7 +866,7 @@ Deno.serve(async (req) => {
     if (!resendApiKey) throw new Error("RESEND_API_KEY missing");
 
     const emailResults = await Promise.all(Array.from(activePlayerIds).map(async (id) => {
-      const email = emailMap.get(id);
+      const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
       const authUser = authUserMap.get(id);
       if (!email) {
