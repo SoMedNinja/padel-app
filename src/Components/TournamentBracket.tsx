@@ -19,7 +19,11 @@ export default function TournamentBracket({ rounds, profileMap }: TournamentBrac
   return (
     <Box sx={{ mb: 4 }}>
       <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Turneringsöversikt</Typography>
-      <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+      <Box
+        role="region"
+        aria-label="Turneringsschema"
+        sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}
+      >
         {sortedRounds.map((round) => {
           const isPlayed = round.team1_score !== null && round.team2_score !== null && round.team1_score !== undefined && round.team2_score !== undefined;
           const t1Won = isPlayed && (round.team1_score ?? 0) > (round.team2_score ?? 0);
@@ -27,10 +31,15 @@ export default function TournamentBracket({ rounds, profileMap }: TournamentBrac
           const t1Names = idsToNames(round.team1_ids, profileMap).join(" & ");
           const t2Names = idsToNames(round.team2_ids, profileMap).join(" & ");
 
+          const ariaLabel = isPlayed
+            ? `Rond ${round.round_number}: ${t1Names} mot ${t2Names}, resultat ${round.team1_score}–${round.team2_score}`
+            : `Rond ${round.round_number}: ${t1Names} mot ${t2Names}, ej spelad`;
+
           return (
             <Paper
               key={round.id}
               variant="outlined"
+              aria-label={ariaLabel}
               sx={{
                 minWidth: 240,
                 p: 2,

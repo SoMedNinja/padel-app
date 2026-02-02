@@ -204,7 +204,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Skriv ditt namn"
                     helperText={`${name.length}/50`}
-                    slotProps={{ htmlInput: { maxLength: 50 } }}
+                    slotProps={{ htmlInput: { maxLength: 50, "aria-required": "true" } }}
                   />
 
                   <Stack direction="row" spacing={1}>
