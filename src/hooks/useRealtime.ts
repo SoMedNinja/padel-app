@@ -9,6 +9,7 @@ export const useRealtime = () => {
   const tournamentStatusRef = useRef<Record<string, string>>({});
   const pollingIntervalRef = useRef<number | null>(null);
   const warningShownRef = useRef(false);
+  const realtimeWarningToastId = "realtime-warning";
   const tournamentChannels = [
     "mexicana-results-realtime",
     "mexicana-tournaments-realtime",
@@ -47,11 +48,17 @@ export const useRealtime = () => {
         startTournamentPollingFallback();
         if (!warningShownRef.current) {
           warningShownRef.current = true;
-          toast.warning("Liveuppdateringar tappades – vi uppdaterar turneringen automatiskt i bakgrunden.");
+          // Note for non-coders: using a fixed toast id prevents duplicate warnings stacking up.
+          toast.warning("Liveuppdateringar tappades – vi uppdaterar data automatiskt i bakgrunden.", {
+            id: realtimeWarningToastId,
+            duration: 6000,
+          });
         }
       } else if (allSubscribed) {
         stopTournamentPollingFallback();
         warningShownRef.current = false;
+        // Note for non-coders: when live updates recover, we hide the warning immediately.
+        toast.dismiss(realtimeWarningToastId);
       }
     };
 
@@ -129,6 +136,7 @@ export const useRealtime = () => {
       supabase.removeChannel(roundsChannel);
       supabase.removeChannel(participantsChannel);
       stopTournamentPollingFallback();
+      toast.dismiss(realtimeWarningToastId);
     };
   }, [queryClient]);
 };
