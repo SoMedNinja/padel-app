@@ -5,7 +5,9 @@ begin
   -- Non-coder note: before we mark a tournament as completed, we confirm every participant can receive emails.
   if (new.status = 'completed') and (tg_op = 'INSERT' or old.status is distinct from 'completed') then
     select string_agg(
-      coalesce(p.full_name, p.name, mp.profile_id::text, 'Okänd profil'),
+      -- Note for non-coders: the profiles table stores the display name in "name",
+      -- so we only reference that column to avoid missing-column errors.
+      coalesce(p.name, mp.profile_id::text, 'Okänd profil'),
       ', '
     )
     into missing_profiles

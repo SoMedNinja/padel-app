@@ -192,7 +192,9 @@ export default function App() {
   }
 
   // Approval gate
-  if (user && !user.is_admin && !user.is_approved && !isGuest) {
+  // Note for non-coders: we only block if approval is explicitly false,
+  // so a just-signed-in user isn't blocked before their profile is loaded.
+  if (user && !user.is_admin && user.is_approved === false && !isGuest) {
     return (
       <>
         {toaster}
