@@ -577,7 +577,7 @@ Deno.serve(async (req) => {
 
     const { data: rawProfiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, featured_badge_id, is_admin')
+      .select('id, name, avatar_url, featured_badge_id, is_admin, email')
       .eq('is_deleted', false);
     if (profilesError) {
       console.error("Profiles fetch error:", profilesError);
@@ -656,7 +656,11 @@ Deno.serve(async (req) => {
       return user.email ?? metadataEmail ?? identityEmail ?? null;
     };
 
+    // Non-coder note: this map lets us quickly check if a player has a matching auth user record.
+    const authUserMap = new Map(allUsers.map(u => [u.id, u]));
     const emailMap = new Map(allUsers.map(u => [u.id, resolveUserEmail(u)]));
+    // Non-coder note: Auth is the primary email source, but we fall back to profile emails if needed.
+    const profileEmailMap = new Map(profiles.map(profile => [profile.id, profile.email ?? null]));
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
     const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
@@ -843,10 +847,16 @@ Deno.serve(async (req) => {
     // Non-coder note: we send emails one-by-one with a short pause to avoid provider rate limits.
     const emailResults = [];
     for (const id of Array.from(activePlayerIds)) {
-      const email = emailMap.get(id);
+      const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
+      const authUser = authUserMap.get(id);
       if (!email) {
-        emailResults.push({ id, name, success: false, error: 'Email not found' });
+        const missingEmailError = !authUser
+          ? "No auth user"
+          : !authUser.email
+            ? "Auth user email empty"
+            : "Email not found";
+        emailResults.push({ id, name, success: false, error: missingEmailError });
         continue;
       }
       const stats = weeklyStats[id];
