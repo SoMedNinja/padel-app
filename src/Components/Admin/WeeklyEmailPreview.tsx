@@ -926,7 +926,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Paper sx={{ p: 3, borderRadius: 4 }}>
         <Typography variant="h6" gutterBottom fontWeight={700}>
-          Förhandsgranskning av Veckobrev
+          Veckobrev
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Här kan du se hur det veckovisa sammanfattningsmailet ser ut för olika spelare.
