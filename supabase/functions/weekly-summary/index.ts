@@ -34,7 +34,7 @@ interface PlayerStats {
 // --- CONSTANTS ---
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-token',
 }
 
 const GUEST_ID = "guest";
@@ -489,6 +489,9 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? '';
+    const cronToken = Deno.env.get('WEEKLY_SUMMARY_CRON_TOKEN') ?? '';
+    const cronHeader = req.headers.get("x-cron-token");
+    const isCronRequest = Boolean(cronToken) && cronHeader === cronToken;
 
     if (!supabaseUrl || !serviceRoleKey) {
       // Non-coder note: the server needs these secrets to read data and send emails on behalf of the app.
@@ -499,7 +502,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!anonKey) {
+    if (!anonKey && !isCronRequest) {
       // Non-coder note: the anon key is used only to validate a user login token.
       return jsonResponse({
         success: false,
@@ -538,32 +541,49 @@ Deno.serve(async (req) => {
       // No body or not JSON, proceed with defaults
     }
 
-    const token = getBearerToken(req);
-    if (!token) {
-      // Non-coder note: every request must include a login token so only signed-in users can trigger emails.
-      return new Response(JSON.stringify({ error: "Missing bearer token" }), {
+    if (cronHeader && !isCronRequest) {
+      // Non-coder note: cron calls must include the exact shared secret we configured for scheduled jobs.
+      return new Response(JSON.stringify({ error: "Invalid cron token" }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const authClient = createClient(
-      supabaseUrl,
-      anonKey
-    );
-    // Non-coder note: this call checks with Supabase that the token belongs to a real user.
-    const { data, error } = await authClient.auth.getUser(token);
-    if (error || !data?.user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    let userId: string | null = null;
+    let role: string | null = null;
 
-    const role =
-      data.user.role ??
-      data.user.app_metadata?.role ??
-      null;
+    if (!isCronRequest) {
+      const token = getBearerToken(req);
+      if (!token) {
+        // Non-coder note: every request must include a login token so only signed-in users can trigger emails.
+        return new Response(JSON.stringify({ error: "Missing bearer token" }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const authClient = createClient(
+        supabaseUrl,
+        anonKey
+      );
+      // Non-coder note: this call checks with Supabase that the token belongs to a real user.
+      const { data: authData, error } = await authClient.auth.getUser(token);
+      if (error || !authData?.user) {
+        return new Response(JSON.stringify({ error: "Invalid token" }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      userId = authData.user.id;
+      role =
+        authData.user.role ??
+        authData.user.app_metadata?.role ??
+        null;
+    } else {
+      // Non-coder note: cron runs act like a trusted server request, so we treat them as service-role calls.
+      role = "service_role";
+    }
 
     // Determine timeframe
     let start: Date;
@@ -600,11 +620,13 @@ Deno.serve(async (req) => {
 
     // Non-coder note: we fetch the current user's profile separately so admin checks don't fail
     // just because a profile is soft-deleted or filtered out from the main list.
-    const { data: currentUserProfileData, error: currentUserProfileError } = await supabase
-      .from('profiles')
-      .select('id, is_admin, is_deleted')
-      .eq('id', data.user.id)
-      .maybeSingle();
+    const { data: currentUserProfileData, error: currentUserProfileError } = userId
+      ? await supabase
+        .from('profiles')
+        .select('id, is_admin, is_deleted')
+        .eq('id', userId)
+        .maybeSingle()
+      : { data: null, error: null };
     if (currentUserProfileError) {
       console.error("Current profile fetch error:", currentUserProfileError);
       throw new Error(`Failed to fetch current profile: ${currentUserProfileError.message}`);
@@ -672,25 +694,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (targetPlayerId) {
-      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
-        if (!isActualAdmin) {
-          // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
-          return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
-            status: 403,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-      }
-    } else if (!isActualAdmin) {
-      // Non-coder note: mass email sends are restricted to admins/service roles only.
-      return new Response(JSON.stringify({ error: "Roll saknar behörighet för massutskick" }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    if (targetPlayerId && !isActualAdmin && targetPlayerId !== data.user.id) {
+    if (targetPlayerId && !isActualAdmin && targetPlayerId !== userId) {
       return new Response(JSON.stringify({ error: "Du kan bara skicka test-mail till dig själv" }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
