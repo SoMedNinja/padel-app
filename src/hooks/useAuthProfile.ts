@@ -29,6 +29,7 @@ export const useAuthProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
+  const [profileName, setProfileName] = useState("");
   const [isRecoveringSession, setIsRecoveringSession] = useState(false);
   const [hasRecoveryFailed, setHasRecoveryFailed] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export const useAuthProfile = () => {
         syncPromiseRef.current = null;
         setUser(null);
         setIsGuest(false);
+        setProfileName("");
         setIsLoading(false);
         setHasCheckedProfile(true);
         clearLoadingTimeout();
@@ -159,13 +161,15 @@ export const useAuthProfile = () => {
 
           if (error) {
             // PGRST116 means no profile found - this is normal for new users
-            if (error.code !== "PGRST116") {
-              setErrorMessage(error.message);
-              setUser({ ...authUser } as AppUser);
-              return;
-            }
+          if (error.code !== "PGRST116") {
+            setErrorMessage(error.message);
+            setUser({ ...authUser } as AppUser);
+            // Note for non-coders: keep the best name we have even if the profile fetch failed.
+            setProfileName(metadataName);
+            return;
+          }
 
-            if (metadataName || metadataAvatar) {
+          if (metadataName || metadataAvatar) {
               // Note for non-coders: if we already know your name/photo from login data,
               // we save it right away so you don't see the setup screen every time.
               const payload: Profile = { id: authUser.id, name: metadataName || "" };
@@ -189,14 +193,17 @@ export const useAuthProfile = () => {
               if (createError) {
                 setErrorMessage(createError.message);
                 setUser({ ...authUser } as AppUser);
+                setProfileName(metadataName);
                 return;
               }
 
               setIsGuest(false);
+              setProfileName(createdProfile?.name || metadataName);
               setUser(toAppUser(authUser, createdProfile));
               return;
             }
 
+            setProfileName(metadataName);
             setUser({ ...authUser } as AppUser);
             return;
           }
@@ -212,6 +219,8 @@ export const useAuthProfile = () => {
           // Note for non-coders: this keeps badge tags stored separately from the actual player name.
           const resolvedName = cleanedProfileName || metadataName;
           const resolvedAvatar = profile?.avatar_url || metadataAvatar || null;
+          // Note for non-coders: we cache the best-known name so the app knows your profile is complete.
+          setProfileName(resolvedName);
 
           // Optimization: Only update if there's actually a CHANGE or missing data that metadata can provide.
           const needsProfileUpdate =
@@ -241,6 +250,7 @@ export const useAuthProfile = () => {
 
             if (!updateError) {
               setIsGuest(false);
+              setProfileName(updatedProfile?.name || resolvedName);
               setUser(toAppUser(authUser, updatedProfile));
               return;
             }
@@ -248,6 +258,7 @@ export const useAuthProfile = () => {
 
           if (syncId === syncCounterRef.current) {
             setIsGuest(false);
+            setProfileName(resolvedName || profile?.name || metadataName);
             setUser(
               toAppUser(authUser, {
                 ...profile,
@@ -305,6 +316,7 @@ export const useAuthProfile = () => {
     isLoading,
     errorMessage,
     hasCheckedProfile,
+    profileName,
     refresh,
     isRecoveringSession,
     hasRecoveryFailed,
