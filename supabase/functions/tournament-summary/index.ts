@@ -266,14 +266,18 @@ Deno.serve(async (req) => {
                     </tr>
                     <tr>
                       <td class="email-section">
-                        <div class="email-card">
+                        <div class="email-card" style="background: linear-gradient(135deg, #fff7d6 0%, #ffe3a6 100%); border: 1px solid #f0cf7a;">
                           <h2 style="margin:0 0 12px;">Vinnare</h2>
                           ${winners.length ? winners.map(entry => `
-                            <div class="email-avatar-row">
-                              ${renderAvatar(entry.avatarUrl, entry.name)}
-                              <div>
-                                <strong>${entry.name}</strong>
-                                <div class="email-subtle">1:a plats</div>
+                            <!-- Non-coder note: inline styles keep the winner block centered and festive in email clients. -->
+                            <div style="text-align:center; padding:8px 0;">
+                              <div style="display:inline-block; text-align:center;">
+                                <div style="margin:0 auto 8px; width:42px;">
+                                  ${renderAvatar(entry.avatarUrl, entry.name)}
+                                </div>
+                                <div style="font-size:18px; font-weight:700;">
+                                  <span style="font-size:18px; margin-right:6px;">👑</span>${entry.name}
+                                </div>
                               </div>
                             </div>
                           `).join("") : "<p style=\"margin:0;\">Ingen vinnare registrerad</p>"}
