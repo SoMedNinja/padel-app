@@ -60,7 +60,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     setIsGuest(false);
   }, [setIsGuest, setUser]);
 
-  const handleFabClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  // Note for non-coders: this function receives the click event so we can anchor the menu to the button.
+  const handleFabClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -254,7 +255,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         isMenuOpen={isMenuOpen}
         isFabOpen={Boolean(anchorEl)}
         toggleMenu={toggleMenu}
-        toggleFab={handleFabClick as any}
+        toggleFab={handleFabClick}
         closeMenu={closeMenu}
         isGuest={isGuest}
       />
