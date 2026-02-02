@@ -563,7 +563,22 @@ Deno.serve(async (req) => {
     const startOfWeekISO = start.toISOString();
     const endOfWeekISO = end.toISOString();
 
-    const { data: rawProfiles, error: profilesError } = await supabase.from('profiles').select('id, name, avatar_url, featured_badge_id, is_admin').eq('is_deleted', false);
+    // Non-coder note: we fetch the current user's profile separately so admin checks don't fail
+    // just because a profile is soft-deleted or filtered out from the main list.
+    const { data: currentUserProfileData, error: currentUserProfileError } = await supabase
+      .from('profiles')
+      .select('id, is_admin, is_deleted')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    if (currentUserProfileError) {
+      console.error("Current profile fetch error:", currentUserProfileError);
+      throw new Error(`Failed to fetch current profile: ${currentUserProfileError.message}`);
+    }
+
+    const { data: rawProfiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url, featured_badge_id, is_admin')
+      .eq('is_deleted', false);
     if (profilesError) {
       console.error("Profiles fetch error:", profilesError);
       throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
@@ -598,8 +613,28 @@ Deno.serve(async (req) => {
     if (!profiles || !matches) throw new Error("Failed to fetch data from database");
 
     // Security: Verify admin status from database and enforce test email ownership
-    const currentUserProfile = profiles.find(p => p.id === data.user.id);
-    const isActualAdmin = currentUserProfile?.is_admin === true || role === 'service_role';
+    const isActualAdmin = currentUserProfileData?.is_admin === true || role === 'service_role';
+
+    if (targetPlayerId) {
+      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
+        if (!isActualAdmin) {
+          // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
+          return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    } else if (!isActualAdmin) {
+      // Non-coder note: mass email sends are restricted to admins/service roles only.
+      const profileHint = currentUserProfileData
+        ? "Din profil saknar adminflagga."
+        : "Ingen profil hittades som matchar din inloggade användare.";
+      return new Response(JSON.stringify({ error: `Roll saknar behörighet för massutskick. ${profileHint}` }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (targetPlayerId) {
       if (!role || !ALLOWED_TEST_ROLES.has(role)) {
