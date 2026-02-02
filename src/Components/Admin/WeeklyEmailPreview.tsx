@@ -62,6 +62,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const [timeframe, setTimeframe] = useState<"7days" | "30days" | "isoWeek">("7days");
   const [selectedWeek, setSelectedWeek] = useState<string>(""); // format "YYYY-Www"
   const [isSending, setIsSending] = useState(false);
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const hasSupabaseUrl = Boolean(supabaseUrl);
   const hasSupabaseAnonKey = Boolean(supabaseAnonKey);
@@ -73,6 +74,9 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
   const activeProfiles = useMock ? MOCK_PROFILES : profiles.filter(p => !p.is_deleted);
   const activeMatches = useMock ? MOCK_MATCHES : matches;
+  // Note for non-coders: this checks whether the logged-in profile is marked as an admin in the database.
+  const currentProfile = currentUserId ? activeProfiles.find(p => p.id === currentUserId) : null;
+  const isAdmin = currentProfile?.is_admin === true;
 
   // Set default player if not set or if current player is not in active list
   React.useEffect(() => {
@@ -820,6 +824,65 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     }
   };
 
+  const handleSendBroadcast = async () => {
+    // Note for non-coders: the weekly broadcast should only be triggered by admins.
+    if (!isAdmin) {
+      alert("Endast administratörer kan skicka veckobrevet manuellt.");
+      return;
+    }
+
+    // Note for non-coders: we ask Supabase who is logged in right now before we attempt to send email.
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    // Note for non-coders: the access token proves to the server that this logged-in user is allowed to call the function.
+    const hasAccessToken = Boolean(sessionData.session?.access_token);
+    if (sessionError || !hasAccessToken) {
+      setHasSession(false);
+      alert("Du måste vara inloggad för att skicka veckobrevet.");
+      return;
+    }
+    setHasSession(true);
+
+    const confirmed = window.confirm("Vill du skicka veckobrevet nu till alla aktiva spelare?");
+    if (!confirmed) return;
+
+    setIsSendingBroadcast(true);
+    try {
+      const body: any = { timeframe };
+      if (timeframe === "isoWeek" && selectedWeek) {
+        const [year, week] = selectedWeek.split("-W");
+        body.week = parseInt(week);
+        body.year = parseInt(year);
+      }
+
+      const { data, error } = await supabase.functions.invoke("weekly-summary", {
+        body,
+      });
+
+      if (error) {
+        const errorMessage = error.message || "Okänt fel";
+        throw new Error(errorMessage);
+      }
+
+      if (data?.success) {
+        const errorCount = Array.isArray(data.errors) ? data.errors.length : 0;
+        if (errorCount > 0) {
+          alert(`Veckobrevet skickades till ${data.sent} av ${data.total} mottagare. ${errorCount} saknar e-post i Auth.`);
+        } else {
+          alert(`Veckobrevet skickades till ${data.sent} mottagare.`);
+        }
+      } else if (data?.message === "No activity") {
+        alert("Ingen aktivitet hittades för den här perioden, så inget veckobrev skickades.");
+      } else {
+        alert("Veckobrevet skickades!");
+      }
+    } catch (error: any) {
+      console.error("Failed to send weekly broadcast:", error);
+      alert("Kunde inte skicka veckobrevet: " + (error.message || "Okänt fel"));
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
   if (isLoading) return <CircularProgress />;
 
   return (
@@ -907,10 +970,22 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
               variant="contained"
               fullWidth
               onClick={handleSendTest}
-              disabled={isSending || useMock || hasSession === false}
+              disabled={isSending || isSendingBroadcast || useMock || hasSession === false}
               startIcon={isSending ? <CircularProgress size={16} color="inherit" /> : null}
             >
               Skicka test
+            </Button>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 3 }}>
+            {/* Note for non-coders: the broadcast button is only enabled for admins so regular users can't spam the list. */}
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={handleSendBroadcast}
+              disabled={isSending || isSendingBroadcast || useMock || hasSession === false || !isAdmin}
+              startIcon={isSendingBroadcast ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              Skicka veckobrev nu
             </Button>
           </Grid>
         </Grid>

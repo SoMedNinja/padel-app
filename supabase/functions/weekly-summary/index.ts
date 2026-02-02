@@ -529,21 +529,6 @@ Deno.serve(async (req) => {
       data.user.role ??
       data.user.app_metadata?.role ??
       null;
-    if (targetPlayerId) {
-      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
-        // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
-        return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    } else if (!role || !ALLOWED_BROADCAST_ROLES.has(role)) {
-      // Non-coder note: mass email sends are restricted to admins/service roles only.
-      return new Response(JSON.stringify({ error: "Roll saknar behörighet för massutskick" }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
     // Determine timeframe
     let start: Date;
@@ -616,6 +601,24 @@ Deno.serve(async (req) => {
     const currentUserProfile = profiles.find(p => p.id === data.user.id);
     const isActualAdmin = currentUserProfile?.is_admin === true || role === 'service_role';
 
+    if (targetPlayerId) {
+      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
+        if (!isActualAdmin) {
+          // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
+          return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    } else if (!isActualAdmin) {
+      // Non-coder note: mass email sends are restricted to admins/service roles only.
+      return new Response(JSON.stringify({ error: "Roll saknar behörighet för massutskick" }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     if (targetPlayerId && !isActualAdmin && targetPlayerId !== data.user.id) {
       return new Response(JSON.stringify({ error: "Du kan bara skicka test-mail till dig själv" }), {
         status: 403,
@@ -623,14 +626,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!targetPlayerId && !isActualAdmin) {
-      return new Response(JSON.stringify({ error: "Du saknar administratörsbehörighet för massutskick" }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    // Non-coder note: Supabase stores emails in slightly different places depending on sign-in method,
+    // so we look in a few common spots before deciding an email is missing.
+    const resolveUserEmail = (user: any) => {
+      if (!user) return null;
+      const metadataEmail = user.user_metadata?.email ?? user.user_metadata?.email_address ?? null;
+      const identityEmail = Array.isArray(user.identities)
+        ? user.identities
+          .map((identity: any) => identity?.identity_data?.email ?? identity?.email ?? null)
+          .find((email: string | null) => Boolean(email))
+        : null;
+      return user.email ?? metadataEmail ?? identityEmail ?? null;
+    };
 
-    const emailMap = new Map(allUsers.map(u => [u.id, u.email]));
+    const emailMap = new Map(allUsers.map(u => [u.id, resolveUserEmail(u)]));
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
     const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
