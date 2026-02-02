@@ -26,9 +26,7 @@ import { GUEST_ID } from "../utils/guest";
 import {
   getProfileDisplayName,
   makeNameToIdMap,
-  makeProfileMap,
   resolveTeamIds,
-  resolveTeamNames
 } from "../utils/profileMap";
 import { stripBadgeLabelFromName } from "../utils/profileName";
 import {
@@ -163,17 +161,13 @@ const buildMvpSummary = (
   allEloPlayers: PlayerStats[],
   eloDeltaByMatch?: Record<string, Record<string, number>>
 ) => {
-  const profileMap = makeProfileMap(profiles);
   const dateMap = new Map<string, Match[]>();
   const matchEntries = matches
     .map(match => {
-      const normalizedMatch = {
-        ...match,
-        team1: resolveTeamNames(match.team1_ids, match.team1, profileMap),
-        team2: resolveTeamNames(match.team2_ids, match.team2, profileMap)
-      };
+      // Optimization: skip expensive name resolution here. scorePlayersForMvp
+      // already uses team1_ids and eloDeltaByMatch for its high-performance path.
       return {
-        match: normalizedMatch,
+        match,
         time: new Date(match.created_at).getTime(),
         dateKey: match.created_at?.slice(0, 10),
       };
