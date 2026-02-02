@@ -25,7 +25,7 @@ begin
   end if;
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer set search_path = public;
 
 create trigger schedule_tournament_email_after_change
   after insert or update on mexicana_tournaments
