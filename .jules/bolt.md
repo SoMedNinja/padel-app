@@ -97,3 +97,15 @@
 ## 2026-05-23 - [Lazy vs Early Normalization]
 **Learning:** Performing expensive normalization (like resolving names from IDs) for an entire dataset before it's needed in a sub-utility leads to significant wasted computation.
 **Action:** Delay normalization until it's actually required by the specific data path, especially when high-performance alternatives (like ID-based lookups) exist.
+
+## 2026-06-20 - [Redundant Mapping in usePadelData]
+**Learning:** The `usePadelData` hook was performing a second pass over the player list and creating a new `Map` for avatars, even though the `calculateElo` utility already populates `avatarUrl` and `recentResults`. This resulted in unnecessary (P)$ memory allocations and processing on every render cycle.
+**Action:** Remove redundant mapping passes and reuse the data already populated by the calculation engine.
+
+## 2026-06-20 - [Loop Consolidation and Imperative Loops in ELO Path]
+**Learning:** ELO calculation processing thousands of matches is sensitive to function call overhead and multiple array iterations. Consolidating profile initialization into a single loop and replacing `.forEach()` with traditional `for` loops in the match processing path significantly improves throughput.
+**Action:** Use consolidated loops for setup and imperative `for` loops in high-frequency data processing paths.
+
+## 2026-06-20 - [Array.from Performance in Virtualized Lists]
+**Learning:** `Array.from({ length: N }, ...)` is significantly slower than a manual `for` loop for large $ because of the overhead of creating the array-like object and the internal iterator. In virtualized lists that re-calculate offsets on every frame/scroll, this can lead to jank.
+**Action:** Use `new Array(itemCount)` followed by a `for` loop for generating large data arrays in performance-critical hooks.

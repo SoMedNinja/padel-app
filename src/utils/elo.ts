@@ -146,20 +146,12 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   const avatarMap: Record<string, string | null> = {};
   const badgeMap: Record<string, string | null> = {};
 
-  profiles.forEach(p => {
-    profileMap.set(p.id, p);
-    nameToIdMap.set(getProfileDisplayName(p), p.id);
-    avatarMap[p.id] = p.avatar_url || null;
-    badgeMap[p.id] = p.featured_badge_id || null;
-  });
-
-  const ensurePlayer = (id: string) => {
-    if (id === GUEST_ID) return;
-    if (players[id]) return;
+  const ensurePlayer = (id: string, p?: Profile) => {
+    if (id === GUEST_ID || players[id]) return;
 
     // Optimization: avoid redundant Map lookups and string checks by resolving once
-    const p = profileMap.get(id);
-    const name = p ? getProfileDisplayName(p) : (id.startsWith("name:") ? id.replace("name:", "") : "Okänd");
+    const profile = p || profileMap.get(id);
+    const name = profile ? getProfileDisplayName(profile) : (id.startsWith("name:") ? id.replace("name:", "") : "Okänd");
 
     players[id] = {
       id,
@@ -177,14 +169,22 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     };
   };
 
-  profiles.forEach(p => {
-    ensurePlayer(p.id);
-  });
+  // Optimization: Consolidate profile mapping and player initialization into a single pass.
+  for (let i = 0; i < profiles.length; i++) {
+    const p = profiles[i];
+    profileMap.set(p.id, p);
+    nameToIdMap.set(getProfileDisplayName(p), p.id);
+    avatarMap[p.id] = p.avatar_url || null;
+    badgeMap[p.id] = p.featured_badge_id || null;
+    ensurePlayer(p.id, p);
+  }
 
   const avg = (team: string[]) => {
     let sum = 0;
     const len = team.length;
     for (let i = 0; i < len; i++) {
+      // Note: players[team[i]] should exist due to ensurePlayer/t1Active logic,
+      // but we keep the fallback for robust guest handling and safety.
       sum += players[team[i]]?.elo ?? ELO_BASELINE;
     }
     return sum / len;
@@ -226,7 +226,9 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   const eloDeltaByMatch: Record<string, Record<string, number>> = {};
   const eloRatingByMatch: Record<string, Record<string, number>> = {};
 
-  sortedMatches.forEach((m) => {
+  // Optimization: use a for-loop instead of forEach for the main match processing loop.
+  for (let matchIdx = 0; matchIdx < sortedMatches.length; matchIdx++) {
+    const m = sortedMatches[matchIdx];
     // We only instantiate Date once per match in the sorted loop
     const historyStamp = new Date(m.created_at).getTime();
 
@@ -268,7 +270,9 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     const matchDeltas: Record<string, number> = {};
     const matchRatings: Record<string, number> = {};
 
-    t1Active.forEach(id => {
+    // Optimization: Use for-loops instead of forEach to reduce function call overhead in hot match processing path.
+    for (let i = 0; i < t1Active.length; i++) {
+      const id = t1Active[i];
       const player = players[id];
       const delta = buildPlayerDelta({
         playerElo: player.elo,
@@ -300,9 +304,10 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
       matchDeltas[id] = delta;
       matchRatings[id] = player.elo;
-    });
+    }
 
-    t2Active.forEach(id => {
+    for (let i = 0; i < t2Active.length; i++) {
+      const id = t2Active[i];
       const player = players[id];
       const delta = buildPlayerDelta({
         playerElo: player.elo,
@@ -334,14 +339,14 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
 
       matchDeltas[id] = delta;
       matchRatings[id] = player.elo;
-    });
+    }
 
     eloDeltaByMatch[m.id] = matchDeltas;
     eloRatingByMatch[m.id] = matchRatings;
 
     recordPartners(t1Active, team1Won);
     recordPartners(t2Active, !team1Won);
-  });
+  }
 
   const finalPlayers = Object.values(players).map(player => {
     // Optimization: find best partner in a single pass instead of map + filter + sort

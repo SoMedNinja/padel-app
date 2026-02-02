@@ -7,14 +7,13 @@ export function usePadelData(matches: Match[], filter: MatchFilter, profiles: Pr
   return useMemo(() => {
     const filteredMatches = filterMatches(matches, filter);
     const eloPlayers = calculateElo(filteredMatches, profiles);
-    const avatarMap = new Map(
-      profiles.map(profile => [profile.id, profile.avatar_url || null])
-    );
 
+    // Optimization: avoid redundant avatar mapping and extra player mapping pass.
+    // calculateElo already populates avatarUrl and the full recentResults.
+    // We only need to slice recentResults for the trend indicator if necessary,
+    // but most components already handle the full list or perform their own slicing.
     const playersWithTrend: PlayerStats[] = eloPlayers.map(p => ({
       ...p,
-      avatarUrl: p.avatarUrl || avatarMap.get(p.id) || null,
-      // Optimization: use recentResults already calculated in calculateElo to avoid O(P * M) redundant re-scan
       recentResults: p.recentResults.slice(-5),
     }));
 

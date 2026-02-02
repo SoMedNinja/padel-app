@@ -47,9 +47,12 @@ export function useVirtualWindow({
   useLayoutEffect(() => {
     // Note for non-coders: we track row heights as they render so the scrollbar stays accurate.
     // We use sizesVersion to trigger re-calculation when a new height is measured.
-    const list = Array.from({ length: itemCount }, (_, index) => {
-      return itemSizes.current.get(index) ?? estimateSize;
-    });
+    // Optimization: using a manual for-loop is faster than Array.from for large lists.
+    const list = new Array(itemCount);
+    const measuredSizes = itemSizes.current;
+    for (let i = 0; i < itemCount; i++) {
+      list[i] = measuredSizes.get(i) ?? estimateSize;
+    }
     setSizes(list);
   }, [estimateSize, itemCount, sizesVersion]);
 
