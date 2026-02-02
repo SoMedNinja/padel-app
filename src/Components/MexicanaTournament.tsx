@@ -235,13 +235,10 @@ export default function MexicanaTournament({
     }
     setIsSaving(true);
     try {
-      await tournamentService.deleteParticipants(activeTournamentId);
-      await tournamentService.createParticipants(
-        participants.map(profileId => ({
-          tournament_id: activeTournamentId,
-          profile_id: profileId === GUEST_ID ? null : profileId,
-        }))
-      );
+      const rosterIds = participants.map(profileId => profileId === GUEST_ID ? null : profileId);
+      // Note for non-coders: we send the full list to the server so it can swap the roster
+      // in one atomic step, instead of deleting first and hoping the insert succeeds.
+      await tournamentService.replaceParticipants(activeTournamentId, rosterIds);
       invalidateTournamentData(queryClient, activeTournamentId);
       toast.success("Roster sparad.");
       setIsSaving(false);
