@@ -1,12 +1,60 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 
 export const useRealtime = () => {
   const queryClient = useQueryClient();
+  const tournamentStatusRef = useRef<Record<string, string>>({});
+  const pollingIntervalRef = useRef<number | null>(null);
+  const warningShownRef = useRef(false);
+  const tournamentChannels = [
+    "mexicana-results-realtime",
+    "mexicana-tournaments-realtime",
+    "mexicana-rounds-realtime",
+    "mexicana-participants-realtime",
+  ];
 
   useEffect(() => {
+    const startTournamentPollingFallback = () => {
+      if (pollingIntervalRef.current !== null) return;
+      // Note for non-coders: when realtime drops, we do a light refresh every 30 seconds
+      // so the tournament screen stays up to date without needing a full page reload.
+      pollingIntervalRef.current = window.setInterval(() => {
+        invalidateTournamentData(queryClient);
+      }, 30000);
+    };
+
+    const stopTournamentPollingFallback = () => {
+      if (pollingIntervalRef.current === null) return;
+      window.clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    };
+
+    const handleTournamentStatus = (channelName: string, status: string) => {
+      tournamentStatusRef.current[channelName] = status;
+
+      const statuses = tournamentChannels.map(name => tournamentStatusRef.current[name]);
+      const hasRealtimeIssue = statuses.some(
+        current => current === "CHANNEL_ERROR" || current === "TIMED_OUT" || current === "CLOSED"
+      );
+      const allSubscribed = statuses.length > 0 && statuses.every(current => current === "SUBSCRIBED");
+
+      if (hasRealtimeIssue) {
+        // Note for non-coders: we log a message so developers can diagnose dropped live updates.
+        console.warn(`Realtime channel issue for ${channelName}: ${status}`);
+        startTournamentPollingFallback();
+        if (!warningShownRef.current) {
+          warningShownRef.current = true;
+          toast.warning("Liveuppdateringar tappades – vi uppdaterar turneringen automatiskt i bakgrunden.");
+        }
+      } else if (allSubscribed) {
+        stopTournamentPollingFallback();
+        warningShownRef.current = false;
+      }
+    };
+
     const matchesChannel = supabase
       .channel("matches-realtime")
       .on(
@@ -38,7 +86,7 @@ export const useRealtime = () => {
           invalidateTournamentData(queryClient);
         }
       )
-      .subscribe();
+      .subscribe(status => handleTournamentStatus("mexicana-results-realtime", status));
 
     const tournamentsChannel = supabase
       .channel("mexicana-tournaments-realtime")
@@ -49,7 +97,7 @@ export const useRealtime = () => {
           invalidateTournamentData(queryClient);
         }
       )
-      .subscribe();
+      .subscribe(status => handleTournamentStatus("mexicana-tournaments-realtime", status));
 
     const roundsChannel = supabase
       .channel("mexicana-rounds-realtime")
@@ -60,7 +108,7 @@ export const useRealtime = () => {
           invalidateTournamentData(queryClient);
         }
       )
-      .subscribe();
+      .subscribe(status => handleTournamentStatus("mexicana-rounds-realtime", status));
 
     const participantsChannel = supabase
       .channel("mexicana-participants-realtime")
@@ -71,7 +119,7 @@ export const useRealtime = () => {
           invalidateTournamentData(queryClient);
         }
       )
-      .subscribe();
+      .subscribe(status => handleTournamentStatus("mexicana-participants-realtime", status));
 
     return () => {
       supabase.removeChannel(matchesChannel);
@@ -80,6 +128,7 @@ export const useRealtime = () => {
       supabase.removeChannel(tournamentsChannel);
       supabase.removeChannel(roundsChannel);
       supabase.removeChannel(participantsChannel);
+      stopTournamentPollingFallback();
     };
   }, [queryClient]);
 };

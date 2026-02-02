@@ -14,3 +14,36 @@ export async function checkIsAdmin(userId?: string): Promise<boolean> {
     .single();
   return data?.is_admin === true;
 }
+
+export type AuthErrorCode = "session-not-ready" | "not-admin";
+
+export class AuthError extends Error {
+  code: AuthErrorCode;
+
+  constructor(code: AuthErrorCode, message: string) {
+    super(message);
+    this.name = "AuthError";
+    this.code = code;
+  }
+}
+
+export async function requireAdmin(notAdminMessage: string) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const currentUser = sessionData.session?.user;
+
+  // Note for non-coders: this tells the UI when the login session hasn't finished loading yet,
+  // so we can show a "try again" message instead of looking like the button did nothing.
+  if (!currentUser) {
+    throw new AuthError(
+      "session-not-ready",
+      "Din session laddas fortfarande. Försök igen om en stund."
+    );
+  }
+
+  const isAdmin = await checkIsAdmin(currentUser.id);
+  if (!isAdmin) {
+    throw new AuthError("not-admin", notAdminMessage);
+  }
+
+  return currentUser;
+}

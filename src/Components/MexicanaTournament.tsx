@@ -32,6 +32,7 @@ import { Profile, PlayerStats, TournamentRound } from "../types";
 import AppAlert from "./Shared/AppAlert";
 import { useTheme } from "@mui/material/styles";
 import { invalidateTournamentData, refetchTournamentDetails } from "../data/queryInvalidation";
+import { getAuthErrorMessage } from "../utils/authErrorMapper";
 
 import TournamentConfig from "./Tournament/TournamentConfig";
 import ActiveRound from "./Tournament/ActiveRound";
@@ -109,6 +110,11 @@ export default function MexicanaTournament({
         onClick: onRetry,
       },
     });
+  };
+
+  const getActionErrorMessage = (error: unknown, fallback: string) => {
+    // Note for non-coders: this helper makes sure auth-related errors get a clear, friendly message.
+    return getAuthErrorMessage(error, fallback);
   };
 
   const [newTournament, setNewTournament] = useState({
@@ -226,7 +232,7 @@ export default function MexicanaTournament({
     } catch (error: any) {
       console.error("Error creating tournament:", error);
       showRetryToast(
-        error.message || "Kunde inte skapa turneringen. Kontrollera anslutningen.",
+        getActionErrorMessage(error, "Kunde inte skapa turneringen. Kontrollera anslutningen."),
         () => void createTournament()
       );
     }
@@ -259,7 +265,7 @@ export default function MexicanaTournament({
       setIsSaving(false);
       return true;
     } catch (error: any) {
-      showRetryToast(error.message || "Kunde inte spara roster.", () => void saveRoster());
+      showRetryToast(getActionErrorMessage(error, "Kunde inte spara roster."), () => void saveRoster());
       setIsSaving(false);
       return false;
     }
@@ -300,7 +306,7 @@ export default function MexicanaTournament({
       try {
         await tournamentService.createRounds(roundsPayload);
       } catch (roundError: any) {
-        toast.error(roundError.message || "Kunde inte skapa ronder.");
+        toast.error(getActionErrorMessage(roundError, "Kunde inte skapa ronder."));
         setIsSaving(false);
         return;
       }
@@ -313,7 +319,7 @@ export default function MexicanaTournament({
       setActiveSection("run");
       toast.success("Turneringen har startat.");
     } catch (error: any) {
-      showRetryToast(error.message || "Kunde inte starta turneringen.", () => void startTournament());
+      showRetryToast(getActionErrorMessage(error, "Kunde inte starta turneringen."), () => void startTournament());
     } finally {
       setIsSaving(false);
     }
@@ -371,7 +377,7 @@ export default function MexicanaTournament({
       setRecordingRound(null);
       toast.success(`Rond ${nextRoundNumber} sparad.`);
     } catch (error: any) {
-      showRetryToast(error.message || "Kunde inte spara rond.", () => void saveRound());
+      showRetryToast(getActionErrorMessage(error, "Kunde inte spara rond."), () => void saveRound());
     } finally {
       setIsSaving(false);
     }
@@ -394,7 +400,10 @@ export default function MexicanaTournament({
       if (activeTournamentId === tournament.id) setActiveTournamentId("");
       toast.success("Turneringen borttagen.");
     } catch (error: any) {
-      showRetryToast(error.message || "Kunde inte ta bort turneringen.", () => void deleteTournament(tournament));
+      showRetryToast(
+        getActionErrorMessage(error, "Kunde inte ta bort turneringen."),
+        () => void deleteTournament(tournament)
+      );
     } finally {
       setIsSaving(false);
     }
@@ -411,7 +420,7 @@ export default function MexicanaTournament({
       refetchTournamentDetails(queryClient, activeTournamentId);
       toast.success("Turneringen avbruten.");
     } catch (error: any) {
-      showRetryToast(error.message || "Kunde inte avbryta turneringen.", () => void markAbandoned());
+      showRetryToast(getActionErrorMessage(error, "Kunde inte avbryta turneringen."), () => void markAbandoned());
     } finally {
       setIsSaving(false);
     }
@@ -448,7 +457,7 @@ export default function MexicanaTournament({
           )
         );
       } catch (roundScoreError: any) {
-        toast.error(roundScoreError.message || "Kunde inte spara ronder.");
+        toast.error(getActionErrorMessage(roundScoreError, "Kunde inte spara ronder."));
         setIsSaving(false);
         return;
       }
@@ -477,7 +486,7 @@ export default function MexicanaTournament({
     try {
       await matchService.createMatch(matchPayload);
     } catch (matchError: any) {
-      showRetryToast(matchError.message || "Kunde inte synka matcher.", () => void completeTournament());
+      showRetryToast(getActionErrorMessage(matchError, "Kunde inte synka matcher."), () => void completeTournament());
       setIsSaving(false);
       return;
     }
@@ -511,7 +520,7 @@ export default function MexicanaTournament({
     } catch (error: any) {
       console.error("Error completing tournament:", error);
       showRetryToast(
-        error.message || "Ett oväntat fel uppstod vid slutföring.",
+        getActionErrorMessage(error, "Ett oväntat fel uppstod vid slutföring."),
         () => void completeTournament()
       );
     } finally {
@@ -544,7 +553,10 @@ export default function MexicanaTournament({
       refetchTournamentDetails(queryClient, activeTournamentId);
       toast.success("Resultat sparat.");
     } catch (error: any) {
-      showRetryToast(error.message || "Kunde inte spara resultat.", () => void updateRoundInDb(roundId, s1, s2));
+      showRetryToast(
+        getActionErrorMessage(error, "Kunde inte spara resultat."),
+        () => void updateRoundInDb(roundId, s1, s2)
+      );
     } finally {
       setIsSaving(false);
     }
