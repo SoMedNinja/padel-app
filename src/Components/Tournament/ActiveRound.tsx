@@ -47,6 +47,7 @@ interface ActiveRoundProps {
   markAbandoned: () => void;
   completeTournament: () => void;
   isSaving: boolean;
+  isAuthUnavailable: boolean;
   profileMap: Map<string, any>;
   isMobile: boolean;
 }
@@ -70,9 +71,14 @@ export default function ActiveRound({
   markAbandoned,
   completeTournament,
   isSaving,
+  isAuthUnavailable,
   profileMap,
   isMobile,
 }: ActiveRoundProps) {
+  const isActionDisabled = isSaving || isAuthUnavailable;
+  // Note for non-coders: we disable save/finish buttons until sign-in is ready
+  // so users don't click and wonder why nothing happens.
+
   if (!activeTournament || activeTournament.status !== "in_progress") {
     return (
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
@@ -126,7 +132,7 @@ export default function ActiveRound({
                             Vilar: {idsToNames(currentSuggestion.resting_ids, profileMap).join(", ")}
                           </Typography>
                         )}
-                        <Button variant="contained" onClick={handleRecordRound}>
+                        <Button variant="contained" onClick={handleRecordRound} disabled={isActionDisabled}>
                           Starta rond {rounds.length + 1}
                         </Button>
                       </>
@@ -157,6 +163,7 @@ export default function ActiveRound({
                           label="Poäng"
                           value={recordingRound.team1_score}
                           onChange={(e) => handleScoreChange("team1_score", e.target.value)}
+                          disabled={isAuthUnavailable}
                         />
                       </Grid>
                       <Grid size={{ xs: 2 }} sx={{ textAlign: "center" }}>
@@ -173,6 +180,7 @@ export default function ActiveRound({
                           label="Poäng"
                           value={recordingRound.team2_score}
                           onChange={(e) => handleScoreChange("team2_score", e.target.value)}
+                          disabled={isAuthUnavailable}
                         />
                       </Grid>
                     </Grid>
@@ -181,7 +189,7 @@ export default function ActiveRound({
                       <Button
                         variant="contained"
                         onClick={saveRound}
-                        disabled={isSaving}
+                        disabled={isActionDisabled}
                         startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
                       >
                         Spara rond
@@ -308,6 +316,7 @@ export default function ActiveRound({
                               onChange={(e) =>
                                 handleScoreChangeInList(round.id, "team1_score", e.target.value)
                               }
+                              disabled={isAuthUnavailable}
                               inputProps={{
                                 style: { textAlign: "center", fontWeight: 800, fontSize: "1.1rem" },
                               }}
@@ -342,6 +351,7 @@ export default function ActiveRound({
                               onChange={(e) =>
                                 handleScoreChangeInList(round.id, "team2_score", e.target.value)
                               }
+                              disabled={isAuthUnavailable}
                               inputProps={{
                                 style: { textAlign: "center", fontWeight: 800, fontSize: "1.1rem" },
                               }}
@@ -359,7 +369,7 @@ export default function ActiveRound({
                             updateRoundInDb(round.id, round.team1_score, round.team2_score)
                           }
                           disabled={
-                            isSaving ||
+                            isActionDisabled ||
                             !Number.isFinite(round.team1_score) ||
                             !Number.isFinite(round.team2_score)
                           }
@@ -467,7 +477,13 @@ export default function ActiveRound({
               För att slutföra turneringen måste alla registrerade deltagare (inte gästspelaren) ha en e-postadress.
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-              <Button variant="outlined" color="error" startIcon={<StopIcon />} onClick={markAbandoned}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<StopIcon />}
+                onClick={markAbandoned}
+                disabled={isActionDisabled}
+              >
                 Avbryt
               </Button>
               <Button
@@ -475,7 +491,7 @@ export default function ActiveRound({
                 color="success"
                 startIcon={<CompleteIcon />}
                 onClick={completeTournament}
-                disabled={rounds.length === 0}
+                disabled={isActionDisabled || rounds.length === 0}
               >
                 Slutför & synka
               </Button>
