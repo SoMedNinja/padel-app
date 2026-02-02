@@ -372,6 +372,8 @@ export default function MexicanaTournament({
     try {
       // Explicitly delete matches first to handle FK constraint if migration hasn't run yet
       await matchService.deleteMatchesByTournamentId(tournament.id);
+      // Note for non-coders: the service call uses a database function to clean up related data
+      // in one safe transaction before removing the tournament itself.
       await tournamentService.deleteTournament(tournament.id);
       invalidateTournamentData(queryClient, tournament.id);
       if (activeTournamentId === tournament.id) setActiveTournamentId("");

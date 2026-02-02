@@ -93,7 +93,11 @@ export const tournamentService = {
     const isAdmin = await checkIsAdmin(sessionData.session?.user?.id);
     if (!isAdmin) throw new Error("Endast administratörer kan radera turneringar.");
 
-    const { error } = await supabase.from("mexicana_tournaments").delete().eq("id", tournamentId);
+    // Note for non-coders: this calls a database function that deletes related data and the
+    // tournament in one transaction, so we don't leave half-deleted records behind.
+    const { error } = await supabase.rpc("delete_mexicana_tournament", {
+      target_tournament_id: tournamentId,
+    });
     if (error) throw error;
   },
 
