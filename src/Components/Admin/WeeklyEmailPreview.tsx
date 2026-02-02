@@ -64,6 +64,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   const [isSending, setIsSending] = useState(false);
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const hasSupabaseUrl = Boolean(supabaseUrl);
   const hasSupabaseAnonKey = Boolean(supabaseAnonKey);
   const maskedSupabaseAnonKey = hasSupabaseAnonKey
@@ -136,6 +137,11 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       setSelectedWeek("");
     }
   }, [availableWeeks, selectedWeek]);
+
+  React.useEffect(() => {
+    // Note for non-coders: we hide the preview until the admin clicks the generate button again.
+    setShowPreview(false);
+  }, [selectedPlayerId, timeframe, selectedWeek, useMock]);
 
   const emailData = useMemo(() => {
     if (!selectedPlayerId) return null;
@@ -451,7 +457,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
   }, [selectedPlayerId, timeframe, selectedWeek, useMock, activeMatches, activeProfiles]);
 
   const emailHtml = useMemo(() => {
-    if (!emailData) return "";
+    if (!showPreview || !emailData) return "";
 
     const { stats, mvp, highlight, leaderboard, weekLabel } = emailData;
     const deltaColor = stats.eloDelta >= 0 ? "#2e7d32" : "#d32f2f";
@@ -764,7 +770,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       </body>
       </html>
     `;
-  }, [emailData]);
+  }, [emailData, showPreview]);
 
   const handleSendTest = async () => {
     if (!selectedPlayerId) return;
@@ -926,7 +932,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Paper sx={{ p: 3, borderRadius: 4 }}>
         <Typography variant="h6" gutterBottom fontWeight={700}>
-          Förhandsgranskning av Veckobrev
+          Veckobrev
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Här kan du se hur det veckovisa sammanfattningsmailet ser ut för olika spelare.
@@ -1001,6 +1007,16 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
               label="Testdata"
             />
           </Grid>
+          <Grid size={{ xs: 12, sm: 3 }}>
+            {/* Note for non-coders: this button stops the preview from rendering until someone requests it. */}
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => setShowPreview(true)}
+            >
+              generera förhandsgranskning
+            </Button>
+          </Grid>
           <Grid size={{ xs: 12, sm: 2 }}>
             {/* Note for non-coders: the button is only blocked once we know you're logged out. */}
             <Button
@@ -1028,17 +1044,23 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         </Grid>
       </Paper>
 
-      {emailData ? (
-        <Paper sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid', borderColor: 'divider', height: '800px' }}>
-          <iframe
-            title="Email Preview"
-            srcDoc={emailHtml}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-          />
-        </Paper>
+      {showPreview ? (
+        emailData ? (
+          <Paper sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid', borderColor: 'divider', height: '800px' }}>
+            <iframe
+              title="Email Preview"
+              srcDoc={emailHtml}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          </Paper>
+        ) : (
+          <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 4 }}>
+            <Typography color="text.secondary">Ingen data tillgänglig för den valda perioden/spelaren.</Typography>
+          </Paper>
+        )
       ) : (
         <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 4 }}>
-          <Typography color="text.secondary">Ingen data tillgänglig för den valda perioden/spelaren.</Typography>
+          <Typography color="text.secondary">Ingen förhandsgranskning ännu — klicka på knappen ovan för att skapa en.</Typography>
         </Paper>
       )}
     </Box>

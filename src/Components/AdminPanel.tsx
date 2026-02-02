@@ -39,7 +39,7 @@ import {
   Email as EmailIcon,
   Assessment as ReportsIcon,
 } from "@mui/icons-material";
-import WeeklyEmailPreview from "./Admin/WeeklyEmailPreview";
+import EmailPreviews from "./Admin/EmailPreviews";
 import ReportsSection from "./Admin/ReportsSection";
 
 interface AdminPanelProps {
@@ -156,7 +156,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
         >
           <Tab icon={<PeopleIcon />} label="Användare" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
           <Tab icon={<ReportsIcon />} label="Rapporter" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
-          <Tab icon={<EmailIcon />} label="Veckobrev" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
+          <Tab icon={<EmailIcon />} label="Emails" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
         </Tabs>
       </Paper>
 
@@ -340,7 +340,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
       )}
 
       {tab === 2 && (
-        <WeeklyEmailPreview currentUserId={user?.id} />
+        <EmailPreviews currentUserId={user?.id} />
       )}
     </Box>
   );
