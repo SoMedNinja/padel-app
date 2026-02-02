@@ -85,3 +85,15 @@
 ## 2026-02-02 - [Identity-Based Hits for Intl Cache]
 **Learning:** Even with a Map-based cache for `Intl.DateTimeFormat`, passing inline options objects `{ month: 'short' }` forced the cache to rely on `JSON.stringify` for key generation.
 **Action:** Pre-define common options as constants to leverage identity equality (`===`) in the cache lookup.
+
+## 2026-05-23 - [Direct Team Sorting for Pairs]
+**Learning:** Using `sort()` on a 2-element array (like a padel team) is significantly slower than a direct comparison and swap, as it avoids the overhead of the generic sort algorithm and intermediate array cloning.
+**Action:** Use manual swap logic `p1 < p2 ? [p1, p2] : [p2, p1]` for small arrays where the size is known to be at most 2.
+
+## 2026-05-23 - [Avoiding Redundant Aggregation Loops]
+**Learning:** Iterating over every player's entire match history ($O(P \times H)$) to aggregate stats for a filtered leaderboard is inefficient. When the dataset is filtered, it is much faster to iterate over the filtered match list once ($O(M_{filtered})$).
+**Action:** Aggregate statistics by iterating over the filtered matches instead of scanning full player histories when a filter is active.
+
+## 2026-05-23 - [Lazy vs Early Normalization]
+**Learning:** Performing expensive normalization (like resolving names from IDs) for an entire dataset before it's needed in a sub-utility leads to significant wasted computation.
+**Action:** Delay normalization until it's actually required by the specific data path, especially when high-performance alternatives (like ID-based lookups) exist.

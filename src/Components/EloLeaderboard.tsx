@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
+import { GUEST_ID } from "../utils/guest";
 import { getStoredAvatar } from "../utils/avatar";
 import { getStreak, getTrendIndicator } from "../utils/stats";
 import { Match, PlayerStats } from "../types";
@@ -67,39 +68,47 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
       }));
     }
 
-    // Optimization: avoid intermediate array and perform single pass for stats
-    const matchIds = new Set<string>();
-    for (const m of matches) {
-      matchIds.add(m.id);
+    // Optimization: Instead of O(P * H) where we scan every player's history,
+    // we perform a single O(M) pass over the filtered match list.
+    const playerStatsMap = new Map<string, { wins: number; losses: number; recentResults: ("W" | "L")[] }>();
+
+    // We process matches in chronological order to build recentResults correctly.
+    // Matches are typically passed in descending order (newest first).
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const m = matches[i];
+      const team1Won = m.team1_sets > m.team2_sets;
+
+      const processTeam = (ids: (string | null)[], won: boolean) => {
+        for (const id of ids) {
+          if (!id || id === GUEST_ID) continue;
+          let s = playerStatsMap.get(id);
+          if (!s) {
+            s = { wins: 0, losses: 0, recentResults: [] };
+            playerStatsMap.set(id, s);
+          }
+          if (won) s.wins++; else s.losses++;
+          s.recentResults.push(won ? "W" : "L");
+        }
+      };
+
+      processTeam(m.team1_ids, team1Won);
+      processTeam(m.team2_ids, !team1Won);
     }
 
     return players.map(player => {
-      // Optimization: calculate all stats in a single pass over history
-      let wins = 0;
-      let losses = 0;
-      const recentResults: ("W" | "L")[] = [];
-
-      for (let i = 0; i < player.history.length; i++) {
-        const h = player.history[i];
-        if (matchIds.has(h.matchId)) {
-          if (h.result === "W") wins++;
-          else losses++;
-          recentResults.push(h.result);
-        }
-      }
+      const s = playerStatsMap.get(player.id) || { wins: 0, losses: 0, recentResults: [] };
 
       // Optimization: Pre-calculate streak and trend once per data change
-      // instead of on every render of every visible virtual row.
-      const streakRaw = getStreak(recentResults);
+      const streakRaw = getStreak(s.recentResults);
       const streak = streakRaw.replace("W", "V").replace("L", "F");
-      const trend = getTrendIndicator(recentResults);
+      const trend = getTrendIndicator(s.recentResults);
 
       return {
         ...player,
-        wins,
-        losses,
-        games: recentResults.length,
-        recentResults,
+        wins: s.wins,
+        losses: s.losses,
+        games: s.recentResults.length,
+        recentResults: s.recentResults,
         streak,
         trend,
       };
