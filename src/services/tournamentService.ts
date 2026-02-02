@@ -1,9 +1,10 @@
 import { supabase } from "../supabaseClient";
 import { GUEST_ID } from "../utils/guest";
-import { requireAdmin } from "./authUtils";
+import { ensureAuthSessionReady, requireAdmin } from "./authUtils";
 
 export const tournamentService = {
   async getTournaments() {
+    await ensureAuthSessionReady();
     const { data, error } = await supabase
       .from("mexicana_tournaments")
       .select("*")
@@ -14,6 +15,7 @@ export const tournamentService = {
 
   async getTournamentDetails(tournamentId: string) {
     if (!tournamentId) return { participants: [], rounds: [] };
+    await ensureAuthSessionReady();
 
     const [
       { data: participantRows, error: participantError },
@@ -46,6 +48,7 @@ export const tournamentService = {
   },
 
   async getTournamentResults() {
+    await ensureAuthSessionReady();
     const { data, error } = await supabase.from("mexicana_results").select("*");
     if (error) throw error;
 
@@ -59,6 +62,7 @@ export const tournamentService = {
   },
 
   async getTournamentResultsWithTypes() {
+    await ensureAuthSessionReady();
     const { data, error } = await supabase
       .from("mexicana_results")
       .select("*, mexicana_tournaments(tournament_type)");
