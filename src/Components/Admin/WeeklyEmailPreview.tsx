@@ -489,15 +489,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       <!DOCTYPE html>
       <html>
       <head>
-        <!-- Note for non-coders: these meta tags hint email clients to keep the light theme instead of auto-darkening. -->
-        <meta name="color-scheme" content="light">
-        <meta name="supported-color-schemes" content="light">
-        <!-- Note for non-coders: "light only" is a stronger hint for some Apple mail clients. -->
-        <meta name="color-scheme" content="light only">
+        <!-- Note for non-coders: we declare support for light + dark so Gmail can keep the email dark in dark mode. -->
+        <meta name="color-scheme" content="light dark">
+        <meta name="supported-color-schemes" content="light dark">
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
         <style>
           /* Note for non-coders: we explicitly declare a light color scheme to discourage email apps from auto-darkening. */
-          :root { color-scheme: light; supported-color-schemes: light; }
+          /* Note for non-coders: we list both schemes so email apps are allowed to switch themes. */
+          :root { color-scheme: light dark; supported-color-schemes: light dark; }
           html, body { background-color: #f4f4f4; color: #1a1a1a; }
           body { font-family: 'Inter', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a; -webkit-text-size-adjust: 100%; }
           h1, h2, h3 { font-family: 'Playfair Display', serif; }
@@ -506,7 +505,20 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
           /* Note for non-coders: allow the intentionally dark hero/card areas to stay dark. */
           .email-invert-allowed,
           .email-invert-allowed td { background-color: #111111 !important; color: #ffffff !important; }
-          /* Note for non-coders: this keeps key wrappers light even if a client tries to force dark mode. */
+          /* Note for non-coders: prefers-color-scheme swaps to a dark theme on supported clients (ex: Gmail). */
+          @media (prefers-color-scheme: dark) {
+            body, table, td, p, h1, h2, h3, span, div { background-color: #0f0f0f !important; color: #f5f5f5 !important; }
+            .email-container { background-color: #141414 !important; box-shadow: none !important; }
+            .email-card { background-color: #1b1b1b !important; color: #f5f5f5 !important; border-color: #2a2a2a !important; }
+            .email-light { background-color: #1b1b1b !important; border-color: #2a2a2a !important; }
+            .email-divider { border-color: #2a2a2a !important; }
+            .email-border { border-color: #f5f5f5 !important; }
+            .email-accent { color: var(--email-accent) !important; }
+            .email-highlight { color: var(--email-highlight) !important; }
+            .email-invert-allowed,
+            .email-invert-allowed td { background-color: #0b0b0b !important; color: #ffffff !important; }
+          }
+          /* Note for non-coders: Outlook dark mode uses data-ogsc, so we mirror the dark palette there too. */
           [data-ogsc] body,
           [data-ogsc] table,
           [data-ogsc] td,
@@ -515,41 +527,50 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
           [data-ogsc] h2,
           [data-ogsc] h3,
           [data-ogsc] span,
-          [data-ogsc] div { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
-          [data-ogsc] .email-container { background-color: #ffffff !important; }
-          [data-ogsc] .email-card { background-color: #fafafa !important; color: #1a1a1a !important; }
-          [data-ogsc] .email-invert-allowed { background-color: #111111 !important; color: #ffffff !important; }
-          /* Note for non-coders: prefers-color-scheme is a fallback for clients that honor dark-mode CSS. */
-          @media (prefers-color-scheme: dark) {
-            body, table, td, p, h1, h2, h3, span, div { background-color: #f4f4f4 !important; color: #1a1a1a !important; }
-            .email-container { background-color: #ffffff !important; }
-            .email-card { background-color: #fafafa !important; color: #1a1a1a !important; }
-            .email-invert-allowed { background-color: #111111 !important; color: #ffffff !important; }
+          [data-ogsc] div { background-color: #0f0f0f !important; color: #f5f5f5 !important; }
+          [data-ogsc] .email-container { background-color: #141414 !important; }
+          [data-ogsc] .email-card { background-color: #1b1b1b !important; color: #f5f5f5 !important; border-color: #2a2a2a !important; }
+          [data-ogsc] .email-light { background-color: #1b1b1b !important; border-color: #2a2a2a !important; }
+          [data-ogsc] .email-divider { border-color: #2a2a2a !important; }
+          [data-ogsc] .email-border { border-color: #f5f5f5 !important; }
+          [data-ogsc] .email-accent { color: var(--email-accent) !important; }
+          [data-ogsc] .email-highlight { color: var(--email-highlight) !important; }
+          [data-ogsc] .email-invert-allowed { background-color: #0b0b0b !important; color: #ffffff !important; }
+          }
+          /* Note for non-coders: this mobile rule tells small screens to stack columns and shrink padding. */
+          @media screen and (max-width: 620px) {
+            .email-outer { padding: 12px !important; }
+            .email-container { width: 100% !important; max-width: 100% !important; }
+            .email-hero { padding: 32px 16px !important; }
+            .email-section { padding-left: 20px !important; padding-right: 20px !important; }
+            .email-stat-cell { display: block !important; width: 100% !important; border-right: 0 !important; border-bottom: 1px solid #eee !important; }
+            .email-col { display: block !important; width: 100% !important; padding: 0 0 12px 0 !important; }
+            .email-col:last-child { padding-bottom: 0 !important; }
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a;">
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4" style="background-color: #f4f4f4; padding: 20px; color: #1a1a1a;">
+      <body class="email-root" style="margin: 0; padding: 0; background-color: #f4f4f4; color: #1a1a1a;">
+        <table class="email-outer" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f4f4f4" style="background-color: #f4f4f4; padding: 20px; color: #1a1a1a;">
           <tr>
             <td align="center" style="background-color: #f4f4f4; color: #1a1a1a;">
               <table class="email-container" width="600" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="background-color: #ffffff; color: #1a1a1a; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
                 <!-- Header -->
                 <tr>
-                  <td class="email-invert-allowed" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
+                  <td class="email-invert-allowed email-hero" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 60%, #0b0b0b 100%); padding: 40px 20px; text-align: center;">
                     <h1 style="color: #ffffff; margin: 0; font-size: 36px; letter-spacing: 2px; text-transform: uppercase;">${weekLabel}</h1>
-                    <p style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Grabbarnas Serie &bull; Sammanfattning</p>
+                    <p class="email-highlight" style="color: #999; margin: 10px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; --email-highlight: #d4af37;">Grabbarnas Serie &bull; Sammanfattning</p>
                   </td>
                 </tr>
                 <!-- Intro -->
                 <tr>
-                  <td style="padding: 40px 40px 20px 40px; background-color: #ffffff; color: #1a1a1a;">
+                  <td class="email-section" style="padding: 40px 40px 20px 40px; background-color: #ffffff; color: #1a1a1a;">
                     <h2 style="margin: 0; font-size: 28px; color: #000;">Hej ${stats.name}!</h2>
                     <p style="font-size: 16px; color: #666; line-height: 1.6;">Här är din personliga sammanfattning av veckans matcher och prestationer på banan.</p>
                   </td>
                 </tr>
                 <!-- Player Icon -->
                 <tr>
-                  <td style="padding: 0 40px 30px 40px; background-color: #ffffff; color: #1a1a1a;">
+                  <td class="email-section" style="padding: 0 40px 30px 40px; background-color: #ffffff; color: #1a1a1a;">
                     <table class="email-invert-allowed" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#111111" style="background: #111; border-radius: 10px; color: #fff;">
                       <tr>
                         <td style="padding: 20px;" width="80" align="center">
@@ -557,7 +578,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                         </td>
                         <td style="padding: 20px 20px 20px 0;">
                           <h3 style="margin: 0; font-size: 20px; color: #fff;">
-                            ${stats.name}${featuredBadgeLabel ? ` <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; border: 1px solid #333; border-radius: 999px; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 1px;">${featuredBadgeLabel}</span>` : ""}
+                            ${stats.name}${featuredBadgeLabel ? ` <span class="email-highlight" style="display: inline-block; margin-left: 8px; padding: 2px 8px; border: 1px solid #333; border-radius: 999px; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 1px; --email-highlight: #d4af37;">${featuredBadgeLabel}</span>` : ""}
                           </h3>
                         </td>
                       </tr>
@@ -566,24 +587,24 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 </tr>
                 <!-- Stats Grid -->
                 <tr>
-                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                  <td class="email-section" style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                     <table class="email-card" width="100%" border="0" cellspacing="0" cellpadding="10" bgcolor="#fafafa" style="background-color: #fafafa; border-radius: 8px; border: 1px solid #eee;">
                       <tr>
-                        <td width="50%" align="center" style="border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                        <td class="email-stat-cell email-divider" width="50%" align="center" style="border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
                           <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Matcher</p>
                           <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #000;">${stats.matchesPlayed}</p>
                         </td>
-                        <td width="50%" align="center" style="border-bottom: 1px solid #eee;">
+                        <td class="email-stat-cell email-divider" width="50%" align="center" style="border-bottom: 1px solid #eee;">
                           <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Vinstprocent</p>
                           <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #000;">${stats.winRate}%</p>
                         </td>
                       </tr>
                       <tr>
-                        <td width="50%" align="center" style="border-right: 1px solid #eee;">
+                        <td class="email-stat-cell email-divider" width="50%" align="center" style="border-right: 1px solid #eee;">
                           <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">ELO Delta</p>
-                          <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: ${deltaColor};">${deltaSign}${stats.eloDelta}</p>
+                          <p class="email-accent" style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: var(--email-accent); --email-accent: ${deltaColor};">${deltaSign}${stats.eloDelta}</p>
                         </td>
-                        <td width="50%" align="center">
+                        <td class="email-stat-cell" width="50%" align="center">
                           <p style="margin: 0; font-size: 12px; color: #999; text-transform: uppercase;">Nuvarande ELO</p>
                           <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #000;">${stats.currentElo}</p>
                         </td>
@@ -594,9 +615,9 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- MVP Section -->
                 ${mvp ? `
                 <tr>
-                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                  <td class="email-section" style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                     <div style="background-color: #000; border-radius: 8px; padding: 30px; text-align: center; color: #fff;">
-                      <p style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px;">Veckans MVP</p>
+                      <p class="email-highlight" style="margin: 0; font-size: 12px; color: #d4af37; text-transform: uppercase; letter-spacing: 2px; --email-highlight: #d4af37;">Veckans MVP</p>
                       <div style="margin: 14px 0 10px 0; display: inline-block;">
                         ${renderAvatar(mvp.avatarUrl || null, mvp.name)}
                       </div>
@@ -609,8 +630,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- Highlight Section -->
                 ${highlight ? `
                 <tr>
-                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
-                    <div style="border-left: 4px solid #000; padding: 10px 20px; background-color: #f9f9f9;">
+                  <td class="email-section" style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                    <div class="email-light email-border" style="border-left: 4px solid #000; padding: 10px 20px; background-color: #f9f9f9;">
                       <h3 style="margin: 0; font-size: 20px; color: #000;">✨ ${highlight.title}</h3>
                       <p style="margin: 10px 0 0 0; font-size: 16px; color: #444; line-height: 1.5;">${highlight.description}</p>
                     </div>
@@ -620,12 +641,12 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- Synergy & Rivalry -->
                 ${(stats.synergy || stats.rivalry) ? `
                 <tr>
-                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
-                    <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Synergi & Rivalitet</h3>
+                  <td class="email-section" style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                    <h3 class="email-border" style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Synergi & Rivalitet</h3>
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
                       <tr>
-                        <td width="50%" style="padding-right: 10px;">
-                          <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f7f7f7" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                        <td class="email-col" width="50%" style="padding-right: 10px;">
+                          <table class="email-light" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f7f7f7" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
                             <tr>
                               <td style="padding: 16px;" align="center" width="70">
                                 ${stats.synergy ? renderAvatar(stats.synergy.avatarUrl, stats.synergy.name) : ""}
@@ -638,8 +659,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                             </tr>
                           </table>
                         </td>
-                        <td width="50%" style="padding-left: 10px;">
-                          <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f7f7f7" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
+                        <td class="email-col" width="50%" style="padding-left: 10px;">
+                          <table class="email-light" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f7f7f7" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee;">
                             <tr>
                               <td style="padding: 16px;" align="center" width="70">
                                 ${stats.rivalry ? renderAvatar(stats.rivalry.avatarUrl, stats.rivalry.name) : ""}
@@ -660,18 +681,18 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- Best Comeback & Form Curve -->
                 ${(stats.bestComeback || stats.recentResults.length) ? `
                 <tr>
-                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                  <td class="email-section" style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
                       <tr>
-                        <td width="50%" style="padding-right: 10px;">
+                        <td class="email-col" width="50%" style="padding-right: 10px;">
                           <div style="background: #111; border-radius: 10px; padding: 16px; color: #fff; min-height: 120px;">
                             <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #d4af37;">Bästa comeback</p>
                             <p style="margin: 8px 0 0 0; font-size: 20px; font-weight: 700;">${stats.bestComeback ? stats.bestComeback.score : "Ingen vinst i veckan"}</p>
                             <p style="margin: 6px 0 0 0; font-size: 13px; color: #bbb;">${stats.bestComeback ? `Lag: ${stats.bestComeback.teamsLabel}` : "Spela fler matcher för att få en comeback!"}</p>
                           </div>
                         </td>
-                        <td width="50%" style="padding-left: 10px;">
-                          <div style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px; min-height: 120px;">
+                        <td class="email-col" width="50%" style="padding-left: 10px;">
+                          <div class="email-light" style="background: #f7f7f7; border-radius: 10px; border: 1px solid #eee; padding: 16px; min-height: 120px;">
                             <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999;">Formkurva (senaste 5)</p>
                             ${stats.recentResults.length ? `
                               <svg width="120" height="26" viewBox="0 0 120 26" xmlns="http://www.w3.org/2000/svg" aria-label="Formkurva">
@@ -697,8 +718,8 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 <!-- Results Section -->
                 ${stats.resultsByDate.length > 0 ? `
                 <tr>
-                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
-                    <h3 style="margin: 0 0 10px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Dina resultat</h3>
+                  <td class="email-section" style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                    <h3 class="email-border" style="margin: 0 0 10px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Dina resultat</h3>
                     ${stats.resultsByDate.map(entry => `
                       <p style="margin: 0 0 6px 0; font-size: 14px; color: #666;">
                         <span style="font-weight: 600; color: #111;">${entry.dateLabel}:</span> ${entry.scores.join(", ")}
@@ -709,19 +730,19 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
                 ` : ""}
                 <!-- Leaderboard Section -->
                 <tr>
-                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
-                    <h3 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Topplistan just nu</h3>
+                  <td class="email-section" style="padding: 0 40px 40px 40px; background-color: #ffffff; color: #1a1a1a;">
+                    <h3 class="email-border" style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #000; display: inline-block;">Topplistan just nu</h3>
                     <table width="100%" border="0" cellspacing="0" cellpadding="5">
                       ${leaderboard.map(entry => `
                         <tr>
-                          <td width="24" align="center" style="font-size: 13px; color: #999; border-bottom: 1px solid #eee; padding: 10px 0;">${entry.rank}</td>
-                          <td width="44" align="center" style="border-bottom: 1px solid #eee; padding: 10px 0;">
+                          <td class="email-divider" width="24" align="center" style="font-size: 13px; color: #999; border-bottom: 1px solid #eee; padding: 10px 0;">${entry.rank}</td>
+                          <td class="email-divider" width="44" align="center" style="border-bottom: 1px solid #eee; padding: 10px 0;">
                             ${renderAvatar(entry.avatarUrl, entry.name, 32)}
                           </td>
-                          <td style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">
+                          <td class="email-divider" style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">
                             ${renderTrendIndicator(entry.trend)}${entry.name}
                           </td>
-                          <td align="right" style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">${entry.elo}</td>
+                          <td class="email-divider" align="right" style="font-size: 14px; border-bottom: 1px solid #eee; padding: 10px 0; color: #333;">${entry.elo}</td>
                         </tr>
                       `).join('')}
                     </table>
