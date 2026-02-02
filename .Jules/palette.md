@@ -33,3 +33,7 @@
 ## 2026-02-12 - [UX: Contextual Clarity & Scannability]
 **Learning:** In multi-slot forms (like match editing), missing labels on identical inputs cause cognitive friction. Visual cues like bolding/coloring winners in dense brackets significantly reduce scanning time. Lowering search thresholds (e.g., from 8 to 5) for player grids ensures filter tools are available before the list becomes overwhelming.
 **Action:** Always label repeating form slots (e.g., "Spelare 1"). Use `primary.main` highlighting for winners in tournament views. Standardize search visibility at 5+ items.
+
+## 2026-02-15 - [A11y: Tournament Bracket & Region Landmarks]
+**Learning:** Densely packed tournament brackets are notoriously difficult for screen reader users to navigate without landmarks. Providing a `role="region"` with a descriptive `aria-label` for the scrollable container, combined with summary `aria-label` attributes for each match card (e.g., "Rond 1: Lag A mot Lag B, resultat 2-1"), significantly improves the experience for non-visual users.
+**Action:** Always wrap complex horizontal scroll areas in a region landmark and provide semantic summary labels for repeated data cards.

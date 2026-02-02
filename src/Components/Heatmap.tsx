@@ -324,26 +324,75 @@ export default function Heatmap({
             <TableHead sx={{ bgcolor: 'grey.50' }}>
               <TableRow>
                 <TableCell sortDirection={sortKey === "players" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === "players"} direction={sortKey === "players" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("players")}>Lag</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "players"}
+                    direction={sortKey === "players" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => handleSort("players")}
+                    aria-label="Sortera efter lag"
+                  >
+                    Lag
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === "games"} direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("games")}>Matcher</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "games"}
+                    direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => handleSort("games")}
+                    aria-label="Sortera efter matcher"
+                  >
+                    Matcher
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === "wins"} direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("wins")}>Vinster</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "wins"}
+                    direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => handleSort("wins")}
+                    aria-label="Sortera efter vinster"
+                  >
+                    Vinster
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === "winPct"} direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("winPct")}>Vinst %</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "winPct"}
+                    direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => handleSort("winPct")}
+                    aria-label="Sortera efter vinstprocent"
+                  >
+                    Vinst %
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "serveFirstWinPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === "serveFirstWinPct"} direction={sortKey === "serveFirstWinPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("serveFirstWinPct")}>Vinst % (servade)</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "serveFirstWinPct"}
+                    direction={sortKey === "serveFirstWinPct" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => handleSort("serveFirstWinPct")}
+                    aria-label="Sortera efter vinstprocent vid serve"
+                  >
+                    Vinst % (servade)
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "serveSecondWinPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === "serveSecondWinPct"} direction={sortKey === "serveSecondWinPct" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("serveSecondWinPct")}>Vinst % (mottagning)</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "serveSecondWinPct"}
+                    direction={sortKey === "serveSecondWinPct" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => handleSort("serveSecondWinPct")}
+                    aria-label="Sortera efter vinstprocent vid mottagning"
+                  >
+                    Vinst % (mottagning)
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sx={{ fontWeight: 700 }}>Senaste 5</TableCell>
                 <TableCell align="center" sortDirection={sortKey === "avgElo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel active={sortKey === "avgElo"} direction={sortKey === "avgElo" ? (asc ? "asc" : "desc") : "asc"} onClick={() => handleSort("avgElo")}>Snitt-ELO</TableSortLabel>
+                  <TableSortLabel
+                    active={sortKey === "avgElo"}
+                    direction={sortKey === "avgElo" ? (asc ? "asc" : "desc") : "asc"}
+                    onClick={() => handleSort("avgElo")}
+                    aria-label="Sortera efter genomsnittlig ELO"
+                  >
+                    Snitt-ELO
+                  </TableSortLabel>
                 </TableCell>
               </TableRow>
             </TableHead>
