@@ -27,6 +27,9 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public;
 
+-- Non-coder note: if this watcher (trigger) already exists, we remove it so we can recreate it safely.
+drop trigger if exists schedule_tournament_email_after_change on mexicana_tournaments;
+
 create trigger schedule_tournament_email_after_change
   after insert or update on mexicana_tournaments
   for each row
