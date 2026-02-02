@@ -1175,7 +1175,8 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
         body: JSON.stringify({
-          from: 'Padel-appen <onboarding@resend.dev>',
+          // Non-coder note: Resend only lets you send emails from verified domains to reach real recipients.
+          from: 'Padel-appen <no-reply@din-domän.se>',
           to: [email],
           subject: weekLabel,
           html: html
