@@ -477,10 +477,49 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const jsonResponse = (payload: Record<string, any>, status = 200) => {
+    return new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  };
+
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? '';
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      // Non-coder note: the server needs these secrets to read data and send emails on behalf of the app.
+      return jsonResponse({
+        success: false,
+        error: "SUPABASE_URL eller SUPABASE_SERVICE_ROLE_KEY saknas.",
+        hint: "Lägg till variablerna i Supabase Functions > Environment Variables."
+      });
+    }
+
+    if (!anonKey) {
+      // Non-coder note: the anon key is used only to validate a user login token.
+      return jsonResponse({
+        success: false,
+        error: "SUPABASE_ANON_KEY saknas.",
+        hint: "Lägg till variabeln i Supabase Functions > Environment Variables."
+      });
+    }
+
+    if (!resendApiKey) {
+      // Non-coder note: we cannot send email without the Resend API key.
+      return jsonResponse({
+        success: false,
+        error: "RESEND_API_KEY saknas.",
+        hint: "Lägg till variabeln i Supabase Functions > Environment Variables."
+      });
+    }
+
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      supabaseUrl,
+      serviceRoleKey
     );
 
     // Parse request body
@@ -508,13 +547,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    if (!anonKey) {
-      // Non-coder note: the anon key is used only to validate a user login token.
-      throw new Error("SUPABASE_ANON_KEY missing");
-    }
     const authClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
+      supabaseUrl,
       anonKey
     );
     // Non-coder note: this call checks with Supabase that the token belongs to a real user.
@@ -862,9 +896,6 @@ Deno.serve(async (req) => {
         };
       });
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (!resendApiKey) throw new Error("RESEND_API_KEY missing");
-
     const emailResults = await Promise.all(Array.from(activePlayerIds).map(async (id) => {
       const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
@@ -1174,9 +1205,8 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("Function error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    const message = error instanceof Error ? error.message : String(error);
+    // Non-coder note: we return a friendly error payload so the UI can show what went wrong.
+    return jsonResponse({ success: false, error: message });
   }
 });
