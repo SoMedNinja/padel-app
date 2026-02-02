@@ -81,6 +81,14 @@ const buildEmailHtml = ({
     ...resolveParticipant(entry.profile_id),
     rank: entry.rank,
   }));
+  // Note for non-coders: the podium layout uses a fixed table so it renders consistently in email clients.
+  const getPodiumEntry = (rank: number) =>
+    podiumEntries.find(entry => entry.rank === rank) || { name: "Gästspelare", avatarUrl: null, rank };
+  const podiumSlots = [
+    { rank: 2, paddingTop: 24, barHeight: 16, barColor: "#d7d7d7" },
+    { rank: 1, paddingTop: 0, barHeight: 26, barColor: "#f5c542" },
+    { rank: 3, paddingTop: 36, barHeight: 12, barColor: "#d9c1b7" },
+  ];
   const matchRows = rounds
     .filter(round => Number.isFinite(round.team1_score) && Number.isFinite(round.team2_score))
     .map(round => {
@@ -162,13 +170,34 @@ const buildEmailHtml = ({
                   <td class="email-section" style="padding-top:0;">
                     <div class="email-card">
                       <h2 style="margin:0 0 12px;">Podium</h2>
-                      ${podiumEntries.map(entry => `
-                        <div class="email-avatar-row">
-                          <div style="width: 32px; height: 32px; border-radius: 50%; background: #111; color: #fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size: 14px;">${entry.rank}</div>
-                          ${renderAvatar(entry.avatarUrl, entry.name)}
-                          <div><strong>${entry.name}</strong></div>
-                        </div>
-                      `).join("")}
+                      <!-- Note for non-coders: tables with fixed widths avoid layout issues in email clients. -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
+                        <tr>
+                          ${podiumSlots.map(slot => {
+                            const entry = getPodiumEntry(slot.rank);
+                            return `
+                              <td width="180" valign="bottom" align="center">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td style="padding-top:${slot.paddingTop}px; padding-bottom:8px; text-align:center;">
+                                      <div style="margin:0 auto 6px;">
+                                        <span style="display:inline-block; padding:4px 12px; background:#111; color:#fff; border-radius:999px; font-size:16px; font-weight:700;">${entry.rank}</span>
+                                      </div>
+                                      <div style="margin:0 auto 6px; width:42px;">
+                                        ${renderAvatar(entry.avatarUrl, entry.name)}
+                                      </div>
+                                      <div style="font-weight:700; font-size:14px;">${entry.name}</div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="height:${slot.barHeight}px; background:${slot.barColor}; border-radius:8px 8px 0 0;"></td>
+                                  </tr>
+                                </table>
+                              </td>
+                            `;
+                          }).join("")}
+                        </tr>
+                      </table>
                     </div>
                   </td>
                 </tr>
