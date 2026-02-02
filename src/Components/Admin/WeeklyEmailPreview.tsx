@@ -1014,7 +1014,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
               fullWidth
               onClick={() => setShowPreview(true)}
             >
-              generera förhandsgranskning
+              Generera förhandsgranskning
             </Button>
           </Grid>
           <Grid size={{ xs: 12, sm: 2 }}>

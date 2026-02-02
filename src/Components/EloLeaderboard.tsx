@@ -258,14 +258,14 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     Vinster
                   </TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none', cursor: 'help' }}>
                   <Tooltip title="Antal vinster (V) eller förluster (F) i rad" arrow>
-                    <Box component="span" sx={{ cursor: 'help' }}>Streak</Box>
+                    <Box component="span">Streak</Box>
                   </Tooltip>
                 </TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none', cursor: 'help' }}>
                   <Tooltip title="Form baserat på de senaste 5 matcherna" arrow>
-                    <Box component="span" sx={{ cursor: 'help' }}>Trend</Box>
+                    <Box component="span">Trend</Box>
                   </Tooltip>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>

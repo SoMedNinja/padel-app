@@ -241,7 +241,12 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                             value={currentName}
                             onChange={(e) => handleNameChange(profile.id, e.target.value)}
                             helperText={`${currentName.length}/50`}
-                            slotProps={{ htmlInput: { maxLength: 50 } }}
+                            slotProps={{
+                              htmlInput: {
+                                maxLength: 50,
+                                "aria-label": `Ändra namn för ${profile.name || "användare"}`,
+                              },
+                            }}
                             sx={{
                               '& .MuiInput-root': { fontWeight: 600 },
                               maxWidth: 250
