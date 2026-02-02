@@ -6,6 +6,7 @@ interface Profile {
   name: string;
   avatar_url?: string | null;
   featured_badge_id?: string | null;
+  email?: string | null;
 }
 
 interface Match {
@@ -476,10 +477,49 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  const jsonResponse = (payload: Record<string, any>, status = 200) => {
+    return new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  };
+
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? '';
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      // Non-coder note: the server needs these secrets to read data and send emails on behalf of the app.
+      return jsonResponse({
+        success: false,
+        error: "SUPABASE_URL eller SUPABASE_SERVICE_ROLE_KEY saknas.",
+        hint: "Lägg till variablerna i Supabase Functions > Environment Variables."
+      });
+    }
+
+    if (!anonKey) {
+      // Non-coder note: the anon key is used only to validate a user login token.
+      return jsonResponse({
+        success: false,
+        error: "SUPABASE_ANON_KEY saknas.",
+        hint: "Lägg till variabeln i Supabase Functions > Environment Variables."
+      });
+    }
+
+    if (!resendApiKey) {
+      // Non-coder note: we cannot send email without the Resend API key.
+      return jsonResponse({
+        success: false,
+        error: "RESEND_API_KEY saknas.",
+        hint: "Lägg till variabeln i Supabase Functions > Environment Variables."
+      });
+    }
+
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      supabaseUrl,
+      serviceRoleKey
     );
 
     // Parse request body
@@ -507,13 +547,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    if (!anonKey) {
-      // Non-coder note: the anon key is used only to validate a user login token.
-      throw new Error("SUPABASE_ANON_KEY missing");
-    }
     const authClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
+      supabaseUrl,
       anonKey
     );
     // Non-coder note: this call checks with Supabase that the token belongs to a real user.
@@ -588,7 +623,8 @@ Deno.serve(async (req) => {
     const profiles = (rawProfiles || []).map(p => ({
       ...p,
       name: escapeHtml(p.name || "Okänd"),
-      avatar_url: p.avatar_url ? escapeHtml(p.avatar_url) : null
+      avatar_url: p.avatar_url ? escapeHtml(p.avatar_url) : null,
+      email: p.email ?? null
     }));
 
     const { data: matches, error: matchesError } = await supabase.from('matches').select('*');
@@ -636,6 +672,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (targetPlayerId) {
+      if (!role || !ALLOWED_TEST_ROLES.has(role)) {
+        if (!isActualAdmin) {
+          // Non-coder note: test emails are allowed only for signed-in roles we explicitly trust.
+          return new Response(JSON.stringify({ error: "Roll saknar behörighet för testläge" }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    } else if (!isActualAdmin) {
+      // Non-coder note: mass email sends are restricted to admins/service roles only.
+      return new Response(JSON.stringify({ error: "Roll saknar behörighet för massutskick" }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     if (targetPlayerId && !isActualAdmin && targetPlayerId !== data.user.id) {
       return new Response(JSON.stringify({ error: "Du kan bara skicka test-mail till dig själv" }), {
         status: 403,
@@ -659,8 +713,9 @@ Deno.serve(async (req) => {
     // Non-coder note: this map lets us quickly check if a player has a matching auth user record.
     const authUserMap = new Map(allUsers.map(u => [u.id, u]));
     const emailMap = new Map(allUsers.map(u => [u.id, resolveUserEmail(u)]));
-    // Non-coder note: Auth is the primary email source, but we fall back to profile emails if needed.
     const profileEmailMap = new Map(profiles.map(profile => [profile.id, profile.email ?? null]));
+    // Non-coder note: Auth is the primary email source, but we fall back to profile emails so weekly
+    // sends still go out if Auth doesn't return an address for someone.
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
     const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
     const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
@@ -1158,9 +1213,8 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("Function error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    const message = error instanceof Error ? error.message : String(error);
+    // Non-coder note: we return a friendly error payload so the UI can show what went wrong.
+    return jsonResponse({ success: false, error: message });
   }
 });

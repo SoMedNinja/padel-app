@@ -796,6 +796,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         throw new Error(errorMessage);
       }
 
+      if (data?.success === false) {
+        const errorMessage = data.error || "Okänt fel";
+        const hintMessage = data.hint ? ` (${data.hint})` : "";
+        // Note for non-coders: the function sends structured error details when configuration is missing.
+        alert(`Kunde inte skicka test-mail: ${errorMessage}${hintMessage}`);
+        return;
+      }
+
       if (data?.success) {
         const errorCount = Array.isArray(data.errors) ? data.errors.length : 0;
         if (errorCount > 0) {
@@ -861,6 +869,14 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
       if (error) {
         const errorMessage = error.message || "Okänt fel";
         throw new Error(errorMessage);
+      }
+
+      if (data?.success === false) {
+        const errorMessage = data.error || "Okänt fel";
+        const hintMessage = data.hint ? ` (${data.hint})` : "";
+        // Note for non-coders: this makes setup errors visible instead of hiding them behind a generic message.
+        alert(`Kunde inte skicka veckobrevet: ${errorMessage}${hintMessage}`);
+        return;
       }
 
       if (data?.success) {
