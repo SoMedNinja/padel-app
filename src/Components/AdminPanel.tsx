@@ -156,7 +156,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
         >
           <Tab icon={<PeopleIcon />} label="Användare" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
           <Tab icon={<ReportsIcon />} label="Rapporter" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
-          <Tab icon={<EmailIcon />} label="Email previews" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
+          <Tab icon={<EmailIcon />} label="Emails" iconPosition="start" sx={{ py: 2, fontWeight: 700 }} />
         </Tabs>
       </Paper>
 

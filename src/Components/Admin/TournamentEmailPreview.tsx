@@ -11,6 +11,7 @@ import {
   Switch,
   FormControlLabel,
   CircularProgress,
+  Button,
 } from "@mui/material";
 import { useEloStats } from "../../hooks/useEloStats";
 import { useTournamentDetails, useTournamentResults, useTournaments } from "../../hooks/useTournamentData";
@@ -159,9 +160,10 @@ const buildEmailHtml = ({
   `;
 };
 
-export default function TournamentEmailPreview({ currentUserId }: TournamentEmailPreviewProps) {
+export default function TournamentEmailPreview({ currentUserId: _currentUserId }: TournamentEmailPreviewProps) {
   const [useMock, setUseMock] = useState(true);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
+  const [showPreview, setShowPreview] = useState(false);
 
   const { data: tournaments = [], isLoading: isLoadingTournaments } = useTournaments();
   const { data: tournamentDetails } = useTournamentDetails(selectedTournamentId);
@@ -177,7 +179,13 @@ export default function TournamentEmailPreview({ currentUserId }: TournamentEmai
     }
   }, [completedTournaments, selectedTournamentId, useMock]);
 
+  React.useEffect(() => {
+    // Note for non-coders: we only render the preview after clicking the generate button.
+    setShowPreview(false);
+  }, [useMock, selectedTournamentId, tournamentDetails]);
+
   const emailHtml = useMemo(() => {
+    if (!showPreview) return "";
     if (useMock) {
       // Note for non-coders: mock data lets admins see the email design without real tournament data.
       return buildEmailHtml({
@@ -207,7 +215,7 @@ export default function TournamentEmailPreview({ currentUserId }: TournamentEmai
       rounds: tournamentDetails.rounds || [],
       participants,
     });
-  }, [useMock, completedTournaments, selectedTournamentId, tournamentDetails, profiles, tournamentResults]);
+  }, [showPreview, useMock, completedTournaments, selectedTournamentId, tournamentDetails, profiles, tournamentResults]);
 
   if (isLoadingTournaments || isLoadingProfiles) return <CircularProgress />;
 
@@ -230,7 +238,7 @@ export default function TournamentEmailPreview({ currentUserId }: TournamentEmai
                   onChange={(e) => setUseMock(e.target.checked)}
                 />
               )}
-              label="Använd testdata"
+              label="Testdata"
             />
           </Grid>
           {!useMock && (
@@ -249,20 +257,36 @@ export default function TournamentEmailPreview({ currentUserId }: TournamentEmai
               </FormControl>
             </Grid>
           )}
+          <Grid size={{ xs: 12, sm: 4 }}>
+            {/* Note for non-coders: the preview is generated only after clicking this button. */}
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => setShowPreview(true)}
+            >
+              generera förhandsgranskning
+            </Button>
+          </Grid>
         </Grid>
 
-        {emailHtml ? (
-          <Box sx={{ mt: 3, borderRadius: 2, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
-            <iframe
-              title="Turneringsmejl"
-              srcDoc={emailHtml}
-              style={{ width: "100%", height: 720, border: "none" }}
-            />
-          </Box>
+        {showPreview ? (
+          emailHtml ? (
+            <Paper sx={{ mt: 3, borderRadius: 4, overflow: "hidden", border: "1px solid", borderColor: "divider", height: "800px" }}>
+              <iframe
+                title="Turneringsmejl"
+                srcDoc={emailHtml}
+                style={{ width: "100%", height: "100%", border: "none" }}
+              />
+            </Paper>
+          ) : (
+            <Paper sx={{ mt: 3, p: 4, textAlign: "center", borderRadius: 4 }}>
+              <Typography color="text.secondary">Ingen data att visa ännu.</Typography>
+            </Paper>
+          )
         ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
-            Ingen data att visa ännu.
-          </Typography>
+          <Paper sx={{ mt: 3, p: 4, textAlign: "center", borderRadius: 4 }}>
+            <Typography color="text.secondary">Klicka på \"generera förhandsgranskning\" för att visa mailet.</Typography>
+          </Paper>
         )}
       </Paper>
     </Box>
