@@ -36,6 +36,22 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const authTimeoutMs = 15000;
+
+  const withTimeout = async <T,>(promise: Promise<T>, message: string): Promise<T> => {
+    let timeoutId: number | undefined;
+    try {
+      // Note for non-coders: we cap how long the login call can wait so the button never spins forever.
+      const timeoutPromise = new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), authTimeoutMs);
+      });
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    }
+  };
 
   const resolveSiteUrl = () => {
     const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL;
@@ -71,13 +87,16 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     try {
       if (isSignup) {
         const siteUrl = resolveSiteUrl();
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: siteUrl,
-          },
-        });
+        const { data, error } = await withTimeout(
+          supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: siteUrl,
+            },
+          }),
+          "Det tar längre tid än vanligt att skapa kontot. Försök igen om en stund."
+        );
 
         if (error) {
           setNoticeSeverity("error");
@@ -91,10 +110,13 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
         setNoticeSeverity("success");
         setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data, error } = await withTimeout(
+          supabase.auth.signInWithPassword({
+            email,
+            password,
+          }),
+          "Det tar längre tid än vanligt att logga in. Kontrollera din uppkoppling och försök igen."
+        );
 
         if (error) {
           setNoticeSeverity("error");
@@ -107,6 +129,10 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
           return;
         }
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Något gick fel vid inloggningen.";
+      setNoticeSeverity("error");
+      setNotice(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -125,9 +151,12 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     }
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: resolveSiteUrl(),
-      });
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: resolveSiteUrl(),
+        }),
+        "Det tar längre tid än vanligt att skicka återställningslänken. Försök igen om en stund."
+      );
       if (error) {
         setNoticeSeverity("error");
         setNotice(error.message);
@@ -135,6 +164,10 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
       }
       setNoticeSeverity("success");
       setNotice("Återställningslänk skickad! Kolla din e-post.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Något gick fel vid återställningen.";
+      setNoticeSeverity("error");
+      setNotice(message);
     } finally {
       setIsSubmitting(false);
     }
