@@ -109,6 +109,12 @@ export default function MatchForm({
   const [query, setQuery] = useState("");
   useEffect(() => { setQuery(""); }, [step]);
 
+  const registeredPlayerCount = useMemo(
+    () => profiles.filter(player => player.id !== GUEST_ID).length,
+    [profiles]
+  );
+  // Note for non-coders: we count only real registered players here (not the "Gästspelare")
+  // so the search field appears only when the player list is large enough to need filtering.
   const selectablePlayers = useMemo(() => {
     const hasGuest = profiles.some(player => player.id === GUEST_ID);
     return hasGuest ? profiles : [...profiles, { id: GUEST_ID, name: GUEST_NAME } as Profile];
@@ -427,7 +433,7 @@ export default function MatchForm({
     const filtered = sorted.filter(p => p.id === GUEST_ID || getProfileDisplayName(p).toLowerCase().includes(query.toLowerCase()));
     return (
       <Box>
-        {selectablePlayers.length > 5 && (
+        {registeredPlayerCount >= 8 && (
           <TextField
             fullWidth
             size="small"
