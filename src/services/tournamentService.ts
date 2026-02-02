@@ -3,6 +3,12 @@ import { GUEST_ID } from "../utils/guest";
 import { ensureAuthSessionReady, requireAdmin } from "./authUtils";
 
 export const tournamentService = {
+  // Note for non-coders: this helper checks if the database is missing the special
+  // "RPC" functions we call. When that happens, we fall back to regular table updates.
+  isMissingRpcFunction(error: any) {
+    const message = error?.message?.toLowerCase?.() ?? "";
+    return message.includes("schema cache") || message.includes("does not exist");
+  },
   async getTournaments() {
     await ensureAuthSessionReady();
     const { data, error } = await supabase
@@ -97,7 +103,24 @@ export const tournamentService = {
       target_tournament_id: tournamentId,
       new_profile_ids: profileIds,
     });
-    if (error) throw error;
+    if (!error) return;
+    if (!tournamentService.isMissingRpcFunction(error)) throw error;
+
+    // Note for non-coders: this fallback does the same work without the custom database
+    // function, so the app still works even if the function isn't installed yet.
+    const { error: deleteError } = await supabase
+      .from("mexicana_participants")
+      .delete()
+      .eq("tournament_id", tournamentId);
+    if (deleteError) throw deleteError;
+
+    if (profileIds.length === 0) return;
+    const inserts = profileIds.map(profileId => ({
+      tournament_id: tournamentId,
+      profile_id: profileId,
+    }));
+    const { error: insertError } = await supabase.from("mexicana_participants").insert(inserts);
+    if (insertError) throw insertError;
   },
 
   async deleteTournament(tournamentId: string) {
@@ -108,7 +131,34 @@ export const tournamentService = {
     const { error } = await supabase.rpc("delete_mexicana_tournament", {
       target_tournament_id: tournamentId,
     });
-    if (error) throw error;
+    if (!error) return;
+    if (!tournamentService.isMissingRpcFunction(error)) throw error;
+
+    // Note for non-coders: this fallback deletes the related data in the same order as the
+    // database function, so the UI still works if the function isn't available yet.
+    const { error: participantsError } = await supabase
+      .from("mexicana_participants")
+      .delete()
+      .eq("tournament_id", tournamentId);
+    if (participantsError) throw participantsError;
+
+    const { error: roundsError } = await supabase
+      .from("mexicana_rounds")
+      .delete()
+      .eq("tournament_id", tournamentId);
+    if (roundsError) throw roundsError;
+
+    const { error: resultsError } = await supabase
+      .from("mexicana_results")
+      .delete()
+      .eq("tournament_id", tournamentId);
+    if (resultsError) throw resultsError;
+
+    const { error: tournamentError } = await supabase
+      .from("mexicana_tournaments")
+      .delete()
+      .eq("id", tournamentId);
+    if (tournamentError) throw tournamentError;
   },
 
   async updateTournament(tournamentId: string, updates: any) {
