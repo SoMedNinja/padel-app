@@ -73,8 +73,10 @@ const buildEmailHtml = ({
       : `<div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: ${Math.max(12, Math.round(size / 2.8))}px;">${initial}</div>`;
   };
 
-  const winners = results.filter(entry => entry.rank === 1).map(entry => resolveName(entry.profile_id));
-  const podium = results.slice(0, 3).map(entry => resolveName(entry.profile_id));
+  const winners = results.filter(entry => entry.rank === 1).map(entry => ({
+    ...resolveParticipant(entry.profile_id),
+    rank: entry.rank,
+  }));
   const podiumEntries = results.slice(0, 3).map(entry => ({
     ...resolveParticipant(entry.profile_id),
     rank: entry.rank,
@@ -90,6 +92,15 @@ const buildEmailHtml = ({
         score: `${round.team1_score}–${round.team2_score}`,
       };
     });
+
+  const formatRecord = (entry: any) => {
+    // Note for non-coders: tournaments don't store draws explicitly, so we infer them from total matches.
+    const wins = Number(entry.wins ?? 0);
+    const losses = Number(entry.losses ?? 0);
+    const matches = Number(entry.matches_played ?? wins + losses);
+    const draws = Math.max(0, matches - wins - losses);
+    return `${wins}/${draws}/${losses}`;
+  };
 
   return `
     <!doctype html>
@@ -130,8 +141,16 @@ const buildEmailHtml = ({
                 <tr>
                   <td class="email-section">
                     <div class="email-card">
-                      <h2 style="margin:0 0 8px;">Vinnare</h2>
-                      <p style="margin:0;">${winners.length ? winners.join(", ") : "Ingen vinnare registrerad"}</p>
+                      <h2 style="margin:0 0 12px;">Vinnare</h2>
+                      ${winners.length ? winners.map(entry => `
+                        <div class="email-avatar-row">
+                          ${renderAvatar(entry.avatarUrl, entry.name)}
+                          <div>
+                            <strong>${entry.name}</strong>
+                            <div class="email-subtle">1:a plats</div>
+                          </div>
+                        </div>
+                      `).join("") : "<p style=\"margin:0;\">Ingen vinnare registrerad</p>"}
                     </div>
                   </td>
                 </tr>
@@ -141,26 +160,11 @@ const buildEmailHtml = ({
                       <h2 style="margin:0 0 12px;">Podium</h2>
                       ${podiumEntries.map(entry => `
                         <div class="email-avatar-row">
+                          <div style="width: 32px; height: 32px; border-radius: 50%; background: #111; color: #fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size: 14px;">${entry.rank}</div>
                           ${renderAvatar(entry.avatarUrl, entry.name)}
-                          <div>
-                            <strong>${entry.rank}. ${entry.name}</strong>
-                            <div class="email-subtle">Placering ${entry.rank}</div>
-                          </div>
+                          <div><strong>${entry.name}</strong></div>
                         </div>
                       `).join("")}
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="email-section" style="padding-top:0;">
-                    <div class="email-card">
-                      <h2 style="margin:0 0 12px;">Deltagare</h2>
-                      ${participants.map(participant => `
-                        <div class="email-avatar-row">
-                          ${renderAvatar(participant.avatarUrl, participant.name, 36)}
-                          <div><strong>${participant.name}</strong></div>
-                        </div>
-                      `).join("") || "<p style=\"margin:0;\">Inga deltagare registrerade</p>"}
                     </div>
                   </td>
                 </tr>
@@ -170,19 +174,21 @@ const buildEmailHtml = ({
                       <h2 style="margin:0 0 12px;">Tabell</h2>
                       <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-size: 14px;">
                         <tr style="background:#ffffff;">
-                          <th align="left">Placering</th>
-                          <th align="left">Spelare</th>
-                          <th align="center">Vinster</th>
-                          <th align="center">För</th>
-                          <th align="center">Mot</th>
+                          <th align="left">Plac.</th>
+                          <th align="left">Namn</th>
+                          <th align="center">Poäng</th>
+                          <th align="center">Matcher</th>
+                          <th align="center">V/O/F</th>
+                          <th align="center">Diff</th>
                         </tr>
                         ${results.map(entry => `
                           <tr>
                             <td>${entry.rank}</td>
                             <td>${resolveName(entry.profile_id)}</td>
-                            <td align="center">${entry.wins}</td>
-                            <td align="center">${entry.points_for}</td>
-                            <td align="center">${entry.points_against}</td>
+                            <td align="center">${entry.points_for ?? 0}</td>
+                            <td align="center">${entry.matches_played ?? "-"}</td>
+                            <td align="center">${formatRecord(entry)}</td>
+                            <td align="center">${(entry.points_for ?? 0) - (entry.points_against ?? 0)}</td>
                           </tr>
                         `).join("")}
                       </table>
