@@ -23,6 +23,8 @@ interface FilterBarProps {
 export default function FilterBar({ filter, setFilter }: FilterBarProps) {
   // Note for non-coders: We pre-fill the "till" date with today so it's ready once a "från" date is chosen.
   const getTodayDateString = () => new Date().toISOString().slice(0, 10);
+  // Note for non-coders: "isDefaultFilter" just means "show everything with no extra filtering."
+  const isDefaultFilter = filter.type === "all";
   const filterLabels: Record<MatchFilterType, string> = {
     all: "Alla matcher",
     short: "Korta matcher",
@@ -63,12 +65,12 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
         display: "flex",
         justifyContent: "flex-start",
         alignItems: { xs: "stretch", sm: "center" },
-        gap: 2,
+        gap: 1,
         flexWrap: "wrap",
         flexDirection: { xs: "column", sm: "row" }
       }}
     >
-      <FormControl size="small" sx={{ minWidth: 160, mt: 1, width: { xs: "100%", sm: "auto" } }}>
+      <FormControl size="small" sx={{ minWidth: 160, width: { xs: "100%", sm: "auto" } }}>
         <InputLabel
           id="filter-select-label"
           sx={{
@@ -107,25 +109,29 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           <MenuItem value="range">{filterLabels.range}</MenuItem>
         </Select>
       </FormControl>
-      <Tooltip title="Visa alla matcher och nollställ aktiva filter" arrow>
-        <span>
-          <Button
-            size="small"
-            onClick={() => setFilter({ type: "all" })}
-            startIcon={<CloseIcon />}
-            disabled={filter.type === "all"}
-            sx={{ mt: 1, textTransform: "none", fontWeight: 700, borderRadius: "12px" }}
-          >
-            Återställ filter
-          </Button>
-        </span>
-      </Tooltip>
-      <Box sx={{ mt: 1, px: 1, py: 0.5, borderRadius: 2, bgcolor: "grey.100", width: { xs: "100%", sm: "auto" } }}>
-        {/* Note for non-coders: this label reminds people which filter is active right now. */}
-        <Box component="span" sx={{ fontSize: 12, fontWeight: 700, color: "text.secondary" }}>
-          Aktivt: {filterLabels[filter.type]}
+      {!isDefaultFilter && (
+        <Tooltip title="Visa alla matcher och nollställ aktiva filter" arrow>
+          <span>
+            <Button
+              size="small"
+              onClick={() => setFilter({ type: "all" })}
+              startIcon={<CloseIcon />}
+              // Note for non-coders: this button only shows when a non-default filter is active.
+              sx={{ textTransform: "none", fontWeight: 700, borderRadius: "12px" }}
+            >
+              Återställ filter
+            </Button>
+          </span>
+        </Tooltip>
+      )}
+      {!isDefaultFilter && (
+        <Box sx={{ px: 0.75, py: 0.25, borderRadius: 2, bgcolor: "grey.100", width: { xs: "100%", sm: "auto" } }}>
+          {/* Note for non-coders: this label reminds people which filter is active right now. */}
+          <Box component="span" sx={{ fontSize: 12, fontWeight: 700, color: "text.secondary" }}>
+            Aktivt: {filterLabels[filter.type]}
+          </Box>
         </Box>
-      </Box>
+      )}
       {filter.type === "range" && (
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1, flexDirection: { xs: "column", sm: "row" }, width: "100%" }}>
           <TextField
