@@ -98,21 +98,26 @@ export default function HistoryPage() {
         </Box>
       </Container>
       <Fab
-        color="primary"
+        size="small"
+        color="inherit"
         aria-label="Till toppen"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         sx={{
           position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: theme => theme.zIndex.tooltip + 1,
+          bottom: { xs: 88, sm: 24 },
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: theme => theme.zIndex.modal + 1,
+          bgcolor: "background.paper",
+          color: "text.secondary",
+          boxShadow: 2,
           opacity: showScrollTop ? 1 : 0,
           pointerEvents: showScrollTop ? "auto" : "none",
           transition: "opacity 0.2s ease-in-out",
         }}
       >
-        {/* Note for non-coders: this arrow button smoothly scrolls back to the top. */}
-        <KeyboardArrowUpIcon />
+        {/* Note for non-coders: this smaller arrow button stays above the bottom menu and scrolls to the top. */}
+        <KeyboardArrowUpIcon fontSize="small" />
       </Fab>
     </PullToRefresh>
   );
