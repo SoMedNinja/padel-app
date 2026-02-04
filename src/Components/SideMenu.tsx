@@ -33,7 +33,8 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
   const navigate = useNavigate();
 
   const menuItems = [
-    { text: "Hem", icon: <HomeIcon />, path: "/" },
+    // Note for non-coders: this is the menu text users see for the "/" profile page.
+    { text: "Profil", icon: <HomeIcon />, path: "/" },
     { text: "Grabbarnas serie", icon: <TrophyIcon />, path: "/dashboard" },
     { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
   ];

@@ -69,7 +69,8 @@ const BottomNav: React.FC<BottomNavProps> = ({
         }}
       >
         <BottomNavigationAction
-          label="Hem"
+          // Note for non-coders: this label is just the visible text for the "/" (profile) tab.
+          label="Profil"
           value="home"
           icon={<HomeIcon />}
         />
