@@ -44,10 +44,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   const isDashboard = location.pathname === "/dashboard";
   const guestModeMaxAgeMs = 1000 * 60 * 60 * 24;
+  const [now] = useState(() => Date.now());
   const guestModeTimestamp = guestModeStartedAt ? Date.parse(guestModeStartedAt) : Number.NaN;
   // Note for non-coders: we only treat guest mode as active if it started recently.
   const isGuestModeRecent = Number.isFinite(guestModeTimestamp)
-    && Date.now() - guestModeTimestamp <= guestModeMaxAgeMs;
+    && now - guestModeTimestamp <= guestModeMaxAgeMs;
   const hasGuestAccess = isGuest && isGuestModeRecent;
 
   useEffect(() => {

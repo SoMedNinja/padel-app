@@ -37,3 +37,13 @@
 **Vulnerability:** Generic update and create methods that accepted `any` payloads, allowing potential modification of internal metadata (like `id`, `created_at`) or bypassing validation in bulk operations.
 **Learning:** Even with admin checks, service-layer methods should explicitly strip internal metadata from update payloads to provide defense-in-depth against accidental or malicious data corruption. Additionally, validation logic must account for bulk operations (arrays) to ensure every record meets security constraints.
 **Prevention:** Always strip `id`, `created_at`, and owner-specific fields from update payloads in services. When a service accepts both objects and arrays, normalize to an array and iterate to ensure uniform validation across all items.
+
+## 2025-05-30 - Mass Assignment & Spoofing in Match Registration
+**Vulnerability:** The `matchService.createMatch` method accepted raw payloads without stripping metadata, allowing users to potentially spoof the `created_at` timestamp or try to overwrite existing record IDs.
+**Learning:** Creation methods are just as vulnerable to mass assignment as updates. Even when setting a "trusted" owner ID, the presence of other metadata fields in the payload can corrupt data integrity if the database doesn't strictly block them.
+**Prevention:** Explicitly strip `id`, `created_at`, and any ownership fields from the incoming payload in both single-record and bulk creation methods.
+
+## 2025-05-31 - Unauthorized Trigger of Administrative Edge Functions
+**Vulnerability:** The `tournament-summary` Edge Function verified the bearer token but failed to check if the user had administrative privileges before processing the email queue.
+**Learning:** Verifying "identity" is not the same as verifying "authorization." Any logged-in user could have triggered background tasks or mass email sends if they knew the endpoint.
+**Prevention:** Always implement role-based access control (RBAC) in Edge Functions that perform administrative or resource-intensive tasks. Cross-reference the user's ID with a trusted database source (like the `profiles` table) to verify permissions.

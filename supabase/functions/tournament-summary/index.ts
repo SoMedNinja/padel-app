@@ -67,15 +67,27 @@ Deno.serve(async (req) => {
     }
 
     const isServiceRole = token === serviceRoleKey;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
     if (!isServiceRole) {
       const authClient = createClient(supabaseUrl, anonKey);
       const { data, error } = await authClient.auth.getUser(token);
       if (error || !data?.user) {
         return jsonResponse({ success: false, error: "Invalid token" }, 401);
       }
-    }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+      // Security: verify that the user is an admin before allowing them to trigger the queue.
+      // This provides defense-in-depth against unauthorized users triggering mass emails.
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (!profile?.is_admin) {
+        return jsonResponse({ success: false, error: "Unauthorized" }, 403);
+      }
+    }
 
     const nowIso = new Date().toISOString();
     const { data: jobs, error: jobsError } = await supabase
