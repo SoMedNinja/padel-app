@@ -62,12 +62,13 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
 
   if (isDescending) {
     // Optimization: find first 'limit' matches in O(N) and reverse them for chronological order.
-    for (let i = 0; i < matches.length && results.length < limit; i++) {
+    for (let i = 0, len = matches.length; i < len && results.length < limit; i++) {
       const m = matches[i];
       const t1 = normalizeTeam(m.team1);
-      const t2 = normalizeTeam(m.team2);
       const inT1 = t1.includes(playerName);
-      const inT2 = t2.includes(playerName);
+      const t2 = !inT1 ? normalizeTeam(m.team2) : null;
+      const inT2 = t2?.includes(playerName) || false;
+
       if (inT1 || inT2) {
         const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
         results.push(won ? "W" : "L");
@@ -81,9 +82,10 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
     for (let i = matches.length - 1; i >= 0 && results.length < limit; i--) {
       const m = matches[i];
       const t1 = normalizeTeam(m.team1);
-      const t2 = normalizeTeam(m.team2);
       const inT1 = t1.includes(playerName);
-      const inT2 = t2.includes(playerName);
+      const t2 = !inT1 ? normalizeTeam(m.team2) : null;
+      const inT2 = t2?.includes(playerName) || false;
+
       if (inT1 || inT2) {
         const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
         results.push(won ? "W" : "L");
@@ -94,20 +96,22 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
 
   // Fallback for unsorted matches: filter and calculate results in a single pass
   const relevantResults: { date: string; res: "W" | "L" }[] = [];
-  for (let i = 0; i < matches.length; i++) {
+  for (let i = 0, len = matches.length; i < len; i++) {
     const m = matches[i];
     const t1 = normalizeTeam(m.team1);
-    const t2 = normalizeTeam(m.team2);
     const inT1 = t1.includes(playerName);
-    const inT2 = t2.includes(playerName);
+    const t2 = !inT1 ? normalizeTeam(m.team2) : null;
+    const inT2 = t2?.includes(playerName) || false;
+
     if (inT1 || inT2) {
       const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
       relevantResults.push({ date: m.created_at || "", res: won ? "W" : "L" });
     }
   }
 
+  relevantResults.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
   return relevantResults
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     .slice(-limit)
     .map(r => r.res);
 }
@@ -116,7 +120,7 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
 export const calculateWinPct = (wins: number, losses: number) =>
   wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
 
-export const getStreak = (recentResults: ("W" | "L")[]) => {
+export const getStreak = (recentResults: ("W" | "L")[], useSwedish = false) => {
   const len = recentResults.length;
   if (len === 0) return "—";
 
@@ -128,9 +132,8 @@ export const getStreak = (recentResults: ("W" | "L")[]) => {
     count++;
   }
 
-  // Swedish mapping for display if needed elsewhere,
-  // but keeping internal "W"/"L" for consistency with history.
-  return `${lastResult}${count}`;
+  const res = useSwedish ? (lastResult === "W" ? "V" : "F") : lastResult;
+  return `${res}${count}`;
 };
 
 export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
@@ -140,7 +143,9 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
   // Optimization: avoid slice() and filter() by using a simple loop over the last 5
   const count = Math.min(len, 5);
   let wins = 0;
-  for (let i = len - 1; i >= len - count; i--) {
+  const start = len - 1;
+  const end = len - count;
+  for (let i = start; i >= end; i--) {
     if (recentResults[i] === "W") wins++;
   }
 
