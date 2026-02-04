@@ -6,7 +6,7 @@ import {
   Paper,
 } from "@mui/material";
 import {
-  Home as HomeIcon,
+  Person as PersonIcon,
   Add as AddIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
@@ -72,7 +72,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
           // Note for non-coders: this label is just the visible text for the "/" (profile) tab.
           label="Profil"
           value="home"
-          icon={<HomeIcon />}
+          icon={<PersonIcon />}
         />
         <BottomNavigationAction
           label={isGuest ? "Spela (logga in)" : "Spela"}

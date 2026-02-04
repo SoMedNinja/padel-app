@@ -19,7 +19,7 @@ import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { findMatchHighlight } from "../utils/highlights";
 import { useTournaments } from "../hooks/useTournamentData";
 import { useNavigate } from "react-router-dom";
-import { PlayArrow as PlayIcon } from "@mui/icons-material";
+import { PlayArrow as PlayIcon, Timer as TimerIcon, Close as CloseIcon } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
@@ -34,13 +34,16 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [now] = useState(() => Date.now());
   const {
     matchFilter,
     setMatchFilter,
     user,
     isGuest,
     dismissedMatchId,
+    dismissedRecentMatchId,
     dismissMatch,
+    dismissRecentMatch,
     checkAndResetDismissed
   } = useStore();
 
@@ -122,6 +125,18 @@ export default function Dashboard() {
     return allMatches.find(m => m.id === highlight.matchId);
   }, [highlight, allMatches]);
 
+  const recentMatchHighlight = useMemo(() => {
+    if (!allMatches.length) return null;
+    const latest = allMatches[0];
+    const matchTime = new Date(latest.created_at).getTime();
+    const twoHoursInMs = 2 * 60 * 60 * 1000;
+
+    if (now - matchTime <= twoHoursInMs && dismissedRecentMatchId !== latest.id) {
+      return latest;
+    }
+    return null;
+  }, [allMatches, dismissedRecentMatchId, now]);
+
   const hasError = isTournamentResultsError || isEloError;
   const errorMessage =
     (tournamentResultsError as Error | undefined)?.message ||
@@ -138,6 +153,42 @@ export default function Dashboard() {
     >
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box id="dashboard" component="section">
+        {recentMatchHighlight && (
+          <AppAlert
+            severity="success"
+            icon={<TimerIcon />}
+            sx={{
+              mb: 3,
+              bgcolor: (theme) => alpha(theme.palette.success.light, 0.1),
+              border: 1,
+              borderColor: 'success.main',
+              '& .MuiAlert-message': { width: '100%' }
+            }}
+            onClose={() => dismissRecentMatch(recentMatchHighlight.id)}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Nytt resultat!</Typography>
+                <Typography variant="caption" sx={{ display: 'block' }}>
+                  {Array.isArray(recentMatchHighlight.team1) ? recentMatchHighlight.team1.join(" & ") : recentMatchHighlight.team1} vs {Array.isArray(recentMatchHighlight.team2) ? recentMatchHighlight.team2.join(" & ") : recentMatchHighlight.team2}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.5 }}>
+                  Resultat: {recentMatchHighlight.team1_sets}–{recentMatchHighlight.team2_sets}
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                variant="outlined"
+                color="success"
+                onClick={() => navigate("/history")}
+                sx={{ ml: 2, fontWeight: 700, whiteSpace: 'nowrap' }}
+              >
+                Se alla
+              </Button>
+            </Box>
+          </AppAlert>
+        )}
+
         {activeTournament && (
           <AppAlert
             severity="info"
