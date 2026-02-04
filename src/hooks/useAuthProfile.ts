@@ -289,6 +289,24 @@ export const useAuthProfile = () => {
     await syncProfile(session?.user ?? null);
   }, [syncProfile]);
 
+  const recoverSessionFromEvent = useCallback(async () => {
+    if (syncPromiseRef.current || recoveryPromiseRef.current) {
+      return;
+    }
+
+    // Note for non-coders: when the app wakes up, we double-check your login so it doesn't silently expire.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await syncProfile(session.user);
+      return;
+    }
+
+    const recoveredUser = await attemptSessionRecovery();
+    if (recoveredUser) {
+      await syncProfile(recoveredUser);
+    }
+  }, [attemptSessionRecovery, syncProfile]);
+
   useEffect(() => {
     let isMounted = true;
     startLoadingTimeout();
@@ -305,12 +323,32 @@ export const useAuthProfile = () => {
       await syncProfile(session?.user ?? null, { skipRecovery: event === "SIGNED_OUT" });
     });
 
+    // Note for non-coders: these listeners refresh login info when you return to the tab or regain internet.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void recoverSessionFromEvent();
+      }
+    };
+    const handleFocus = () => {
+      void recoverSessionFromEvent();
+    };
+    const handleOnline = () => {
+      void recoverSessionFromEvent();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleOnline);
+
     return () => {
       isMounted = false;
       clearLoadingTimeout();
       subscription.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleOnline);
     };
-  }, [clearLoadingTimeout, startLoadingTimeout, syncProfile]);
+  }, [clearLoadingTimeout, startLoadingTimeout, syncProfile, recoverSessionFromEvent]);
 
   return {
     isLoading,
