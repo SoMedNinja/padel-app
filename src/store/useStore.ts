@@ -7,6 +7,8 @@ interface AppState {
   setUser: (user: AppUser | null) => void;
   isGuest: boolean;
   setIsGuest: (isGuest: boolean) => void;
+  guestModeStartedAt: string | null;
+  setGuestModeStartedAt: (timestamp: string | null) => void;
   matchFilter: MatchFilter;
   setMatchFilter: (filter: MatchFilter) => void;
   profiles: Profile[];
@@ -26,6 +28,8 @@ export const useStore = create<AppState>()(
       setUser: (user) => set({ user }),
       isGuest: false,
       setIsGuest: (isGuest) => set({ isGuest }),
+      guestModeStartedAt: null,
+      setGuestModeStartedAt: (guestModeStartedAt) => set({ guestModeStartedAt }),
       matchFilter: { type: "all" },
       setMatchFilter: (matchFilter) => set({ matchFilter }),
       profiles: [],
@@ -56,6 +60,7 @@ export const useStore = create<AppState>()(
         dismissedMatchId: state.dismissedMatchId,
         lastSeenMatchDate: state.lastSeenMatchDate,
         isGuest: state.isGuest,
+        guestModeStartedAt: state.guestModeStartedAt,
       }),
     }
   )
