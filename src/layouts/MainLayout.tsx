@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
@@ -36,13 +36,27 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
-  const { user, isGuest, setIsGuest, setUser } = useStore();
+  const { user, isGuest, setIsGuest, setUser, guestModeStartedAt, setGuestModeStartedAt } = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   const isDashboard = location.pathname === "/dashboard";
+  const guestModeMaxAgeMs = 1000 * 60 * 60 * 24;
+  const guestModeTimestamp = guestModeStartedAt ? Date.parse(guestModeStartedAt) : Number.NaN;
+  // Note for non-coders: we only treat guest mode as active if it started recently.
+  const isGuestModeRecent = Number.isFinite(guestModeTimestamp)
+    && Date.now() - guestModeTimestamp <= guestModeMaxAgeMs;
+  const hasGuestAccess = isGuest && isGuestModeRecent;
+
+  useEffect(() => {
+    if (isGuest && !isGuestModeRecent) {
+      // Note for non-coders: if guest mode is too old, we reset it so the login screen can show again.
+      setIsGuest(false);
+      setGuestModeStartedAt(null);
+    }
+  }, [isGuest, isGuestModeRecent, setGuestModeStartedAt, setIsGuest]);
 
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
@@ -58,7 +72,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     await supabase.auth.signOut();
     setUser(null);
     setIsGuest(false);
-  }, [setIsGuest, setUser]);
+    setGuestModeStartedAt(null);
+  }, [setGuestModeStartedAt, setIsGuest, setUser]);
 
   // Note for non-coders: this function receives the click event so we can anchor the menu to the button.
   const handleFabClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
@@ -71,8 +86,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   const handleAuthAction = async () => {
     closeMenu();
-    if (isGuest) {
+    if (hasGuestAccess) {
       setIsGuest(false);
+      setGuestModeStartedAt(null);
     } else {
       await handleSignOut();
     }
@@ -114,7 +130,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 >
                     {isDashboard ? "Grabbarnas serie" : "Padel-app"}
                 </Typography>
-                {isGuest && (
+                {hasGuestAccess && (
                   <Chip
                     label="Gästläge"
                     size="small"
@@ -158,7 +174,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         isMenuOpen={isMenuOpen}
         closeMenu={closeMenu}
         user={user}
-        isGuest={isGuest}
+        isGuest={hasGuestAccess}
         handleAuthAction={handleAuthAction}
       />
 
@@ -166,7 +182,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <SupabaseConfigBanner />
       </Container>
 
-      {isGuest && (
+      {hasGuestAccess && (
         <Container maxWidth="lg" sx={{ mt: 2 }}>
           <Alert
             severity="warning"
@@ -230,19 +246,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
         }}
         sx={{ zIndex: 1400 }}
       >
-        {!isGuest && (
+        {!hasGuestAccess && (
           <MenuItem onClick={() => { navigate("/single-game?mode=1v1"); handleFabClose(); }}>
             <ListItemIcon><TennisIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Enkel match 1v1</ListItemText>
           </MenuItem>
         )}
-        {!isGuest && (
+        {!hasGuestAccess && (
           <MenuItem onClick={() => { navigate("/single-game?mode=2v2"); handleFabClose(); }}>
             <ListItemIcon><GroupsIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Enkel match 2v2</ListItemText>
           </MenuItem>
         )}
-        {!isGuest && (
+        {!hasGuestAccess && (
           <MenuItem onClick={() => { navigate("/tournament"); handleFabClose(); }}>
             {/* Note for non-coders: guests don't see the tournament option since they can't create one. */}
             <ListItemIcon><TrophyIcon fontSize="small" /></ListItemIcon>
@@ -257,7 +273,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         toggleMenu={toggleMenu}
         toggleFab={handleFabClick}
         closeMenu={closeMenu}
-        isGuest={isGuest}
+        isGuest={hasGuestAccess}
       />
     </Box>
   );

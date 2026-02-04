@@ -21,6 +21,7 @@ import {
   ArrowForward as GuestIcon,
 } from "@mui/icons-material";
 import SupabaseConfigBanner from "./SupabaseConfigBanner";
+import { useStore } from "../store/useStore";
 
 interface AuthProps {
   onAuth: (user: User) => void;
@@ -34,6 +35,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
   const [notice, setNotice] = useState("");
   const [noticeSeverity, setNoticeSeverity] = useState<"info" | "error" | "success">("info");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { setGuestModeStartedAt } = useStore();
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const authTimeoutMs = 15000;
@@ -173,6 +175,12 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     }
   };
 
+  const handleGuest = () => {
+    // Note for non-coders: we save the time the guest mode started so it can expire later.
+    setGuestModeStartedAt(new Date().toISOString());
+    onGuest();
+  };
+
   return (
     <Container maxWidth="xs" sx={{ py: 8 }}>
       <SupabaseConfigBanner />
@@ -255,7 +263,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
               <Button
                 fullWidth
                 variant="outlined"
-                onClick={onGuest}
+                onClick={handleGuest}
                 endIcon={<GuestIcon />}
                 sx={{ borderRadius: 2 }}
               >
