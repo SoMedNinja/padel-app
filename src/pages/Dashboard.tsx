@@ -1,10 +1,11 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import MVP from "../Components/MVP";
 import MatchHighlightCard from "../Components/MatchHighlightCard";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import { HeadToHeadSection } from "../Components/PlayerSection";
 import FilterBar from "../Components/FilterBar";
-import { Box, Skeleton, Stack, Container, CircularProgress, Typography, Button, Grid } from "@mui/material";
+import { Box, Skeleton, Stack, Container, Typography, Button, Grid, Fab } from "@mui/material";
+import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
 import AppAlert from "../Components/Shared/AppAlert";
@@ -32,6 +33,7 @@ type TournamentResultRow = TournamentResult & {
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const {
     matchFilter,
     setMatchFilter,
@@ -72,6 +74,18 @@ export default function Dashboard() {
   );
 
   useScrollToFragment();
+
+  useEffect(() => {
+    // Note for non-coders: this checks the scroll position so we know when to show the "back to top" button.
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Note for non-coders: this collects all the data refresh tasks into one pull-to-refresh handler.
   const handleRefresh = useRefreshInvalidations([
@@ -250,6 +264,23 @@ export default function Dashboard() {
         )}
       </Box>
     </Container>
+    <Fab
+      color="primary"
+      aria-label="Till toppen"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      sx={{
+        position: "fixed",
+        bottom: 24,
+        right: 24,
+        zIndex: theme => theme.zIndex.tooltip + 1,
+        opacity: showScrollTop ? 1 : 0,
+        pointerEvents: showScrollTop ? "auto" : "none",
+        transition: "opacity 0.2s ease-in-out",
+      }}
+    >
+      {/* Note for non-coders: this arrow button smoothly scrolls back to the top. */}
+      <KeyboardArrowUpIcon />
+    </Fab>
     </PullToRefresh>
   );
 }
