@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
 import EmptyState from "../Components/Shared/EmptyState";
-import { Box, Button, Skeleton, Stack, Container, Typography, Alert } from "@mui/material";
+import { Box, Button, Skeleton, Stack, Container, Typography, Alert, Fab } from "@mui/material";
+import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
 import { useStore } from "../store/useStore";
@@ -17,6 +18,7 @@ export default function HistoryPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { matchFilter, setMatchFilter, user, isGuest } = useStore();
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const {
     allMatches,
@@ -33,6 +35,18 @@ export default function HistoryPage() {
     () => filterMatches(allMatches, matchFilter),
     [allMatches, matchFilter]
   );
+
+  useEffect(() => {
+    // Note for non-coders: we watch how far the page is scrolled to show a "back to top" button.
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Note for non-coders: the helper makes one refresh callback that reloads all needed data.
   const handleRefresh = useRefreshInvalidations([
@@ -83,6 +97,23 @@ export default function HistoryPage() {
           )}
         </Box>
       </Container>
+      <Fab
+        color="primary"
+        aria-label="Till toppen"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        sx={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          zIndex: theme => theme.zIndex.tooltip + 1,
+          opacity: showScrollTop ? 1 : 0,
+          pointerEvents: showScrollTop ? "auto" : "none",
+          transition: "opacity 0.2s ease-in-out",
+        }}
+      >
+        {/* Note for non-coders: this arrow button smoothly scrolls back to the top. */}
+        <KeyboardArrowUpIcon />
+      </Fab>
     </PullToRefresh>
   );
 }
