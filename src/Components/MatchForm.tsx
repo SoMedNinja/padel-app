@@ -12,6 +12,9 @@ import {
   Paper,
   IconButton,
   Divider,
+  Stepper,
+  Step,
+  StepLabel,
   ButtonBase,
   Tooltip,
   TextField,
@@ -108,6 +111,16 @@ export default function MatchForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [query, setQuery] = useState("");
   useEffect(() => { setQuery(""); }, [step]);
+  const wizardSteps = ["Lag A", "Lag B", "Resultat", "Granska"];
+  const activeWizardStep = step >= 0 && step <= 3 ? step : 0;
+  // Note for non-coders: "activeWizardStep" tells the Stepper which stage we're on so the UI can show progress.
+
+  const handleWizardStepClick = (targetStep: number) => {
+    if (step !== 10 && targetStep <= activeWizardStep) {
+      setStep(targetStep);
+    }
+  };
+  // Note for non-coders: we only allow clicking backwards to already completed steps, not skipping ahead.
 
   const registeredPlayerCount = useMemo(
     () => profiles.filter(player => player.id !== GUEST_ID).length,
@@ -657,6 +670,26 @@ export default function MatchForm({
               </Tooltip>
             )}
           </Box>
+
+          {step !== 10 && (
+            <>
+              {/* Note for non-coders: the Stepper is the progress bar that shows which stage of the form you're in. */}
+              <Stepper activeStep={activeWizardStep} alternativeLabel sx={{ mb: 2 }}>
+                {wizardSteps.map((label, index) => (
+                  <Step key={label} completed={index < activeWizardStep}>
+                    <StepLabel
+                      onClick={() => handleWizardStepClick(index)}
+                      sx={{
+                        cursor: index <= activeWizardStep ? "pointer" : "default",
+                      }}
+                    >
+                      {label}
+                    </StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+            </>
+          )}
 
           <Divider sx={{ mb: 2 }} />
           {/* Note for non-coders: this short line tells players who serves first before they pick scores. */}
