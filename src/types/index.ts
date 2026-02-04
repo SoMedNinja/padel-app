@@ -56,6 +56,8 @@ export interface PlayerStats {
   avatarUrl?: string | null;
   featuredBadgeId?: string | null;
   recentResults: ("W" | "L")[];
+  streak?: string;
+  trend?: string;
   bestPartner?: BestPartner | null;
 }
 

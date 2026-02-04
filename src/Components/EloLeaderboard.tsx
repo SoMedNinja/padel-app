@@ -58,14 +58,10 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
       }));
     }
 
-    // Optimization: If NOT filtered (showing all matches), we can skip the O(P * H) loop
-    // as player.wins/losses/recentResults already contain the correct all-time stats.
+    // Optimization: If NOT filtered (showing all matches), we can use pre-calculated all-time stats
+    // that are already populated in calculateEloWithStats.
     if (!isFiltered) {
-      return players.map(player => ({
-        ...player,
-        streak: getStreak(player.recentResults).replace("W", "V").replace("L", "F"),
-        trend: getTrendIndicator(player.recentResults),
-      }));
+      return players;
     }
 
     // Optimization: Instead of O(P * H) where we scan every player's history,
@@ -108,7 +104,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
         wins: s.wins,
         losses: s.losses,
         games: s.recentResults.length,
-        recentResults: s.recentResults,
+        recentResults: s.recentResults.slice(-5),
         streak,
         trend,
       };

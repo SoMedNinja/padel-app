@@ -3,6 +3,7 @@ import {
   getProfileDisplayName,
   resolveTeamIds,
 } from "./profileMap";
+import { getStreak, getTrendIndicator } from "./stats";
 import { Match, Profile, PlayerStats } from "../types";
 
 const BASE_K = 20;
@@ -146,12 +147,12 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   const avatarMap: Record<string, string | null> = {};
   const badgeMap: Record<string, string | null> = {};
 
-  const ensurePlayer = (id: string, p?: Profile) => {
+  const ensurePlayer = (id: string, p?: Profile, resolvedName?: string) => {
     if (id === GUEST_ID || players[id]) return;
 
     // Optimization: avoid redundant Map lookups and string checks by resolving once
     const profile = p || profileMap.get(id);
-    const name = profile ? getProfileDisplayName(profile) : (id.startsWith("name:") ? id.replace("name:", "") : "Okänd");
+    const name = resolvedName || (profile ? getProfileDisplayName(profile) : (id.length > 5 && id.startsWith("name:") ? id.slice(5) : "Okänd"));
 
     players[id] = {
       id,
@@ -172,11 +173,12 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   // Optimization: Consolidate profile mapping and player initialization into a single pass.
   for (let i = 0; i < profiles.length; i++) {
     const p = profiles[i];
+    const name = getProfileDisplayName(p);
     profileMap.set(p.id, p);
-    nameToIdMap.set(getProfileDisplayName(p), p.id);
+    nameToIdMap.set(name, p.id);
     avatarMap[p.id] = p.avatar_url || null;
     badgeMap[p.id] = p.featured_badge_id || null;
-    ensurePlayer(p.id, p);
+    ensurePlayer(p.id, p, name);
   }
 
   const avg = (team: string[]) => {
@@ -349,6 +351,10 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
   }
 
   const finalPlayers = Object.values(players).map(player => {
+    // Optimization: Pre-calculate streak and trend once per data change
+    const streak = getStreak(player.recentResults, true);
+    const trend = getTrendIndicator(player.recentResults);
+
     // Optimization: find best partner in a single pass instead of map + filter + sort
     let bestPartnerEntry: any = null;
     let bestWinRate = -1;
@@ -391,7 +397,15 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
       }
       : null;
 
-    return { ...player, bestPartner };
+    // Optimization: Slice recentResults to last 5 for UI display (trend/chips)
+    // to avoid sending large arrays to components. streak/trend are already pre-calculated.
+    return {
+      ...player,
+      bestPartner,
+      streak,
+      trend,
+      recentResults: player.recentResults.slice(-5)
+    };
   });
 
   return {
