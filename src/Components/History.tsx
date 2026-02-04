@@ -31,6 +31,11 @@ import {
   ListItemText,
   Tooltip,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -101,6 +106,7 @@ export default function History({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteDialogMatchId, setDeleteDialogMatchId] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(10);
 
@@ -237,8 +243,6 @@ export default function History({
   };
 
   const deleteMatch = async (matchId: string) => {
-    if (!window.confirm("Radera matchen?")) return;
-
     setDeletingId(matchId);
     try {
       await matchService.deleteMatch(matchId);
@@ -247,6 +251,7 @@ export default function History({
       toast.error(error.message || "Kunde inte radera matchen.");
     } finally {
       setDeletingId(null);
+      setDeleteDialogMatchId(null);
     }
   };
 
@@ -294,6 +299,7 @@ export default function History({
       <Stack spacing={2}>
         {visibleMatches.map(m => {
           const isEditing = editingId === m.id;
+          const isDeleteDialogOpen = deleteDialogMatchId === m.id;
           const matchDeltas = eloDeltaByMatch[m.id] || {};
           const matchRatings = eloRatingByMatch[m.id] || {};
 
@@ -405,7 +411,8 @@ export default function History({
                             <IconButton
                               size="small"
                               color="error"
-                              onClick={() => deleteMatch(m.id)}
+                              // Note for non-coders: open a dialog so we can confirm before deleting.
+                              onClick={() => setDeleteDialogMatchId(m.id)}
                               aria-label="Radera match"
                               disabled={deletingId === m.id}
                             >
@@ -624,6 +631,31 @@ export default function History({
                   </Box>
                 )}
               </CardContent>
+              <Dialog
+                open={isDeleteDialogOpen}
+                onClose={() => setDeleteDialogMatchId(null)}
+                aria-labelledby={`delete-match-title-${m.id}`}
+                aria-describedby={`delete-match-description-${m.id}`}
+              >
+                <DialogTitle id={`delete-match-title-${m.id}`}>Radera match?</DialogTitle>
+                <DialogContent>
+                  <DialogContentText id={`delete-match-description-${m.id}`}>
+                    {/* Note for non-coders: this is the confirmation text users read before a destructive action. */}
+                    Är du säker på att du vill ta bort matchen från historiken?
+                  </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setDeleteDialogMatchId(null)}>Avbryt</Button>
+                  <Button
+                    color="error"
+                    variant="contained"
+                    onClick={() => deleteMatch(m.id)}
+                    disabled={deletingId === m.id}
+                  >
+                    {deletingId === m.id ? "Tar bort..." : "Ta bort"}
+                  </Button>
+                </DialogActions>
+              </Dialog>
             </Card>
           );
         })}
