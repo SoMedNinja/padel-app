@@ -390,6 +390,7 @@ export default function History({
                           value={edit?.created_at || ""}
                           onChange={(e) => setEdit(prev => prev ? { ...prev, created_at: e.target.value } : prev)}
                           sx={{ mt: 1 }}
+                          slotProps={{ htmlInput: { "aria-label": "Välj datum och tid för matchen" } }}
                         />
                       ) : (
                         `Datum: ${formatDate(m.created_at)}`
@@ -440,6 +441,7 @@ export default function History({
                           size="small"
                           value={edit?.score_type || "sets"}
                           onChange={(e) => setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
+                          slotProps={{ select: { "aria-label": "Välj typ av resultat (set eller poäng)" } }}
                         >
                           <MenuItem value="sets">Set</MenuItem>
                           <MenuItem value="points">Poäng</MenuItem>
@@ -451,6 +453,7 @@ export default function History({
                             size="small"
                             value={edit?.score_target ?? ""}
                             onChange={(e) => setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
+                            slotProps={{ htmlInput: { "aria-label": "Mål (t.ex. spela till 24 poäng)" } }}
                           />
                         )}
                         <Stack direction="row" spacing={1} alignItems="center">
@@ -459,6 +462,7 @@ export default function History({
                             size="small"
                             value={edit?.team1_sets ?? 0}
                             onChange={(e) => setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
+                            slotProps={{ htmlInput: { "aria-label": "Resultat för lag A" } }}
                           />
                           <Typography>–</Typography>
                           <TextField
@@ -466,6 +470,7 @@ export default function History({
                             size="small"
                             value={edit?.team2_sets ?? 0}
                             onChange={(e) => setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
+                            slotProps={{ htmlInput: { "aria-label": "Resultat för lag B" } }}
                           />
                         </Stack>
                       </Stack>
