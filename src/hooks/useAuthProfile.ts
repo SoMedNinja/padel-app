@@ -25,7 +25,7 @@ const isAvatarColumnMissing = (error?: { message?: string } | null) =>
 
 // Note for non-coders: this hook keeps login info and player profile data in sync in one place.
 export const useAuthProfile = () => {
-  const { user: currentUser, setUser, setIsGuest } = useStore();
+  const { user: currentUser, setUser, setIsGuest, isGuest } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
@@ -33,6 +33,7 @@ export const useAuthProfile = () => {
   const [isRecoveringSession, setIsRecoveringSession] = useState(false);
   const [hasRecoveryFailed, setHasRecoveryFailed] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [isAutoRecoveryRetry, setIsAutoRecoveryRetry] = useState(false);
   const loadingTimeoutRef = useRef<number | null>(null);
   const syncPromiseRef = useRef<Promise<void> | null>(null);
   const syncCounterRef = useRef(0);
@@ -102,6 +103,7 @@ export const useAuthProfile = () => {
       }
 
       setIsRecoveringSession(false);
+      setIsAutoRecoveryRetry(false);
       recoveryPromiseRef.current = null;
       return recoveredUser;
     })();
@@ -134,6 +136,7 @@ export const useAuthProfile = () => {
       setHasRecoveryFailed(false);
       setIsRecoveringSession(false);
       setRecoveryError(null);
+      setIsAutoRecoveryRetry(false);
       recoveryAttemptRef.current = 0;
 
       // Only show verification screen if we don't have a user yet or if the user changed
@@ -280,6 +283,20 @@ export const useAuthProfile = () => {
     [setIsGuest, setUser, clearLoadingTimeout, attemptSessionRecovery]
   );
 
+  const triggerAutoRecovery = useCallback(() => {
+    if (userRef.current || isGuest) {
+      return;
+    }
+
+    // Note for non-coders: when the browser comes back online/focused, we reset the retry counter
+    // so the app can try restoring your login again automatically.
+    recoveryAttemptRef.current = 0;
+    setHasRecoveryFailed(false);
+    setRecoveryError(null);
+    setIsAutoRecoveryRetry(true);
+    void syncProfile(null);
+  }, [isGuest, syncProfile]);
+
   const refresh = useCallback(async () => {
     if (syncPromiseRef.current) {
       await syncPromiseRef.current;
@@ -350,6 +367,20 @@ export const useAuthProfile = () => {
     };
   }, [clearLoadingTimeout, startLoadingTimeout, syncProfile, recoverSessionFromEvent]);
 
+  useEffect(() => {
+    const handleFocusOrOnline = () => {
+      triggerAutoRecovery();
+    };
+
+    window.addEventListener("focus", handleFocusOrOnline);
+    window.addEventListener("online", handleFocusOrOnline);
+
+    return () => {
+      window.removeEventListener("focus", handleFocusOrOnline);
+      window.removeEventListener("online", handleFocusOrOnline);
+    };
+  }, [triggerAutoRecovery]);
+
   return {
     isLoading,
     errorMessage,
@@ -359,5 +390,6 @@ export const useAuthProfile = () => {
     isRecoveringSession,
     hasRecoveryFailed,
     recoveryError,
+    isAutoRecoveryRetry,
   };
 };

@@ -23,6 +23,7 @@ export default function App() {
     isRecoveringSession,
     hasRecoveryFailed,
     recoveryError,
+    isAutoRecoveryRetry,
   } = useAuthProfile();
   const [showAuthScreen, setShowAuthScreen] = useState(false);
   const toaster = <Toaster position="top-center" richColors />;
@@ -88,21 +89,6 @@ export default function App() {
   }
 
   if (!user && !isGuest) {
-    if (isRecoveringSession) {
-      // Note for non-coders: we try to restore your login quietly before asking you to sign in again.
-      return (
-        <>
-          {toaster}
-          <Container maxWidth="sm">
-            <Box sx={{ mt: 8, textAlign: "center" }}>
-              <CircularProgress size={40} sx={{ mb: 2 }} />
-              <Typography color="text.secondary">Återställer din inloggning...</Typography>
-            </Box>
-          </Container>
-        </>
-      );
-    }
-
     if (hasRecoveryFailed && !showAuthScreen) {
       return (
         <>
@@ -125,6 +111,27 @@ export default function App() {
                   Gå till inloggning
                 </Button>
               </Stack>
+            </Box>
+          </Container>
+        </>
+      );
+    }
+
+    if (isRecoveringSession) {
+      // Note for non-coders: we try to restore your login quietly before asking you to sign in again.
+      return (
+        <>
+          {toaster}
+          <Container maxWidth="sm">
+            <Box sx={{ mt: 8, textAlign: "center" }}>
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography color="text.secondary">Återställer din inloggning...</Typography>
+              {/* Note for non-coders: this small hint reassures you when the app retries on its own. */}
+              {isAutoRecoveryRetry && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Försöker igen...
+                </Typography>
+              )}
             </Box>
           </Container>
         </>
