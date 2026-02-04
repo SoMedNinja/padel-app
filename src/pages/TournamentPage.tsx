@@ -25,11 +25,6 @@ export default function TournamentPage() {
     invalidateTournamentData(queryClient);
   };
 
-  const handleScrollToTop = () => {
-    // Note for non-coders: this smoothly moves the page back to the top when the button is clicked.
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   const handleRefresh = usePullToRefresh([
     () => invalidateTournamentData(queryClient),
   ]);
@@ -83,21 +78,13 @@ export default function TournamentPage() {
               </Box>
             </Stack>
           ) : (
-            <>
-              <MexicanaTournament
-                user={isGuest ? null : user}
-                profiles={profiles}
-                eloPlayers={eloPlayers}
-                isGuest={isGuest}
-                onTournamentSync={handleTournamentSync}
-              />
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                {/* Note for non-coders: this button is a quick shortcut to jump back to the top of the page. */}
-                <Button variant="text" onClick={handleScrollToTop}>
-                  Till toppen
-                </Button>
-              </Box>
-            </>
+            <MexicanaTournament
+              user={isGuest ? null : user}
+              profiles={profiles}
+              eloPlayers={eloPlayers}
+              isGuest={isGuest}
+              onTournamentSync={handleTournamentSync}
+            />
           )}
         </Box>
       </section>
