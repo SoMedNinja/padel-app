@@ -341,8 +341,10 @@ export default function TournamentEmailPreview({ currentUserId: _currentUserId }
           {!useMock && (
             <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth size="small">
-                <InputLabel>Välj turnering</InputLabel>
+                <InputLabel id="tournament-select-label">Välj turnering</InputLabel>
                 <Select
+                  labelId="tournament-select-label"
+                  id="tournament-select"
                   value={selectedTournamentId}
                   label="Välj turnering"
                   onChange={(e) => setSelectedTournamentId(e.target.value)}
@@ -361,7 +363,7 @@ export default function TournamentEmailPreview({ currentUserId: _currentUserId }
               fullWidth
               onClick={() => setShowPreview(true)}
             >
-              generera förhandsgranskning
+              Generera förhandsgranskning
             </Button>
           </Grid>
         </Grid>

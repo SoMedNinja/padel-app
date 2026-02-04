@@ -721,6 +721,7 @@ export default function MatchForm({
                     fullWidth
                     onClick={() => setStep(1)}
                     endIcon={<ArrowForwardIcon />}
+                    aria-label="Nästa steg: Välj spelare för Lag B"
                     sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
                   >
                     Nästa (Välj Lag B)
@@ -751,6 +752,7 @@ export default function MatchForm({
                     fullWidth
                     onClick={() => setStep(2)}
                     endIcon={<ArrowForwardIcon />}
+                    aria-label="Nästa steg: Ange matchresultat"
                     sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
                   >
                     Nästa (Ange resultat)
@@ -808,6 +810,7 @@ export default function MatchForm({
                   disabled={a === "" || b === ""}
                   onClick={() => setStep(3)}
                   endIcon={<ArrowForwardIcon />}
+                  aria-label="Nästa steg: Granska och spara match"
                   sx={{ mt: 2, height: 56, fontSize: "1.1rem" }}
                 >
                   Fortsätt

@@ -954,8 +954,10 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, sm: 4 }}>
             <FormControl fullWidth size="small">
-              <InputLabel>Välj spelare</InputLabel>
+              <InputLabel id="player-select-label">Välj spelare</InputLabel>
               <Select
+                labelId="player-select-label"
+                id="player-select"
                 value={selectedPlayerId}
                 label="Välj spelare"
                 onChange={(e) => setSelectedPlayerId(e.target.value)}
@@ -968,8 +970,10 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
           </Grid>
           <Grid size={{ xs: 12, sm: 3 }}>
             <FormControl fullWidth size="small">
-              <InputLabel>Tidsperiod</InputLabel>
+              <InputLabel id="timeframe-select-label">Tidsperiod</InputLabel>
               <Select
+                labelId="timeframe-select-label"
+                id="timeframe-select"
                 value={timeframe}
                 label="Tidsperiod"
                 onChange={(e) => setTimeframe(e.target.value as any)}
@@ -983,8 +987,10 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
           {timeframe === 'isoWeek' && (
             <Grid size={{ xs: 12, sm: 3 }}>
               <FormControl fullWidth size="small">
-                <InputLabel>Välj vecka</InputLabel>
+                <InputLabel id="week-select-label">Välj vecka</InputLabel>
                 <Select
+                  labelId="week-select-label"
+                  id="week-select"
                   value={selectedWeek}
                   label="Välj vecka"
                   onChange={(e) => setSelectedWeek(e.target.value)}
