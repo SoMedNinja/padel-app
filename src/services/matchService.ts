@@ -70,20 +70,40 @@ export const matchService = {
       if (m.team2_sets !== undefined && (typeof m.team2_sets !== "number" || m.team2_sets < 0)) {
         throw new Error("Ogiltigt resultat för Lag 2");
       }
+
+      // Security enhancement: validate input lengths to prevent database bloat and UI breakage.
+      const validateNames = (names: any, teamLabel: string) => {
+        if (Array.isArray(names)) {
+          for (const name of names) {
+            if (typeof name === "string" && name.length > 50) {
+              throw new Error(`Namn i ${teamLabel} är för långt (max 50 tecken)`);
+            }
+          }
+        }
+      };
+      validateNames(m.team1, "Lag 1");
+      validateNames(m.team2, "Lag 2");
+
+      if (typeof m.source_tournament_id === "string" && m.source_tournament_id.length > 50) {
+        throw new Error("Ogiltigt turnerings-ID");
+      }
     }
 
-    // Security: ensure created_by matches the current user to prevent spoofing
+    const cleanMatch = (m: any) => {
+      // Security: strip sensitive metadata fields to prevent spoofing or accidental overwrites.
+      // We also remove created_by to ensure it's always set to the trusted currentUser.id.
+      const { id: _id, created_at: _created_at, created_by: _created_by, ...rest } = m;
+      return {
+        ...rest,
+        created_by: currentUser.id,
+      };
+    };
+
     // Note for non-coders: if we save many matches at once, we need to attach the user ID to each item,
     // not just the whole list. Otherwise the database thinks the list indices (0, 1, 2...) are column names.
     const matchToInsert = Array.isArray(match)
-      ? match.map(item => ({
-          ...item,
-          created_by: currentUser.id,
-        }))
-      : {
-          ...match,
-          created_by: currentUser.id,
-        };
+      ? match.map(cleanMatch)
+      : cleanMatch(match);
 
     const { error } = await supabase
       .from("matches")
