@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Drawer,
   List,
@@ -31,6 +31,7 @@ interface SideMenuProps {
 
 export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleAuthAction }: SideMenuProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
     // Note for non-coders: this is the menu text users see for the "/" profile page.
@@ -67,14 +68,23 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
           />
         )}
         <List>
-          {menuItems.map((item) => (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton onClick={() => handleNavigate(item.path)}>
-                <ListItemIcon sx={{ color: 'primary.main' }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 600 }} />
-              </ListItemButton>
-            </ListItem>
-          ))}
+          {menuItems.map((item) => {
+            // Note for non-coders: we check if the current URL matches the menu item's path to highlight it.
+            const isActive = location.pathname === item.path;
+
+            return (
+              <ListItem key={item.text} disablePadding>
+                <ListItemButton
+                  onClick={() => handleNavigate(item.path)}
+                  selected={isActive}
+                  sx={isActive ? { bgcolor: "action.selected" } : undefined}
+                >
+                  <ListItemIcon sx={{ color: 'primary.main' }}>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 600 }} />
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
         </List>
         <Divider sx={{ my: 1 }} />
         <Box sx={{ mt: 'auto', p: 1 }}>
