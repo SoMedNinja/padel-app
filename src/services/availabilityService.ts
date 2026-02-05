@@ -1,4 +1,4 @@
-import { supabase } from "../supabaseClient";
+import { supabase, supabaseAnonKey } from "../supabaseClient";
 import { AvailabilityPoll, AvailabilityPollDay, AvailabilitySlot } from "../types";
 import { requireAdmin } from "./authUtils";
 
@@ -129,6 +129,13 @@ export const availabilityService = {
     options?: { testRecipientEmail?: string },
   ): Promise<{ success: boolean; sent: number; total: number; error?: string; mode?: string }> {
     await requireAdmin("Endast administratörer kan skicka omröstningsmail.");
+
+    if (typeof supabaseAnonKey === "string" && supabaseAnonKey.startsWith("sb_publishable_")) {
+      // Note for non-coders: publishable keys can browse data but cannot authenticate Edge Function calls.
+      throw new Error(
+        "Miljöfel: VITE_SUPABASE_ANON_KEY använder sb_publishable_*. Byt till Supabase anon public key i Project Settings → API för att kunna skicka mail."
+      );
+    }
 
     // Note for non-coders: we fetch the current access token and pass it explicitly
     // so Supabase can verify the admin identity when calling the Edge Function.
