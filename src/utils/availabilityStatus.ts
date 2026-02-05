@@ -11,13 +11,19 @@ export interface DayAvailabilityStatus {
 const SLOT_PRIORITY: AvailabilitySlot[] = ["morning", "day", "evening"];
 
 // Note for non-coders: this helper converts one person's vote into the time slots they can play.
-// - If slot is null, they are available the whole day (all slots).
-// - If slot has a value, they are only available in that specific part of the day.
-const getVoteSlots = (vote: AvailabilityVote): AvailabilitySlot[] => {
-  if (!vote.slot) {
-    return [...SLOT_PRIORITY];
+// - If no slots were chosen, it means "available all day".
+// - If one or more slots were chosen, only those slots count.
+export const getVoteSlots = (vote: AvailabilityVote): AvailabilitySlot[] => {
+  const multi = vote.slot_preferences?.filter(Boolean) || [];
+  if (multi.length > 0) {
+    return multi;
   }
-  return [vote.slot];
+
+  if (vote.slot) {
+    return [vote.slot];
+  }
+
+  return [...SLOT_PRIORITY];
 };
 
 // Note for non-coders: a day turns green only when at least 4 people can overlap on the same time.
@@ -38,12 +44,8 @@ export const evaluateDayAvailability = (votes: AvailabilityVote[]): DayAvailabil
     evening: 0,
   };
 
-  let fullDayVotes = 0;
   for (const vote of uniqueVotes) {
     const slots = getVoteSlots(vote);
-    if (!vote.slot) {
-      fullDayVotes += 1;
-    }
     slots.forEach((slot) => {
       slotCounts[slot] += 1;
     });
@@ -55,10 +57,6 @@ export const evaluateDayAvailability = (votes: AvailabilityVote[]): DayAvailabil
       compatibleSlot = slot;
       break;
     }
-  }
-
-  if (!compatibleSlot && fullDayVotes >= 4) {
-    compatibleSlot = "full-day";
   }
 
   const isCompatible = compatibleSlot !== null;

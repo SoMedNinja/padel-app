@@ -1,0 +1,289 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+type AvailabilitySlot = "morning" | "day" | "evening";
+
+const SLOT_LABEL: Record<AvailabilitySlot, string> = {
+  morning: "Morgon",
+  day: "Dag",
+  evening: "Kväll",
+};
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const addHours = (date: Date, hours: number) => {
+  const next = new Date(date);
+  next.setHours(next.getHours() + hours);
+  return next;
+};
+
+const buildVoteLink = ({
+  appBaseUrl,
+  pollId,
+  dayId,
+  slots,
+}: {
+  appBaseUrl: string;
+  pollId: string;
+  dayId: string;
+  slots?: AvailabilitySlot[];
+}) => {
+  const params = new URLSearchParams();
+  params.set("poll", pollId);
+  params.set("day", dayId);
+  if (slots && slots.length > 0) {
+    params.set("slots", slots.join(","));
+  }
+  return `${appBaseUrl}/schema?${params.toString()}`;
+};
+
+const formatDate = (date: string) => {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat("sv-SE", { weekday: "long", day: "numeric", month: "short" }).format(parsed);
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
+    const appBaseUrl = Deno.env.get("APP_BASE_URL") ?? Deno.env.get("SITE_URL") ?? "";
+
+    if (!supabaseUrl || !serviceRoleKey || !resendApiKey || !appBaseUrl) {
+      return jsonResponse(
+        {
+          success: false,
+          error: "Saknar miljövariabler för utskick.",
+          hint: "Sätt SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY och APP_BASE_URL i Supabase Functions secrets.",
+        },
+        500,
+      );
+    }
+
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return jsonResponse({ success: false, error: "Du måste vara inloggad." }, 401);
+    }
+
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    const {
+      data: { user },
+      error: userError,
+    } = await userClient.auth.getUser();
+
+    if (userError || !user) {
+      return jsonResponse({ success: false, error: "Kunde inte verifiera användaren." }, 401);
+    }
+
+    const { data: profile, error: profileError } = await adminClient
+      .from("profiles")
+      .select("id, is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile?.is_admin) {
+      return jsonResponse({ success: false, error: "Endast administratörer kan skicka detta mail." }, 403);
+    }
+
+    const body = await req.json();
+    const pollId = typeof body?.pollId === "string" ? body.pollId : "";
+    if (!pollId) {
+      return jsonResponse({ success: false, error: "pollId saknas." }, 400);
+    }
+
+    const { data: poll, error: pollError } = await adminClient
+      .from("availability_polls")
+      .select("id, week_number, week_year, start_date, end_date, status, days:availability_poll_days(id, date)")
+      .eq("id", pollId)
+      .single();
+
+    if (pollError || !poll) {
+      return jsonResponse({ success: false, error: "Omröstningen hittades inte." }, 404);
+    }
+
+    const { data: mailLogs, error: mailLogError } = await adminClient
+      .from("availability_poll_mail_log")
+      .select("id, sent_at")
+      .eq("poll_id", pollId)
+      .order("sent_at", { ascending: false });
+
+    if (mailLogError) throw mailLogError;
+
+    const alreadySentCount = mailLogs?.length || 0;
+    if (alreadySentCount >= 2) {
+      return jsonResponse({ success: false, error: "Max 2 mail per omröstning är tillåtet." }, 400);
+    }
+
+    const latest = mailLogs?.[0]?.sent_at ? new Date(mailLogs[0].sent_at) : null;
+    if (latest) {
+      const earliestNext = addHours(latest, 24);
+      const now = new Date();
+      if (now < earliestNext) {
+        const hoursLeft = Math.ceil((earliestNext.getTime() - now.getTime()) / (1000 * 60 * 60));
+        return jsonResponse(
+          { success: false, error: `Du kan skicka nästa mail om cirka ${hoursLeft} timmar.` },
+          400,
+        );
+      }
+    }
+
+    const { data: profiles, error: profilesError } = await adminClient
+      .from("profiles")
+      .select("id, name, is_approved, is_deleted")
+      .eq("is_approved", true)
+      .eq("is_deleted", false);
+
+    if (profilesError) throw profilesError;
+
+    const allUsers: Array<{ id: string; email?: string }> = [];
+    let page = 1;
+    const perPage = 200;
+    while (true) {
+      const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+      if (error) throw error;
+      const users = data?.users || [];
+      users.forEach((entry) => allUsers.push({ id: entry.id, email: entry.email || undefined }));
+      if (users.length < perPage) break;
+      page += 1;
+    }
+
+    const emailByUser = new Map<string, string>();
+    allUsers.forEach((entry) => {
+      if (entry.email) {
+        emailByUser.set(entry.id, entry.email);
+      }
+    });
+
+    const recipients = (profiles || [])
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name || "Spelare",
+        email: emailByUser.get(entry.id),
+      }))
+      .filter((entry): entry is { id: string; name: string; email: string } => Boolean(entry.email));
+
+    if (recipients.length === 0) {
+      return jsonResponse({ success: false, error: "Inga mottagare med e-post hittades." }, 400);
+    }
+
+    const sortedDays = [...(poll.days || [])].sort((a, b) => a.date.localeCompare(b.date));
+    const moduleLink = `${appBaseUrl}/schema?poll=${poll.id}`;
+
+    const dayCards = sortedDays
+      .map((day) => {
+        const fullDayLink = buildVoteLink({ appBaseUrl, pollId: poll.id, dayId: day.id });
+        const morningLink = buildVoteLink({ appBaseUrl, pollId: poll.id, dayId: day.id, slots: ["morning"] });
+        const dayLink = buildVoteLink({ appBaseUrl, pollId: poll.id, dayId: day.id, slots: ["day"] });
+        const eveningLink = buildVoteLink({ appBaseUrl, pollId: poll.id, dayId: day.id, slots: ["evening"] });
+
+        return `
+          <div style="margin: 10px 0; padding: 12px; border: 1px solid #eee; border-radius: 10px;">
+            <p style="margin: 0 0 8px 0; font-weight: 700;">${formatDate(day.date)}</p>
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">Klicka för att öppna appen och fylla i direkt:</p>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              <a href="${fullDayLink}" style="padding:6px 10px; background:#f4f4f4; border-radius:999px; text-decoration:none; color:#111; font-size:13px;">Hela dagen</a>
+              <a href="${morningLink}" style="padding:6px 10px; background:#f4f4f4; border-radius:999px; text-decoration:none; color:#111; font-size:13px;">Morgon</a>
+              <a href="${dayLink}" style="padding:6px 10px; background:#f4f4f4; border-radius:999px; text-decoration:none; color:#111; font-size:13px;">Dag</a>
+              <a href="${eveningLink}" style="padding:6px 10px; background:#f4f4f4; border-radius:999px; text-decoration:none; color:#111; font-size:13px;">Kväll</a>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    let sentCount = 0;
+    const errors: Array<{ email: string; error: string }> = [];
+
+    for (const recipient of recipients) {
+      const html = `
+        <html>
+          <body style="font-family: Arial, sans-serif; background:#f5f5f5; padding:20px;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:640px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden;">
+              <tr>
+                <td style="padding:24px; background:linear-gradient(135deg,#101010,#1f1f1f); color:#fff;">
+                  <p style="margin:0; font-size:12px; letter-spacing:1px; text-transform:uppercase; opacity:0.8;">Schema-omröstning</p>
+                  <h1 style="margin:8px 0 0 0; font-size:24px;">Vecka ${poll.week_number} (${poll.week_year})</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:24px; color:#222;">
+                  <p style="margin:0 0 12px 0;">Hej ${recipient.name}!</p>
+                  <p style="margin:0 0 16px 0; color:#555;">En ny schema-omröstning är öppen. Klicka på en dag/tid nedan så öppnas appen direkt på rätt modul.</p>
+                  <p style="margin:0 0 16px 0;"><a href="${moduleLink}" style="display:inline-block; padding:10px 14px; background:#111; color:#fff; text-decoration:none; border-radius:8px;">Öppna veckans modul</a></p>
+                  ${dayCards}
+                  <p style="margin:16px 0 0 0; font-size:12px; color:#777;">Klicklänkarna öppnar appen och förbereder ditt val automatiskt.</p>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `;
+
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify({
+          from: "Padel-appen <no-reply@padelgrabbarna.club>",
+          to: [recipient.email],
+          subject: `Schema vecka ${poll.week_number} (${poll.week_year})`,
+          html,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        errors.push({ email: recipient.email, error: errText });
+      } else {
+        sentCount += 1;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    const { error: insertLogError } = await adminClient.from("availability_poll_mail_log").insert({
+      poll_id: poll.id,
+      sent_by: user.id,
+    });
+
+    if (insertLogError) throw insertLogError;
+
+    return jsonResponse({
+      success: true,
+      sent: sentCount,
+      total: recipients.length,
+      sendAttempt: alreadySentCount + 1,
+      errors,
+      slotLabels: SLOT_LABEL,
+    });
+  } catch (error) {
+    console.error("availability-poll-mail error", error);
+    return jsonResponse(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Okänt fel",
+      },
+      500,
+    );
+  }
+});

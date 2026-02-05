@@ -190,7 +190,9 @@ export interface AvailabilityVote {
   id: string;
   poll_day_id: string;
   profile_id: string;
-  slot: AvailabilitySlot | null;
+  // Note for non-coders: old votes may still use a single slot (slot), while new votes can store many choices.
+  slot?: AvailabilitySlot | null;
+  slot_preferences?: AvailabilitySlot[] | null;
   created_at: string;
   updated_at?: string;
 }
@@ -201,6 +203,14 @@ export interface AvailabilityPollDay {
   date: string;
   created_at?: string;
   votes?: AvailabilityVote[];
+}
+
+export interface AvailabilityPollMailLog {
+  id: string;
+  poll_id: string;
+  sent_by: string;
+  sent_at: string;
+  created_at?: string;
 }
 
 export interface AvailabilityPoll {
@@ -214,4 +224,5 @@ export interface AvailabilityPoll {
   closed_at?: string | null;
   created_at: string;
   days?: AvailabilityPollDay[];
+  mail_logs?: AvailabilityPollMailLog[];
 }

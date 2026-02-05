@@ -36,11 +36,21 @@ const parsePollStatus = (poll: AvailabilityPoll): AvailabilityPoll => {
   return poll;
 };
 
+const mapCreatePollError = (error: any) => {
+  // Note for non-coders: Postgres error code 23505 means "already exists".
+  if (error?.code === "23505") {
+    return new Error("Det finns redan en omröstning för den veckan. Välj en annan vecka.");
+  }
+  return error;
+};
+
 export const availabilityService = {
   async getPolls(): Promise<AvailabilityPoll[]> {
     const { data, error } = await supabase
       .from("availability_polls")
-      .select("*, days:availability_poll_days(*, votes:availability_votes(*))")
+      .select(
+        "*, days:availability_poll_days(*, votes:availability_votes(*)), mail_logs:availability_poll_mail_log(id, poll_id, sent_by, sent_at, created_at)",
+      )
       .order("week_year", { ascending: true })
       .order("week_number", { ascending: true });
 
@@ -49,6 +59,7 @@ export const availabilityService = {
     const polls = ((data || []) as AvailabilityPoll[]).map((poll) => ({
       ...parsePollStatus(poll),
       days: (poll.days || []).sort((a, b) => a.date.localeCompare(b.date)),
+      mail_logs: (poll.mail_logs || []).sort((a, b) => b.sent_at.localeCompare(a.sent_at)),
     }));
 
     return polls;
@@ -75,7 +86,9 @@ export const availabilityService = {
       .select("*")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw mapCreatePollError(error);
+    }
 
     const days = Array.from({ length: 7 }, (_, index) => {
       const date = new Date(`${start}T00:00:00.000Z`);
@@ -106,16 +119,31 @@ export const availabilityService = {
   async deletePoll(pollId: string): Promise<void> {
     await requireAdmin("Endast administratörer kan radera omröstningar.");
 
-    const { error } = await supabase
-      .from("availability_polls")
-      .delete()
-      .eq("id", pollId);
+    const { error } = await supabase.from("availability_polls").delete().eq("id", pollId);
 
     if (error) throw error;
   },
 
+  async sendPollEmail(pollId: string): Promise<{ success: boolean; sent: number; total: number; error?: string }> {
+    await requireAdmin("Endast administratörer kan skicka omröstningsmail.");
+
+    const { data, error } = await supabase.functions.invoke("availability-poll-mail", {
+      body: { pollId },
+    });
+
+    if (error) {
+      throw new Error(error.message || "Kunde inte skicka mail.");
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "Kunde inte skicka mail.");
+    }
+
+    return data as { success: boolean; sent: number; total: number; error?: string };
+  },
+
   // Note for non-coders: "upsert" means create-or-update in one safe database call.
-  async upsertVote(day: AvailabilityPollDay, slot: AvailabilitySlot | null): Promise<void> {
+  async upsertVote(day: AvailabilityPollDay, slotPreferences: AvailabilitySlot[] | null): Promise<void> {
     const { data: sessionData } = await supabase.auth.getSession();
     const currentUser = sessionData.session?.user;
 
@@ -123,16 +151,17 @@ export const availabilityService = {
       throw new Error("Du måste vara inloggad för att rösta.");
     }
 
-    const { error } = await supabase
-      .from("availability_votes")
-      .upsert(
-        {
-          poll_day_id: day.id,
-          profile_id: currentUser.id,
-          slot,
-        },
-        { onConflict: "poll_day_id,profile_id" }
-      );
+    const normalized = slotPreferences && slotPreferences.length > 0 ? slotPreferences : null;
+
+    const { error } = await supabase.from("availability_votes").upsert(
+      {
+        poll_day_id: day.id,
+        profile_id: currentUser.id,
+        slot: normalized && normalized.length === 1 ? normalized[0] : null,
+        slot_preferences: normalized,
+      },
+      { onConflict: "poll_day_id,profile_id" },
+    );
 
     if (error) throw error;
   },

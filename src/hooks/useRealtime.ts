@@ -161,6 +161,17 @@ export const useRealtime = () => {
       )
       .subscribe();
 
+    const availabilityMailLogChannel = supabase
+      .channel("availability-mail-log-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_poll_mail_log" },
+        () => {
+          invalidateAvailabilityData(queryClient);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(matchesChannel);
       supabase.removeChannel(profilesChannel);
@@ -171,6 +182,7 @@ export const useRealtime = () => {
       supabase.removeChannel(availabilityPollsChannel);
       supabase.removeChannel(availabilityDaysChannel);
       supabase.removeChannel(availabilityVotesChannel);
+      supabase.removeChannel(availabilityMailLogChannel);
       stopTournamentPollingFallback();
       toast.dismiss(realtimeWarningToastId);
     };
