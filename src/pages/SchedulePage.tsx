@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -19,6 +19,13 @@ import {
   Select,
   AvatarGroup,
   Tooltip,
+  Menu,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  LinearProgress,
 } from "@mui/material";
 import Avatar from "../Components/Avatar";
 import EmptyState from "../Components/Shared/EmptyState";
@@ -27,6 +34,7 @@ import {
   Remove as RemoveIcon,
   ExpandMore as ExpandMoreIcon,
   Email as EmailIcon,
+  MoreVert as MoreVertIcon,
 } from "@mui/icons-material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -157,6 +165,10 @@ export default function SchedulePage() {
   const [expandedPolls, setExpandedPolls] = useState<Record<string, boolean>>({});
   const [didApplyDeepLinkVote, setDidApplyDeepLinkVote] = useState(false);
   const [onlyMissingVotesByPoll, setOnlyMissingVotesByPoll] = useState<Record<string, boolean>>({});
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [actionMenuPollId, setActionMenuPollId] = useState<string | null>(null);
+  const [dangerPollId, setDangerPollId] = useState<string | null>(null);
+  const [confirmDeletePollId, setConfirmDeletePollId] = useState<string | null>(null);
 
   const selectedWeek = weekOptions.find((entry) => entry.key === selectedWeekKey) || weekOptions[0];
 
@@ -316,6 +328,16 @@ export default function SchedulePage() {
     setExpandedPolls((prev) => ({ ...prev, [pollId]: expanded }));
   };
 
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuPollId(null);
+  };
+
+  const openActionMenu = (event: MouseEvent<HTMLButtonElement>, pollId: string) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuPollId(pollId);
+  };
+
   const handleToggleDay = (day: AvailabilityPollDay, checked: boolean) => {
     if (!user) return;
     if (!checked) {
@@ -336,7 +358,8 @@ export default function SchedulePage() {
   };
 
   return (
-    <Box component="section" sx={{ py: 3 }}>
+    <>
+      <Box component="section" sx={{ py: 3 }}>
       <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Schema</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Rösta på de dagar du kan spela. Resultatet uppdateras live för alla.
@@ -360,15 +383,21 @@ export default function SchedulePage() {
         <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Ny omröstning:</Typography>
 
-          <Stack spacing={1.5}>
-            {/* Note for non-coders: row 1 is only the week dropdown so it stays easy to read on small screens. */}
-            <Select
-              size="small"
-              value={selectedWeekKey}
-              onChange={(e) => setSelectedWeekKey(e.target.value)}
-              fullWidth
-              sx={{ minHeight: 44, fontSize: '0.875rem' }}
-            >
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: 'center' }}>
+            <Tooltip title="Föregående vecka" arrow>
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label="Välj föregående vecka"
+                  onClick={() => handleWeekStep(-1)}
+                  disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}
+                >
+                  <RemoveIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Select size="small" value={selectedWeekKey} onChange={(e) => setSelectedWeekKey(e.target.value)} sx={{ minWidth: 160, height: 36, fontSize: '0.875rem' }}>
               {weekOptions.map((option) => (
                 <MenuItem key={option.key} value={option.key} sx={{ fontSize: '0.875rem' }}>
                   {option.label}
@@ -376,12 +405,25 @@ export default function SchedulePage() {
               ))}
             </Select>
 
-            {/* Note for non-coders: row 2 keeps secondary week navigation separated from the main create action. */}
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1}
-              alignItems={{ xs: 'stretch', sm: 'center' }}
-              justifyContent="space-between"
+            <Tooltip title="Nästa vecka" arrow>
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label="Välj nästa vecka"
+                  onClick={() => handleWeekStep(1)}
+                  disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => createPollMutation.mutate()}
+              disabled={createPollMutation.isPending}
+              sx={{ whiteSpace: 'nowrap', px: 2 }}
             >
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
                 <Tooltip title="Gå till föregående valbara vecka">
@@ -446,6 +488,9 @@ export default function SchedulePage() {
           {pollsSorted.map((poll) => {
             const mailState = computeEmailAvailability(poll);
             const isExpanded = Boolean(expandedPolls[poll.id]);
+            const readyDaysCount = (poll.days || []).filter((day) => evaluatePollDay(day).isGreen).length;
+            const totalDaysCount = (poll.days || []).length;
+            const progressPercent = totalDaysCount > 0 ? Math.round((readyDaysCount / totalDaysCount) * 100) : 0;
 
             return (
               <Accordion key={poll.id} expanded={isExpanded} onChange={(_, expanded) => togglePollExpanded(poll.id, expanded)}>
@@ -461,6 +506,18 @@ export default function SchedulePage() {
                     </Box>
 
                     <Stack direction="row" spacing={1} alignItems="center">
+                      <Stack spacing={0.25} sx={{ minWidth: 120 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                          {readyDaysCount}/{totalDaysCount} dagar spelklara
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={progressPercent}
+                          aria-label={`Spelklar progress: ${readyDaysCount} av ${totalDaysCount} dagar`}
+                          sx={{ height: 6, borderRadius: 99 }}
+                        />
+                      </Stack>
+
                       {poll.status === "open" ? (
                         <Chip size="small" color="success" label="Öppen" sx={{ fontWeight: 600, height: 24 }} />
                       ) : (
@@ -472,35 +529,6 @@ export default function SchedulePage() {
 
                 <AccordionDetails>
                   <Stack direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", alignItems: "center" }}>
-                    {user?.is_admin && poll.status === "open" && (
-                      <Button
-                        size="small"
-                        color="warning"
-                        variant="contained"
-                        sx={{ px: 1.25, py: 0.4, minHeight: 30, whiteSpace: "nowrap" }}
-                        onClick={() => closePollMutation.mutate(poll.id)}
-                      >
-                        Stäng omröstning
-                      </Button>
-                    )}
-
-                    {user?.is_admin && (
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="contained"
-                        sx={{ px: 1.25, py: 0.4, minHeight: 30, whiteSpace: "nowrap" }}
-                        onClick={() => {
-                          const confirmed = window.confirm("Radera omröstningen permanent? Alla röster försvinner.");
-                          if (confirmed) {
-                            deletePollMutation.mutate(poll.id);
-                          }
-                        }}
-                      >
-                        Radera omröstning
-                      </Button>
-                    )}
-
                     {user?.is_admin && (
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }} sx={{ width: '100%' }}>
                         <Button
@@ -532,6 +560,16 @@ export default function SchedulePage() {
                           )}
                           label={<Typography variant="caption">Bara de som inte röstat</Typography>}
                         />
+
+                        <Tooltip title="Fler åtgärder" arrow>
+                          <IconButton
+                            size="small"
+                            aria-label={`Fler åtgärder för vecka ${poll.week_number}`}
+                            onClick={(event) => openActionMenu(event, poll.id)}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </Stack>
                     )}
                   </Stack>
@@ -649,6 +687,99 @@ export default function SchedulePage() {
           })}
         </Stack>
       )}
-    </Box>
+      </Box>
+
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+      >
+        {actionMenuPollId && (
+          <MenuItem
+            onClick={() => {
+              setDangerPollId(actionMenuPollId);
+              closeActionMenu();
+            }}
+          >
+            Farliga åtgärder
+          </MenuItem>
+        )}
+      </Menu>
+
+      <Dialog open={Boolean(dangerPollId)} onClose={() => setDangerPollId(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Farliga åtgärder</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {/* Note for non-coders: dangerous actions can permanently remove data, so we show a dedicated warning step first. */}
+            Här finns åtgärder som påverkar omröstningen permanent.
+          </DialogContentText>
+          {dangerPollId && (
+            <Stack spacing={1}>
+              {pollsSorted.find((entry) => entry.id === dangerPollId)?.status === "open" && (
+                <Button
+                  color="warning"
+                  variant="contained"
+                  onClick={() => {
+                    closePollMutation.mutate(dangerPollId);
+                    setDangerPollId(null);
+                  }}
+                >
+                  Stäng omröstning
+                </Button>
+              )}
+              <Button
+                color="error"
+                variant="contained"
+                onClick={() => {
+                  setConfirmDeletePollId(dangerPollId);
+                  setDangerPollId(null);
+                }}
+              >
+                Radera omröstning
+              </Button>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDangerPollId(null)}>Avbryt</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(confirmDeletePollId)}
+        onClose={() => setConfirmDeletePollId(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Bekräfta borttagning</DialogTitle>
+        <DialogContent>
+          {confirmDeletePollId && (() => {
+            const targetPoll = pollsSorted.find((entry) => entry.id === confirmDeletePollId);
+            if (!targetPoll) return null;
+
+            return (
+              <DialogContentText>
+                {/* Note for non-coders: this second confirmation exists to prevent accidental permanent deletion. */}
+                Du håller på att radera Vecka {targetPoll.week_number} ({targetPoll.week_year}), {formatShortDate(targetPoll.start_date)} - {formatShortDate(targetPoll.end_date)}. Alla röster försvinner permanent.
+              </DialogContentText>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeletePollId(null)}>Avbryt</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (!confirmDeletePollId) return;
+              deletePollMutation.mutate(confirmDeletePollId);
+              setConfirmDeletePollId(null);
+            }}
+          >
+            Ja, radera permanent
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
