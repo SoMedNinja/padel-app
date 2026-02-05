@@ -44,6 +44,48 @@ const mapCreatePollError = (error: any) => {
   return error;
 };
 
+const isMissingRpcFunctionError = (error: any): boolean => {
+  // Note for non-coders: PGRST202 is returned when Supabase API cannot find an RPC function in its schema cache.
+  return error?.code === "PGRST202";
+};
+
+const createPollWithoutRpc = async (
+  weekYear: number,
+  weekNumber: number,
+  startDate: string,
+  endDate: string,
+): Promise<AvailabilityPoll> => {
+  // Note for non-coders: this is a safe fallback path when the RPC function is not yet deployed/refreshed.
+  const { data: poll, error: pollError } = await supabase
+    .from("availability_polls")
+    .insert({ week_year: weekYear, week_number: weekNumber, start_date: startDate, end_date: endDate })
+    .select("*")
+    .single();
+
+  if (pollError) {
+    throw mapCreatePollError(pollError);
+  }
+
+  const dayRows = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(`${startDate}T00:00:00.000Z`);
+    day.setUTCDate(day.getUTCDate() + index);
+    return {
+      poll_id: poll.id,
+      date: day.toISOString().slice(0, 10),
+    };
+  });
+
+  const { error: daysError } = await supabase.from("availability_poll_days").insert(dayRows);
+
+  if (daysError) {
+    // Note for non-coders: if day creation fails, we delete the parent poll so no half-finished poll remains.
+    await supabase.from("availability_polls").delete().eq("id", poll.id);
+    throw mapCreatePollError(daysError);
+  }
+
+  return poll as AvailabilityPoll;
+};
+
 export const availabilityService = {
   async getPolls(): Promise<AvailabilityPoll[]> {
     const { data, error } = await supabase
@@ -83,6 +125,9 @@ export const availabilityService = {
     });
 
     if (error) {
+      if (isMissingRpcFunctionError(error)) {
+        return createPollWithoutRpc(input.weekYear, input.weekNumber, start, end);
+      }
       throw mapCreatePollError(error);
     }
 
