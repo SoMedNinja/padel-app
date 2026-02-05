@@ -142,12 +142,11 @@ export default function App() {
       <>
         {toaster}
         <Auth
-          onAuth={(authUser) => {
+          onAuth={() => {
             setIsGuest(false);
-            // Note for non-coders: we set a temporary user right away so the login screen can disappear.
-            const metadataName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || "";
-            setUser({ ...authUser, name: typeof metadataName === "string" ? metadataName.trim() : "" });
-            // Note for non-coders: useAuthProfile will automatically pick up the new session via onAuthStateChange.
+            // Note for non-coders: we wait for useAuthProfile to load the full profile (roles/flags included)
+            // before rendering the app, which prevents routes from briefly disappearing after login.
+            void refresh();
           }}
           onGuest={() => setIsGuest(true)}
         />
