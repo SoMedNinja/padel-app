@@ -62,8 +62,7 @@ export default function Dashboard() {
     data: tournamentResults = [] as TournamentResult[],
     isLoading: isLoadingTournamentResults,
     isError: isTournamentResultsError,
-    error: tournamentResultsError,
-    refetch: refetchTournamentResults,
+    error: tournamentResultsError
   } = useQuery({
     queryKey: queryKeys.tournamentResults(),
     queryFn: () => padelData.tournaments.resultsWithTypes(),
@@ -95,7 +94,6 @@ export default function Dashboard() {
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
     () => invalidateTournamentData(queryClient),
-    refetchTournamentResults,
   ]);
 
   const filteredMatches = useMemo(

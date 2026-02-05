@@ -37,8 +37,7 @@ export default function PlayerProfilePage() {
     data: tournamentResults = [] as TournamentResult[],
     isLoading: isLoadingTournamentResults,
     isError: isTournamentResultsError,
-    error: tournamentResultsError,
-    refetch: refetchTournamentResults,
+    error: tournamentResultsError
   } = useQuery({
     queryKey: queryKeys.tournamentResults(),
     queryFn: () => padelData.tournaments.resultsWithTypes(),
@@ -59,7 +58,6 @@ export default function PlayerProfilePage() {
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
     () => invalidateTournamentData(queryClient),
-    refetchTournamentResults,
   ]);
 
   // Note for non-coders: leaving guest mode triggers the login screen in the app shell.
