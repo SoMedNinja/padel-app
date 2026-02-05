@@ -28,6 +28,7 @@ export const profileService = {
       delete filteredUpdates.is_admin;
       delete filteredUpdates.is_approved;
       delete filteredUpdates.is_deleted;
+      delete filteredUpdates.is_regular;
     }
 
     if (filteredUpdates.avatar_url && filteredUpdates.avatar_url.length > MAX_AVATAR_LENGTH) {
@@ -69,6 +70,7 @@ export const profileService = {
       delete filteredProfile.is_admin;
       delete filteredProfile.is_approved;
       delete filteredProfile.is_deleted;
+      delete filteredProfile.is_regular;
     }
 
     if (filteredProfile.avatar_url && filteredProfile.avatar_url.length > MAX_AVATAR_LENGTH) {

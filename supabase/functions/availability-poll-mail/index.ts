@@ -13,6 +13,8 @@ const SLOT_LABEL: Record<AvailabilitySlot, string> = {
   evening: "Kväll",
 };
 
+const ALLOWED_TEST_RECIPIENT = "Robbanh94@gmail.com";
+
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -105,8 +107,18 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const pollId = typeof body?.pollId === "string" ? body.pollId : "";
+    const testRecipientEmail = typeof body?.testRecipientEmail === "string" ? body.testRecipientEmail.trim() : "";
+    const normalizedTestRecipientEmail = testRecipientEmail.toLowerCase();
+
     if (!pollId) {
       return jsonResponse({ success: false, error: "pollId saknas." }, 400);
+    }
+
+    if (testRecipientEmail && normalizedTestRecipientEmail !== ALLOWED_TEST_RECIPIENT.toLowerCase()) {
+      return jsonResponse(
+        { success: false, error: `Endast ${ALLOWED_TEST_RECIPIENT} är tillåten testmottagare.` },
+        400,
+      );
     }
 
     const { data: poll, error: pollError } = await adminClient
@@ -127,29 +139,34 @@ Deno.serve(async (req) => {
 
     if (mailLogError) throw mailLogError;
 
+    const isTestMode = Boolean(testRecipientEmail);
     const alreadySentCount = mailLogs?.length || 0;
-    if (alreadySentCount >= 2) {
-      return jsonResponse({ success: false, error: "Max 2 mail per omröstning är tillåtet." }, 400);
-    }
 
-    const latest = mailLogs?.[0]?.sent_at ? new Date(mailLogs[0].sent_at) : null;
-    if (latest) {
-      const earliestNext = addHours(latest, 24);
-      const now = new Date();
-      if (now < earliestNext) {
-        const hoursLeft = Math.ceil((earliestNext.getTime() - now.getTime()) / (1000 * 60 * 60));
-        return jsonResponse(
-          { success: false, error: `Du kan skicka nästa mail om cirka ${hoursLeft} timmar.` },
-          400,
-        );
+    if (!isTestMode) {
+      if (alreadySentCount >= 2) {
+        return jsonResponse({ success: false, error: "Max 2 mail per omröstning är tillåtet." }, 400);
+      }
+
+      const latest = mailLogs?.[0]?.sent_at ? new Date(mailLogs[0].sent_at) : null;
+      if (latest) {
+        const earliestNext = addHours(latest, 24);
+        const now = new Date();
+        if (now < earliestNext) {
+          const hoursLeft = Math.ceil((earliestNext.getTime() - now.getTime()) / (1000 * 60 * 60));
+          return jsonResponse(
+            { success: false, error: `Du kan skicka nästa mail om cirka ${hoursLeft} timmar.` },
+            400,
+          );
+        }
       }
     }
 
     const { data: profiles, error: profilesError } = await adminClient
       .from("profiles")
-      .select("id, name, is_approved, is_deleted")
+      .select("id, name, is_approved, is_deleted, is_regular")
       .eq("is_approved", true)
-      .eq("is_deleted", false);
+      .eq("is_deleted", false)
+      .eq("is_regular", true);
 
     if (profilesError) throw profilesError;
 
@@ -172,13 +189,19 @@ Deno.serve(async (req) => {
       }
     });
 
-    const recipients = (profiles || [])
+    let recipients = (profiles || [])
       .map((entry) => ({
         id: entry.id,
         name: entry.name || "Spelare",
         email: emailByUser.get(entry.id),
       }))
       .filter((entry): entry is { id: string; name: string; email: string } => Boolean(entry.email));
+
+    if (isTestMode) {
+      recipients = recipients.filter(
+        (entry) => entry.email.toLowerCase() === normalizedTestRecipientEmail,
+      );
+    }
 
     if (recipients.length === 0) {
       return jsonResponse({ success: false, error: "Inga mottagare med e-post hittades." }, 400);
@@ -261,18 +284,21 @@ Deno.serve(async (req) => {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
-    const { error: insertLogError } = await adminClient.from("availability_poll_mail_log").insert({
-      poll_id: poll.id,
-      sent_by: user.id,
-    });
+    if (!isTestMode) {
+      const { error: insertLogError } = await adminClient.from("availability_poll_mail_log").insert({
+        poll_id: poll.id,
+        sent_by: user.id,
+      });
 
-    if (insertLogError) throw insertLogError;
+      if (insertLogError) throw insertLogError;
+    }
 
     return jsonResponse({
       success: true,
       sent: sentCount,
       total: recipients.length,
-      sendAttempt: alreadySentCount + 1,
+      sendAttempt: isTestMode ? null : alreadySentCount + 1,
+      mode: isTestMode ? "test" : "broadcast",
       errors,
       slotLabels: SLOT_LABEL,
     });

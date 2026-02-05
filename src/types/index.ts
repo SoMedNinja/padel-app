@@ -5,6 +5,7 @@ export interface Profile {
   is_admin?: boolean;
   is_approved?: boolean;
   is_deleted?: boolean;
+  is_regular?: boolean;
   featured_badge_id?: string | null;
   created_at?: string;
 }

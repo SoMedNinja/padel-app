@@ -124,6 +124,7 @@ const computeEmailAvailability = (poll: AvailabilityPoll) => {
 export default function SchedulePage() {
   const queryClient = useQueryClient();
   const { user, isGuest } = useStore();
+  const canAccessSchema = Boolean(user?.is_regular);
   const [searchParams] = useSearchParams();
   const { data: polls = [], isLoading, isError, error } = useAvailabilityPolls();
   const { data: profiles = [] } = useProfiles();
@@ -172,9 +173,17 @@ export default function SchedulePage() {
   });
 
   const sendEmailMutation = useMutation({
-    mutationFn: (pollId: string) => availabilityService.sendPollEmail(pollId),
+    mutationFn: (payload: { pollId: string; testRecipientEmail?: string }) =>
+      availabilityService.sendPollEmail(payload.pollId, {
+        testRecipientEmail: payload.testRecipientEmail,
+      }),
     onSuccess: (result) => {
-      toast.success(`Mail skickat till ${result.sent}/${result.total} mottagare.`);
+      const isTest = result.mode === "test";
+      toast.success(
+        isTest
+          ? `Testmail skickat till ${result.sent}/${result.total} mottagare.`
+          : `Påminnelsemail skickat till ${result.sent}/${result.total} ordinarie spelare.`,
+      );
       invalidateAvailabilityData(queryClient);
     },
     onError: (err: any) => toast.error(err?.message || "Kunde inte skicka mail."),
@@ -292,6 +301,13 @@ export default function SchedulePage() {
         </Alert>
       )}
 
+      {!isGuest && !canAccessSchema && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {/* Note for non-coders: only players marked as "ordinarie" by admin can access Schema. */}
+          Du är inte markerad som ordinarie spelare ännu. Kontakta admin för åtkomst till Schema.
+        </Alert>
+      )}
+
       {user?.is_admin && selectedWeek && (
         <Card variant="outlined" sx={{ mb: 3 }}>
           <CardContent>
@@ -368,8 +384,13 @@ export default function SchedulePage() {
                 <AccordionDetails>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1.5 }}>
                     {user?.is_admin && poll.status === "open" && (
-                      <Button size="small" color="warning" onClick={() => closePollMutation.mutate(poll.id)}>
-                        Stäng
+                      <Button
+                        size="small"
+                        color="warning"
+                        variant="contained"
+                        onClick={() => closePollMutation.mutate(poll.id)}
+                      >
+                        Stäng omröstning
                       </Button>
                     )}
 
@@ -377,14 +398,15 @@ export default function SchedulePage() {
                       <Button
                         size="small"
                         color="error"
+                        variant="contained"
                         onClick={() => {
-                          const confirmed = window.confirm("Radera omröstningen? Alla röster försvinner permanent.");
+                          const confirmed = window.confirm("Radera omröstningen permanent? Alla röster försvinner.");
                           if (confirmed) {
                             deletePollMutation.mutate(poll.id);
                           }
                         }}
                       >
-                        Radera
+                        Radera omröstning permanent
                       </Button>
                     )}
 
@@ -392,17 +414,35 @@ export default function SchedulePage() {
                       <Button
                         size="small"
                         startIcon={<EmailIcon />}
+                        variant="outlined"
                         disabled={!mailState.canSend || sendEmailMutation.isPending}
-                        onClick={() => sendEmailMutation.mutate(poll.id)}
+                        onClick={() => sendEmailMutation.mutate({ pollId: poll.id })}
                       >
-                        Skicka mail
+                        Skicka påminnelsemail till ordinarie spelare
+                      </Button>
+                    )}
+
+                    {user?.is_admin && (
+                      <Button
+                        size="small"
+                        startIcon={<EmailIcon />}
+                        variant="outlined"
+                        disabled={sendEmailMutation.isPending}
+                        onClick={() =>
+                          sendEmailMutation.mutate({
+                            pollId: poll.id,
+                            testRecipientEmail: "Robbanh94@gmail.com",
+                          })
+                        }
+                      >
+                        Skicka testmail (endast Robbanh94@gmail.com)
                       </Button>
                     )}
                   </Stack>
 
                   {user?.is_admin && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
-                      {mailState.helper}
+                      {mailState.helper} • Testmail påverkar inte 2-utskicksgränsen.
                     </Typography>
                   )}
 

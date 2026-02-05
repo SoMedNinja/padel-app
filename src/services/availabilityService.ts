@@ -124,11 +124,14 @@ export const availabilityService = {
     if (error) throw error;
   },
 
-  async sendPollEmail(pollId: string): Promise<{ success: boolean; sent: number; total: number; error?: string }> {
+  async sendPollEmail(
+    pollId: string,
+    options?: { testRecipientEmail?: string },
+  ): Promise<{ success: boolean; sent: number; total: number; error?: string; mode?: string }> {
     await requireAdmin("Endast administratörer kan skicka omröstningsmail.");
 
     const { data, error } = await supabase.functions.invoke("availability-poll-mail", {
-      body: { pollId },
+      body: { pollId, testRecipientEmail: options?.testRecipientEmail || null },
     });
 
     if (error) {
@@ -139,7 +142,7 @@ export const availabilityService = {
       throw new Error(data?.error || "Kunde inte skicka mail.");
     }
 
-    return data as { success: boolean; sent: number; total: number; error?: string };
+    return data as { success: boolean; sent: number; total: number; error?: string; mode?: string };
   },
 
   // Note for non-coders: "upsert" means create-or-update in one safe database call.

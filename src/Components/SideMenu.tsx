@@ -39,9 +39,12 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
     { text: "Profil", icon: <HomeIcon />, path: "/" },
     { text: "Grabbarnas serie", icon: <TrophyIcon />, path: "/dashboard" },
     { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
-    // Note for non-coders: this opens the weekly availability voting screen (Schema).
-    { text: "Schema", icon: <CalendarIcon />, path: "/schema" },
   ];
+
+  if (user?.is_regular) {
+    // Note for non-coders: only regular players (ordinarie) can access the weekly Schema module.
+    menuItems.push({ text: "Schema", icon: <CalendarIcon />, path: "/schema" });
+  }
 
   if (user?.is_admin) {
     menuItems.push({ text: "Admin", icon: <AdminIcon />, path: "/admin" });
