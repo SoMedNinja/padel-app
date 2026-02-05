@@ -18,7 +18,11 @@ import {
   IconButton,
   MenuItem,
   Select,
+  AvatarGroup,
+  Tooltip,
 } from "@mui/material";
+import Avatar from "../Components/Avatar";
+import EmptyState from "../Components/Shared/EmptyState";
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
@@ -35,7 +39,7 @@ import { availabilityService } from "../services/availabilityService";
 import { invalidateAvailabilityData } from "../data/queryInvalidation";
 import { AvailabilityPoll, AvailabilityPollDay, AvailabilitySlot } from "../types";
 import { evaluatePollDay } from "../utils/availabilityStatus";
-import { formatDate, getISOWeek } from "../utils/format";
+import { getISOWeek, formatShortDate, formatFullDate } from "../utils/format";
 
 interface UpcomingWeekOption {
   key: string;
@@ -124,15 +128,16 @@ const computeEmailAvailability = (poll: AvailabilityPoll) => {
 
 export const mergeExpandedPollsState = (
   previousState: Record<string, boolean>,
-  pollsSorted: Array<Pick<AvailabilityPoll, "id">>,
+  pollsSorted: Array<Pick<AvailabilityPoll, "id" | "status">>,
 ) => {
   let addedNewPoll = false;
   const nextState = { ...previousState };
 
   pollsSorted.forEach((poll, index) => {
     if (!(poll.id in nextState)) {
-      // Note for non-coders: the very first poll opens automatically to show where to start.
-      nextState[poll.id] = index === 0;
+      // Note for non-coders: the very first poll opens automatically if it is open.
+      // Closed polls are always collapsed by default.
+      nextState[poll.id] = index === 0 && poll.status === "open";
       addedNewPoll = true;
     }
   });
@@ -156,10 +161,13 @@ export default function SchedulePage() {
 
   const selectedWeek = weekOptions.find((entry) => entry.key === selectedWeekKey) || weekOptions[0];
 
-  const profileMap = useMemo(() => {
-    const map = new Map<string, string>();
+  const profileDataMap = useMemo(() => {
+    const map = new Map<string, { name: string; avatar_url?: string | null }>();
     profiles.forEach((profile) => {
-      map.set(profile.id, profile.name || "Okänd spelare");
+      map.set(profile.id, {
+        name: profile.name || "Okänd spelare",
+        avatar_url: profile.avatar_url
+      });
     });
     return map;
   }, [profiles]);
@@ -330,9 +338,9 @@ export default function SchedulePage() {
 
   return (
     <Box component="section" sx={{ py: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>Schema</Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Rösta på vilka dagar du kan spela. Resultatet uppdateras live för alla.
+      <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Schema</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Rösta på de dagar du kan spela. Resultatet uppdateras live för alla.
       </Typography>
 
       {isGuest && (
@@ -350,40 +358,40 @@ export default function SchedulePage() {
       )}
 
       {user?.is_admin && selectedWeek && (
-        <Card variant="outlined" sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Skapa ny vecko-omröstning</Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems="center">
-              <IconButton onClick={() => handleWeekStep(-1)} disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}>
-                <RemoveIcon />
-              </IconButton>
+        <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Ny omröstning:</Typography>
 
-              <Select size="small" value={selectedWeekKey} onChange={(e) => setSelectedWeekKey(e.target.value)} sx={{ minWidth: 220 }}>
-                {weekOptions.map((option) => (
-                  <MenuItem key={option.key} value={option.key}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: 'center' }}>
+            <IconButton size="small" onClick={() => handleWeekStep(-1)} disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}>
+              <RemoveIcon fontSize="small" />
+            </IconButton>
 
-              <IconButton
-                onClick={() => handleWeekStep(1)}
-                disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
-              >
-                <AddIcon />
-              </IconButton>
+            <Select size="small" value={selectedWeekKey} onChange={(e) => setSelectedWeekKey(e.target.value)} sx={{ minWidth: 160, height: 36, fontSize: '0.875rem' }}>
+              {weekOptions.map((option) => (
+                <MenuItem key={option.key} value={option.key} sx={{ fontSize: '0.875rem' }}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
 
-              <Button variant="contained" onClick={() => createPollMutation.mutate()} disabled={createPollMutation.isPending}>
-                Skapa omröstning
-              </Button>
-            </Stack>
+            <IconButton size="small"
+              onClick={() => handleWeekStep(1)}
+              disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
 
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-              {/* Note for non-coders: delete removes all rows connected to that poll in the database. */}
-              Du kan senare stänga eller radera omröstningen helt.
-            </Typography>
-          </CardContent>
-        </Card>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => createPollMutation.mutate()}
+              disabled={createPollMutation.isPending}
+              sx={{ whiteSpace: 'nowrap', px: 2 }}
+            >
+              Skapa
+            </Button>
+          </Stack>
+        </Box>
       )}
 
       {isError && (
@@ -395,7 +403,10 @@ export default function SchedulePage() {
       {isLoading ? (
         <Typography>Laddar schema...</Typography>
       ) : pollsSorted.length === 0 ? (
-        <Alert severity="info">Inga öppna eller planerade omröstningar ännu.</Alert>
+        <EmptyState
+          title="Inga omröstningar"
+          description="Det finns inga aktiva eller planerade schemaomröstningar just nu."
+        />
       ) : (
         <Stack spacing={1.5}>
           {pollsSorted.map((poll) => {
@@ -405,19 +416,22 @@ export default function SchedulePage() {
             return (
               <Accordion key={poll.id} expanded={isExpanded} onChange={(_, expanded) => togglePollExpanded(poll.id, expanded)}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" sx={{ width: "100%" }} spacing={1}>
+                  <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }} spacing={2} alignItems="center">
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        Vecka {poll.week_number} ({poll.week_year})
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                        Vecka {poll.week_number}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatDate(poll.start_date)} - {formatDate(poll.end_date)}
+                      <Typography variant="caption" color="text.secondary">
+                        {formatShortDate(poll.start_date)} - {formatShortDate(poll.end_date)} ({poll.week_year})
                       </Typography>
                     </Box>
 
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <Chip color={poll.status === "open" ? "success" : "default"} label={poll.status === "open" ? "Öppen" : "Stängd"} />
-                      <Chip variant="outlined" label={isExpanded ? "Minimera" : "Expandera"} />
+                      {poll.status === "open" ? (
+                        <Chip size="small" color="success" label="Öppen" sx={{ fontWeight: 600, height: 24 }} />
+                      ) : (
+                        <Chip size="small" label="Stängd" sx={{ fontWeight: 600, height: 24 }} />
+                      )}
                     </Stack>
                   </Stack>
                 </AccordionSummary>
@@ -454,7 +468,7 @@ export default function SchedulePage() {
                     )}
 
                     {user?.is_admin && (
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "nowrap" }}>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }} sx={{ width: '100%' }}>
                         <Button
                           size="small"
                           startIcon={<EmailIcon />}
@@ -467,11 +481,11 @@ export default function SchedulePage() {
                               onlyMissingVotes: Boolean(onlyMissingVotesByPoll[poll.id]),
                             })}
                         >
-                          Påminn spelare med mail
+                          Påminn spelare
                         </Button>
 
                         <FormControlLabel
-                          sx={{ ml: 0.5, whiteSpace: "nowrap" }}
+                          sx={{ ml: { xs: 0, sm: 0.5 }, whiteSpace: "nowrap" }}
                           control={(
                             <Switch
                               size="small"
@@ -482,7 +496,7 @@ export default function SchedulePage() {
                               }}
                             />
                           )}
-                          label="Bara spelare som inte röstat"
+                          label={<Typography variant="caption">Bara de som inte röstat</Typography>}
                         />
                       </Stack>
                     )}
@@ -505,13 +519,16 @@ export default function SchedulePage() {
                       const status = evaluatePollDay(day);
 
                       const voters = (day.votes || []).map((vote) => {
+                        const profile = profileDataMap.get(vote.profile_id);
                         const slots = vote.slot_preferences && vote.slot_preferences.length > 0
-                          ? vote.slot_preferences.join("/")
+                          ? vote.slot_preferences.map(s => SLOT_OPTIONS.find(o => o.value === s)?.label || s).join("/")
                           : vote.slot
-                            ? vote.slot
+                            ? SLOT_OPTIONS.find(o => o.value === vote.slot)?.label || vote.slot
                             : "hela dagen";
                         return {
-                          name: profileMap.get(vote.profile_id) || "Okänd spelare",
+                          id: vote.profile_id,
+                          name: profile?.name || "Okänd spelare",
+                          avatar_url: profile?.avatar_url,
                           slots,
                         };
                       });
@@ -534,11 +551,11 @@ export default function SchedulePage() {
                                   disabled={isGuest || poll.status !== "open"}
                                 />
                                 <Box>
-                                  <Typography sx={{ fontWeight: 700 }}>
-                                    {formatDate(day.date, { weekday: "long", day: "numeric", month: "short" })}
+                                  <Typography sx={{ fontWeight: 700, textTransform: 'capitalize' }}>
+                                    {formatFullDate(day.date)}
                                   </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {status.totalVoters} röster {status.isGreen ? "• Spelklar (grön)" : "• Ej spelklar än"}
+                                  <Typography variant="caption" color={status.isGreen ? "success.dark" : "text.secondary"} sx={{ fontWeight: status.isGreen ? 600 : 400 }}>
+                                    {status.totalVoters} {status.totalVoters === 1 ? 'röst' : 'röster'} {status.isGreen ? "• Spelklar" : "• Ej spelklar än"}
                                   </Typography>
                                 </Box>
                               </Stack>
@@ -569,9 +586,23 @@ export default function SchedulePage() {
                             )}
 
                             {voters.length > 0 && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                                {voters.map((v) => `${v.name} (${v.slots})`).join(", ")}
-                              </Typography>
+                              <AvatarGroup
+                                max={10}
+                                spacing="small"
+                                sx={{
+                                  mt: 1.5,
+                                  justifyContent: 'flex-start',
+                                  '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.75rem', border: '2px solid #fff' }
+                                }}
+                              >
+                                {voters.map((v) => (
+                                  <Tooltip key={v.id} title={`${v.name} (${v.slots})`} arrow>
+                                    <Box component="span">
+                                      <Avatar src={v.avatar_url || undefined} name={v.name} size={28} />
+                                    </Box>
+                                  </Tooltip>
+                                ))}
+                              </AvatarGroup>
                             )}
                           </CardContent>
                         </Card>
