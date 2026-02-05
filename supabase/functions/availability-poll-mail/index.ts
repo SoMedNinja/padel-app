@@ -80,16 +80,20 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "Du måste vara inloggad." }, 401);
     }
 
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Note for non-coders: this extracts only the token string so we can validate who is calling the function.
+    const accessToken = authHeader.replace("Bearer ", "").trim();
+    if (!accessToken) {
+      return jsonResponse({ success: false, error: "Inloggningstoken saknas." }, 401);
+    }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const {
-      data: { user },
+      data: authData,
       error: userError,
-    } = await userClient.auth.getUser();
+    } = await adminClient.auth.getUser(accessToken);
+
+    const user = authData?.user;
 
     if (userError || !user) {
       return jsonResponse({ success: false, error: "Kunde inte verifiera användaren." }, 401);
