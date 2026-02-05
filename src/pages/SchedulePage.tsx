@@ -122,6 +122,25 @@ const computeEmailAvailability = (poll: AvailabilityPoll) => {
   };
 };
 
+export const mergeExpandedPollsState = (
+  previousState: Record<string, boolean>,
+  pollsSorted: Array<Pick<AvailabilityPoll, "id">>,
+) => {
+  let addedNewPoll = false;
+  const nextState = { ...previousState };
+
+  pollsSorted.forEach((poll, index) => {
+    if (!(poll.id in nextState)) {
+      // Note for non-coders: the very first poll opens automatically to show where to start.
+      nextState[poll.id] = index === 0;
+      addedNewPoll = true;
+    }
+  });
+
+  // Note for non-coders: returning the same object tells React "nothing changed", so no extra rerender.
+  return addedNewPoll ? nextState : previousState;
+};
+
 export default function SchedulePage() {
   const queryClient = useQueryClient();
   const { user, isGuest } = useStore();
@@ -212,23 +231,16 @@ export default function SchedulePage() {
     onError: (err: any) => toast.error(err?.message || "Kunde inte spara rösten."),
   });
 
-  const pollsSorted = [...polls].sort((a, b) => {
-    if (a.week_year !== b.week_year) return a.week_year - b.week_year;
-    return a.week_number - b.week_number;
-  });
+  const pollsSorted = useMemo(() => {
+    return [...polls].sort((a, b) => {
+      if (a.week_year !== b.week_year) return a.week_year - b.week_year;
+      return a.week_number - b.week_number;
+    });
+  }, [polls]);
 
   useEffect(() => {
     if (!pollsSorted.length) return;
-    setExpandedPolls((prev) => {
-      const next = { ...prev };
-      pollsSorted.forEach((poll, index) => {
-        if (!(poll.id in next)) {
-          // Note for non-coders: first poll opens by default, others start collapsed.
-          next[poll.id] = index === 0;
-        }
-      });
-      return next;
-    });
+    setExpandedPolls((prev) => mergeExpandedPollsState(prev, pollsSorted));
   }, [pollsSorted]);
 
   useEffect(() => {
