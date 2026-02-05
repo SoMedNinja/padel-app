@@ -7,10 +7,9 @@ interface ProfileNameProps {
   name: string;
   badgeId?: string | null;
   className?: string;
-  prominent?: boolean;
 }
 
-export default function ProfileName({ name, badgeId, className = "", prominent = false }: ProfileNameProps) {
+export default function ProfileName({ name, badgeId, className = "" }: ProfileNameProps) {
   const icon = getBadgeIconById(badgeId || null);
   const tier = getBadgeTierLabelById(badgeId || null);
   const description = getBadgeDescriptionById(badgeId || null);
@@ -31,18 +30,14 @@ export default function ProfileName({ name, badgeId, className = "", prominent =
       aria-label={`Visad merit ${tier ? `${tier} ` : ""}${icon}`}
       label={badgeLabel}
       size="small"
-      variant={prominent ? "filled" : "outlined"}
-      color={prominent ? "primary" : "default"}
+      variant="outlined"
       sx={{
-        fontWeight: 800,
-        fontSize: prominent ? "0.7rem" : "0.65rem",
-        height: prominent ? 24 : 22,
+        fontWeight: 700,
+        fontSize: "0.65rem",
+        height: 22,
         cursor: description ? 'help' : 'default',
-        boxShadow: prominent ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
-        border: prominent ? 'none' : '1px solid',
-        borderColor: 'divider',
         "& .MuiChip-label": {
-          px: prominent ? 1 : 0.75,
+          px: 0.75,
         },
       }}
     />

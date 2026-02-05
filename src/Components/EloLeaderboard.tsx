@@ -311,7 +311,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                           src={p.avatarUrl || getStoredAvatar(p.id)}
                           name={p.name}
                         />
-                        <ProfileName name={p.name} badgeId={p.featuredBadgeId} prominent />
+                        <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
                       </Box>
                     </TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
