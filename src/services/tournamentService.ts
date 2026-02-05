@@ -97,17 +97,9 @@ export const tournamentService = {
   async replaceParticipants(tournamentId: string, profileIds: Array<string | null>) {
     await requireAdmin("Endast administratörer kan uppdatera deltagare.");
 
-    // Note for non-coders: this calls a database function so the delete + insert happens
-    // as one safe step, which prevents half-saved rosters if the connection drops.
-    const { error } = await supabase.rpc("replace_mexicana_participants", {
-      target_tournament_id: tournamentId,
-      new_profile_ids: profileIds,
-    });
-    if (!error) return;
-    if (!tournamentService.isMissingRpcFunction(error)) throw error;
-
-    // Note for non-coders: this fallback does the same work without the custom database
-    // function, so the app still works even if the function isn't installed yet.
+    // Note for non-coders: we avoid the custom database RPC here because some environments
+    // don't have that function deployed. Doing the delete + insert directly prevents noisy
+    // 404 console errors while still producing the same final participant list.
     const { error: deleteError } = await supabase
       .from("mexicana_participants")
       .delete()
@@ -126,16 +118,8 @@ export const tournamentService = {
   async deleteTournament(tournamentId: string) {
     await requireAdmin("Endast administratörer kan radera turneringar.");
 
-    // Note for non-coders: this calls a database function that deletes related data and the
-    // tournament in one transaction, so we don't leave half-deleted records behind.
-    const { error } = await supabase.rpc("delete_mexicana_tournament", {
-      target_tournament_id: tournamentId,
-    });
-    if (!error) return;
-    if (!tournamentService.isMissingRpcFunction(error)) throw error;
-
-    // Note for non-coders: this fallback deletes the related data in the same order as the
-    // database function, so the UI still works if the function isn't available yet.
+    // Note for non-coders: we delete child rows first and then the tournament row. This
+    // avoids relying on a custom RPC function that is missing in some Supabase projects.
     const { error: participantsError } = await supabase
       .from("mexicana_participants")
       .delete()
