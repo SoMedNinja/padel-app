@@ -49,6 +49,9 @@ const isMissingRpcFunctionError = (error: any): boolean => {
   return error?.code === "PGRST202";
 };
 
+// Note for non-coders: if this flag becomes true, we skip the RPC call entirely to avoid repeated 404 noise in the browser.
+let shouldUseRpcCreatePoll = true;
+
 const createPollWithoutRpc = async (
   weekYear: number,
   weekNumber: number,
@@ -130,22 +133,28 @@ export const availabilityService = {
       throw new Error("Välj en framtida vecka för att skapa en ny omröstning.");
     }
 
-    // Note for non-coders: we call one database function so poll + 7 days are created as one all-or-nothing save.
-    const { data: poll, error } = await supabase.rpc("create_availability_poll_with_days", {
-      p_week_year: input.weekYear,
-      p_week_number: input.weekNumber,
-      p_start_date: start,
-      p_end_date: end,
-    });
+    if (shouldUseRpcCreatePoll) {
+      // Note for non-coders: we try one database function first so poll + 7 days are created as one all-or-nothing save.
+      const { data: poll, error } = await supabase.rpc("create_availability_poll_with_days", {
+        p_week_year: input.weekYear,
+        p_week_number: input.weekNumber,
+        p_start_date: start,
+        p_end_date: end,
+      });
 
-    if (error) {
-      if (isMissingRpcFunctionError(error)) {
-        return createPollWithoutRpc(input.weekYear, input.weekNumber, start, end);
+      if (!error) {
+        return poll as AvailabilityPoll;
       }
-      throw mapCreatePollError(error);
+
+      if (!isMissingRpcFunctionError(error)) {
+        throw mapCreatePollError(error);
+      }
+
+      // Note for non-coders: your database does not currently expose this function, so we remember that and use direct table writes instead.
+      shouldUseRpcCreatePoll = false;
     }
 
-    return poll as AvailabilityPoll;
+    return createPollWithoutRpc(input.weekYear, input.weekNumber, start, end);
   },
 
   async closePoll(pollId: string): Promise<void> {
