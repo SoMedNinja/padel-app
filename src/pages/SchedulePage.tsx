@@ -15,7 +15,6 @@ import {
   Stack,
   Typography,
   Divider,
-  IconButton,
   MenuItem,
   Select,
   AvatarGroup,
@@ -358,15 +357,18 @@ export default function SchedulePage() {
       )}
 
       {user?.is_admin && selectedWeek && (
-        <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Ny omröstning:</Typography>
+        <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Ny omröstning:</Typography>
 
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: 'center' }}>
-            <IconButton size="small" onClick={() => handleWeekStep(-1)} disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}>
-              <RemoveIcon fontSize="small" />
-            </IconButton>
-
-            <Select size="small" value={selectedWeekKey} onChange={(e) => setSelectedWeekKey(e.target.value)} sx={{ minWidth: 160, height: 36, fontSize: '0.875rem' }}>
+          <Stack spacing={1.5}>
+            {/* Note for non-coders: row 1 is only the week dropdown so it stays easy to read on small screens. */}
+            <Select
+              size="small"
+              value={selectedWeekKey}
+              onChange={(e) => setSelectedWeekKey(e.target.value)}
+              fullWidth
+              sx={{ minHeight: 44, fontSize: '0.875rem' }}
+            >
               {weekOptions.map((option) => (
                 <MenuItem key={option.key} value={option.key} sx={{ fontSize: '0.875rem' }}>
                   {option.label}
@@ -374,22 +376,54 @@ export default function SchedulePage() {
               ))}
             </Select>
 
-            <IconButton size="small"
-              onClick={() => handleWeekStep(1)}
-              disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
+            {/* Note for non-coders: row 2 keeps secondary week navigation separated from the main create action. */}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              justifyContent="space-between"
             >
-              <AddIcon fontSize="small" />
-            </IconButton>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
+                <Tooltip title="Gå till föregående valbara vecka">
+                  <span>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      startIcon={<RemoveIcon />}
+                      onClick={() => handleWeekStep(-1)}
+                      disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}
+                      sx={{ minHeight: 44, px: 1.5 }}
+                    >
+                      Föregående vecka
+                    </Button>
+                  </span>
+                </Tooltip>
 
-            <Button
-              size="small"
-              variant="contained"
-              onClick={() => createPollMutation.mutate()}
-              disabled={createPollMutation.isPending}
-              sx={{ whiteSpace: 'nowrap', px: 2 }}
-            >
-              Skapa
-            </Button>
+                <Tooltip title="Gå till nästa valbara vecka">
+                  <span>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      startIcon={<AddIcon />}
+                      onClick={() => handleWeekStep(1)}
+                      disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
+                      sx={{ minHeight: 44, px: 1.5 }}
+                    >
+                      Nästa vecka
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Stack>
+
+              <Button
+                variant="contained"
+                onClick={() => createPollMutation.mutate()}
+                disabled={createPollMutation.isPending}
+                sx={{ minHeight: 44, minWidth: { xs: '100%', sm: 120 }, whiteSpace: 'nowrap' }}
+              >
+                Skapa
+              </Button>
+            </Stack>
           </Stack>
         </Box>
       )}
