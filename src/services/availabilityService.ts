@@ -56,9 +56,23 @@ const createPollWithoutRpc = async (
   endDate: string,
 ): Promise<AvailabilityPoll> => {
   // Note for non-coders: this is a safe fallback path when the RPC function is not yet deployed/refreshed.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const currentUser = sessionData.session?.user;
+
+  // Note for non-coders: created_by is required by the database, so we explicitly attach the logged-in user's id here.
+  if (!currentUser) {
+    throw new Error("Du måste vara inloggad för att skapa en omröstning.");
+  }
+
   const { data: poll, error: pollError } = await supabase
     .from("availability_polls")
-    .insert({ week_year: weekYear, week_number: weekNumber, start_date: startDate, end_date: endDate })
+    .insert({
+      created_by: currentUser.id,
+      week_year: weekYear,
+      week_number: weekNumber,
+      start_date: startDate,
+      end_date: endDate,
+    })
     .select("*")
     .single();
 
