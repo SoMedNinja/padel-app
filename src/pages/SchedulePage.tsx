@@ -191,7 +191,7 @@ export default function SchedulePage() {
       toast.success(
         isTest
           ? `Testmail skickat till ${baseCountText} mottagare.${filterCountText}`
-          : `Påminnelsemail skickat till ${baseCountText} ordinarie spelare.${filterCountText}`,
+          : `Påminnelsemail skickat till ${baseCountText} spelare.${filterCountText}`,
       );
       invalidateAvailabilityData(queryClient);
     },
@@ -391,12 +391,13 @@ export default function SchedulePage() {
                 </AccordionSummary>
 
                 <AccordionDetails>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1.5 }}>
+                  <Stack direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", alignItems: "center" }}>
                     {user?.is_admin && poll.status === "open" && (
                       <Button
                         size="small"
                         color="warning"
                         variant="contained"
+                        sx={{ px: 1.25, py: 0.4, minHeight: 30, whiteSpace: "nowrap" }}
                         onClick={() => closePollMutation.mutate(poll.id)}
                       >
                         Stäng omröstning
@@ -408,6 +409,7 @@ export default function SchedulePage() {
                         size="small"
                         color="error"
                         variant="contained"
+                        sx={{ px: 1.25, py: 0.4, minHeight: 30, whiteSpace: "nowrap" }}
                         onClick={() => {
                           const confirmed = window.confirm("Radera omröstningen permanent? Alla röster försvinner.");
                           if (confirmed) {
@@ -415,64 +417,49 @@ export default function SchedulePage() {
                           }
                         }}
                       >
-                        Radera omröstning permanent
+                        Radera omröstning
                       </Button>
                     )}
 
                     {user?.is_admin && (
-                      <FormControlLabel
-                        control={(
-                          <Switch
-                            size="small"
-                            checked={Boolean(onlyMissingVotesByPoll[poll.id])}
-                            onChange={(_, checked) => {
-                              // Note for non-coders: this switch decides if reminders should skip people who already voted.
-                              setOnlyMissingVotesByPoll((prev) => ({ ...prev, [poll.id]: checked }));
-                            }}
-                          />
-                        )}
-                        label="Bara spelare som inte röstat"
-                      />
-                    )}
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "nowrap" }}>
+                        <Button
+                          size="small"
+                          startIcon={<EmailIcon />}
+                          variant="outlined"
+                          sx={{ whiteSpace: "nowrap" }}
+                          disabled={!mailState.canSend || sendEmailMutation.isPending}
+                          onClick={() =>
+                            sendEmailMutation.mutate({
+                              pollId: poll.id,
+                              onlyMissingVotes: Boolean(onlyMissingVotesByPoll[poll.id]),
+                            })}
+                        >
+                          Påminn spelare med mail
+                        </Button>
 
-                    {user?.is_admin && (
-                      <Button
-                        size="small"
-                        startIcon={<EmailIcon />}
-                        variant="outlined"
-                        disabled={!mailState.canSend || sendEmailMutation.isPending}
-                        onClick={() =>
-                          sendEmailMutation.mutate({
-                            pollId: poll.id,
-                            onlyMissingVotes: Boolean(onlyMissingVotesByPoll[poll.id]),
-                          })}
-                      >
-                        Skicka påminnelsemail till ordinarie spelare
-                      </Button>
-                    )}
-
-                    {user?.is_admin && (
-                      <Button
-                        size="small"
-                        startIcon={<EmailIcon />}
-                        variant="outlined"
-                        disabled={sendEmailMutation.isPending}
-                        onClick={() =>
-                          sendEmailMutation.mutate({
-                            pollId: poll.id,
-                            testRecipientEmail: "Robbanh94@gmail.com",
-                            onlyMissingVotes: Boolean(onlyMissingVotesByPoll[poll.id]),
-                          })
-                        }
-                      >
-                        Skicka testmail (endast Robbanh94@gmail.com)
-                      </Button>
+                        <FormControlLabel
+                          sx={{ ml: 0.5, whiteSpace: "nowrap" }}
+                          control={(
+                            <Switch
+                              size="small"
+                              checked={Boolean(onlyMissingVotesByPoll[poll.id])}
+                              onChange={(_, checked) => {
+                                // Note for non-coders: this switch decides if reminders should skip people who already voted.
+                                setOnlyMissingVotesByPoll((prev) => ({ ...prev, [poll.id]: checked }));
+                              }}
+                            />
+                          )}
+                          label="Bara spelare som inte röstat"
+                        />
+                      </Stack>
                     )}
                   </Stack>
 
                   {user?.is_admin && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
-                      {mailState.helper} • Testmail påverkar inte 2-utskicksgränsen.
+                      {/* Note for non-coders: this helper text explains when reminder mail is allowed. */}
+                      {mailState.helper}
                     </Typography>
                   )}
 
