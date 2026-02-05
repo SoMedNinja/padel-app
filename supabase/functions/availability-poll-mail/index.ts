@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const pollId = typeof body?.pollId === "string" ? body.pollId : "";
     const testRecipientEmail = typeof body?.testRecipientEmail === "string" ? body.testRecipientEmail.trim() : "";
+    const onlyMissingVotes = body?.onlyMissingVotes === true;
     const normalizedTestRecipientEmail = testRecipientEmail.toLowerCase();
 
     if (!pollId) {
@@ -133,6 +134,20 @@ Deno.serve(async (req) => {
 
     if (pollError || !poll) {
       return jsonResponse({ success: false, error: "Omröstningen hittades inte." }, 404);
+    }
+
+    const pollDayIds = (poll.days || []).map((day) => day.id);
+    let votedProfileIds = new Set<string>();
+    if (pollDayIds.length > 0) {
+      const { data: votes, error: votesError } = await adminClient
+        .from("availability_votes")
+        .select("profile_id")
+        .in("poll_day_id", pollDayIds);
+
+      if (votesError) throw votesError;
+
+      // Note for non-coders: a Set keeps each profile_id only once, even if the person voted on many days.
+      votedProfileIds = new Set((votes || []).map((vote) => vote.profile_id).filter(Boolean));
     }
 
     const { data: mailLogs, error: mailLogError } = await adminClient
@@ -200,6 +215,12 @@ Deno.serve(async (req) => {
         email: emailByUser.get(entry.id),
       }))
       .filter((entry): entry is { id: string; name: string; email: string } => Boolean(entry.email));
+
+    const totalRecipientsBeforeVoteFilter = recipients.length;
+
+    if (onlyMissingVotes) {
+      recipients = recipients.filter((entry) => !votedProfileIds.has(entry.id));
+    }
 
     if (isTestMode) {
       recipients = recipients.filter(
@@ -305,6 +326,9 @@ Deno.serve(async (req) => {
       success: true,
       sent: sentCount,
       total: recipients.length,
+      totalBeforeVoteFilter: totalRecipientsBeforeVoteFilter,
+      votedProfileCount: votedProfileIds.size,
+      onlyMissingVotes,
       sendAttempt: isTestMode ? null : alreadySentCount + 1,
       mode: isTestMode ? "test" : "broadcast",
       errors,

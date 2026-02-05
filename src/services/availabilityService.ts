@@ -126,8 +126,17 @@ export const availabilityService = {
 
   async sendPollEmail(
     pollId: string,
-    options?: { testRecipientEmail?: string },
-  ): Promise<{ success: boolean; sent: number; total: number; error?: string; mode?: string }> {
+    options?: { testRecipientEmail?: string; onlyMissingVotes?: boolean },
+  ): Promise<{
+    success: boolean;
+    sent: number;
+    total: number;
+    totalBeforeVoteFilter?: number;
+    votedProfileCount?: number;
+    onlyMissingVotes?: boolean;
+    error?: string;
+    mode?: string;
+  }> {
     await requireAdmin("Endast administratörer kan skicka omröstningsmail.");
 
     if (typeof supabaseAnonKey === "string" && supabaseAnonKey.startsWith("sb_publishable_")) {
@@ -138,7 +147,11 @@ export const availabilityService = {
     }
 
     const { data, error } = await supabase.functions.invoke("availability-poll-mail", {
-      body: { pollId, testRecipientEmail: options?.testRecipientEmail || null },
+      body: {
+        pollId,
+        testRecipientEmail: options?.testRecipientEmail || null,
+        onlyMissingVotes: options?.onlyMissingVotes === true,
+      },
     });
 
     if (error) {
@@ -149,7 +162,16 @@ export const availabilityService = {
       throw new Error(data?.error || "Kunde inte skicka mail.");
     }
 
-    return data as { success: boolean; sent: number; total: number; error?: string; mode?: string };
+    return data as {
+      success: boolean;
+      sent: number;
+      total: number;
+      totalBeforeVoteFilter?: number;
+      votedProfileCount?: number;
+      onlyMissingVotes?: boolean;
+      error?: string;
+      mode?: string;
+    };
   },
 
   // Note for non-coders: "upsert" means create-or-update in one safe database call.
