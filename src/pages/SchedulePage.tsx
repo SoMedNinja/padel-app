@@ -259,10 +259,30 @@ export default function SchedulePage() {
 
     setExpandedPolls((prev) => ({ ...prev, [poll.id]: true }));
 
-    // Note for non-coders: a link without slots means "whole day".
-    voteMutation.mutate({ day, slots: parsedSlots });
-    toast.success("Länken öppnade rätt dag och förberedde din röst.");
-    setDidApplyDeepLinkVote(true);
+    let isCancelled = false;
+
+    const applyDeepLinkVote = async () => {
+      try {
+        // Note for non-coders: a link without slots means "whole day".
+        await voteMutation.mutateAsync({ day, slots: parsedSlots });
+        if (isCancelled) return;
+        toast.success("Länken öppnade rätt dag och förberedde din röst.");
+      } catch {
+        // Note for non-coders: voteMutation already shows the error toast, so we avoid duplicate messages.
+      } finally {
+        // Note for non-coders: this marks the deep-link flow as handled once, even if saving failed.
+        // That keeps retries deterministic (only on full refresh/new visit, not every re-render).
+        if (!isCancelled) {
+          setDidApplyDeepLinkVote(true);
+        }
+      }
+    };
+
+    void applyDeepLinkVote();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [didApplyDeepLinkVote, isGuest, pollsSorted, searchParams, user, voteMutation]);
 
   const handleWeekStep = (direction: -1 | 1) => {
