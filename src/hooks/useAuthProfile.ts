@@ -23,9 +23,17 @@ const getMetadataAvatar = (authUser: User) => {
 const isAvatarColumnMissing = (error?: { message?: string } | null) =>
   error?.message?.includes("avatar_url") && error.message.includes("schema cache");
 
+export type AuthStatus = "initializing" | "recovering" | "authenticated" | "unauthenticated";
+
+const SESSION_NULL_GRACE_MS = 1500;
+const LOADING_HINT_DELAY_MS = 2000;
+const RESUME_RECOVERY_COOLDOWN_MS = 400;
+const maxRecoveryAttempts = 2;
+
 // Note for non-coders: this hook keeps login info and player profile data in sync in one place.
 export const useAuthProfile = () => {
   const { user: currentUser, setUser, setIsGuest, isGuest } = useStore();
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("initializing");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
@@ -34,35 +42,60 @@ export const useAuthProfile = () => {
   const [hasRecoveryFailed, setHasRecoveryFailed] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [isAutoRecoveryRetry, setIsAutoRecoveryRetry] = useState(false);
-  const loadingTimeoutRef = useRef<number | null>(null);
+  const [showLoadingHint, setShowLoadingHint] = useState(false);
+  const loadingHintTimeoutRef = useRef<number | null>(null);
   const syncPromiseRef = useRef<Promise<void> | null>(null);
   const syncCounterRef = useRef(0);
   const userRef = useRef(currentUser);
   const recoveryAttemptRef = useRef(0);
   const recoveryPromiseRef = useRef<Promise<User | null> | null>(null);
-  const maxRecoveryAttempts = 2;
+  const nullGracePromiseRef = useRef<Promise<boolean> | null>(null);
+  const resumeRecoveryPromiseRef = useRef<Promise<void> | null>(null);
+  const resumeRecoveryStartedAtRef = useRef(0);
+
+  const isDebugAuth = (import.meta as any).env.DEV && (import.meta as any).env.VITE_DEBUG_AUTH === "true";
+  const debugAuth = useCallback(
+    (...args: unknown[]) => {
+      if (isDebugAuth) {
+        console.info("[auth-recovery]", ...args);
+      }
+    },
+    [isDebugAuth]
+  );
 
   // Keep userRef in sync with the latest store value
   useEffect(() => {
     userRef.current = currentUser;
   }, [currentUser]);
 
-  const startLoadingTimeout = useCallback(() => {
-    // Note for non-coders: if login checks take too long, we stop showing the loading screen.
-    if (loadingTimeoutRef.current !== null) {
-      window.clearTimeout(loadingTimeoutRef.current);
+  const startLoadingHintTimeout = useCallback(() => {
+    // Note for non-coders: if checks take a while, we show a friendly hint but keep waiting.
+    if (loadingHintTimeoutRef.current !== null) {
+      window.clearTimeout(loadingHintTimeoutRef.current);
     }
-    loadingTimeoutRef.current = window.setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
+    loadingHintTimeoutRef.current = window.setTimeout(() => {
+      setShowLoadingHint(true);
+    }, LOADING_HINT_DELAY_MS);
   }, []);
 
-  const clearLoadingTimeout = useCallback(() => {
-    if (loadingTimeoutRef.current !== null) {
-      window.clearTimeout(loadingTimeoutRef.current);
-      loadingTimeoutRef.current = null;
+  const clearLoadingHintTimeout = useCallback(() => {
+    if (loadingHintTimeoutRef.current !== null) {
+      window.clearTimeout(loadingHintTimeoutRef.current);
+      loadingHintTimeoutRef.current = null;
     }
+    setShowLoadingHint(false);
   }, []);
+
+  const setAsConfirmedUnauthenticated = useCallback(() => {
+    setAuthStatus("unauthenticated");
+    setHasCheckedProfile(true);
+    syncPromiseRef.current = null;
+    setUser(null);
+    setIsGuest(false);
+    setProfileName("");
+    setIsLoading(false);
+    clearLoadingHintTimeout();
+  }, [clearLoadingHintTimeout, setIsGuest, setUser]);
 
   const attemptSessionRecovery = useCallback(async () => {
     if (recoveryPromiseRef.current) {
@@ -75,6 +108,7 @@ export const useAuthProfile = () => {
     }
 
     setIsRecoveringSession(true);
+    setAuthStatus("recovering");
     setRecoveryError(null);
     recoveryAttemptRef.current += 1;
     const attemptNumber = recoveryAttemptRef.current;
@@ -115,6 +149,7 @@ export const useAuthProfile = () => {
     async (authUser: User | null, options?: { skipRecovery?: boolean }) => {
       if (!authUser) {
         if (!options?.skipRecovery) {
+          setAuthStatus("recovering");
           const recoveredUser = await attemptSessionRecovery();
           if (recoveredUser) {
             await syncProfile(recoveredUser);
@@ -122,17 +157,11 @@ export const useAuthProfile = () => {
           }
         }
 
-        setHasCheckedProfile(false);
-        syncPromiseRef.current = null;
-        setUser(null);
-        setIsGuest(false);
-        setProfileName("");
-        setIsLoading(false);
-        setHasCheckedProfile(true);
-        clearLoadingTimeout();
+        setAsConfirmedUnauthenticated();
         return;
       }
 
+      setAuthStatus("authenticated");
       setHasRecoveryFailed(false);
       setIsRecoveringSession(false);
       setRecoveryError(null);
@@ -150,7 +179,7 @@ export const useAuthProfile = () => {
 
       syncPromiseRef.current = (async () => {
         try {
-          syncCounterRef.current++;
+          syncCounterRef.current += 1;
           const syncId = syncCounterRef.current;
 
           const metadataName = getMetadataName(authUser);
@@ -164,21 +193,22 @@ export const useAuthProfile = () => {
 
           if (error) {
             // PGRST116 means no profile found - this is normal for new users
-          if (error.code !== "PGRST116") {
-            setErrorMessage(error.message);
-            setUser({ ...authUser } as AppUser);
-            // Note for non-coders: keep the best name we have even if the profile fetch failed.
-            setProfileName(metadataName);
-            return;
-          }
+            if (error.code !== "PGRST116") {
+              setErrorMessage(error.message);
+              setUser({ ...authUser } as AppUser);
+              // Note for non-coders: keep the best name we have even if the profile fetch failed.
+              setProfileName(metadataName);
+              return;
+            }
 
-          if (metadataName || metadataAvatar) {
+            if (metadataName || metadataAvatar) {
               // Note for non-coders: if we already know your name/photo from login data,
               // we save it right away so you don't see the setup screen every time.
               const payload: Profile = { id: authUser.id, name: metadataName || "" };
               if (metadataAvatar) {
                 payload.avatar_url = metadataAvatar;
               }
+
               let { data: createdProfile, error: createError } = await supabase
                 .from("profiles")
                 .upsert(payload, { onConflict: "id" })
@@ -211,25 +241,26 @@ export const useAuthProfile = () => {
             return;
           }
 
-          const profileName =
-            (profile as Profile | { full_name?: string })?.name?.trim() ||
-            (profile as { full_name?: string })?.full_name?.trim() ||
+          const persistedProfile = profile as Profile & { full_name?: string };
+          const resolvedProfileName =
+            persistedProfile?.name?.trim() ||
+            persistedProfile?.full_name?.trim() ||
             "";
           const cleanedProfileName = stripBadgeLabelFromName(
-            profileName,
-            profile?.featured_badge_id
+            resolvedProfileName,
+            persistedProfile?.featured_badge_id
           );
           // Note for non-coders: this keeps badge tags stored separately from the actual player name.
           const resolvedName = cleanedProfileName || metadataName;
-          const resolvedAvatar = profile?.avatar_url || metadataAvatar || null;
+          const resolvedAvatar = persistedProfile?.avatar_url || metadataAvatar || null;
           // Note for non-coders: we cache the best-known name so the app knows your profile is complete.
           setProfileName(resolvedName);
 
           // Optimization: Only update if there's actually a CHANGE or missing data that metadata can provide.
           const needsProfileUpdate =
-            (!!resolvedName && !profile?.name) ||
-            (!!resolvedAvatar && !profile?.avatar_url) ||
-            (!!profile?.featured_badge_id && profile?.name !== cleanedProfileName);
+            (!!resolvedName && !persistedProfile?.name) ||
+            (!!resolvedAvatar && !persistedProfile?.avatar_url) ||
+            (!!persistedProfile?.featured_badge_id && persistedProfile?.name !== cleanedProfileName);
 
           if (needsProfileUpdate) {
             // Note for non-coders: we fill in missing profile details from login info so
@@ -238,11 +269,13 @@ export const useAuthProfile = () => {
             if (resolvedAvatar) {
               payload.avatar_url = resolvedAvatar;
             }
+
             let { data: updatedProfile, error: updateError } = await supabase
               .from("profiles")
               .upsert(payload, { onConflict: "id" })
               .select()
               .single();
+
             if (updateError && isAvatarColumnMissing(updateError) && payload.avatar_url) {
               ({ data: updatedProfile, error: updateError } = await supabase
                 .from("profiles")
@@ -261,12 +294,12 @@ export const useAuthProfile = () => {
 
           if (syncId === syncCounterRef.current) {
             setIsGuest(false);
-            setProfileName(resolvedName || profile?.name || metadataName);
+            setProfileName(resolvedName || persistedProfile?.name || metadataName);
             setUser(
               toAppUser(authUser, {
-                ...profile,
-                name: resolvedName || profile?.name || "",
-                avatar_url: resolvedAvatar ?? profile?.avatar_url,
+                ...persistedProfile,
+                name: resolvedName || persistedProfile?.name || "",
+                avatar_url: resolvedAvatar ?? persistedProfile?.avatar_url,
               })
             );
           }
@@ -274,83 +307,146 @@ export const useAuthProfile = () => {
           syncPromiseRef.current = null;
           setIsLoading(false);
           setHasCheckedProfile(true);
-          clearLoadingTimeout();
+          clearLoadingHintTimeout();
         }
       })();
 
       return syncPromiseRef.current;
     },
-    [setIsGuest, setUser, clearLoadingTimeout, attemptSessionRecovery]
+    [attemptSessionRecovery, clearLoadingHintTimeout, setAsConfirmedUnauthenticated, setIsGuest, setUser]
   );
 
-  const triggerAutoRecovery = useCallback(() => {
-    if (userRef.current || isGuest) {
-      return;
+  const waitForNullSessionGrace = useCallback(async () => {
+    if (nullGracePromiseRef.current) {
+      return nullGracePromiseRef.current;
     }
 
-    // Note for non-coders: when the browser comes back online/focused, we reset the retry counter
-    // so the app can try restoring your login again automatically.
-    recoveryAttemptRef.current = 0;
-    setHasRecoveryFailed(false);
-    setRecoveryError(null);
-    setIsAutoRecoveryRetry(true);
-    void syncProfile(null);
-  }, [isGuest, syncProfile]);
+    // Note for non-coders: we briefly wait before treating an empty session as "logged out"
+    // because waking a tab can report stale auth state for a moment.
+    nullGracePromiseRef.current = (async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, SESSION_NULL_GRACE_MS));
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const stillNull = !session?.user;
+      nullGracePromiseRef.current = null;
+      return stillNull;
+    })();
+
+    return nullGracePromiseRef.current;
+  }, []);
+
+  const runRecoveryPipeline = useCallback(
+    async (source: "bootstrap" | "visibility" | "focus" | "online" | "manual-refresh") => {
+      if (resumeRecoveryPromiseRef.current) {
+        debugAuth(source, "deduped: already running");
+        return resumeRecoveryPromiseRef.current;
+      }
+
+      const now = Date.now();
+      if (source !== "bootstrap" && now - resumeRecoveryStartedAtRef.current < RESUME_RECOVERY_COOLDOWN_MS) {
+        debugAuth(source, "deduped: cooldown");
+        return;
+      }
+
+      resumeRecoveryStartedAtRef.current = now;
+      resumeRecoveryPromiseRef.current = (async () => {
+        if (source !== "bootstrap" && !userRef.current && !isGuest) {
+          setIsAutoRecoveryRetry(true);
+        }
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          debugAuth(source, "session present from getSession");
+          await syncProfile(session.user);
+          return;
+        }
+
+        if (source !== "bootstrap") {
+          const stillNullAfterGrace = await waitForNullSessionGrace();
+          if (!stillNullAfterGrace) {
+            debugAuth(source, "session restored during grace period");
+            const {
+              data: { session: recoveredByGraceSession },
+            } = await supabase.auth.getSession();
+            await syncProfile(recoveredByGraceSession?.user ?? null);
+            return;
+          }
+        }
+
+        if (!userRef.current && !isGuest) {
+          recoveryAttemptRef.current = 0;
+        }
+
+        const recoveredUser = await attemptSessionRecovery();
+        if (recoveredUser) {
+          debugAuth(source, "session recovered via refreshSession");
+          await syncProfile(recoveredUser);
+          return;
+        }
+
+        debugAuth(source, "confirmed unauthenticated");
+        setAsConfirmedUnauthenticated();
+      })().finally(() => {
+        resumeRecoveryPromiseRef.current = null;
+      });
+
+      return resumeRecoveryPromiseRef.current;
+    },
+    [attemptSessionRecovery, debugAuth, isGuest, setAsConfirmedUnauthenticated, syncProfile, waitForNullSessionGrace]
+  );
 
   const refresh = useCallback(async () => {
     if (syncPromiseRef.current) {
       await syncPromiseRef.current;
       return;
     }
-    const { data: { session } } = await supabase.auth.getSession();
-    await syncProfile(session?.user ?? null);
-  }, [syncProfile]);
 
-  const recoverSessionFromEvent = useCallback(async () => {
-    if (syncPromiseRef.current || recoveryPromiseRef.current || userRef.current || isGuest) {
-      return;
-    }
-
-    // Note for non-coders: when the app wakes up, we double-check your login so it doesn't silently expire.
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      await syncProfile(session.user);
-      return;
-    }
-
-    const recoveredUser = await attemptSessionRecovery();
-    if (recoveredUser) {
-      await syncProfile(recoveredUser);
-    }
-  }, [attemptSessionRecovery, isGuest, syncProfile]);
+    setHasRecoveryFailed(false);
+    setRecoveryError(null);
+    await runRecoveryPipeline("manual-refresh");
+  }, [runRecoveryPipeline]);
 
   useEffect(() => {
     let isMounted = true;
-    startLoadingTimeout();
+    startLoadingHintTimeout();
 
-    // Initial check: try to get session immediately
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isMounted) syncProfile(session?.user ?? null);
-    });
+    void runRecoveryPipeline("bootstrap");
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       setErrorMessage(null);
-      // Note for non-coders: when a user signs out, we skip recovery so we return to the login screen right away.
-      await syncProfile(session?.user ?? null, { skipRecovery: event === "SIGNED_OUT" });
+
+      if (event === "SIGNED_OUT") {
+        // Note for non-coders: explicit logout means we should stop recovering and show login now.
+        setHasRecoveryFailed(false);
+        setRecoveryError(null);
+        recoveryAttemptRef.current = 0;
+        setIsRecoveringSession(false);
+        setIsAutoRecoveryRetry(false);
+        setAsConfirmedUnauthenticated();
+        return;
+      }
+
+      await syncProfile(session?.user ?? null, { skipRecovery: false });
     });
 
     // Note for non-coders: these listeners refresh login info when you return to the tab or regain internet.
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void recoverSessionFromEvent();
+        void runRecoveryPipeline("visibility");
       }
     };
+
     const handleFocus = () => {
-      void recoverSessionFromEvent();
+      void runRecoveryPipeline("focus");
     };
+
     const handleOnline = () => {
-      void recoverSessionFromEvent();
+      void runRecoveryPipeline("online");
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -359,29 +455,16 @@ export const useAuthProfile = () => {
 
     return () => {
       isMounted = false;
-      clearLoadingTimeout();
+      clearLoadingHintTimeout();
       subscription.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("online", handleOnline);
     };
-  }, [clearLoadingTimeout, startLoadingTimeout, syncProfile, recoverSessionFromEvent]);
-
-  useEffect(() => {
-    const handleFocusOrOnline = () => {
-      triggerAutoRecovery();
-    };
-
-    window.addEventListener("focus", handleFocusOrOnline);
-    window.addEventListener("online", handleFocusOrOnline);
-
-    return () => {
-      window.removeEventListener("focus", handleFocusOrOnline);
-      window.removeEventListener("online", handleFocusOrOnline);
-    };
-  }, [triggerAutoRecovery]);
+  }, [clearLoadingHintTimeout, runRecoveryPipeline, setAsConfirmedUnauthenticated, startLoadingHintTimeout, syncProfile]);
 
   return {
+    authStatus,
     isLoading,
     errorMessage,
     hasCheckedProfile,
@@ -391,5 +474,6 @@ export const useAuthProfile = () => {
     hasRecoveryFailed,
     recoveryError,
     isAutoRecoveryRetry,
+    showLoadingHint,
   };
 };
