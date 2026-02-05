@@ -66,7 +66,7 @@ export const availabilityService = {
   },
 
   async createPoll(input: CreatePollInput): Promise<AvailabilityPoll> {
-    const currentUser = await requireAdmin("Endast administratörer kan skapa veckoomröstningar.");
+    await requireAdmin("Endast administratörer kan skapa veckoomröstningar.");
 
     const { start, end } = getISOWeekRange(input.weekNumber, input.weekYear);
     const today = new Date().toISOString().slice(0, 10);
@@ -74,33 +74,17 @@ export const availabilityService = {
       throw new Error("Välj en framtida vecka för att skapa en ny omröstning.");
     }
 
-    const { data: poll, error } = await supabase
-      .from("availability_polls")
-      .insert({
-        created_by: currentUser.id,
-        week_year: input.weekYear,
-        week_number: input.weekNumber,
-        start_date: start,
-        end_date: end,
-      })
-      .select("*")
-      .single();
+    // Note for non-coders: we call one database function so poll + 7 days are created as one all-or-nothing save.
+    const { data: poll, error } = await supabase.rpc("create_availability_poll_with_days", {
+      p_week_year: input.weekYear,
+      p_week_number: input.weekNumber,
+      p_start_date: start,
+      p_end_date: end,
+    });
 
     if (error) {
       throw mapCreatePollError(error);
     }
-
-    const days = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(`${start}T00:00:00.000Z`);
-      date.setUTCDate(date.getUTCDate() + index);
-      return {
-        poll_id: poll.id,
-        date: date.toISOString().slice(0, 10),
-      };
-    });
-
-    const { error: dayError } = await supabase.from("availability_poll_days").insert(days);
-    if (dayError) throw dayError;
 
     return poll as AvailabilityPoll;
   },
