@@ -307,7 +307,7 @@ export const useAuthProfile = () => {
   }, [syncProfile]);
 
   const recoverSessionFromEvent = useCallback(async () => {
-    if (syncPromiseRef.current || recoveryPromiseRef.current) {
+    if (syncPromiseRef.current || recoveryPromiseRef.current || userRef.current || isGuest) {
       return;
     }
 
@@ -322,7 +322,7 @@ export const useAuthProfile = () => {
     if (recoveredUser) {
       await syncProfile(recoveredUser);
     }
-  }, [attemptSessionRecovery, syncProfile]);
+  }, [attemptSessionRecovery, isGuest, syncProfile]);
 
   useEffect(() => {
     let isMounted = true;
