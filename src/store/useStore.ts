@@ -16,8 +16,10 @@ interface AppState {
   matches: Match[];
   setMatches: (matches: Match[]) => void;
   dismissedMatchId: string | null;
+  dismissedRecentMatchId: string | null;
   lastSeenMatchDate: string | null;
   dismissMatch: (matchId: string, matchDate: string) => void;
+  dismissRecentMatch: (matchId: string) => void;
   checkAndResetDismissed: (latestMatchDate: string) => void;
 }
 
@@ -37,10 +39,14 @@ export const useStore = create<AppState>()(
       matches: [],
       setMatches: (matches) => set({ matches }),
       dismissedMatchId: null,
+      dismissedRecentMatchId: null,
       lastSeenMatchDate: null,
       dismissMatch: (matchId, matchDate) => set({
         dismissedMatchId: matchId,
         lastSeenMatchDate: matchDate
+      }),
+      dismissRecentMatch: (matchId) => set({
+        dismissedRecentMatchId: matchId
       }),
       checkAndResetDismissed: (latestMatchDate) => set((state) => {
         if (state.lastSeenMatchDate && state.lastSeenMatchDate !== latestMatchDate) {
@@ -58,6 +64,7 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({
         matchFilter: state.matchFilter,
         dismissedMatchId: state.dismissedMatchId,
+        dismissedRecentMatchId: state.dismissedRecentMatchId,
         lastSeenMatchDate: state.lastSeenMatchDate,
         isGuest: state.isGuest,
         guestModeStartedAt: state.guestModeStartedAt,
