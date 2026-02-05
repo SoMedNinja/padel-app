@@ -11,6 +11,7 @@ import {
   Checkbox,
   Chip,
   FormControlLabel,
+  Switch,
   Stack,
   Typography,
   Divider,
@@ -132,6 +133,7 @@ export default function SchedulePage() {
   const [selectedWeekKey, setSelectedWeekKey] = useState(weekOptions[1]?.key || weekOptions[0]?.key || "");
   const [expandedPolls, setExpandedPolls] = useState<Record<string, boolean>>({});
   const [didApplyDeepLinkVote, setDidApplyDeepLinkVote] = useState(false);
+  const [onlyMissingVotesByPoll, setOnlyMissingVotesByPoll] = useState<Record<string, boolean>>({});
 
   const selectedWeek = weekOptions.find((entry) => entry.key === selectedWeekKey) || weekOptions[0];
 
@@ -173,16 +175,23 @@ export default function SchedulePage() {
   });
 
   const sendEmailMutation = useMutation({
-    mutationFn: (payload: { pollId: string; testRecipientEmail?: string }) =>
+    mutationFn: (payload: { pollId: string; testRecipientEmail?: string; onlyMissingVotes?: boolean }) =>
       availabilityService.sendPollEmail(payload.pollId, {
         testRecipientEmail: payload.testRecipientEmail,
+        onlyMissingVotes: payload.onlyMissingVotes,
       }),
     onSuccess: (result) => {
       const isTest = result.mode === "test";
+      const usedVoteFilter = result.onlyMissingVotes === true;
+      const baseCountText = `${result.sent}/${result.total}`;
+      const filterCountText = usedVoteFilter
+        ? ` (utan röster: ${result.total}/${result.totalBeforeVoteFilter || result.total}, har redan röstat: ${result.votedProfileCount || 0})`
+        : "";
+
       toast.success(
         isTest
-          ? `Testmail skickat till ${result.sent}/${result.total} mottagare.`
-          : `Påminnelsemail skickat till ${result.sent}/${result.total} ordinarie spelare.`,
+          ? `Testmail skickat till ${baseCountText} mottagare.${filterCountText}`
+          : `Påminnelsemail skickat till ${baseCountText} ordinarie spelare.${filterCountText}`,
       );
       invalidateAvailabilityData(queryClient);
     },
@@ -411,12 +420,32 @@ export default function SchedulePage() {
                     )}
 
                     {user?.is_admin && (
+                      <FormControlLabel
+                        control={(
+                          <Switch
+                            size="small"
+                            checked={Boolean(onlyMissingVotesByPoll[poll.id])}
+                            onChange={(_, checked) => {
+                              // Note for non-coders: this switch decides if reminders should skip people who already voted.
+                              setOnlyMissingVotesByPoll((prev) => ({ ...prev, [poll.id]: checked }));
+                            }}
+                          />
+                        )}
+                        label="Bara spelare som inte röstat"
+                      />
+                    )}
+
+                    {user?.is_admin && (
                       <Button
                         size="small"
                         startIcon={<EmailIcon />}
                         variant="outlined"
                         disabled={!mailState.canSend || sendEmailMutation.isPending}
-                        onClick={() => sendEmailMutation.mutate({ pollId: poll.id })}
+                        onClick={() =>
+                          sendEmailMutation.mutate({
+                            pollId: poll.id,
+                            onlyMissingVotes: Boolean(onlyMissingVotesByPoll[poll.id]),
+                          })}
                       >
                         Skicka påminnelsemail till ordinarie spelare
                       </Button>
@@ -432,6 +461,7 @@ export default function SchedulePage() {
                           sendEmailMutation.mutate({
                             pollId: poll.id,
                             testRecipientEmail: "Robbanh94@gmail.com",
+                            onlyMissingVotes: Boolean(onlyMissingVotesByPoll[poll.id]),
                           })
                         }
                       >
