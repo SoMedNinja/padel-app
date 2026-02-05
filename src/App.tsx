@@ -15,6 +15,7 @@ import AppAlert from "./Components/Shared/AppAlert";
 export default function App() {
   const { user, setUser, isGuest, setIsGuest } = useStore();
   const {
+    authStatus,
     isLoading,
     errorMessage,
     hasCheckedProfile,
@@ -24,6 +25,7 @@ export default function App() {
     hasRecoveryFailed,
     recoveryError,
     isAutoRecoveryRetry,
+    showLoadingHint,
   } = useAuthProfile();
   const [showAuthScreen, setShowAuthScreen] = useState(false);
   const toaster = <Toaster position="top-center" richColors />;
@@ -52,6 +54,11 @@ export default function App() {
           <Box sx={{ mt: 8, textAlign: 'center' }}>
             <CircularProgress size={40} sx={{ mb: 2 }} />
             <Typography color="text.secondary">Laddar inloggning...</Typography>
+            {showLoadingHint && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Det tar lite längre tid än vanligt, vi fortsätter kontrollera din session.
+              </Typography>
+            )}
           </Box>
         </Container>
       </>
@@ -88,7 +95,22 @@ export default function App() {
     );
   }
 
-  if (!user && !isGuest) {
+  if (!user && !isGuest && authStatus !== "unauthenticated") {
+    // Note for non-coders: if we still haven't confirmed you're logged out, keep waiting instead of flashing login.
+    return (
+      <>
+        {toaster}
+        <Container maxWidth="sm">
+          <Box sx={{ mt: 8, textAlign: "center" }}>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography color="text.secondary">Kontrollerar din session...</Typography>
+          </Box>
+        </Container>
+      </>
+    );
+  }
+
+  if (!user && !isGuest && authStatus === "unauthenticated") {
     if (hasRecoveryFailed && !showAuthScreen) {
       return (
         <>
