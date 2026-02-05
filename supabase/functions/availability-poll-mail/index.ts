@@ -253,7 +253,12 @@ Deno.serve(async (req) => {
               <tr>
                 <td style="padding:24px; color:#222;">
                   <p style="margin:0 0 12px 0;">Hej ${recipient.name}!</p>
-                  <p style="margin:0 0 16px 0; color:#555;">En ny schema-omröstning är öppen. Klicka på en dag/tid nedan så öppnas appen direkt på rätt modul.</p>
+                  <p style="margin:0 0 12px 0; color:#222; font-size:15px; line-height:1.6;">
+                    Vi planerar kommande padelmatcher och behöver ditt svar.
+                    Markera vilka datum och tider du kan spela genom att använda länkarna nedan.
+                  </p>
+                  <p style="margin:0 0 16px 0; color:#555;">När du klickar på en dag/tid öppnas appen direkt på rätt modul så att du snabbt kan registrera din tillgänglighet.</p>
+                  <!-- Note for non-coders: this intro text explains the goal of the email before any buttons, so recipients understand they should mark available dates for padel. -->
                   <p style="margin:0 0 16px 0;"><a href="${moduleLink}" style="display:inline-block; padding:10px 14px; background:#111; color:#fff; text-decoration:none; border-radius:8px;">Öppna veckans modul</a></p>
                   ${dayCards}
                   <p style="margin:16px 0 0 0; font-size:12px; color:#777;">Klicklänkarna öppnar appen och förbereder ditt val automatiskt.</p>
