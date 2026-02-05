@@ -192,13 +192,20 @@ export default function App() {
   }
 
   // Check if profile setup is needed (require a non-empty name).
-  // Note for non-coders: we look for a name in both the profile record and the login metadata so
-  // returning users don't get stuck on the setup screen if their name was saved elsewhere.
-  // Note for non-coders: some older profiles store the name under "full_name", so we check both fields.
-  const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name || "";
-  // Note for non-coders: we use the profileName from the auth hook so existing users
-  // don't get sent back to the setup screen just because the local user object lagged behind.
-  const resolvedName = profileName || (typeof metadataName === "string" ? metadataName.trim() : "");
+  // Note for non-coders: we include user.name so returning users aren't incorrectly asked to set up their profile again.
+  const resolvedName = [
+    profileName,
+    user?.name,
+    user?.full_name,
+    user?.user_metadata?.full_name,
+    user?.user_metadata?.name,
+  ].reduce((firstValidName, candidate) => {
+    if (firstValidName) {
+      return firstValidName;
+    }
+
+    return typeof candidate === "string" ? candidate.trim() : "";
+  }, "");
   const hasValidName = resolvedName.length > 0;
   if (user && !hasValidName && !isGuest) {
     // Note for non-coders: we prefill the setup form with any name we can find.
