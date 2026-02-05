@@ -398,3 +398,8 @@ entrypoint = "./functions/hello-world/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/weekly-summary/index.ts"
+
+[functions.availability-poll-mail]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/availability-poll-mail/index.ts"
