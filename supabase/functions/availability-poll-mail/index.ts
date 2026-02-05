@@ -261,7 +261,6 @@ Deno.serve(async (req) => {
                   <!-- Note for non-coders: this intro text explains the goal of the email before any buttons, so recipients understand they should mark available dates for padel. -->
                   <p style="margin:0 0 16px 0;"><a href="${moduleLink}" style="display:inline-block; padding:10px 14px; background:#111; color:#fff; text-decoration:none; border-radius:8px;">Öppna veckans modul</a></p>
                   ${dayCards}
-                  <p style="margin:16px 0 0 0; font-size:12px; color:#777;">Klicklänkarna öppnar appen och förbereder ditt val automatiskt.</p>
                 </td>
               </tr>
             </table>
