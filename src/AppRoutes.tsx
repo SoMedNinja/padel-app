@@ -5,6 +5,7 @@ import AdminPage from "./pages/AdminPage";
 import TournamentPage from "./pages/TournamentPage";
 import SingleGamePage from "./pages/SingleGamePage";
 import PlayerProfilePage from "./pages/PlayerProfilePage";
+import SchedulePage from "./pages/SchedulePage";
 import { useStore } from "./store/useStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -23,6 +24,7 @@ export default function AppRoutes() {
   const { user, isGuest } = useStore();
   const location = useLocation();
   const isAdmin = user?.is_admin;
+  const canAccessSchema = Boolean(user?.is_regular);
 
   return (
     <AnimatePresence mode="wait">
@@ -31,6 +33,7 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<PageWrapper><Dashboard /></PageWrapper>} />
         <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
         <Route path="/history" element={<PageWrapper><HistoryPage /></PageWrapper>} />
+        {canAccessSchema && <Route path="/schema" element={<PageWrapper><SchedulePage /></PageWrapper>} />}
         {!isGuest && <Route path="/tournament" element={<PageWrapper><TournamentPage /></PageWrapper>} />}
         <Route path="/profile" element={<Navigate to="/" replace />} />
         <Route path="/mexicana" element={<Navigate to="/tournament" replace />} />

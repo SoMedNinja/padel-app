@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "../supabaseClient";
-import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
+import { invalidateAvailabilityData, invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 
 export const useRealtime = () => {
   const queryClient = useQueryClient();
@@ -128,6 +128,50 @@ export const useRealtime = () => {
       )
       .subscribe(status => handleTournamentStatus("mexicana-participants-realtime", status));
 
+    const availabilityPollsChannel = supabase
+      .channel("availability-polls-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_polls" },
+        () => {
+          invalidateAvailabilityData(queryClient);
+        }
+      )
+      .subscribe();
+
+    const availabilityDaysChannel = supabase
+      .channel("availability-poll-days-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_poll_days" },
+        () => {
+          invalidateAvailabilityData(queryClient);
+        }
+      )
+      .subscribe();
+
+    const availabilityVotesChannel = supabase
+      .channel("availability-votes-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_votes" },
+        () => {
+          invalidateAvailabilityData(queryClient);
+        }
+      )
+      .subscribe();
+
+    const availabilityMailLogChannel = supabase
+      .channel("availability-mail-log-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_poll_mail_log" },
+        () => {
+          invalidateAvailabilityData(queryClient);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(matchesChannel);
       supabase.removeChannel(profilesChannel);
@@ -135,6 +179,10 @@ export const useRealtime = () => {
       supabase.removeChannel(tournamentsChannel);
       supabase.removeChannel(roundsChannel);
       supabase.removeChannel(participantsChannel);
+      supabase.removeChannel(availabilityPollsChannel);
+      supabase.removeChannel(availabilityDaysChannel);
+      supabase.removeChannel(availabilityVotesChannel);
+      supabase.removeChannel(availabilityMailLogChannel);
       stopTournamentPollingFallback();
       toast.dismiss(realtimeWarningToastId);
     };

@@ -38,6 +38,7 @@ import {
   HourglassEmpty as PendingIcon,
   Email as EmailIcon,
   Assessment as ReportsIcon,
+  HowToReg as RegularIcon,
 } from "@mui/icons-material";
 import EmailPreviews from "./Admin/EmailPreviews";
 import ReportsSection from "./Admin/ReportsSection";
@@ -54,6 +55,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
   const [editNames, setEditNames] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [toggleId, setToggleId] = useState<string | null>(null);
+  const [regularToggleId, setRegularToggleId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const sortedProfiles = useMemo(() => {
@@ -102,6 +104,21 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     }
   };
 
+
+
+  const toggleRegular = async (profile: Profile) => {
+    const nextRegular = profile.is_regular !== true;
+    setRegularToggleId(profile.id);
+    try {
+      const data = await profileService.updateProfile(profile.id, { is_regular: nextRegular });
+      onProfileUpdate?.(data);
+    } catch (error: any) {
+      alert(error.message || "Kunde inte uppdatera ordinarie-status.");
+    } finally {
+      setRegularToggleId(null);
+    }
+  };
+
   const deleteProfile = async (profile: Profile) => {
     if (profile.id === user?.id) {
       return alert("Du kan inte radera din egen adminprofil.");
@@ -119,6 +136,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
         name: "deleted user",
         is_approved: false,
         is_admin: false,
+        is_regular: false,
         avatar_url: null,
       });
       onProfileDelete?.(data);
@@ -133,7 +151,8 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
     const total = sortedProfiles.length;
     const pending = sortedProfiles.filter(p => !p.is_approved).length;
     const admins = sortedProfiles.filter(p => p.is_admin).length;
-    return { total, pending, admins };
+    const regular = sortedProfiles.filter(p => p.is_regular).length;
+    return { total, pending, admins, regular };
   }, [sortedProfiles]);
 
   return (
@@ -197,7 +216,7 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
               </Avatar>
               <Box>
                 <Typography variant="h4" fontWeight={800} color="primary.main">{stats.admins}</Typography>
-                <Typography variant="body2" color="text.secondary">Administratörer</Typography>
+                <Typography variant="body2" color="text.secondary">Administratörer • Ordinarie: {stats.regular}</Typography>
               </Box>
             </CardContent>
           </Card>
@@ -295,6 +314,14 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                           variant={profile.is_approved ? "filled" : "outlined"}
                           sx={{ fontWeight: 600 }}
                         />
+                        <Chip
+                          label={profile.is_regular ? "Ordinarie" : "Ej ordinarie"}
+                          size="small"
+                          color={profile.is_regular ? "info" : "default"}
+                          variant={profile.is_regular ? "filled" : "outlined"}
+                          icon={profile.is_regular ? <RegularIcon sx={{ fontSize: '1rem !important' }} /> : undefined}
+                          sx={{ fontWeight: 600 }}
+                        />
                         {isSelf && <Chip label="Du" size="small" variant="filled" color="secondary" sx={{ fontWeight: 700 }} />}
                       </Stack>
                     </TableCell>
@@ -309,6 +336,16 @@ export default function AdminPanel({ user, profiles = [], onProfileUpdate, onPro
                           disabled={toggleId === profile.id}
                         >
                           {toggleId === profile.id ? "Sparar..." : (profile.is_approved ? "Återkalla" : "Godkänn")}
+                        </Button>
+                        <Button
+                          size="small"
+                          variant={profile.is_regular ? "outlined" : "contained"}
+                          color={profile.is_regular ? "info" : "primary"}
+                          startIcon={regularToggleId === profile.id ? <CircularProgress size={16} color="inherit" /> : <RegularIcon />}
+                          onClick={() => toggleRegular(profile)}
+                          disabled={regularToggleId === profile.id}
+                        >
+                          {regularToggleId === profile.id ? "Sparar..." : (profile.is_regular ? "Gör ej ordinarie" : "Gör ordinarie")}
                         </Button>
                         <Tooltip title="Radera profil">
                           <span>

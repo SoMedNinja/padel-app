@@ -5,6 +5,7 @@ export interface Profile {
   is_admin?: boolean;
   is_approved?: boolean;
   is_deleted?: boolean;
+  is_regular?: boolean;
   featured_badge_id?: string | null;
   created_at?: string;
 }
@@ -182,4 +183,47 @@ export interface MatchSuggestion {
   teamB?: string[];
   rounds?: MatchSuggestionRound[];
   targetGames?: number;
+}
+
+export type AvailabilitySlot = "morning" | "day" | "evening";
+
+export interface AvailabilityVote {
+  id: string;
+  poll_day_id: string;
+  profile_id: string;
+  // Note for non-coders: old votes may still use a single slot (slot), while new votes can store many choices.
+  slot?: AvailabilitySlot | null;
+  slot_preferences?: AvailabilitySlot[] | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AvailabilityPollDay {
+  id: string;
+  poll_id: string;
+  date: string;
+  created_at?: string;
+  votes?: AvailabilityVote[];
+}
+
+export interface AvailabilityPollMailLog {
+  id: string;
+  poll_id: string;
+  sent_by: string;
+  sent_at: string;
+  created_at?: string;
+}
+
+export interface AvailabilityPoll {
+  id: string;
+  created_by: string;
+  week_year: number;
+  week_number: number;
+  start_date: string;
+  end_date: string;
+  status: "open" | "closed";
+  closed_at?: string | null;
+  created_at: string;
+  days?: AvailabilityPollDay[];
+  mail_logs?: AvailabilityPollMailLog[];
 }

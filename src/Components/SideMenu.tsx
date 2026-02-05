@@ -16,6 +16,7 @@ import {
   Home as HomeIcon,
   EmojiEvents as TrophyIcon,
   History as HistoryIcon,
+  CalendarMonth as CalendarIcon,
   AdminPanelSettings as AdminIcon,
   Logout as LogoutIcon,
   Login as LoginIcon,
@@ -39,6 +40,11 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
     { text: "Grabbarnas serie", icon: <TrophyIcon />, path: "/dashboard" },
     { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
   ];
+
+  if (user?.is_regular) {
+    // Note for non-coders: only regular players (ordinarie) can access the weekly Schema module.
+    menuItems.push({ text: "Schema", icon: <CalendarIcon />, path: "/schema" });
+  }
 
   if (user?.is_admin) {
     menuItems.push({ text: "Admin", icon: <AdminIcon />, path: "/admin" });
