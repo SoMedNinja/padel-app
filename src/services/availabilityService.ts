@@ -130,8 +130,19 @@ export const availabilityService = {
   ): Promise<{ success: boolean; sent: number; total: number; error?: string; mode?: string }> {
     await requireAdmin("Endast administratörer kan skicka omröstningsmail.");
 
+    // Note for non-coders: we fetch the current access token and pass it explicitly
+    // so Supabase can verify the admin identity when calling the Edge Function.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) {
+      throw new Error("Din inloggning saknar access token. Logga ut/in och försök igen.");
+    }
+
     const { data, error } = await supabase.functions.invoke("availability-poll-mail", {
       body: { pollId, testRecipientEmail: options?.testRecipientEmail || null },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     if (error) {
