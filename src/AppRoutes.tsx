@@ -5,6 +5,7 @@ import AdminPage from "./pages/AdminPage";
 import TournamentPage from "./pages/TournamentPage";
 import SingleGamePage from "./pages/SingleGamePage";
 import PlayerProfilePage from "./pages/PlayerProfilePage";
+import SchedulePage from "./pages/SchedulePage";
 import { useStore } from "./store/useStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -31,6 +32,7 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<PageWrapper><Dashboard /></PageWrapper>} />
         <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
         <Route path="/history" element={<PageWrapper><HistoryPage /></PageWrapper>} />
+        <Route path="/schema" element={<PageWrapper><SchedulePage /></PageWrapper>} />
         {!isGuest && <Route path="/tournament" element={<PageWrapper><TournamentPage /></PageWrapper>} />}
         <Route path="/profile" element={<Navigate to="/" replace />} />
         <Route path="/mexicana" element={<Navigate to="/tournament" replace />} />

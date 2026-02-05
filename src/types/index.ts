@@ -183,3 +183,35 @@ export interface MatchSuggestion {
   rounds?: MatchSuggestionRound[];
   targetGames?: number;
 }
+
+export type AvailabilitySlot = "morning" | "day" | "evening";
+
+export interface AvailabilityVote {
+  id: string;
+  poll_day_id: string;
+  profile_id: string;
+  slot: AvailabilitySlot | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AvailabilityPollDay {
+  id: string;
+  poll_id: string;
+  date: string;
+  created_at?: string;
+  votes?: AvailabilityVote[];
+}
+
+export interface AvailabilityPoll {
+  id: string;
+  created_by: string;
+  week_year: number;
+  week_number: number;
+  start_date: string;
+  end_date: string;
+  status: "open" | "closed";
+  closed_at?: string | null;
+  created_at: string;
+  days?: AvailabilityPollDay[];
+}

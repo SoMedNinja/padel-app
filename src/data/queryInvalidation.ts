@@ -30,8 +30,14 @@ export const refetchTournamentDetails = (queryClient: QueryClient, tournamentId?
   }
 };
 
+
+export const invalidateAvailabilityData = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: queryKeys.availabilityPolls() });
+};
+
 export const invalidateStatsData = (queryClient: QueryClient) => {
   invalidateMatchData(queryClient);
   invalidateProfileData(queryClient);
   invalidateTournamentData(queryClient);
+  invalidateAvailabilityData(queryClient);
 };
