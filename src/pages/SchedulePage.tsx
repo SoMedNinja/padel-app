@@ -18,6 +18,7 @@ import {
   MenuItem,
   Select,
   AvatarGroup,
+  IconButton,
   Tooltip,
   Menu,
   Dialog,
@@ -27,6 +28,7 @@ import {
   DialogActions,
   LinearProgress,
 } from "@mui/material";
+// Note for non-coders: IconButton is the small clickable icon used for menus and actions, so it must be imported here.
 import Avatar from "../Components/Avatar";
 import EmptyState from "../Components/Shared/EmptyState";
 import {
