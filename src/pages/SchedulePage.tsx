@@ -397,7 +397,12 @@ export default function SchedulePage() {
               </span>
             </Tooltip>
 
-            <Select size="small" value={selectedWeekKey} onChange={(e) => setSelectedWeekKey(e.target.value)} sx={{ minWidth: 160, height: 36, fontSize: '0.875rem' }}>
+            <Select
+              size="small"
+              value={selectedWeekKey}
+              onChange={(e) => setSelectedWeekKey(e.target.value)}
+              sx={{ minWidth: 160, height: 36, fontSize: '0.875rem' }}
+            >
               {weekOptions.map((option) => (
                 <MenuItem key={option.key} value={option.key} sx={{ fontSize: '0.875rem' }}>
                   {option.label}
