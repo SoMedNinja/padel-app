@@ -23,6 +23,12 @@ const getMetadataAvatar = (authUser: User) => {
 const isAvatarColumnMissing = (error?: { message?: string } | null) =>
   error?.message?.includes("avatar_url") && error.message.includes("schema cache");
 
+const isAbortLikeError = (error?: { message?: string; name?: string } | null) => {
+  const message = error?.message?.toLowerCase() || "";
+  const name = error?.name?.toLowerCase() || "";
+  return name.includes("abort") || message.includes("aborterror") || message.includes("operation was aborted");
+};
+
 export type AuthStatus = "initializing" | "recovering" | "authenticated" | "unauthenticated";
 
 const SESSION_NULL_GRACE_MS = 1500;
@@ -192,6 +198,14 @@ export const useAuthProfile = () => {
             .single();
 
           if (error) {
+            if (isAbortLikeError(error)) {
+              // Note for non-coders: waking the app can cancel an in-flight request.
+              // We treat that as temporary noise instead of showing a scary blocking error.
+              setUser({ ...authUser } as AppUser);
+              setProfileName(metadataName);
+              return;
+            }
+
             // PGRST116 means no profile found - this is normal for new users
             if (error.code !== "PGRST116") {
               setErrorMessage(error.message);
@@ -224,6 +238,14 @@ export const useAuthProfile = () => {
               }
 
               if (createError) {
+                if (isAbortLikeError(createError)) {
+                  // Note for non-coders: an aborted save can happen when the app/tab is resuming.
+                  // We avoid interrupting the player and simply keep going with known local data.
+                  setUser({ ...authUser } as AppUser);
+                  setProfileName(metadataName);
+                  return;
+                }
+
                 setErrorMessage(createError.message);
                 setUser({ ...authUser } as AppUser);
                 setProfileName(metadataName);
