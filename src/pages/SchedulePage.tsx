@@ -423,7 +423,7 @@ export default function SchedulePage() {
               </span>
             </Tooltip>
 
-            {/* Note for non-coders: this creates one schedule poll for the currently selected week. */}
+            {/* Note for non-coders: this button starts the poll creation for the selected week. */}
             <Button
               size="small"
               variant="contained"
