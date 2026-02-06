@@ -26,9 +26,12 @@ import {
   Menu as MenuIcon,
   Add as AddIcon,
   Close as CloseIcon,
+  MoreVert as MoreVertIcon,
   SportsTennis as TennisIcon,
   EmojiEvents as TrophyIcon,
   Groups as GroupsIcon,
+  Logout as LogoutIcon,
+  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 
 interface MainLayoutProps {
@@ -39,6 +42,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { user, isGuest, setIsGuest, setUser, guestModeStartedAt, setGuestModeStartedAt } = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [overflowAnchorEl, setOverflowAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -83,6 +87,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   const handleFabClose = () => {
     setAnchorEl(null);
+  };
+
+  // Note for non-coders: this opens the small "more options" menu (⋮).
+  const handleOverflowOpen: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+    setOverflowAnchorEl(event.currentTarget);
+  };
+
+  // Note for non-coders: closing the menu hides it but keeps the rest of the screen as-is.
+  const handleOverflowClose = () => {
+    setOverflowAnchorEl(null);
+  };
+
+  const handleReloadApp = () => {
+    // Note for non-coders: this is the same as refreshing the browser tab.
+    window.location.reload();
   };
 
   const handleAuthAction = async () => {
@@ -166,6 +185,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
               }}
             >
               <MenuIcon />
+            </IconButton>
+            <IconButton
+              edge="end"
+              color="primary"
+              aria-label="fler alternativ"
+              onClick={handleOverflowOpen}
+              sx={{ ml: 1 }}
+            >
+              <MoreVertIcon />
             </IconButton>
           </Toolbar>
         </Container>
@@ -266,6 +294,47 @@ export default function MainLayout({ children }: MainLayoutProps) {
             <ListItemText>Turnering</ListItemText>
           </MenuItem>
         )}
+      </Menu>
+
+      <Menu
+        anchorEl={overflowAnchorEl}
+        open={Boolean(overflowAnchorEl)}
+        onClose={handleOverflowClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: 180,
+              borderRadius: 2,
+            }
+          }
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            handleOverflowClose();
+            handleReloadApp();
+          }}
+        >
+          <ListItemIcon><RefreshIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Ladda om appen</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleOverflowClose();
+            void handleAuthAction();
+          }}
+        >
+          <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Logga ut</ListItemText>
+        </MenuItem>
       </Menu>
 
       <BottomNav
