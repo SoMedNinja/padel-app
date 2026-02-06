@@ -28,6 +28,8 @@ export type AuthStatus = "initializing" | "recovering" | "authenticated" | "unau
 const SESSION_NULL_GRACE_MS = 1500;
 const LOADING_HINT_DELAY_MS = 2000;
 const RESUME_RECOVERY_COOLDOWN_MS = 400;
+const SESSION_FETCH_TIMEOUT_MS = 4000;
+const SESSION_REFRESH_TIMEOUT_MS = 5000;
 const maxRecoveryAttempts = 2;
 
 // Note for non-coders: this hook keeps login info and player profile data in sync in one place.
@@ -61,6 +63,21 @@ export const useAuthProfile = () => {
       }
     },
     [isDebugAuth]
+  );
+
+  const withTimeout = useCallback(
+    async <T,>(work: Promise<T>, timeoutMs: number, timeoutLabel: string): Promise<T> => {
+      // Note for non-coders: this is a safety timer so one slow network call cannot freeze the whole login flow forever.
+      return await Promise.race([
+        work,
+        new Promise<T>((_, reject) => {
+          window.setTimeout(() => {
+            reject(new Error(timeoutLabel));
+          }, timeoutMs);
+        }),
+      ]);
+    },
+    []
   );
 
   // Keep userRef in sync with the latest store value
@@ -120,11 +137,22 @@ export const useAuthProfile = () => {
         await new Promise((resolve) => window.setTimeout(resolve, delayMs));
       }
 
-      const { data, error } = await supabase.auth.refreshSession();
-      const recoveredUser = data.session?.user ?? null;
+      let recoveredUser: User | null = null;
 
-      if (error) {
-        setRecoveryError(error.message);
+      try {
+        const { data, error } = await withTimeout(
+          supabase.auth.refreshSession(),
+          SESSION_REFRESH_TIMEOUT_MS,
+          "Session refresh timed out"
+        );
+        recoveredUser = data.session?.user ?? null;
+
+        if (error) {
+          setRecoveryError(error.message);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Session refresh failed";
+        setRecoveryError(message);
       }
 
       if (!recoveredUser && attemptNumber >= maxRecoveryAttempts) {
@@ -143,7 +171,7 @@ export const useAuthProfile = () => {
     })();
 
     return recoveryPromiseRef.current;
-  }, []);
+  }, [withTimeout]);
 
   const syncProfile = useCallback(
     async (authUser: User | null, options?: { skipRecovery?: boolean }) => {
@@ -355,13 +383,24 @@ export const useAuthProfile = () => {
           setIsAutoRecoveryRetry(true);
         }
 
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        let sessionUser: User | null = null;
 
-        if (session?.user) {
+        try {
+          const {
+            data: { session },
+          } = await withTimeout(
+            supabase.auth.getSession(),
+            SESSION_FETCH_TIMEOUT_MS,
+            "Session lookup timed out"
+          );
+          sessionUser = session?.user ?? null;
+        } catch (error) {
+          debugAuth(source, "getSession failed", error);
+        }
+
+        if (sessionUser) {
           debugAuth(source, "session present from getSession");
-          await syncProfile(session.user);
+          await syncProfile(sessionUser);
           return;
         }
 
@@ -369,10 +408,19 @@ export const useAuthProfile = () => {
           const stillNullAfterGrace = await waitForNullSessionGrace();
           if (!stillNullAfterGrace) {
             debugAuth(source, "session restored during grace period");
-            const {
-              data: { session: recoveredByGraceSession },
-            } = await supabase.auth.getSession();
-            await syncProfile(recoveredByGraceSession?.user ?? null);
+            try {
+              const {
+                data: { session: recoveredByGraceSession },
+              } = await withTimeout(
+                supabase.auth.getSession(),
+                SESSION_FETCH_TIMEOUT_MS,
+                "Session lookup timed out"
+              );
+              await syncProfile(recoveredByGraceSession?.user ?? null);
+            } catch (error) {
+              debugAuth(source, "post-grace getSession failed", error);
+              setAsConfirmedUnauthenticated();
+            }
             return;
           }
         }
@@ -396,7 +444,7 @@ export const useAuthProfile = () => {
 
       return resumeRecoveryPromiseRef.current;
     },
-    [attemptSessionRecovery, debugAuth, isGuest, setAsConfirmedUnauthenticated, syncProfile, waitForNullSessionGrace]
+    [attemptSessionRecovery, debugAuth, isGuest, setAsConfirmedUnauthenticated, syncProfile, waitForNullSessionGrace, withTimeout]
   );
 
   const refresh = useCallback(async () => {
@@ -414,9 +462,13 @@ export const useAuthProfile = () => {
     let isMounted = true;
     startLoadingHintTimeout();
 
-    void runRecoveryPipeline("bootstrap");
+    // Note for non-coders: if boot-time recovery crashes, we safely continue to the login screen instead of spinning forever.
+    void runRecoveryPipeline("bootstrap").catch((error) => {
+      debugAuth("bootstrap", "pipeline failed", error);
+      setAsConfirmedUnauthenticated();
+    });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       setErrorMessage(null);
 
@@ -431,7 +483,16 @@ export const useAuthProfile = () => {
         return;
       }
 
-      await syncProfile(session?.user ?? null, { skipRecovery: false });
+      // Note for non-coders: Supabase warns against waiting (`await`) inside this listener.
+      // If we wait here, Chrome can keep this auth event "open" and the app may appear stuck.
+      // We instead schedule the real sync right after this listener returns.
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        void syncProfile(session?.user ?? null, { skipRecovery: false });
+      });
     });
 
     // Note for non-coders: these listeners refresh login info when you return to the tab or regain internet.
@@ -461,7 +522,7 @@ export const useAuthProfile = () => {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("online", handleOnline);
     };
-  }, [clearLoadingHintTimeout, runRecoveryPipeline, setAsConfirmedUnauthenticated, startLoadingHintTimeout, syncProfile]);
+  }, [clearLoadingHintTimeout, debugAuth, runRecoveryPipeline, setAsConfirmedUnauthenticated, startLoadingHintTimeout, syncProfile]);
 
   return {
     authStatus,
