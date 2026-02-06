@@ -418,6 +418,7 @@ export default function SchedulePage() {
               </span>
             </Tooltip>
 
+            {/* Note for non-coders: this button starts the poll creation for the selected week. */}
             <Button
               size="small"
               variant="contained"
@@ -425,47 +426,8 @@ export default function SchedulePage() {
               disabled={createPollMutation.isPending}
               sx={{ whiteSpace: 'nowrap', px: 2 }}
             >
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
-                <Tooltip title="Gå till föregående valbara vecka">
-                  <span>
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      startIcon={<RemoveIcon />}
-                      onClick={() => handleWeekStep(-1)}
-                      disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}
-                      sx={{ minHeight: 44, px: 1.5 }}
-                    >
-                      Föregående vecka
-                    </Button>
-                  </span>
-                </Tooltip>
-
-                <Tooltip title="Gå till nästa valbara vecka">
-                  <span>
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      startIcon={<AddIcon />}
-                      onClick={() => handleWeekStep(1)}
-                      disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
-                      sx={{ minHeight: 44, px: 1.5 }}
-                    >
-                      Nästa vecka
-                    </Button>
-                  </span>
-                </Tooltip>
-              </Stack>
-
-              <Button
-                variant="contained"
-                onClick={() => createPollMutation.mutate()}
-                disabled={createPollMutation.isPending}
-                sx={{ minHeight: 44, minWidth: { xs: '100%', sm: 120 }, whiteSpace: 'nowrap' }}
-              >
-                Skapa
-              </Button>
-            </Stack>
+              Skapa
+            </Button>
           </Stack>
         </Box>
       )}
