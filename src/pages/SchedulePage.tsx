@@ -49,6 +49,7 @@ import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRe
 import { useStore } from "../store/useStore";
 import { useAvailabilityPolls } from "../hooks/useAvailabilityPolls";
 import { useProfiles } from "../hooks/useProfiles";
+import { useScheduledGames } from "../hooks/useScheduledGames";
 import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { availabilityService } from "../services/availabilityService";
 import { invalidateAvailabilityData } from "../data/queryInvalidation";
@@ -75,6 +76,8 @@ const addDays = (date: Date, days: number) => {
   next.setDate(next.getDate() + days);
   return next;
 };
+
+const formatTime = (time: string) => time.slice(0, 5);
 
 const buildUpcomingWeeks = (count = 26): UpcomingWeekOption[] => {
   const start = new Date();
@@ -169,6 +172,7 @@ export default function SchedulePage() {
   const [searchParams] = useSearchParams();
   const { data: polls = [], isLoading, isError, error } = useAvailabilityPolls();
   const { data: profiles = [] } = useProfiles();
+  const { data: scheduledGames = [], isLoading: isLoadingScheduledGames } = useScheduledGames();
   const weekOptions = useMemo(() => buildUpcomingWeeks(26), []);
   const [selectedWeekKey, setSelectedWeekKey] = useState(weekOptions[1]?.key || weekOptions[0]?.key || "");
   const [expandedPolls, setExpandedPolls] = useState<Record<string, boolean>>({});
@@ -291,6 +295,7 @@ export default function SchedulePage() {
     onSuccess: (result) => {
       toast.success(`Kalenderinbjudan skickad till ${result.sent}/${result.total} mottagare.`);
       closeInviteDialog();
+      queryClient.invalidateQueries({ queryKey: queryKeys.scheduledGames() });
     },
     onError: (err: any) => toast.error(err?.message || "Kunde inte skicka kalenderinbjudan."),
   });
@@ -301,6 +306,18 @@ export default function SchedulePage() {
       return a.week_number - b.week_number;
     });
   }, [polls]);
+
+  const upcomingBookings = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    // Note for non-coders: we only show future bookings here so the list stays focused on what's next.
+    return [...scheduledGames]
+      .filter((game) => (game.status || "scheduled") !== "cancelled")
+      .filter((game) => game.date >= today)
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.start_time.localeCompare(b.start_time);
+      });
+  }, [scheduledGames]);
 
   useEffect(() => {
     if (!pollsSorted.length) return;
@@ -458,6 +475,45 @@ export default function SchedulePage() {
           </Alert>
         )}
 
+        <Box sx={{ mb: 4, p: 2, bgcolor: "background.paper", borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            Uppkommande bokningar
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+            {/* Note for non-coders: this section shows scheduled games separately from the voting list. */}
+            Här visas planerade matcher som redan är bokade.
+          </Typography>
+          {isLoadingScheduledGames ? (
+            <Typography variant="body2">Laddar bokningar...</Typography>
+          ) : upcomingBookings.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Inga bokningar planerade ännu.
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {upcomingBookings.map((game) => (
+                <Card key={game.id} variant="outlined">
+                  <CardContent sx={{ py: 1.25, "&:last-child": { pb: 1.25 } }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {game.title || "Padelpass"}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {formatFullDate(game.date)} • {formatTime(game.start_time)}–{formatTime(game.end_time)}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
+                        {game.invitee_profile_ids?.length ? `${game.invitee_profile_ids.length} inbjudna` : "Inbjudan skickad"}
+                      </Typography>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          )}
+        </Box>
+
         {user?.is_admin && selectedWeek && (
           <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Ny omröstning:</Typography>
@@ -537,7 +593,6 @@ export default function SchedulePage() {
               const readyDaysCount = (poll.days || []).filter((day) => evaluatePollDay(day).isGreen).length;
               const totalDaysCount = (poll.days || []).length;
               const progressPercent = totalDaysCount > 0 ? Math.round((readyDaysCount / totalDaysCount) * 100) : 0;
-              const hasMinimumPlayers = (poll.days || []).some((day) => evaluatePollDay(day).hasMinimumPlayers);
 
               return (
                 <Accordion key={poll.id} expanded={isExpanded} onChange={(_, expanded) => togglePollExpanded(poll.id, expanded)}>
@@ -593,21 +648,13 @@ export default function SchedulePage() {
                             Påminn spelare
                           </Button>
 
-                          <Tooltip
-                            title={
-                              hasMinimumPlayers
-                                ? "Skicka kalenderinbjudan"
-                                : "Minst fyra spelare behövs för att skicka en kalenderinbjudan."
-                            }
-                            arrow
-                          >
+                          <Tooltip title="Skicka kalenderinbjudan" arrow>
                             <span>
                               <Button
                                 size="small"
                                 startIcon={<EventIcon />}
                                 variant="outlined"
                                 sx={{ whiteSpace: "nowrap" }}
-                                disabled={!hasMinimumPlayers}
                                 onClick={() => openInviteDialog(poll)}
                               >
                                 Kalenderinbjudan

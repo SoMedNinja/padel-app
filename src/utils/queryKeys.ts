@@ -14,4 +14,5 @@ export const queryKeys = {
   tournamentResults: () => ["tournamentResults"] as const,
   tournamentResultsHistory: () => ["tournamentResultsHistory"] as const,
   availabilityPolls: () => ["availabilityPolls"] as const,
+  scheduledGames: () => ["availabilityScheduledGames"] as const,
 };

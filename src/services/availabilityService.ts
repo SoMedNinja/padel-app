@@ -1,5 +1,5 @@
 import { supabase, supabaseAnonKey } from "../supabaseClient";
-import { AvailabilityPoll, AvailabilityPollDay, AvailabilitySlot } from "../types";
+import { AvailabilityPoll, AvailabilityPollDay, AvailabilityScheduledGame, AvailabilitySlot } from "../types";
 import { requireAdmin } from "./authUtils";
 
 interface CreatePollInput {
@@ -122,6 +122,17 @@ export const availabilityService = {
     }));
 
     return polls;
+  },
+  // Note for non-coders: scheduled games are stored separately so they can show up even if no votes were used.
+  async getScheduledGames(): Promise<AvailabilityScheduledGame[]> {
+    const { data, error } = await supabase
+      .from("availability_scheduled_games")
+      .select("*")
+      .order("date", { ascending: true })
+      .order("start_time", { ascending: true });
+
+    if (error) throw error;
+    return (data || []) as AvailabilityScheduledGame[];
   },
 
   async createPoll(input: CreatePollInput): Promise<AvailabilityPoll> {

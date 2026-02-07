@@ -17,9 +17,11 @@ interface AppState {
   setMatches: (matches: Match[]) => void;
   dismissedMatchId: string | null;
   dismissedRecentMatchId: string | null;
+  dismissedScheduledGameId: string | null;
   lastSeenMatchDate: string | null;
   dismissMatch: (matchId: string, matchDate: string) => void;
   dismissRecentMatch: (matchId: string) => void;
+  dismissScheduledGame: (gameId: string) => void;
   checkAndResetDismissed: (latestMatchDate: string) => void;
 }
 
@@ -40,6 +42,7 @@ export const useStore = create<AppState>()(
       setMatches: (matches) => set({ matches }),
       dismissedMatchId: null,
       dismissedRecentMatchId: null,
+      dismissedScheduledGameId: null,
       lastSeenMatchDate: null,
       dismissMatch: (matchId, matchDate) => set({
         dismissedMatchId: matchId,
@@ -47,6 +50,9 @@ export const useStore = create<AppState>()(
       }),
       dismissRecentMatch: (matchId) => set({
         dismissedRecentMatchId: matchId
+      }),
+      dismissScheduledGame: (gameId) => set({
+        dismissedScheduledGameId: gameId
       }),
       checkAndResetDismissed: (latestMatchDate) => set((state) => {
         if (state.lastSeenMatchDate && state.lastSeenMatchDate !== latestMatchDate) {
@@ -65,6 +71,7 @@ export const useStore = create<AppState>()(
         matchFilter: state.matchFilter,
         dismissedMatchId: state.dismissedMatchId,
         dismissedRecentMatchId: state.dismissedRecentMatchId,
+        dismissedScheduledGameId: state.dismissedScheduledGameId,
         lastSeenMatchDate: state.lastSeenMatchDate,
         isGuest: state.isGuest,
         guestModeStartedAt: state.guestModeStartedAt,

@@ -227,3 +227,17 @@ export interface AvailabilityPoll {
   days?: AvailabilityPollDay[];
   mail_logs?: AvailabilityPollMailLog[];
 }
+
+export interface AvailabilityScheduledGame {
+  id: string;
+  poll_id?: string | null;
+  title?: string | null;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status?: "scheduled" | "cancelled";
+  invitee_profile_ids?: string[] | null;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

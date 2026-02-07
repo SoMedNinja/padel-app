@@ -5,6 +5,7 @@ import EloLeaderboard from "../Components/EloLeaderboard";
 import { HeadToHeadSection } from "../Components/PlayerSection";
 import FilterBar from "../Components/FilterBar";
 import { Box, Skeleton, Stack, Container, Typography, Button, Grid, Fab } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
@@ -22,9 +23,11 @@ import { useNavigate } from "react-router-dom";
 import { PlayArrow as PlayIcon, Timer as TimerIcon, Close as CloseIcon } from "@mui/icons-material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/queryKeys";
-import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
+import { invalidateAvailabilityData, invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
+import { useScheduledGames } from "../hooks/useScheduledGames";
+import { formatFullDate } from "../utils/format";
 
 type TournamentResultRow = TournamentResult & {
   mexicana_tournaments?: { tournament_type?: string | null } | null;
@@ -42,8 +45,10 @@ export default function Dashboard() {
     isGuest,
     dismissedMatchId,
     dismissedRecentMatchId,
+    dismissedScheduledGameId,
     dismissMatch,
     dismissRecentMatch,
+    dismissScheduledGame,
     checkAndResetDismissed
   } = useStore();
 
@@ -69,6 +74,7 @@ export default function Dashboard() {
   });
 
   const { data: tournaments = [] } = useTournaments();
+  const { data: scheduledGames = [] } = useScheduledGames();
 
   const activeTournament = useMemo(
     () => tournaments.find(t => t.status === "in_progress"),
@@ -94,6 +100,7 @@ export default function Dashboard() {
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
     () => invalidateTournamentData(queryClient),
+    () => invalidateAvailabilityData(queryClient),
   ]);
 
   const filteredMatches = useMemo(
@@ -135,6 +142,25 @@ export default function Dashboard() {
     return null;
   }, [allMatches, dismissedRecentMatchId, now]);
 
+  const upcomingScheduledGame = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    // Note for non-coders: this finds the soonest upcoming booking to show as a notification.
+    return [...scheduledGames]
+      .filter((game) => (game.status || "scheduled") !== "cancelled")
+      .filter((game) => game.date >= today)
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.start_time.localeCompare(b.start_time);
+      })[0] || null;
+  }, [scheduledGames]);
+
+  const shouldShowScheduledGameNotice = useMemo(() => {
+    if (!upcomingScheduledGame) return false;
+    return dismissedScheduledGameId !== upcomingScheduledGame.id;
+  }, [dismissedScheduledGameId, upcomingScheduledGame]);
+
+  const formatTime = (time: string) => time.slice(0, 5);
+
   const hasError = isTournamentResultsError || isEloError;
   const errorMessage =
     (tournamentResultsError as Error | undefined)?.message ||
@@ -151,6 +177,42 @@ export default function Dashboard() {
     >
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box id="dashboard" component="section">
+        {shouldShowScheduledGameNotice && upcomingScheduledGame && (
+          <AppAlert
+            severity="info"
+            icon={<TimerIcon />}
+            sx={{
+              mb: 3,
+              bgcolor: (theme) => alpha(theme.palette.info.light, 0.1),
+              border: 1,
+              borderColor: "info.main",
+              "& .MuiAlert-message": { width: "100%" },
+            }}
+            // Note for non-coders: closing the alert stores the dismissal locally so it stays hidden for this device.
+            onClose={() => dismissScheduledGame(upcomingScheduledGame.id)}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                  Uppkommande bokning
+                </Typography>
+                <Typography variant="caption" sx={{ display: "block" }}>
+                  {upcomingScheduledGame.title || "Padelpass"} • {formatFullDate(upcomingScheduledGame.date)} •{" "}
+                  {formatTime(upcomingScheduledGame.start_time)}–{formatTime(upcomingScheduledGame.end_time)}
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                variant="outlined"
+                color="info"
+                onClick={() => navigate("/schema")}
+                sx={{ ml: 2, fontWeight: 700, whiteSpace: "nowrap" }}
+              >
+                Se schema
+              </Button>
+            </Box>
+          </AppAlert>
+        )}
         {recentMatchHighlight && (
           <AppAlert
             severity="success"

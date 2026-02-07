@@ -33,6 +33,7 @@ export const refetchTournamentDetails = (queryClient: QueryClient, tournamentId?
 
 export const invalidateAvailabilityData = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.availabilityPolls() });
+  queryClient.invalidateQueries({ queryKey: queryKeys.scheduledGames() });
 };
 
 export const invalidateStatsData = (queryClient: QueryClient) => {

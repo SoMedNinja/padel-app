@@ -115,25 +115,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "Omröstningen hittades inte." }, 404);
     }
 
-    const pollDayIds = (poll.days || []).map((day: { id: string }) => day.id);
-    if (pollDayIds.length === 0) {
-      return jsonResponse({ success: false, error: "Omröstningen saknar dagar." }, 400);
-    }
-
-    const { data: votes, error: votesError } = await adminClient
-      .from("availability_votes")
-      .select("profile_id")
-      .in("poll_day_id", pollDayIds);
-
-    if (votesError) throw votesError;
-
-    const uniqueVoters = new Set((votes || []).map((vote: { profile_id: string }) => vote.profile_id));
-    if (uniqueVoters.size < 4) {
-      return jsonResponse(
-        { success: false, error: "Minst fyra spelare måste ha röstat innan en kalenderinbjudan kan skickas." },
-        400,
-      );
-    }
+    // Note for non-coders: calendar invites are allowed even if no votes were collected, per product request.
 
     const { data: invitedProfiles, error: invitedProfilesError } = await adminClient
       .from("profiles")
@@ -244,6 +226,28 @@ Deno.serve(async (req) => {
       }
 
       await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    const scheduledStatus = action === "cancel" ? "cancelled" : "scheduled";
+    try {
+      // Note for non-coders: we store scheduled games so the app can show upcoming bookings and notifications.
+      await adminClient
+        .from("availability_scheduled_games")
+        .upsert(
+          {
+            poll_id: pollId,
+            title,
+            date,
+            start_time: startTime,
+            end_time: endTime,
+            status: scheduledStatus,
+            invitee_profile_ids: inviteeProfileIds,
+            created_by: user.id,
+          },
+          { onConflict: "poll_id,date,start_time" },
+        );
+    } catch (logError) {
+      console.warn("Could not log scheduled game", logError);
     }
 
     return jsonResponse({
