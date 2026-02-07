@@ -133,6 +133,47 @@ Deno.serve(async (req) => {
 
     let sentCount = 0;
     let skippedCount = 0;
+    const errors: Array<{ email: string; error: string }> = [];
+    const maxRetriesOnRateLimit = 2;
+    const rateLimitWaitMs = 1200;
+    const perEmailDelayMs = 600;
+
+    const sendEmailWithRetry = async (recipientEmail: string, htmlContent: string, subject: string) => {
+      let retries = 0;
+      while (true) {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: "Padel-appen <no-reply@padelgrabbarna.club>",
+            to: recipientEmail,
+            subject,
+            html: htmlContent,
+          }),
+        });
+
+        if (response.ok) {
+          return { ok: true, errorMessage: "", retries };
+        }
+
+        const errText = await response.text();
+        if (response.status === 429 && retries < maxRetriesOnRateLimit) {
+          retries += 1;
+          // Note for non-coders: if the provider says "slow down", we wait longer and try again.
+          await delay(rateLimitWaitMs * retries);
+          continue;
+        }
+
+        return {
+          ok: false,
+          errorMessage: `HTTP ${response.status} after ${retries} retries: ${errText}`,
+          retries,
+        };
+      }
+    };
 
     for (const job of jobs) {
       const { data: tournament, error: tournamentError } = await supabase
@@ -413,29 +454,21 @@ Deno.serve(async (req) => {
       }
 
       for (const email of uniqueEmails) {
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${resendApiKey}`,
-          },
-          body: JSON.stringify({
-            from: "Padel-appen <no-reply@padelgrabbarna.club>",
-            to: email,
-            subject: `Turneringssammanfattning: ${tournament.name || "Turnering"}`,
-            html: emailHtml,
-          }),
-        });
+        const result = await sendEmailWithRetry(
+          email,
+          emailHtml,
+          `Turneringssammanfattning: ${tournament.name || "Turnering"}`,
+        );
 
-        if (!response.ok) {
-          const errorData = await response.text();
-          console.error(`Failed to send tournament email to ${email}:`, errorData);
+        if (!result.ok) {
+          console.error(`Failed to send tournament email to ${email}:`, result.errorMessage);
+          errors.push({ email, error: result.errorMessage });
         } else {
           sentCount += 1;
         }
 
         // Non-coder note: short pauses reduce the chance of hitting email provider rate limits.
-        await delay(200);
+        await delay(perEmailDelayMs);
       }
 
       await supabase
@@ -444,7 +477,7 @@ Deno.serve(async (req) => {
         .eq("id", job.id);
     }
 
-    return jsonResponse({ success: true, sent: sentCount, skipped: skippedCount });
+    return jsonResponse({ success: true, sent: sentCount, skipped: skippedCount, errors });
   } catch (error) {
     console.error("Tournament summary send error:", error);
     return new Response(JSON.stringify({ error: (error as Error).message ?? "Unknown error" }), {

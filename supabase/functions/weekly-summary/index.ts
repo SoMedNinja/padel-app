@@ -87,6 +87,8 @@ const escapeHtml = (unsafe: string) => {
     .replace(/'/g, "&#039;");
 };
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const getMatchWeight = (match: Match) => {
   if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
   const scoreType = match.score_type || "sets";
@@ -901,6 +903,43 @@ Deno.serve(async (req) => {
       });
 
     // Non-coder note: we send emails one-by-one with a short pause to avoid provider rate limits.
+    const maxRetriesOnRateLimit = 2;
+    const rateLimitWaitMs = 1200;
+    const perEmailDelayMs = 600;
+    const sendEmailWithRetry = async (recipientEmail: string, htmlContent: string, subject: string) => {
+      let retries = 0;
+      while (true) {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
+          body: JSON.stringify({
+            // Non-coder note: Resend requires a verified domain in the "from" address for real recipients.
+            from: 'Padel-appen <no-reply@padelgrabbarna.club>',
+            to: [recipientEmail],
+            subject,
+            html: htmlContent
+          })
+        });
+
+        if (response.ok) {
+          return { ok: true, errorMessage: "", retries };
+        }
+
+        const errText = await response.text();
+        if (response.status === 429 && retries < maxRetriesOnRateLimit) {
+          retries += 1;
+          // Note for non-coders: "too many requests" means we should pause and retry a few times.
+          await delay(rateLimitWaitMs * retries);
+          continue;
+        }
+
+        return {
+          ok: false,
+          errorMessage: `HTTP ${response.status} after ${retries} retries: ${errText}`,
+          retries,
+        };
+      }
+    };
     const emailResults = [];
     for (const id of Array.from(activePlayerIds)) {
       const email = emailMap.get(id) ?? profileEmailMap.get(id);
@@ -1217,26 +1256,15 @@ Deno.serve(async (req) => {
         </html>
       `;
 
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
-        body: JSON.stringify({
-          // Non-coder note: Resend requires a verified domain in the "from" address for real recipients.
-          from: 'Padel-appen <no-reply@padelgrabbarna.club>',
-          to: [email],
-          subject: weekLabel,
-          html: html
-        })
-      });
+      const result = await sendEmailWithRetry(email, html, weekLabel);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error(`Failed to send email to ${email}:`, errorData);
-        emailResults.push({ id, name, success: false, error: errorData });
+      if (!result.ok) {
+        console.error(`Failed to send email to ${email}:`, result.errorMessage);
+        emailResults.push({ id, name, success: false, error: result.errorMessage });
       } else {
         emailResults.push({ id, name, success: true });
       }
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await delay(perEmailDelayMs);
     }
 
     const successfulCount = emailResults.filter(r => r.success).length;
