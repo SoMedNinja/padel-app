@@ -231,6 +231,22 @@ Deno.serve(async (req) => {
     }
 
     if (recipients.length === 0) {
+      if (onlyMissingVotes) {
+        // Note for non-coders: if everyone already voted, we return success with zero emails instead of a hard error.
+        return jsonResponse({
+          success: true,
+          sent: 0,
+          total: 0,
+          totalBeforeVoteFilter: totalRecipientsBeforeVoteFilter,
+          votedProfileCount: votedProfileIds.size,
+          onlyMissingVotes,
+          sendAttempt: isTestMode ? null : alreadySentCount + 1,
+          mode: isTestMode ? "test" : "broadcast",
+          errors: [],
+          slotLabels: SLOT_LABEL,
+        });
+      }
+
       return jsonResponse({ success: false, error: "Inga mottagare med e-post hittades." }, 400);
     }
 
