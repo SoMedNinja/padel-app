@@ -36,6 +36,8 @@ const escapeIcs = (value: string) =>
     .replace(/,/g, "\\,")
     .replace(/;/g, "\\;");
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -191,6 +193,53 @@ Deno.serve(async (req) => {
     const subjectPrefix = action === "cancel" ? "Avbokad" : action === "update" ? "Uppdaterad" : "Inbjudan";
     const schemaLink = pollId ? `${appBaseUrl}/schema?poll=${pollId}` : `${appBaseUrl}/schema`;
 
+    const maxRetriesOnRateLimit = 2;
+    const rateLimitWaitMs = 1200;
+    const perEmailDelayMs = 600;
+
+    const sendEmailWithRetry = async (recipientEmail: string, html: string) => {
+      let retries = 0;
+      while (true) {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: "Padel-appen <no-reply@padelgrabbarna.club>",
+            to: [recipientEmail],
+            subject: `${subjectPrefix}: ${title}`,
+            html,
+            attachments: [
+              {
+                filename: "padel-invite.ics",
+                content: toBase64(icsContent),
+              },
+            ],
+          }),
+        });
+
+        if (response.ok) {
+          return { ok: true, errorMessage: "", retries };
+        }
+
+        const errText = await response.text();
+        if (response.status === 429 && retries < maxRetriesOnRateLimit) {
+          retries += 1;
+          // Note for non-coders: "429" means the email provider asked us to slow down, so we pause and retry.
+          await delay(rateLimitWaitMs * retries);
+          continue;
+        }
+
+        return {
+          ok: false,
+          errorMessage: `HTTP ${response.status} after ${retries} retries: ${errText}`,
+          retries,
+        };
+      }
+    };
+
     let sentCount = 0;
     const errors: Array<{ email: string; error: string }> = [];
 
@@ -206,34 +255,16 @@ Deno.serve(async (req) => {
         </html>
       `;
 
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
-        },
-        body: JSON.stringify({
-          from: "Padel-appen <no-reply@padelgrabbarna.club>",
-          to: [recipient.email],
-          subject: `${subjectPrefix}: ${title}`,
-          html,
-          attachments: [
-            {
-              filename: "padel-invite.ics",
-              content: toBase64(icsContent),
-            },
-          ],
-        }),
-      });
+      const result = await sendEmailWithRetry(recipient.email, html);
 
-      if (!response.ok) {
-        const errText = await response.text();
-        errors.push({ email: recipient.email, error: errText });
+      if (!result.ok) {
+        errors.push({ email: recipient.email, error: result.errorMessage });
       } else {
         sentCount += 1;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // Note for non-coders: we pause between emails so we don't overwhelm the email provider.
+      await delay(perEmailDelayMs);
     }
 
     const scheduledStatus = action === "cancel" ? "cancelled" : "scheduled";
