@@ -225,6 +225,55 @@ export const availabilityService = {
       mode?: string;
     };
   },
+  // Note for non-coders: calendar invites are separate emails that can add/edit/cancel events in people's calendars.
+  async sendCalendarInvite(input: {
+    pollId: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    inviteeProfileIds: string[];
+    action: "create" | "update" | "cancel";
+    title?: string;
+  }): Promise<{
+    success: boolean;
+    sent: number;
+    total: number;
+  }> {
+    await requireAdmin("Endast administratörer kan skicka kalenderinbjudningar.");
+
+    if (typeof supabaseAnonKey === "string" && supabaseAnonKey.startsWith("sb_publishable_")) {
+      // Note for non-coders: publishable keys can browse data but cannot authenticate Edge Function calls.
+      throw new Error(
+        "Miljöfel: VITE_SUPABASE_ANON_KEY använder sb_publishable_*. Byt till Supabase anon public key i Project Settings → API för att kunna skicka mail.",
+      );
+    }
+
+    const { data, error } = await supabase.functions.invoke("availability-calendar-invite", {
+      body: {
+        pollId: input.pollId,
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        inviteeProfileIds: input.inviteeProfileIds,
+        action: input.action,
+        title: input.title || null,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || "Kunde inte skicka kalenderinbjudan.");
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "Kunde inte skicka kalenderinbjudan.");
+    }
+
+    return data as {
+      success: boolean;
+      sent: number;
+      total: number;
+    };
+  },
 
   // Note for non-coders: "upsert" means create-or-update in one safe database call.
   async upsertVote(day: AvailabilityPollDay, slotPreferences: AvailabilitySlot[] | null): Promise<void> {
