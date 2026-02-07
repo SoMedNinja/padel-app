@@ -230,6 +230,7 @@ export interface AvailabilityPoll {
 
 export interface AvailabilityScheduledGame {
   id: string;
+  event_uid?: string;
   poll_id?: string | null;
   title?: string | null;
   date: string;

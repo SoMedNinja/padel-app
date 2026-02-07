@@ -97,22 +97,27 @@ Deno.serve(async (req) => {
     const action = body?.action === "update" || body?.action === "cancel" ? body.action : "create";
     const title = typeof body?.title === "string" && body.title.trim() ? body.title.trim() : "Padelmatch";
 
-    if (!pollId || !date || !startTime || !endTime) {
-      return jsonResponse({ success: false, error: "pollId, datum och tider måste fyllas i." }, 400);
+    if (!date || !startTime || !endTime) {
+      return jsonResponse({ success: false, error: "Datum och tider måste fyllas i." }, 400);
     }
 
     if (inviteeProfileIds.length === 0) {
       return jsonResponse({ success: false, error: "Välj minst en mottagare." }, 400);
     }
 
-    const { data: poll, error: pollError } = await adminClient
-      .from("availability_polls")
-      .select("id, week_number, week_year, days:availability_poll_days(id)")
-      .eq("id", pollId)
-      .single();
+    let poll: { id: string; week_number: number; week_year: number } | null = null;
+    if (pollId) {
+      const { data: pollData, error: pollError } = await adminClient
+        .from("availability_polls")
+        .select("id, week_number, week_year")
+        .eq("id", pollId)
+        .single();
 
-    if (pollError || !poll) {
-      return jsonResponse({ success: false, error: "Omröstningen hittades inte." }, 404);
+      if (pollError || !pollData) {
+        return jsonResponse({ success: false, error: "Omröstningen hittades inte." }, 404);
+      }
+
+      poll = pollData;
     }
 
     // Note for non-coders: calendar invites are allowed even if no votes were collected, per product request.
@@ -155,7 +160,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "Inga mottagare med e-post hittades." }, 400);
     }
 
-    const eventUid = `${pollId}-${date}`;
+    const eventUid = `${pollId || "manual"}-${date}-${startTime}`;
     const dtstamp = toIcsTimestamp(new Date());
     const dtstart = toIcsLocalDateTime(date, startTime);
     const dtend = toIcsLocalDateTime(date, endTime);
@@ -174,7 +179,9 @@ Deno.serve(async (req) => {
       `DTSTART;TZID=Europe/Stockholm:${dtstart}`,
       `DTEND;TZID=Europe/Stockholm:${dtend}`,
       `SUMMARY:${escapeIcs(title)}`,
-      `DESCRIPTION:${escapeIcs(`Padelpass vecka ${poll.week_number} (${poll.week_year}).`)}`,
+      `DESCRIPTION:${escapeIcs(
+        poll ? `Padelpass vecka ${poll.week_number} (${poll.week_year}).` : "Padelpass - fristående bokning.",
+      )}`,
       `STATUS:${status}`,
       `SEQUENCE:${sequence}`,
       "END:VEVENT",
@@ -182,6 +189,7 @@ Deno.serve(async (req) => {
     ].join("\r\n");
 
     const subjectPrefix = action === "cancel" ? "Avbokad" : action === "update" ? "Uppdaterad" : "Inbjudan";
+    const schemaLink = pollId ? `${appBaseUrl}/schema?poll=${pollId}` : `${appBaseUrl}/schema`;
 
     let sentCount = 0;
     const errors: Array<{ email: string; error: string }> = [];
@@ -193,7 +201,7 @@ Deno.serve(async (req) => {
             <h2>${subjectPrefix}: ${title}</h2>
             <p>Hej ${recipient.name}!</p>
             <p>Du får här en kalenderinbjudan för padelpasset. Öppna bilagan för att lägga till, uppdatera eller avbryta eventet i din kalender.</p>
-            <p><a href="${appBaseUrl}/schema?poll=${pollId}">Öppna schema-omröstningen</a></p>
+            <p><a href="${schemaLink}">Öppna schema</a></p>
           </body>
         </html>
       `;
@@ -235,7 +243,8 @@ Deno.serve(async (req) => {
         .from("availability_scheduled_games")
         .upsert(
           {
-            poll_id: pollId,
+            event_uid: eventUid,
+            poll_id: pollId || null,
             title,
             date,
             start_time: startTime,
@@ -244,7 +253,7 @@ Deno.serve(async (req) => {
             invitee_profile_ids: inviteeProfileIds,
             created_by: user.id,
           },
-          { onConflict: "poll_id,date,start_time" },
+          { onConflict: "event_uid" },
         );
     } catch (logError) {
       console.warn("Could not log scheduled game", logError);

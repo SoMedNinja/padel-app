@@ -238,7 +238,7 @@ export const availabilityService = {
   },
   // Note for non-coders: calendar invites are separate emails that can add/edit/cancel events in people's calendars.
   async sendCalendarInvite(input: {
-    pollId: string;
+    pollId?: string | null;
     date: string;
     startTime: string;
     endTime: string;
@@ -261,7 +261,7 @@ export const availabilityService = {
 
     const { data, error } = await supabase.functions.invoke("availability-calendar-invite", {
       body: {
-        pollId: input.pollId,
+        pollId: input.pollId || null,
         date: input.date,
         startTime: input.startTime,
         endTime: input.endTime,

@@ -284,7 +284,7 @@ export default function SchedulePage() {
 
   const sendCalendarInviteMutation = useMutation({
     mutationFn: (payload: {
-      pollId: string;
+      pollId?: string | null;
       date: string;
       startTime: string;
       endTime: string;
@@ -400,11 +400,11 @@ export default function SchedulePage() {
     setActionMenuPollId(pollId);
   };
 
-  const openInviteDialog = (poll: AvailabilityPoll) => {
-    const pollDays = poll.days || [];
-    const defaultDay = pollDays.find((day) => evaluatePollDay(day).hasMinimumPlayers) || pollDays[0];
-    setInvitePollId(poll.id);
-    setInviteDate(defaultDay?.date || "");
+  const openInviteDialog = (poll?: AvailabilityPoll) => {
+    const pollDays = poll?.days || [];
+    const defaultDay = pollDays[0];
+    setInvitePollId(poll?.id ?? null);
+    setInviteDate(defaultDay?.date || new Date().toISOString().slice(0, 10));
     setInviteStartTime("18:00");
     setInviteEndTime("20:00");
     setInviteAction("create");
@@ -418,7 +418,6 @@ export default function SchedulePage() {
   };
 
   const handleSendInvite = () => {
-    if (!invitePollId) return;
     sendCalendarInviteMutation.mutate({
       pollId: invitePollId,
       date: inviteDate,
@@ -426,7 +425,9 @@ export default function SchedulePage() {
       endTime: inviteEndTime,
       inviteeProfileIds,
       action: inviteAction,
-      title: `Padel vecka ${pollsSorted.find((entry) => entry.id === invitePollId)?.week_number ?? ""}`.trim(),
+      title: invitePollId
+        ? `Padel vecka ${pollsSorted.find((entry) => entry.id === invitePollId)?.week_number ?? ""}`.trim()
+        : "Padelpass",
     });
   };
 
@@ -483,6 +484,17 @@ export default function SchedulePage() {
             {/* Note for non-coders: this section shows scheduled games separately from the voting list. */}
             Här visas planerade matcher som redan är bokade.
           </Typography>
+          {user?.is_admin && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<EventIcon />}
+              sx={{ mb: 2 }}
+              onClick={() => openInviteDialog()}
+            >
+              Ny kalenderinbjudan
+            </Button>
+          )}
           {isLoadingScheduledGames ? (
             <Typography variant="body2">Laddar bokningar...</Typography>
           ) : upcomingBookings.length === 0 ? (
@@ -880,19 +892,30 @@ export default function SchedulePage() {
               <MenuItem value="update">Uppdatera</MenuItem>
               <MenuItem value="cancel">Avbryt</MenuItem>
             </TextField>
-            <TextField
-              select
-              label="Datum"
-              value={inviteDate}
-              onChange={(event) => setInviteDate(event.target.value)}
-              helperText="Välj vilken dag inbjudan ska gälla."
-            >
-              {(pollsSorted.find((poll) => poll.id === invitePollId)?.days || []).map((day) => (
-                <MenuItem key={day.id} value={day.date}>
-                  {formatFullDate(day.date)}
-                </MenuItem>
-              ))}
-            </TextField>
+            {invitePollId ? (
+              <TextField
+                select
+                label="Datum"
+                value={inviteDate}
+                onChange={(event) => setInviteDate(event.target.value)}
+                helperText="Välj vilken dag inbjudan ska gälla."
+              >
+                {(pollsSorted.find((poll) => poll.id === invitePollId)?.days || []).map((day) => (
+                  <MenuItem key={day.id} value={day.date}>
+                    {formatFullDate(day.date)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField
+                type="date"
+                label="Datum"
+                value={inviteDate}
+                onChange={(event) => setInviteDate(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Välj vilken dag inbjudan ska gälla."
+              />
+            )}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
                 type="time"
