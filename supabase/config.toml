@@ -406,3 +406,9 @@ entrypoint = "./functions/weekly-summary/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/availability-poll-mail/index.ts"
+
+[functions.availability-calendar-invite]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/availability-calendar-invite/index.ts"
+
