@@ -1,5 +1,5 @@
 import { supabase, supabaseAnonKey } from "../supabaseClient";
-import { AvailabilityPoll, AvailabilityPollDay, AvailabilitySlot } from "../types";
+import { AvailabilityPoll, AvailabilityPollDay, AvailabilityScheduledGame, AvailabilitySlot } from "../types";
 import { requireAdmin } from "./authUtils";
 
 interface CreatePollInput {
@@ -123,6 +123,17 @@ export const availabilityService = {
 
     return polls;
   },
+  // Note for non-coders: scheduled games are stored separately so they can show up even if no votes were used.
+  async getScheduledGames(): Promise<AvailabilityScheduledGame[]> {
+    const { data, error } = await supabase
+      .from("availability_scheduled_games")
+      .select("*")
+      .order("date", { ascending: true })
+      .order("start_time", { ascending: true });
+
+    if (error) throw error;
+    return (data || []) as AvailabilityScheduledGame[];
+  },
 
   async createPoll(input: CreatePollInput): Promise<AvailabilityPoll> {
     await requireAdmin("Endast administratörer kan skapa veckoomröstningar.");
@@ -223,6 +234,55 @@ export const availabilityService = {
       onlyMissingVotes?: boolean;
       error?: string;
       mode?: string;
+    };
+  },
+  // Note for non-coders: calendar invites are separate emails that can add/edit/cancel events in people's calendars.
+  async sendCalendarInvite(input: {
+    pollId?: string | null;
+    date: string;
+    startTime: string;
+    endTime: string;
+    inviteeProfileIds: string[];
+    action: "create" | "update" | "cancel";
+    title?: string;
+  }): Promise<{
+    success: boolean;
+    sent: number;
+    total: number;
+  }> {
+    await requireAdmin("Endast administratörer kan skicka kalenderinbjudningar.");
+
+    if (typeof supabaseAnonKey === "string" && supabaseAnonKey.startsWith("sb_publishable_")) {
+      // Note for non-coders: publishable keys can browse data but cannot authenticate Edge Function calls.
+      throw new Error(
+        "Miljöfel: VITE_SUPABASE_ANON_KEY använder sb_publishable_*. Byt till Supabase anon public key i Project Settings → API för att kunna skicka mail.",
+      );
+    }
+
+    const { data, error } = await supabase.functions.invoke("availability-calendar-invite", {
+      body: {
+        pollId: input.pollId || null,
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        inviteeProfileIds: input.inviteeProfileIds,
+        action: input.action,
+        title: input.title || null,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || "Kunde inte skicka kalenderinbjudan.");
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "Kunde inte skicka kalenderinbjudan.");
+    }
+
+    return data as {
+      success: boolean;
+      sent: number;
+      total: number;
     };
   },
 

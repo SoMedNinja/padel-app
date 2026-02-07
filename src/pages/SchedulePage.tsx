@@ -27,6 +27,8 @@ import {
   DialogContentText,
   DialogActions,
   LinearProgress,
+  TextField,
+  ListItemText,
 } from "@mui/material";
 // Note for non-coders: IconButton is the small clickable icon used for menus and actions, so it must be imported here.
 import Avatar from "../Components/Avatar";
@@ -37,6 +39,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Email as EmailIcon,
   MoreVert as MoreVertIcon,
+  Event as EventIcon,
 } from "@mui/icons-material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -46,6 +49,7 @@ import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRe
 import { useStore } from "../store/useStore";
 import { useAvailabilityPolls } from "../hooks/useAvailabilityPolls";
 import { useProfiles } from "../hooks/useProfiles";
+import { useScheduledGames } from "../hooks/useScheduledGames";
 import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { availabilityService } from "../services/availabilityService";
 import { invalidateAvailabilityData } from "../data/queryInvalidation";
@@ -72,6 +76,8 @@ const addDays = (date: Date, days: number) => {
   next.setDate(next.getDate() + days);
   return next;
 };
+
+const formatTime = (time: string) => time.slice(0, 5);
 
 const buildUpcomingWeeks = (count = 26): UpcomingWeekOption[] => {
   const start = new Date();
@@ -166,6 +172,7 @@ export default function SchedulePage() {
   const [searchParams] = useSearchParams();
   const { data: polls = [], isLoading, isError, error } = useAvailabilityPolls();
   const { data: profiles = [] } = useProfiles();
+  const { data: scheduledGames = [], isLoading: isLoadingScheduledGames } = useScheduledGames();
   const weekOptions = useMemo(() => buildUpcomingWeeks(26), []);
   const [selectedWeekKey, setSelectedWeekKey] = useState(weekOptions[1]?.key || weekOptions[0]?.key || "");
   const [expandedPolls, setExpandedPolls] = useState<Record<string, boolean>>({});
@@ -175,6 +182,13 @@ export default function SchedulePage() {
   const [actionMenuPollId, setActionMenuPollId] = useState<string | null>(null);
   const [dangerPollId, setDangerPollId] = useState<string | null>(null);
   const [confirmDeletePollId, setConfirmDeletePollId] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [invitePollId, setInvitePollId] = useState<string | null>(null);
+  const [inviteDate, setInviteDate] = useState("");
+  const [inviteStartTime, setInviteStartTime] = useState("18:00");
+  const [inviteEndTime, setInviteEndTime] = useState("20:00");
+  const [inviteeProfileIds, setInviteeProfileIds] = useState<string[]>([]);
+  const [inviteAction, setInviteAction] = useState<"create" | "update" | "cancel">("create");
 
   const selectedWeek = weekOptions.find((entry) => entry.key === selectedWeekKey) || weekOptions[0];
 
@@ -194,6 +208,11 @@ export default function SchedulePage() {
       });
     });
     return map;
+  }, [profiles]);
+
+  const eligibleInvitees = useMemo(() => {
+    // Note for non-coders: we default to active, regular players so invites go to the core group.
+    return profiles.filter((profile) => profile.is_regular && !profile.is_deleted && profile.is_approved);
   }, [profiles]);
 
   const createPollMutation = useMutation({
@@ -263,12 +282,42 @@ export default function SchedulePage() {
     onError: (err: any) => toast.error(err?.message || "Kunde inte spara rösten."),
   });
 
+  const sendCalendarInviteMutation = useMutation({
+    mutationFn: (payload: {
+      pollId?: string | null;
+      date: string;
+      startTime: string;
+      endTime: string;
+      inviteeProfileIds: string[];
+      action: "create" | "update" | "cancel";
+      title?: string;
+    }) => availabilityService.sendCalendarInvite(payload),
+    onSuccess: (result) => {
+      toast.success(`Kalenderinbjudan skickad till ${result.sent}/${result.total} mottagare.`);
+      closeInviteDialog();
+      queryClient.invalidateQueries({ queryKey: queryKeys.scheduledGames() });
+    },
+    onError: (err: any) => toast.error(err?.message || "Kunde inte skicka kalenderinbjudan."),
+  });
+
   const pollsSorted = useMemo(() => {
     return [...polls].sort((a, b) => {
       if (a.week_year !== b.week_year) return a.week_year - b.week_year;
       return a.week_number - b.week_number;
     });
   }, [polls]);
+
+  const upcomingBookings = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    // Note for non-coders: we only show future bookings here so the list stays focused on what's next.
+    return [...scheduledGames]
+      .filter((game) => (game.status || "scheduled") !== "cancelled")
+      .filter((game) => game.date >= today)
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.start_time.localeCompare(b.start_time);
+      });
+  }, [scheduledGames]);
 
   useEffect(() => {
     if (!pollsSorted.length) return;
@@ -351,6 +400,37 @@ export default function SchedulePage() {
     setActionMenuPollId(pollId);
   };
 
+  const openInviteDialog = (poll?: AvailabilityPoll) => {
+    const pollDays = poll?.days || [];
+    const defaultDay = pollDays[0];
+    setInvitePollId(poll?.id ?? null);
+    setInviteDate(defaultDay?.date || new Date().toISOString().slice(0, 10));
+    setInviteStartTime("18:00");
+    setInviteEndTime("20:00");
+    setInviteAction("create");
+    setInviteeProfileIds(eligibleInvitees.map((profile) => profile.id));
+    setInviteDialogOpen(true);
+  };
+
+  const closeInviteDialog = () => {
+    setInviteDialogOpen(false);
+    setInvitePollId(null);
+  };
+
+  const handleSendInvite = () => {
+    sendCalendarInviteMutation.mutate({
+      pollId: invitePollId,
+      date: inviteDate,
+      startTime: inviteStartTime,
+      endTime: inviteEndTime,
+      inviteeProfileIds,
+      action: inviteAction,
+      title: invitePollId
+        ? `Padel vecka ${pollsSorted.find((entry) => entry.id === invitePollId)?.week_number ?? ""}`.trim()
+        : "Padelpass",
+    });
+  };
+
   const handleToggleDay = (day: AvailabilityPollDay, checked: boolean) => {
     if (!user) return;
     if (!checked) {
@@ -395,6 +475,56 @@ export default function SchedulePage() {
             Du är inte markerad som ordinarie spelare ännu. Kontakta admin för åtkomst till Schema.
           </Alert>
         )}
+
+        <Box sx={{ mb: 4, p: 2, bgcolor: "background.paper", borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            Uppkommande bokningar
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+            {/* Note for non-coders: this section shows scheduled games separately from the voting list. */}
+            Här visas planerade matcher som redan är bokade.
+          </Typography>
+          {user?.is_admin && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<EventIcon />}
+              sx={{ mb: 2 }}
+              onClick={() => openInviteDialog()}
+            >
+              Ny kalenderinbjudan
+            </Button>
+          )}
+          {isLoadingScheduledGames ? (
+            <Typography variant="body2">Laddar bokningar...</Typography>
+          ) : upcomingBookings.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Inga bokningar planerade ännu.
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {upcomingBookings.map((game) => (
+                <Card key={game.id} variant="outlined">
+                  <CardContent sx={{ py: 1.25, "&:last-child": { pb: 1.25 } }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {game.title || "Padelpass"}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {formatFullDate(game.date)} • {formatTime(game.start_time)}–{formatTime(game.end_time)}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
+                        {game.invitee_profile_ids?.length ? `${game.invitee_profile_ids.length} inbjudna` : "Inbjudan skickad"}
+                      </Typography>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          )}
+        </Box>
 
         {user?.is_admin && selectedWeek && (
           <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
@@ -529,6 +659,20 @@ export default function SchedulePage() {
                           >
                             Påminn spelare
                           </Button>
+
+                          <Tooltip title="Skicka kalenderinbjudan" arrow>
+                            <span>
+                              <Button
+                                size="small"
+                                startIcon={<EventIcon />}
+                                variant="outlined"
+                                sx={{ whiteSpace: "nowrap" }}
+                                onClick={() => openInviteDialog(poll)}
+                              >
+                                Kalenderinbjudan
+                              </Button>
+                            </span>
+                          </Tooltip>
 
                           <FormControlLabel
                             sx={{ ml: { xs: 0, sm: 0.5 }, whiteSpace: "nowrap" }}
@@ -726,6 +870,117 @@ export default function SchedulePage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDangerPollId(null)}>Avbryt</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={inviteDialogOpen} onClose={closeInviteDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Skicka kalenderinbjudan</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {/* Note for non-coders: this dialog collects the event info before sending the calendar invite email. */}
+            Välj datum, start- och sluttid samt vilka spelare som ska få kalenderinbjudan.
+          </DialogContentText>
+          <Stack spacing={2}>
+            <TextField
+              select
+              label="Åtgärd"
+              value={inviteAction}
+              onChange={(event) => setInviteAction(event.target.value as "create" | "update" | "cancel")}
+              helperText="Välj skapa, uppdatera eller avbryt i kalendern."
+            >
+              <MenuItem value="create">Skapa</MenuItem>
+              <MenuItem value="update">Uppdatera</MenuItem>
+              <MenuItem value="cancel">Avbryt</MenuItem>
+            </TextField>
+            {invitePollId ? (
+              <TextField
+                select
+                label="Datum"
+                value={inviteDate}
+                onChange={(event) => setInviteDate(event.target.value)}
+                helperText="Välj vilken dag inbjudan ska gälla."
+              >
+                {(pollsSorted.find((poll) => poll.id === invitePollId)?.days || []).map((day) => (
+                  <MenuItem key={day.id} value={day.date}>
+                    {formatFullDate(day.date)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField
+                type="date"
+                label="Datum"
+                value={inviteDate}
+                onChange={(event) => setInviteDate(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Välj vilken dag inbjudan ska gälla."
+              />
+            )}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField
+                type="time"
+                label="Starttid"
+                value={inviteStartTime}
+                onChange={(event) => setInviteStartTime(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="När matcherna börjar."
+                fullWidth
+              />
+              <TextField
+                type="time"
+                label="Sluttid"
+                value={inviteEndTime}
+                onChange={(event) => setInviteEndTime(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="När matcherna slutar."
+                fullWidth
+              />
+            </Stack>
+            <TextField
+              select
+              label="Bjud in spelare"
+              value={inviteeProfileIds}
+              onChange={(event) => {
+                const next = event.target.value;
+                setInviteeProfileIds(typeof next === "string" ? next.split(",") : next);
+              }}
+              helperText="Välj vilka spelare som ska få inbjudan."
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) =>
+                  (selected as string[])
+                    .map((id) => eligibleInvitees.find((profile) => profile.id === id)?.name || "Okänd")
+                    .join(", "),
+              }}
+            >
+              {eligibleInvitees.map((profile) => (
+                <MenuItem key={profile.id} value={profile.id}>
+                  <Checkbox checked={inviteeProfileIds.includes(profile.id)} />
+                  <ListItemText primary={profile.name || "Okänd spelare"} />
+                </MenuItem>
+              ))}
+            </TextField>
+            <Typography variant="caption" color="text.secondary">
+              {/* Note for non-coders: updating/canceling uses the same event id so calendar apps recognize changes. */}
+              Tips: Uppdatera eller avbryt genom att välja samma datum för eventet igen.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeInviteDialog}>Avbryt</Button>
+          <Button
+            variant="contained"
+            onClick={handleSendInvite}
+            disabled={
+              sendCalendarInviteMutation.isPending ||
+              !inviteDate ||
+              !inviteStartTime ||
+              !inviteEndTime ||
+              inviteeProfileIds.length === 0
+            }
+          >
+            Skicka
+          </Button>
         </DialogActions>
       </Dialog>
 
