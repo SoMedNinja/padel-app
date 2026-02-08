@@ -302,6 +302,11 @@ export default function SchedulePage() {
 
   const pollsSorted = useMemo(() => {
     return [...polls].sort((a, b) => {
+      // Note for non-coders: we assign a small numeric "priority" so open polls show first.
+      const statusPriority = (status: AvailabilityPoll["status"]) => (status === "open" ? 0 : 1);
+
+      const statusDiff = statusPriority(a.status) - statusPriority(b.status);
+      if (statusDiff !== 0) return statusDiff;
       if (a.week_year !== b.week_year) return a.week_year - b.week_year;
       return a.week_number - b.week_number;
     });
