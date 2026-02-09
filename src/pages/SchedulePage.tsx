@@ -187,6 +187,7 @@ export default function SchedulePage() {
   const [inviteDate, setInviteDate] = useState("");
   const [inviteStartTime, setInviteStartTime] = useState("18:00");
   const [inviteEndTime, setInviteEndTime] = useState("20:00");
+  const [inviteLocation, setInviteLocation] = useState("");
   const [inviteeProfileIds, setInviteeProfileIds] = useState<string[]>([]);
   const [inviteAction, setInviteAction] = useState<"create" | "update" | "cancel">("create");
 
@@ -288,6 +289,7 @@ export default function SchedulePage() {
       date: string;
       startTime: string;
       endTime: string;
+      location?: string;
       inviteeProfileIds: string[];
       action: "create" | "update" | "cancel";
       title?: string;
@@ -412,6 +414,7 @@ export default function SchedulePage() {
     setInviteDate(defaultDay?.date || new Date().toISOString().slice(0, 10));
     setInviteStartTime("18:00");
     setInviteEndTime("20:00");
+    setInviteLocation("");
     setInviteAction("create");
     setInviteeProfileIds(eligibleInvitees.map((profile) => profile.id));
     setInviteDialogOpen(true);
@@ -428,6 +431,7 @@ export default function SchedulePage() {
       date: inviteDate,
       startTime: inviteStartTime,
       endTime: inviteEndTime,
+      location: inviteLocation.trim() || undefined,
       inviteeProfileIds,
       action: inviteAction,
       title: invitePollId
@@ -519,6 +523,12 @@ export default function SchedulePage() {
                         <Typography variant="body2" color="text.secondary">
                           {formatFullDate(game.date)} • {formatTime(game.start_time)}–{formatTime(game.end_time)}
                         </Typography>
+                        {game.location && (
+                          <Typography variant="body2" color="text.secondary">
+                            {/* Note for non-coders: the location is free text so admins can describe any venue. */}
+                            Plats: {game.location}
+                          </Typography>
+                        )}
                       </Box>
                       <Typography variant="caption" color="text.secondary" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
                         {game.invitee_profile_ids?.length ? `${game.invitee_profile_ids.length} inbjudna` : "Inbjudan skickad"}
@@ -941,6 +951,14 @@ export default function SchedulePage() {
                 fullWidth
               />
             </Stack>
+            {/* Note for non-coders: the location field is free text so admins can type any venue details. */}
+            <TextField
+              label="Plats"
+              value={inviteLocation}
+              onChange={(event) => setInviteLocation(event.target.value)}
+              helperText="Skriv in valfri platsinformation för kalenderinbjudan."
+              fullWidth
+            />
             <TextField
               select
               label="Bjud in spelare"

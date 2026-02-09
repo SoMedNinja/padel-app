@@ -93,6 +93,8 @@ Deno.serve(async (req) => {
     const date = typeof body?.date === "string" ? body.date : "";
     const startTime = typeof body?.startTime === "string" ? body.startTime : "";
     const endTime = typeof body?.endTime === "string" ? body.endTime : "";
+    // Note for non-coders: location is optional so admins can describe any venue without a dropdown.
+    const location = typeof body?.location === "string" && body.location.trim() ? body.location.trim() : "";
     const inviteeProfileIds = Array.isArray(body?.inviteeProfileIds)
       ? body.inviteeProfileIds.filter((id: unknown) => typeof id === "string")
       : [];
@@ -181,6 +183,7 @@ Deno.serve(async (req) => {
       `DTSTART;TZID=Europe/Stockholm:${dtstart}`,
       `DTEND;TZID=Europe/Stockholm:${dtend}`,
       `SUMMARY:${escapeIcs(title)}`,
+      ...(location ? [`LOCATION:${escapeIcs(location)}`] : []),
       `DESCRIPTION:${escapeIcs(
         poll ? `Padelpass vecka ${poll.week_number} (${poll.week_year}).` : "Padelpass - fristående bokning.",
       )}`,
@@ -244,12 +247,14 @@ Deno.serve(async (req) => {
     const errors: Array<{ email: string; error: string }> = [];
 
     for (const recipient of recipients) {
+      const locationLine = location ? `<p><strong>Plats:</strong> ${location}</p>` : "";
       const html = `
         <html>
           <body style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>${subjectPrefix}: ${title}</h2>
             <p>Hej ${recipient.name}!</p>
             <p>Du får här en kalenderinbjudan för padelpasset. Öppna bilagan för att lägga till, uppdatera eller avbryta eventet i din kalender.</p>
+            ${locationLine}
             <p><a href="${schemaLink}">Öppna schema</a></p>
           </body>
         </html>
@@ -281,6 +286,7 @@ Deno.serve(async (req) => {
             start_time: startTime,
             end_time: endTime,
             status: scheduledStatus,
+            location: location || null,
             invitee_profile_ids: inviteeProfileIds,
             created_by: user.id,
           },

@@ -242,6 +242,7 @@ export const availabilityService = {
     date: string;
     startTime: string;
     endTime: string;
+    location?: string;
     inviteeProfileIds: string[];
     action: "create" | "update" | "cancel";
     title?: string;
@@ -265,6 +266,8 @@ export const availabilityService = {
         date: input.date,
         startTime: input.startTime,
         endTime: input.endTime,
+        // Note for non-coders: location is optional free text that appears in the calendar event.
+        location: input.location || null,
         inviteeProfileIds: input.inviteeProfileIds,
         action: input.action,
         title: input.title || null,
