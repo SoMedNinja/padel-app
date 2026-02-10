@@ -37,6 +37,7 @@ def create_simulation():
         ("Score Type", "Sets", "Sets or Points"),
         ("Score Target (if Points)", 21, "Points needed to win (e.g. 21, 31)"),
         ("Is Tournament?", "No", "Tournament matches have 1.0 weight"),
+        ("Is Singles?", "No", "1v1 matches count 0.5x weight"),
     ]
 
     for i, (label, val, desc) in enumerate(settings):
@@ -65,6 +66,10 @@ def create_simulation():
     dv_tournament = DataValidation(type="list", formula1='"Yes,No"', allow_blank=True)
     ws1.add_data_validation(dv_tournament)
     dv_tournament.add(ws1['B6'])
+
+    dv_singles = DataValidation(type="list", formula1='"Yes,No"', allow_blank=True)
+    ws1.add_data_validation(dv_singles)
+    dv_singles.add(ws1['B7'])
 
     # Players Section
     ws1['A12'] = "Players Input"
@@ -111,7 +116,7 @@ def create_simulation():
 
     # Match level calculations
     ws1['K14'] = '=1 + MIN(0.2, MIN(2, ABS(B8 - B9)) * 0.1)'
-    ws1['L14'] = '=IF(B6="Yes", 1, IF(B4="Sets", IF(MAX(B8,B9)>=6, 1, 0.5), IF(B5>21, 1, 0.5)))'
+    ws1['L14'] = '=IF(B7="Yes", 0.5, 1) * IF(B6="Yes", 1, IF(B4="Sets", IF(MAX(B8,B9)>=6, 1, 0.5), IF(B5>21, 1, 0.5)))'
     for i in range(15, 18):
         ws1[f'K{i}'] = '=K14'
         ws1[f'L{i}'] = '=L14'
@@ -326,6 +331,7 @@ def create_simulation():
         ("Expected Score", "Win probability (0 to 1). Calculated using rating difference (divisor 300)."),
         ("Margin Multiplier", "Bonus for decisive wins. 2-0 sets = 1.2x multiplier. 2-1 sets = 1.1x."),
         ("Match Length Weight", "Short games (sets <= 3 or points <= 21) = 0.5x. Tournament/Long = 1.0x."),
+        ("Singles Match Weight", "1v1 matches count for 0.5x weight."),
         ("Player Weight", "Adjusts gain based on partner difference. Lower rated players get a boost (0.75x to 1.25x)."),
         ("Effective Weight", "Uses Player Weight for wins and 1/Weight for losses."),
         ("Guest Players", "The app ignores players marked as Guests. In this simulator, simply leave their ELO blank to exclude them from team averages."),
@@ -339,7 +345,7 @@ def create_simulation():
         ("Excel Formulas used:", ""),
         ("Expected Score", "=1 / (1 + 10^((Opponent_Avg - Own_Avg) / 300))"),
         ("Player Weight", "=MIN(1.25, MAX(0.75, 1 + (Team_Avg - Player_Elo) / 800))"),
-        ("Delta (ELO)", "=ROUND(K * MarginMult * MatchWeight * EffWeight * (Result - Expected), 0)"),
+        ("Delta (ELO)", "=ROUND(K * MarginMult * MatchWeight * SinglesWeight * EffWeight * (Result - Expected), 0)"),
         ("Standard MVP Score", "=eloGain + (winRate * 15) + (gamesPlayed * 0.5)"),
         ("MVP Days Score", "=eloGain + (winRate * 15) + (gamesPlayed * 0.5)"),
     ]
