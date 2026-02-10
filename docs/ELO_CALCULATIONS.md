@@ -32,11 +32,13 @@ The expected score (win probability) is calculated based on the difference betwe
 Matches won by a larger margin of sets result in a slightly higher ELO change.
 
 **Formula:**
-`Multiplier = 1 + min(0.2, (Sets Difference) * 0.1)`
+`Multiplier = 1 + (Margin * 0.1)`
+*   **Margin 1:** 1 or 2 set difference (e.g., 2-1, 2-0, 8-6).
+*   **Margin 2:** 3 or more set difference (e.g., 6-3, 6-0).
 
 *Example:*
-* A 1-set difference (e.g., 2-1) results in a **1.1x** multiplier.
-* A 2-set or greater difference (e.g., 2-0 or 6-0) results in a **1.2x** multiplier (maximum).
+* A 1 or 2 set difference (e.g., 2-1, 2-0, 8-6) results in a **1.1x** multiplier.
+* A 3-set or greater difference (e.g., 6-3 or 6-0) results in a **1.2x** multiplier (maximum).
 
 ### 5. Match Length Weight
 Shorter matches count for half the ELO change, while long/tournament matches count fully.
@@ -106,33 +108,33 @@ The ELO history chart in the player profile uses the same base formula but does 
 Two teams of new players (0 games, 1000 ELO) play a 2-0 match.
 - **Expected Score:** 0.5
 - **K-Factor:** 40
-- **Margin Multiplier:** 1.2 (for 2-0)
+- **Margin Multiplier:** 1.1 (for 2-0)
 - **Match Weight:** 0.5 (short match)
 - **Individual Weight:** 1.0
-- **Team 1 Delta:** `round(40 * 1.2 * 0.5 * 1.0 * (1 - 0.5))` = `+12`
-- **Team 2 Delta:** `round(40 * 1.2 * 0.5 * 1.0 * (0 - 0.5))` = `-12`
+- **Team 1 Delta:** `round(40 * 1.1 * 0.5 * 1.0 * (1 - 0.5))` = `+11`
+- **Team 2 Delta:** `round(40 * 1.1 * 0.5 * 1.0 * (0 - 0.5))` = `-11`
 
 ### Example 2: Experienced Players, Mismatched Ratings (Short Match)
 Team A (Avg 1200) vs Team B (Avg 1000). Both players have 50+ games. Match ends 2-0.
 - **Expected Score (Team A):** `1 / (1 + 10^((1000-1200)/300))` ≈ **0.82**
 - **K-Factor:** 20
-- **Margin Multiplier:** 1.2
+- **Margin Multiplier:** 1.1
 - **Match Weight:** 0.5
-- **Team A Delta:** `round(20 * 1.2 * 0.5 * 1.0 * (1 - 0.82))` = `round(12 * 0.18)` = **+2**
-- **Team B Delta:** `round(20 * 1.2 * 0.5 * 1.0 * (0 - 0.18))` = `round(12 * -0.18)` = **-2**
-*(If Team B had won, the gain would be `round(12 * (1 - 0.18))` = **+10**)*
+- **Team A Delta:** `round(20 * 1.1 * 0.5 * 1.0 * (1 - 0.82))` = `round(11 * 0.18)` = **+2**
+- **Team B Delta:** `round(20 * 1.1 * 0.5 * 1.0 * (0 - 0.18))` = `round(11 * -0.18)` = **-2**
+*(If Team B had won, the gain would be `round(11 * (1 - 0.18))` = **+9**)*
 
 ### Example 3: Mixed Team Ratings (Short Match)
 Team 1: Player A (1200 ELO) & Player B (800 ELO) -> Avg 1000.
 Team 2: Player C (1000 ELO) & Player D (1000 ELO) -> Avg 1000.
 Match ends 2-0 for Team 1. Players have 30+ games.
 - **Expected Score:** 0.5
-- **Margin Multiplier:** 1.2
+- **Margin Multiplier:** 1.1
 - **Match Weight:** 0.5
 - **Player A Weight:** `1 + (1000 - 1200) / 800` = **0.75**
 - **Player B Weight:** `1 + (1000 - 800) / 800` = **1.25**
-- **Player A Delta:** `round(20 * 1.2 * 0.5 * 0.75 * (1 - 0.5))` = `round(9 * 0.5)` = **+5**
-- **Player B Delta:** `round(20 * 1.2 * 0.5 * 1.25 * (1 - 0.5))` = `round(15 * 0.5)` = **+8**
+- **Player A Delta:** `round(20 * 1.1 * 0.5 * 0.75 * (1 - 0.5))` = `round(8.25 * 0.5)` = **+4**
+- **Player B Delta:** `round(20 * 1.1 * 0.5 * 1.25 * (1 - 0.5))` = `round(13.75 * 0.5)` = **+7**
 *(If Team 1 lost instead, Player A would lose more than Player B because the loss uses inverse weights.)*
 
 ---
@@ -145,7 +147,7 @@ Match ends 2-0 for Team 1. Players have 30+ games.
 | Games played | Number of matches played so far. | Sets rating volatility for newer vs. experienced players. | **K = 40 / 30 / 20** based on games. |
 | Team average ELO | Average rating of each team. | Used to calculate expected win probability. | Divisor **300** in expected-score formula. |
 | Match result | Win (1) or loss (0). | Drives whether ELO goes up or down. | Multiplies `(Actual - Expected)`. |
-| Set difference | Absolute set gap between teams. | Rewards more decisive wins. | **1.0–1.2x** margin multiplier. |
+| Set difference | Absolute set gap between teams. | Rewards more decisive wins. | **1.0–1.2x** margin multiplier (1-2 sets: 1.1x, 3+ sets: 1.2x). |
 | Match length / format | Sets or points target (or tournament flag). | Scales short vs. long match impact. | **0.5x** for short, **1.0x** for long/tournament. |
 | Singles match | Whether the match is 1v1 or 2v2. | Reduces volatility for singles matches. | **0.5x** for singles, **1.0x** for doubles. |
 | Player vs. team ELO | Player rating compared to team average. | Adjusts gains for mismatched partners. | **Wins:** 0.75–1.25x weight, **Losses:** inverse weight. |
