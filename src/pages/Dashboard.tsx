@@ -38,6 +38,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [now] = useState(() => Date.now());
+  const [isTournamentNoticeDismissed, setIsTournamentNoticeDismissed] = useState(false);
   const {
     matchFilter,
     setMatchFilter,
@@ -80,6 +81,11 @@ export default function Dashboard() {
     () => tournaments.find(t => t.status === "in_progress"),
     [tournaments]
   );
+
+  useEffect(() => {
+    // Note for non-coders: when a new tournament becomes active, we show the notification again.
+    setIsTournamentNoticeDismissed(false);
+  }, [activeTournament?.id]);
 
   useScrollToFragment();
 
@@ -249,7 +255,7 @@ export default function Dashboard() {
           </AppAlert>
         )}
 
-        {activeTournament && (
+        {activeTournament && !isTournamentNoticeDismissed && (
           <AppAlert
             severity="info"
             icon={<PlayIcon />}
@@ -264,6 +270,11 @@ export default function Dashboard() {
             }}
             // Note for non-coders: clicking the banner takes you to the tournament page.
             onClick={() => navigate("/tournament")}
+            onClose={(event) => {
+              // Note for non-coders: the X button only hides this notice, it does not affect tournament data.
+              event.stopPropagation();
+              setIsTournamentNoticeDismissed(true);
+            }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <Box>
