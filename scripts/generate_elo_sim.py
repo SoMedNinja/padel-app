@@ -115,7 +115,8 @@ def create_simulation():
     ws1['F17'] = "=F16"
 
     # Match level calculations
-    ws1['K14'] = '=1 + MIN(0.2, MIN(2, ABS(B8 - B9)) * 0.1)'
+    # User request: 2 set difference should be 1.1x. So > 2 sets = 1.2x.
+    ws1['K14'] = '=1 + IF(ABS(B8-B9)>2, 0.2, IF(ABS(B8-B9)>0, 0.1, 0))'
     ws1['L14'] = '=IF(B7="Yes", 0.5, 1) * IF(B6="Yes", 1, IF(B4="Sets", IF(MAX(B8,B9)>=6, 1, 0.5), IF(B5>21, 1, 0.5)))'
     for i in range(15, 18):
         ws1[f'K{i}'] = '=K14'
@@ -329,7 +330,7 @@ def create_simulation():
         ("Baseline ELO", "Starting rating for new players. Fixed at 1000."),
         ("K-Factor", "Determines volatility. <10 games: 40, 10-29 games: 30, 30+ games: 20."),
         ("Expected Score", "Win probability (0 to 1). Calculated using rating difference (divisor 300)."),
-        ("Margin Multiplier", "Bonus for decisive wins. 2-0 sets = 1.2x multiplier. 2-1 sets = 1.1x."),
+        ("Margin Multiplier", "Bonus for decisive wins. 1-2 sets = 1.1x multiplier. 3+ sets = 1.2x."),
         ("Match Length Weight", "Short games (sets <= 3 or points <= 21) = 0.5x. Tournament/Long = 1.0x."),
         ("Singles Match Weight", "1v1 matches count for 0.5x weight."),
         ("Player Weight", "Adjusts gain based on partner difference. Lower rated players get a boost (0.75x to 1.25x)."),
@@ -345,6 +346,7 @@ def create_simulation():
         ("Excel Formulas used:", ""),
         ("Expected Score", "=1 / (1 + 10^((Opponent_Avg - Own_Avg) / 300))"),
         ("Player Weight", "=MIN(1.25, MAX(0.75, 1 + (Team_Avg - Player_Elo) / 800))"),
+        ("Margin Multiplier", "=1 + IF(ABS(Set_Diff)>2, 0.2, IF(ABS(Set_Diff)>0, 0.1, 0))"),
         ("Delta (ELO)", "=ROUND(K * MarginMult * MatchWeight * SinglesWeight * EffWeight * (Result - Expected), 0)"),
         ("Standard MVP Score", "=eloGain + (winRate * 15) + (gamesPlayed * 0.5)"),
         ("MVP Days Score", "=eloGain + (winRate * 15) + (gamesPlayed * 0.5)"),

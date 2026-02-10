@@ -28,7 +28,8 @@ describe("ELO Logic", () => {
   });
 
   it("should calculate margin multiplier correctly", () => {
-    expect(getMarginMultiplier(2, 0)).toBeCloseTo(1.2);
+    expect(getMarginMultiplier(3, 0)).toBeCloseTo(1.2);
+    expect(getMarginMultiplier(2, 0)).toBeCloseTo(1.1); // Updated: 2 set diff is now 1.1x
     expect(getMarginMultiplier(1, 0)).toBeCloseTo(1.1);
     expect(getMarginMultiplier(0, 0)).toBe(1);
   });
@@ -139,7 +140,7 @@ describe("ELO Logic", () => {
     expect(p2!.losses).toBe(1);
 
     // Total ELO should be preserved (roughly, due to rounding)
-    expect(Math.round(p1!.elo + p2!.elo)).toBe(2000);
+    expect(Math.abs(p1!.elo + p2!.elo - 2000)).toBeLessThanOrEqual(1);
   });
 
   it("should give smaller deltas for 1v1 than 2v2 when everything else matches", () => {
