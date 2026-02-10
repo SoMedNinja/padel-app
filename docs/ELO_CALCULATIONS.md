@@ -47,7 +47,15 @@ Shorter matches count for half the ELO change, while long/tournament matches cou
 
 > **Note for non-coders:** This is how the app makes short games less impactful than long matches.
 
-### 6. Individual Player Weight
+### 6. Singles Match Weight
+1v1 matches count for half the ELO change, as one player's individual form has a much larger impact on the result than in 2v2 matches.
+
+* **Singles matches:** Weight **0.5**.
+* **Doubles matches:** Weight **1.0**.
+
+> **Note for non-coders:** This prevents ratings from swinging too wildly based on a single 1v1 performance.
+
+### 7. Individual Player Weight
 Within a team, players gain or lose ELO differently based on their individual rating relative to the team's average. This helps "pull" players toward their true skill level faster when playing with partners of different skill levels.
 
 **Formula:**
@@ -59,7 +67,7 @@ Within a team, players gain or lose ELO differently based on their individual ra
 
 > **Note for non-coders:** This is how the app protects newer/lower-rated players from big drops while still holding higher-rated partners more accountable for losses.
 
-### 7. Match Eligibility
+### 8. Match Eligibility
 Matches only affect ELO when:
 * Both teams include real (non-guest) players.
 * The match has valid set scores.
@@ -75,10 +83,11 @@ For each match (sorted by date):
 2. Determine the **Expected Score** for Team 1.
 3. Determine the **Margin Multiplier** based on the scoreline.
 4. Determine the **Match Length Weight** based on format and target.
-5. For each player:
+5. Determine the **Singles Weight** (0.5x if 1v1, 1.0x otherwise).
+6. For each player:
    - Identify their **K-Factor** based on games played.
    - Calculate their **Individual Weight** based on team average.
-   - **ELO Change (Delta)** = `round(K * MarginMultiplier * MatchWeight * EffectiveWeight * (Actual Result - Expected Score))`
+   - **ELO Change (Delta)** = `round(K * MarginMultiplier * MatchWeight * SinglesWeight * EffectiveWeight * (Actual Result - Expected Score))`
      - *Actual Result is 1 for a win, 0 for a loss.*
      - *EffectiveWeight = PlayerWeight on wins, or (1 / PlayerWeight) on losses.*
 
@@ -138,5 +147,6 @@ Match ends 2-0 for Team 1. Players have 30+ games.
 | Match result | Win (1) or loss (0). | Drives whether ELO goes up or down. | Multiplies `(Actual - Expected)`. |
 | Set difference | Absolute set gap between teams. | Rewards more decisive wins. | **1.0–1.2x** margin multiplier. |
 | Match length / format | Sets or points target (or tournament flag). | Scales short vs. long match impact. | **0.5x** for short, **1.0x** for long/tournament. |
+| Singles match | Whether the match is 1v1 or 2v2. | Reduces volatility for singles matches. | **0.5x** for singles, **1.0x** for doubles. |
 | Player vs. team ELO | Player rating compared to team average. | Adjusts gains for mismatched partners. | **Wins:** 0.75–1.25x weight, **Losses:** inverse weight. |
 | Rounding | Final rounding to whole numbers. | Keeps ELO values readable. | `round(...)` on the final delta. |
