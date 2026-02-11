@@ -140,7 +140,7 @@ struct ProfileView: View {
                         y: .value("ELO", point.elo)
                     )
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(.accent)
+                    .foregroundStyle(Color.accentColor)
 
                     PointMark(
                         x: .value("Date", point.date),
