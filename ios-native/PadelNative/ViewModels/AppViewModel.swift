@@ -115,11 +115,15 @@ final class AppViewModel: ObservableObject {
     @Published var isGuestMode = false
     @Published var selectedAvatarSymbol = "person.crop.circle.fill"
     @Published var activeTournament: Tournament?
+    @Published var tournaments: [Tournament] = []
+    @Published var selectedTournamentId: UUID?
     @Published var tournamentRounds: [TournamentRound] = []
     @Published var tournamentStandings: [TournamentStanding] = []
     @Published var tournamentHistoryResults: [TournamentResult] = []
     @Published var tournamentStatusMessage: String?
     @Published var isTournamentLoading = false
+    @Published var isTournamentActionRunning = false
+    @Published var tournamentActionErrorMessage: String?
     @Published var adminProfiles: [AdminProfile] = []
     @Published var adminBanner: AdminActionBanner?
     @Published var isAdminActionRunning = false
@@ -1047,7 +1051,19 @@ final class AppViewModel: ObservableObject {
         }
 
         do {
-            let tournament = try await apiClient.fetchActiveTournament()
+            let allTournaments = try await apiClient.fetchTournaments()
+            tournaments = allTournaments
+
+            if selectedTournamentId == nil {
+                selectedTournamentId = allTournaments.first(where: { $0.status == "in_progress" || $0.status == "draft" })?.id
+                    ?? allTournaments.first?.id
+            } else if let selectedTournamentId,
+                      allTournaments.contains(where: { $0.id == selectedTournamentId }) == false {
+                self.selectedTournamentId = allTournaments.first?.id
+            }
+
+            let tournament = allTournaments.first(where: { $0.id == selectedTournamentId })
+                ?? allTournaments.first(where: { $0.status == "in_progress" || $0.status == "draft" })
             activeTournament = tournament
 
             if let tournament {
@@ -1064,6 +1080,7 @@ final class AppViewModel: ObservableObject {
 
             tournamentHistoryResults = try await apiClient.fetchCompletedTournamentResults()
             tournamentStatusMessage = nil
+            tournamentActionErrorMessage = nil
         } catch {
             // Note for non-coders:
             // If the network call fails, we keep any on-screen tournament data intact
@@ -1072,19 +1089,135 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func selectTournament(id: UUID?) async {
+        selectedTournamentId = id
+        await loadTournamentData(silently: true)
+    }
+
+    func createTournament(
+        name: String,
+        location: String?,
+        scheduledAt: Date?,
+        scoreTarget: Int?,
+        tournamentType: String
+    ) async {
+        guard canMutateTournament else {
+            tournamentActionErrorMessage = "Sign in is required to create tournaments."
+            return
+        }
+
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanName.isEmpty {
+            tournamentActionErrorMessage = "Tournament name is required."
+            return
+        }
+
+        isTournamentActionRunning = true
+        tournamentActionErrorMessage = nil
+
+        do {
+            let created = try await apiClient.createTournament(
+                TournamentCreationRequest(
+                    name: cleanName,
+                    status: "draft",
+                    tournamentType: tournamentType,
+                    scheduledAt: scheduledAt,
+                    location: location?.trimmingCharacters(in: .whitespacesAndNewlines),
+                    scoreTarget: scoreTarget
+                )
+            )
+            selectedTournamentId = created.id
+            tournamentStatusMessage = "Tournament created in draft mode."
+            await loadTournamentData(silently: false)
+        } catch {
+            tournamentActionErrorMessage = "Could not create tournament: \(error.localizedDescription)"
+        }
+
+        isTournamentActionRunning = false
+    }
+
+    func startSelectedTournament() async {
+        await transitionSelectedTournament(to: "in_progress", successMessage: "Tournament started.")
+    }
+
+    func abandonSelectedTournament() async {
+        await transitionSelectedTournament(to: "abandoned", successMessage: "Tournament marked as abandoned.")
+    }
+
+    func cancelSelectedTournament() async {
+        await transitionSelectedTournament(to: "cancelled", successMessage: "Tournament cancelled.")
+    }
+
+    func deleteSelectedTournament() async {
+        guard canMutateTournament else {
+            tournamentActionErrorMessage = "Sign in is required to delete tournaments."
+            return
+        }
+
+        guard let selected = activeTournament else {
+            tournamentActionErrorMessage = "Choose a tournament to delete first."
+            return
+        }
+
+        let previousTournaments = tournaments
+        tournaments.removeAll { $0.id == selected.id }
+        if selectedTournamentId == selected.id {
+            selectedTournamentId = tournaments.first?.id
+        }
+
+        isTournamentActionRunning = true
+        tournamentActionErrorMessage = nil
+
+        do {
+            try await apiClient.deleteTournament(tournamentId: selected.id)
+            tournamentStatusMessage = "Tournament deleted."
+            await loadTournamentData(silently: false)
+        } catch {
+            tournaments = previousTournaments
+            selectedTournamentId = selected.id
+            tournamentActionErrorMessage = "Could not delete tournament: \(error.localizedDescription)"
+        }
+
+        isTournamentActionRunning = false
+    }
+
+    func exportTextForSelectedCompletedTournament() -> String? {
+        guard let tournament = activeTournament, tournament.status == "completed" else { return nil }
+        guard tournamentStandings.isEmpty == false else { return nil }
+
+        let lines = tournamentStandings.map { standing in
+            "#\(standing.rank) \(standing.playerName) • \(standing.pointsFor) pts • W\(standing.wins)-L\(standing.losses)"
+        }
+
+        // Note for non-coders:
+        // This text payload mirrors what web shares in its modal so it can be copied,
+        // sent to chat apps, or passed to iOS ShareLink without extra formatting work.
+        return ([
+            "\(tournament.name) (\(tournament.tournamentType.capitalized))",
+            "Status: Completed",
+            "",
+            "Standings:",
+        ] + lines).joined(separator: "\n")
+    }
+
     func saveTournamentRound(round: TournamentRound, team1Score: Int, team2Score: Int) async {
         guard canMutateTournament else {
             tournamentStatusMessage = "Guests can view tournaments, but sign in is required to save scores."
             return
         }
 
+        isTournamentActionRunning = true
+        tournamentActionErrorMessage = nil
+
         do {
             try await apiClient.saveTournamentRoundScore(roundId: round.id, team1Score: team1Score, team2Score: team2Score)
             tournamentStatusMessage = "Round \(round.roundNumber) score saved."
             await loadTournamentData(silently: false)
         } catch {
-            tournamentStatusMessage = "Could not save round score: \(error.localizedDescription)"
+            tournamentActionErrorMessage = "Could not save round score: \(error.localizedDescription)"
         }
+
+        isTournamentActionRunning = false
     }
 
     func completeActiveTournament() async {
@@ -1097,6 +1230,9 @@ final class AppViewModel: ObservableObject {
             tournamentStatusMessage = "No active tournament to complete."
             return
         }
+
+        isTournamentActionRunning = true
+        tournamentActionErrorMessage = nil
 
         do {
             let submissions = tournamentStandings.map {
@@ -1116,8 +1252,55 @@ final class AppViewModel: ObservableObject {
             tournamentStatusMessage = "Tournament completed and standings saved."
             await loadTournamentData(silently: false)
         } catch {
-            tournamentStatusMessage = "Could not complete tournament: \(error.localizedDescription)"
+            tournamentActionErrorMessage = "Could not complete tournament: \(error.localizedDescription)"
         }
+
+        isTournamentActionRunning = false
+    }
+
+    private func transitionSelectedTournament(to status: String, successMessage: String) async {
+        guard canMutateTournament else {
+            tournamentActionErrorMessage = "Sign in is required to update tournaments."
+            return
+        }
+
+        guard let selected = activeTournament else {
+            tournamentActionErrorMessage = "Choose a tournament first."
+            return
+        }
+
+        let previousTournament = selected
+        if let index = tournaments.firstIndex(where: { $0.id == selected.id }) {
+            tournaments[index] = Tournament(
+                id: selected.id,
+                name: selected.name,
+                status: status,
+                tournamentType: selected.tournamentType,
+                scheduledAt: selected.scheduledAt,
+                completedAt: selected.completedAt,
+                location: selected.location,
+                scoreTarget: selected.scoreTarget,
+                createdAt: selected.createdAt
+            )
+            activeTournament = tournaments[index]
+        }
+
+        isTournamentActionRunning = true
+        tournamentActionErrorMessage = nil
+
+        do {
+            try await apiClient.updateTournamentStatus(tournamentId: selected.id, status: status)
+            tournamentStatusMessage = successMessage
+            await loadTournamentData(silently: false)
+        } catch {
+            if let index = tournaments.firstIndex(where: { $0.id == previousTournament.id }) {
+                tournaments[index] = previousTournament
+            }
+            activeTournament = previousTournament
+            tournamentActionErrorMessage = "Could not update tournament: \(error.localizedDescription)"
+        }
+
+        isTournamentActionRunning = false
     }
 
     private func resolveStandings(fromRounds rounds: [TournamentRound], backendResults: [TournamentResult]) -> [TournamentStanding] {
