@@ -8,7 +8,7 @@ struct MainTabView: View {
         TabView(selection: $viewModel.selectedMainTab) {
             ProfileView()
                 .tabItem {
-                    Label("Profile", systemImage: "person.crop.circle")
+                    Label("Profil", systemImage: "person.crop.circle")
                 }
                 .tag(0)
 
@@ -20,14 +20,14 @@ struct MainTabView: View {
 
             HistoryView()
                 .tabItem {
-                    Label("History", systemImage: "clock.arrow.circlepath")
+                    Label("Historik", systemImage: "clock.arrow.circlepath")
                 }
                 .tag(2)
 
             if viewModel.canSeeSchedule {
                 ScheduleView()
                     .tabItem {
-                        Label("Schedule", systemImage: "calendar")
+                        Label("Schema", systemImage: "calendar")
                     }
                     .tag(3)
             }
@@ -35,7 +35,7 @@ struct MainTabView: View {
             if viewModel.canSeeTournament {
                 TournamentView()
                     .tabItem {
-                        Label("Tournament", systemImage: "trophy")
+                        Label("Turnering", systemImage: "trophy")
                     }
                     .tag(4)
             }
@@ -76,7 +76,7 @@ struct MainTabView: View {
                     .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
             }
             .padding(.bottom, 18)
-            .accessibilityLabel("Quick add match")
+            .accessibilityLabel("Snabblägg till match")
             .disabled(!viewModel.canCreateMatches)
             .opacity(viewModel.canCreateMatches ? 1 : 0.45)
         }

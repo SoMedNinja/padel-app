@@ -50,6 +50,23 @@ struct MatchSubmission: Encodable {
     }
 }
 
+struct MatchUpdatePatch: Encodable {
+    let teamAScore: Int
+    let teamBScore: Int
+
+    enum CodingKeys: String, CodingKey {
+        case teamAScore = "team1_sets"
+        case teamBScore = "team2_sets"
+    }
+}
+
+struct CalendarInviteResult: Decodable {
+    let success: Bool
+    let sent: Int
+    let total: Int
+    let error: String?
+}
+
 
 
 struct TournamentRoundScoreUpdate: Encodable {
@@ -462,6 +479,57 @@ struct SupabaseRESTClient {
         guard (200...299).contains(httpResponse.statusCode) else {
             throw APIError.requestFailed(statusCode: httpResponse.statusCode)
         }
+    }
+
+    func updateMatchScores(matchId: UUID, teamAScore: Int, teamBScore: Int) async throws {
+        try await sendPatch(
+            path: "/rest/v1/matches",
+            query: "id=eq.\(matchId.uuidString)",
+            body: MatchUpdatePatch(teamAScore: teamAScore, teamBScore: teamBScore)
+        )
+    }
+
+    func deleteMatch(matchId: UUID) async throws {
+        try await sendDelete(path: "/rest/v1/matches", query: "id=eq.\(matchId.uuidString)")
+    }
+
+    // Note for non-coders:
+    // This calls the same calendar invite edge function as the web schedule page.
+    func sendCalendarInvite(
+        pollId: UUID?,
+        date: String,
+        startTime: String,
+        endTime: String,
+        location: String?,
+        inviteeProfileIds: [UUID],
+        action: String,
+        title: String?
+    ) async throws -> CalendarInviteResult {
+        struct InvitePayload: Encodable {
+            let pollId: UUID?
+            let date: String
+            let startTime: String
+            let endTime: String
+            let location: String?
+            let inviteeProfileIds: [UUID]
+            let action: String
+            let title: String?
+        }
+
+        let data = try await sendFunctionRequest(
+            functionName: "availability-calendar-invite",
+            body: InvitePayload(
+                pollId: pollId,
+                date: date,
+                startTime: startTime,
+                endTime: endTime,
+                location: location,
+                inviteeProfileIds: inviteeProfileIds,
+                action: action,
+                title: title
+            )
+        )
+        return try decoder.decode(CalendarInviteResult.self, from: data)
     }
 
     func fetchActiveTournament() async throws -> Tournament? {

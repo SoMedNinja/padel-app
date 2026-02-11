@@ -3,6 +3,14 @@ import SwiftUI
 struct ScheduleView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
+    @State private var inviteDate = ""
+    @State private var inviteStartTime = "18:00"
+    @State private var inviteEndTime = "20:00"
+    @State private var inviteLocation = ""
+    @State private var inviteAction = "create"
+    @State private var inviteTitle = "Padelpass"
+    @State private var selectedInvitees: Set<UUID> = []
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -24,12 +32,14 @@ struct ScheduleView: View {
                 activePollsSection
                 votingSection
                 adminSection
+                calendarInviteSection
                 scheduledGamesSection
             }
-            .navigationTitle("Schedule")
+            .navigationTitle("Schema")
             .padelLiquidGlassChrome()
             .task {
                 await viewModel.refreshScheduleData()
+                prefillInviteDateIfNeeded()
             }
             .refreshable {
                 await viewModel.refreshScheduleData()
@@ -39,12 +49,18 @@ struct ScheduleView: View {
 
     private var statusSection: some View {
         Section {
-            Text("Note for non-coders: this page follows the same permission model as web. Guests cannot vote, regular members can vote, and admins can manage polls.")
+            Text("Note for non-coders: gäster kan inte rösta, ordinarie spelare kan rösta, och admins kan hantera omröstningar och inbjudningar.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
+            if let deepDay = viewModel.deepLinkedPollDayId {
+                Label("Öppnad via direktlänk till dag: \(deepDay.uuidString.prefix(8))…", systemImage: "link")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             if viewModel.isScheduleLoading {
-                ProgressView("Loading schedule data…")
+                ProgressView("Laddar schemadata…")
             }
 
             if let error = viewModel.scheduleErrorMessage {
@@ -60,18 +76,18 @@ struct ScheduleView: View {
     }
 
     private var activePollsSection: some View {
-        Section("Active Polls") {
+        Section("Aktiva omröstningar") {
             let activePolls = viewModel.polls.filter { $0.status == .open }
 
             if activePolls.isEmpty {
-                Text("No active polls right now.")
+                Text("Inga aktiva omröstningar just nu.")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(activePolls) { poll in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Week \(poll.weekNumber) (\(poll.weekYear))")
+                        Text("Vecka \(poll.weekNumber) (\(poll.weekYear))")
                             .font(.headline)
-                        Text("\((poll.days ?? []).count) days open for voting")
+                        Text("\((poll.days ?? []).count) dagar öppna för röster")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -82,14 +98,14 @@ struct ScheduleView: View {
     }
 
     private var votingSection: some View {
-        Section("Poll Voting") {
+        Section("Röstning") {
             if !viewModel.canVoteInSchedulePolls {
-                Text("You need regular member access to vote in schedule polls.")
+                Text("Du behöver regular-medlemskap för att rösta.")
                     .foregroundStyle(.secondary)
             } else {
                 let votablePolls = viewModel.polls.filter { $0.status == .open }
                 if votablePolls.isEmpty {
-                    Text("No open polls to vote on.")
+                    Text("Inga öppna omröstningar att rösta i.")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(votablePolls) { poll in
@@ -99,17 +115,17 @@ struct ScheduleView: View {
                                     let summary = PollDayVoteSummary.evaluate(day: day)
                                     Text(parsedDate(day.date))
                                         .font(.headline)
-                                    Text("Votes: \(summary.totalVoters) • \(summary.isGreen ? "Playable" : "Not enough overlap yet")")
+                                    Text("Röster: \(summary.totalVoters) • \(summary.isGreen ? "Spelbar" : "Inte nog med överlapp än")")
                                         .font(.caption)
                                         .foregroundStyle(summary.isGreen ? .green : .secondary)
 
-                                    Toggle("I can play this day", isOn: Binding(
+                                    Toggle("Jag kan spela denna dag", isOn: Binding(
                                         get: { viewModel.draftForDay(day).hasVote },
                                         set: { viewModel.setVoteEnabled($0, day: day) }
                                     ))
 
                                     if viewModel.draftForDay(day).hasVote {
-                                        Toggle("Available all day", isOn: Binding(
+                                        Toggle("Tillgänglig hela dagen", isOn: Binding(
                                             get: { viewModel.draftForDay(day).slots.isEmpty },
                                             set: { viewModel.setFullDay($0, day: day) }
                                         ))
@@ -123,7 +139,7 @@ struct ScheduleView: View {
                                             }
                                         }
 
-                                        Button(viewModel.isScheduleActionRunning ? "Saving…" : "Save vote") {
+                                        Button(viewModel.isScheduleActionRunning ? "Sparar…" : "Spara röst") {
                                             Task { await viewModel.submitVote(for: day) }
                                         }
                                         .disabled(viewModel.isScheduleActionRunning)
@@ -140,44 +156,44 @@ struct ScheduleView: View {
     }
 
     private var adminSection: some View {
-        Section("Poll Admin") {
+        Section("Omröstningsadmin") {
             if !viewModel.canManageSchedulePolls {
-                Text("Admin actions are only available to administrators.")
+                Text("Adminåtgärder visas bara för administratörer.")
                     .foregroundStyle(.secondary)
             } else {
-                Picker("Week", selection: $viewModel.selectedScheduleWeekKey) {
+                Picker("Vecka", selection: $viewModel.selectedScheduleWeekKey) {
                     ForEach(viewModel.scheduleWeekOptions) { option in
                         Text(option.label).tag(option.key)
                     }
                 }
 
-                Button(viewModel.isScheduleActionRunning ? "Creating…" : "Create Poll") {
+                Button(viewModel.isScheduleActionRunning ? "Skapar…" : "Skapa omröstning") {
                     Task { await viewModel.createAvailabilityPoll() }
                 }
                 .disabled(viewModel.isScheduleActionRunning)
 
                 ForEach(viewModel.polls) { poll in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Week \(poll.weekNumber) (\(poll.weekYear)) • \(poll.status.rawValue.capitalized)")
+                        Text("Vecka \(poll.weekNumber) (\(poll.weekYear)) • \(poll.status.rawValue.capitalized)")
                             .font(.subheadline)
 
-                        Toggle("Send only to missing votes", isOn: Binding(
+                        Toggle("Skicka bara till de som inte röstat", isOn: Binding(
                             get: { viewModel.onlyMissingVotesByPoll[poll.id] == true },
                             set: { viewModel.onlyMissingVotesByPoll[poll.id] = $0 }
                         ))
 
                         HStack {
                             if poll.status == .open {
-                                Button("Close") { Task { await viewModel.closeAvailabilityPoll(poll) } }
+                                Button("Stäng") { Task { await viewModel.closeAvailabilityPoll(poll) } }
                                     .buttonStyle(.bordered)
                             }
 
-                            Button("Send reminder") {
+                            Button("Skicka påminnelse") {
                                 Task { await viewModel.sendAvailabilityReminder(for: poll) }
                             }
                             .buttonStyle(.bordered)
 
-                            Button("Delete", role: .destructive) {
+                            Button("Radera", role: .destructive) {
                                 Task { await viewModel.deleteAvailabilityPoll(poll) }
                             }
                             .buttonStyle(.bordered)
@@ -189,10 +205,64 @@ struct ScheduleView: View {
         }
     }
 
+    private var calendarInviteSection: some View {
+        Section("Kalenderinbjudan (admin)") {
+            if !viewModel.canManageSchedulePolls {
+                Text("Endast admin kan skicka kalenderinbjudningar.")
+                    .foregroundStyle(.secondary)
+            } else {
+                TextField("Datum (YYYY-MM-DD)", text: $inviteDate)
+                TextField("Starttid (HH:MM)", text: $inviteStartTime)
+                TextField("Sluttid (HH:MM)", text: $inviteEndTime)
+                TextField("Plats", text: $inviteLocation)
+                TextField("Titel", text: $inviteTitle)
+
+                Picker("Åtgärd", selection: $inviteAction) {
+                    Text("Skapa").tag("create")
+                    Text("Uppdatera").tag("update")
+                    Text("Avboka").tag("cancel")
+                }
+
+                Text("Mottagare")
+                    .font(.subheadline.weight(.semibold))
+                ForEach(viewModel.players.filter { $0.isRegular }) { player in
+                    Toggle(player.profileName, isOn: Binding(
+                        get: { selectedInvitees.contains(player.id) },
+                        set: { enabled in
+                            if enabled { selectedInvitees.insert(player.id) }
+                            else { selectedInvitees.remove(player.id) }
+                        }
+                    ))
+                }
+
+                Button(viewModel.isScheduleActionRunning ? "Skickar…" : "Skicka kalenderinbjudan") {
+                    Task {
+                        await viewModel.sendCalendarInvite(
+                            pollId: viewModel.deepLinkedPollId,
+                            date: inviteDate,
+                            startTime: inviteStartTime,
+                            endTime: inviteEndTime,
+                            location: inviteLocation.isEmpty ? nil : inviteLocation,
+                            inviteeProfileIds: Array(selectedInvitees),
+                            action: inviteAction,
+                            title: inviteTitle.isEmpty ? nil : inviteTitle
+                        )
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedInvitees.isEmpty || inviteDate.isEmpty)
+
+                Text("Note for non-coders: detta använder samma e-postfunktion som webbappen för kalenderhändelser.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var scheduledGamesSection: some View {
-        Section("Scheduled Games") {
+        Section("Schemalagda matcher") {
             if viewModel.schedule.isEmpty {
-                Text("No games scheduled yet.")
+                Text("Inga matcher schemalagda ännu.")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(viewModel.schedule) { game in
@@ -208,6 +278,15 @@ struct ScheduleView: View {
                 }
             }
         }
+    }
+
+    private func prefillInviteDateIfNeeded() {
+        guard inviteDate.isEmpty else { return }
+        inviteDate = DateFormatter.localizedString(from: .now, dateStyle: .short, timeStyle: .none)
+        // Note for non-coders: API expects YYYY-MM-DD, so we normalize after showing a date quickly.
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withFullDate]
+        inviteDate = iso.string(from: .now)
     }
 
     private func parsedDate(_ rawDate: String) -> String {

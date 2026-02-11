@@ -2,6 +2,11 @@ import SwiftUI
 
 struct MatchDetailView: View {
     let match: Match
+    @EnvironmentObject private var viewModel: AppViewModel
+
+    @State private var editTeamAScore = 0
+    @State private var editTeamBScore = 0
+    @State private var showDeleteConfirm = false
 
     private let formatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -12,22 +17,54 @@ struct MatchDetailView: View {
 
     var body: some View {
         List {
-            Section("Teams") {
-                LabeledContent("Team A", value: match.teamAName)
-                LabeledContent("Team B", value: match.teamBName)
+            Section("Lag") {
+                LabeledContent("Lag A", value: match.teamAName)
+                LabeledContent("Lag B", value: match.teamBName)
             }
 
-            Section("Result") {
-                LabeledContent("Score", value: "\(match.teamAScore) - \(match.teamBScore)")
-                LabeledContent("Played", value: formatter.string(from: match.playedAt))
+            Section("Resultat") {
+                LabeledContent("Poäng", value: "\(match.teamAScore) - \(match.teamBScore)")
+                LabeledContent("Typ", value: match.scoreType == "points" ? "Poäng" : "Set")
+                if let target = match.scoreTarget {
+                    LabeledContent("Mål", value: "\(target)")
+                }
+                LabeledContent("Spelad", value: formatter.string(from: match.playedAt))
             }
 
-            Section("What this does") {
-                Text("Note for non-coders: this screen matches the web app's single match detail route so users can inspect one game at a time.")
+            if viewModel.canUseAdmin {
+                Section("Adminverktyg") {
+                    Stepper("Lag A: \(editTeamAScore)", value: $editTeamAScore, in: 0...99)
+                    Stepper("Lag B: \(editTeamBScore)", value: $editTeamBScore, in: 0...99)
+
+                    Button("Spara ändring") {
+                        Task { await viewModel.updateMatchScores(match, teamAScore: editTeamAScore, teamBScore: editTeamBScore) }
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Radera match", role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                }
+            }
+
+            Section("Vad detta gör") {
+                Text("Note for non-coders: admins kan ändra/radera direkt här så iOS-flödet matchar webbens historikverktyg.")
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Match Details")
+        .onAppear {
+            editTeamAScore = match.teamAScore
+            editTeamBScore = match.teamBScore
+        }
+        .alert("Radera match?", isPresented: $showDeleteConfirm) {
+            Button("Radera", role: .destructive) {
+                Task { await viewModel.deleteMatch(match) }
+            }
+            Button("Avbryt", role: .cancel) { }
+        } message: {
+            Text("Det här tar bort matchen permanent från databasen.")
+        }
+        .navigationTitle("Matchdetaljer")
         .padelLiquidGlassChrome()
     }
 }

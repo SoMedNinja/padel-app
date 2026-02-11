@@ -10,28 +10,28 @@ struct PadelNativeApp: App {
                 if appViewModel.isCheckingSession {
                     VStack(spacing: 12) {
                         ProgressView()
-                        Text("Checking your session…")
+                        Text("Kontrollerar din session…")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 } else if appViewModel.isAuthenticated || appViewModel.isGuestMode {
                     if appViewModel.isAwaitingApproval {
                         VStack(spacing: 14) {
-                            Text("Waiting for approval")
+                            Text("Väntar på godkännande")
                                 .font(.title3.bold())
                             Text("Note for non-coders: this matches web behavior where non-admin users must be approved before full access.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
-                            Button("Refresh status") {
+                            Button("Uppdatera status") {
                                 Task {
                                     await appViewModel.bootstrap()
                                 }
                             }
                             .buttonStyle(.borderedProminent)
 
-                            Button("Sign out", role: .destructive) {
+                            Button("Logga ut", role: .destructive) {
                                 appViewModel.signOut()
                             }
                             .buttonStyle(.bordered)
@@ -73,6 +73,9 @@ struct PadelNativeApp: App {
                 if appViewModel.isAuthenticated {
                     await appViewModel.bootstrap()
                 }
+            }
+            .onOpenURL { url in
+                appViewModel.handleIncomingURL(url)
             }
         }
     }

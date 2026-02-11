@@ -173,6 +173,9 @@ final class AppViewModel: ObservableObject {
     @Published var dashboardFilter: DashboardMatchFilter = .all
     @Published var isDashboardLoading = false
     @Published var selectedMainTab = 1
+    @Published var selectedHistoryFilter: DashboardMatchFilter = .all
+    @Published var deepLinkedPollId: UUID?
+    @Published var deepLinkedPollDayId: UUID?
 
     // Note for non-coders:
     // These values mirror the web app's "dismiss this notice on this device" behavior.
@@ -690,6 +693,30 @@ final class AppViewModel: ObservableObject {
         selectedMainTab = 3
     }
 
+    // Note for non-coders:
+    // This reads links like padelnative://schedule?pollId=...&dayId=... so users can jump into voting directly.
+    func handleIncomingURL(_ url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+        let hostOrPath = (components.host ?? components.path).lowercased()
+        guard hostOrPath.contains("schedule") else { return }
+
+        openScheduleTab()
+
+        let items = components.queryItems ?? []
+        if let pollIdString = items.first(where: { $0.name == "pollId" })?.value,
+           let pollId = UUID(uuidString: pollIdString) {
+            deepLinkedPollId = pollId
+        }
+        if let dayIdString = items.first(where: { $0.name == "dayId" })?.value,
+           let dayId = UUID(uuidString: dayIdString) {
+            deepLinkedPollDayId = dayId
+        }
+
+        if deepLinkedPollId == nil && deepLinkedPollDayId == nil {
+            scheduleActionMessage = "Länken öppnade schemafliken, men saknade omröstningsdetaljer."
+        }
+    }
+
     func openDashboardFiltered(_ filter: DashboardMatchFilter) {
         dashboardFilter = filter
         selectedMainTab = 1
@@ -1101,6 +1128,75 @@ final class AppViewModel: ObservableObject {
             await refreshScheduleData()
         } catch {
             scheduleErrorMessage = "Could not send reminder: \(error.localizedDescription)"
+        }
+    }
+
+    func sendCalendarInvite(
+        pollId: UUID?,
+        date: String,
+        startTime: String,
+        endTime: String,
+        location: String?,
+        inviteeProfileIds: [UUID],
+        action: String,
+        title: String?
+    ) async {
+        guard canManageSchedulePolls else {
+            scheduleErrorMessage = "Adminåtkomst krävs för kalenderinbjudningar."
+            return
+        }
+
+        isScheduleActionRunning = true
+        defer { isScheduleActionRunning = false }
+
+        do {
+            let result = try await apiClient.sendCalendarInvite(
+                pollId: pollId,
+                date: date,
+                startTime: startTime,
+                endTime: endTime,
+                location: location,
+                inviteeProfileIds: inviteeProfileIds,
+                action: action,
+                title: title
+            )
+            if result.success {
+                scheduleActionMessage = "Kalenderinbjudan skickad till \(result.sent)/\(result.total)."
+                scheduleErrorMessage = nil
+                await refreshScheduleData()
+            } else {
+                scheduleErrorMessage = result.error ?? "Kunde inte skicka kalenderinbjudan."
+            }
+        } catch {
+            scheduleErrorMessage = "Kunde inte skicka kalenderinbjudan: \(error.localizedDescription)"
+        }
+    }
+
+    func deleteMatch(_ match: Match) async {
+        guard canUseAdmin else {
+            statusMessage = "Endast admin kan radera matcher i iOS-appen just nu."
+            return
+        }
+        do {
+            try await apiClient.deleteMatch(matchId: match.id)
+            matches.removeAll { $0.id == match.id }
+            statusMessage = "Matchen raderades."
+        } catch {
+            statusMessage = "Kunde inte radera matchen: \(error.localizedDescription)"
+        }
+    }
+
+    func updateMatchScores(_ match: Match, teamAScore: Int, teamBScore: Int) async {
+        guard canUseAdmin else {
+            statusMessage = "Endast admin kan ändra matcher i iOS-appen just nu."
+            return
+        }
+        do {
+            try await apiClient.updateMatchScores(matchId: match.id, teamAScore: teamAScore, teamBScore: teamBScore)
+            await bootstrap()
+            statusMessage = "Matchresultat uppdaterat."
+        } catch {
+            statusMessage = "Kunde inte uppdatera matchen: \(error.localizedDescription)"
         }
     }
 
@@ -1991,8 +2087,8 @@ final class AppViewModel: ObservableObject {
         return names
     }
     func submitSingleGame(
-        teamAName: String,
-        teamBName: String,
+        teamAPlayerIds: [UUID?],
+        teamBPlayerIds: [UUID?],
         teamAScore: Int,
         teamBScore: Int,
         scoreType: String = "sets",
@@ -2001,38 +2097,51 @@ final class AppViewModel: ObservableObject {
         sourceTournamentType: String = "standalone",
         teamAServesFirst: Bool = true
     ) async {
-        let trimmedA = teamAName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedB = teamBName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedAIds = Array(teamAPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamAPlayerIds.count))
+        let normalizedBIds = Array(teamBPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamBPlayerIds.count))
+        let compactA = normalizedAIds.compactMap { $0 }
+        let compactB = normalizedBIds.compactMap { $0 }
 
-        guard !trimmedA.isEmpty, !trimmedB.isEmpty else {
-            statusMessage = "Please enter both team names."
+        guard !compactA.isEmpty, !compactB.isEmpty else {
+            statusMessage = "Välj minst en spelare per lag."
+            return
+        }
+
+        let combined = compactA + compactB
+        guard Set(combined).count == combined.count else {
+            statusMessage = "Samma spelare kan inte vara i båda lagen."
             return
         }
 
         guard (0...99).contains(teamAScore), (0...99).contains(teamBScore) else {
-            statusMessage = "Scores must be between 0 and 99."
+            statusMessage = "Poängen måste vara mellan 0 och 99."
             return
         }
 
         let normalizedScoreType = scoreType == "points" ? "points" : "sets"
         let normalizedTarget = normalizedScoreType == "points" ? scoreTarget : nil
+        let isOneVsOne = compactA.count == 1 && compactB.count == 1
         let normalizedTournamentType = sourceTournamentType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "standalone"
+            ? (isOneVsOne ? "standalone_1v1" : "standalone")
             : sourceTournamentType.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Note for non-coders:
-        // The web database expects exactly two slots in each team ID list.
-        // iOS single-game currently uses manual team names, so we safely send unknown IDs as nil placeholders.
-        let unknownIds: [UUID?] = [nil, nil]
-        let teamANames = normalizedTeamNames(from: trimmedA)
-        let teamBNames = normalizedTeamNames(from: trimmedB)
+        // We derive readable team names from selected profiles so match history looks human-friendly.
+        let teamANames = normalizedAIds.map { playerId in
+            guard let playerId else { return "" }
+            return players.first(where: { $0.id == playerId })?.profileName ?? "Okänd spelare"
+        }
+        let teamBNames = normalizedBIds.map { playerId in
+            guard let playerId else { return "" }
+            return players.first(where: { $0.id == playerId })?.profileName ?? "Okänd spelare"
+        }
 
         do {
             let submission = MatchSubmission(
-                teamAName: teamANames.isEmpty ? [trimmedA] : teamANames,
-                teamBName: teamBNames.isEmpty ? [trimmedB] : teamBNames,
-                teamAPlayerIds: unknownIds,
-                teamBPlayerIds: unknownIds,
+                teamAName: teamANames,
+                teamBName: teamBNames,
+                teamAPlayerIds: normalizedAIds,
+                teamBPlayerIds: normalizedBIds,
                 teamAScore: teamAScore,
                 teamBScore: teamBScore,
                 scoreType: normalizedScoreType,
@@ -2051,12 +2160,12 @@ final class AppViewModel: ObservableObject {
             let localMatch = Match(
                 id: UUID(),
                 playedAt: .now,
-                teamAName: trimmedA,
-                teamBName: trimmedB,
+                teamAName: teamANames.filter { !$0.isEmpty }.joined(separator: " & "),
+                teamBName: teamBNames.filter { !$0.isEmpty }.joined(separator: " & "),
                 teamAScore: teamAScore,
                 teamBScore: teamBScore,
-                teamAPlayerIds: unknownIds,
-                teamBPlayerIds: unknownIds,
+                teamAPlayerIds: normalizedAIds,
+                teamBPlayerIds: normalizedBIds,
                 scoreType: normalizedScoreType,
                 scoreTarget: normalizedTarget,
                 sourceTournamentId: sourceTournamentId,
@@ -2064,10 +2173,10 @@ final class AppViewModel: ObservableObject {
                 teamAServesFirst: teamAServesFirst
             )
             matches.insert(localMatch, at: 0)
-            statusMessage = "Match saved successfully."
+            statusMessage = "Match sparad."
             await bootstrap()
         } catch {
-            statusMessage = "Could not save match: \(error.localizedDescription)"
+            statusMessage = "Kunde inte spara matchen: \(error.localizedDescription)"
         }
     }
 }

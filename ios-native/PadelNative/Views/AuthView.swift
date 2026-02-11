@@ -2,8 +2,8 @@ import SwiftUI
 
 struct AuthView: View {
     enum AuthMode: String, CaseIterable, Identifiable {
-        case signIn = "Sign In"
-        case signUp = "Sign Up"
+        case signIn = "Logga in"
+        case signUp = "Skapa konto"
 
         var id: String { rawValue }
     }
@@ -44,16 +44,16 @@ struct AuthView: View {
 
                 Form {
                     if mode == .signUp {
-                        TextField("Full name", text: $fullName)
+                        TextField("Fullständigt namn", text: $fullName)
                             .textInputAutocapitalization(.words)
                     }
 
-                    TextField("Email", text: $email)
+                    TextField("E-post", text: $email)
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
 
-                    SecureField("Password", text: $password)
+                    SecureField("Lösenord", text: $password)
 
                     Button {
                         Task {
@@ -68,14 +68,14 @@ struct AuthView: View {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
                         } else {
-                            Text(mode == .signIn ? "Sign In" : "Create Account")
+                            Text(mode == .signIn ? "Logga in" : "Skapa konto")
                                 .frame(maxWidth: .infinity)
                         }
                     }
                     .disabled(viewModel.isAuthenticating)
 
                     if mode == .signIn {
-                        Button("Forgot password?") {
+                        Button("Glömt lösenord?") {
                             Task {
                                 await viewModel.sendPasswordReset(email: email)
                             }
@@ -84,7 +84,7 @@ struct AuthView: View {
                         .disabled(viewModel.isAuthenticating)
                     }
 
-                    Button("Continue as guest") {
+                    Button("Fortsätt som gäst") {
                         viewModel.continueAsGuest()
                     }
                     .frame(maxWidth: .infinity)
@@ -104,7 +104,7 @@ struct AuthView: View {
                 Spacer()
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle("Welcome")
+            .navigationTitle("Välkommen")
         }
     }
 }

@@ -3,50 +3,67 @@ import SwiftUI
 struct SingleGameView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
-    @State private var teamAName = ""
-    @State private var teamBName = ""
+    @State private var isOneVsOne = false
+    @State private var teamAPlayer1Id: UUID?
+    @State private var teamAPlayer2Id: UUID?
+    @State private var teamBPlayer1Id: UUID?
+    @State private var teamBPlayer2Id: UUID?
     @State private var teamAScore = 6
     @State private var teamBScore = 4
     @State private var scoreType = "sets"
     @State private var scoreTargetText = ""
     @State private var sourceTournamentIdText = ""
-    @State private var sourceTournamentType = "standalone"
+    @State private var sourceTournamentType = ""
     @State private var teamAServesFirst = true
     @State private var isSubmitting = false
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Teams") {
-                    TextField("Team A", text: $teamAName)
-                    TextField("Team B", text: $teamBName)
+                Section("Matchtyp") {
+                    Toggle("1 mot 1", isOn: $isOneVsOne)
+                    Text("Note for non-coders: när du slår på 1 mot 1 döljer appen den andra spelaren i varje lag.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
-                Section("Score") {
-                    Stepper("Team A: \(teamAScore)", value: $teamAScore, in: 0...99)
-                    Stepper("Team B: \(teamBScore)", value: $teamBScore, in: 0...99)
+                Section("Lag") {
+                    playerPicker(title: "Lag A – spelare 1", selection: $teamAPlayer1Id)
+                    if !isOneVsOne {
+                        playerPicker(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
+                    }
+
+                    playerPicker(title: "Lag B – spelare 1", selection: $teamBPlayer1Id)
+                    if !isOneVsOne {
+                        playerPicker(title: "Lag B – spelare 2 (valfri)", selection: $teamBPlayer2Id)
+                    }
                 }
 
-                Section("Match metadata") {
-                    Picker("Score type", selection: $scoreType) {
-                        Text("Sets").tag("sets")
-                        Text("Points").tag("points")
+                Section("Resultat") {
+                    Stepper("Lag A: \(teamAScore)", value: $teamAScore, in: 0...99)
+                    Stepper("Lag B: \(teamBScore)", value: $teamBScore, in: 0...99)
+                }
+
+                Section("Matchmetadata") {
+                    Picker("Poängtyp", selection: $scoreType) {
+                        Text("Set").tag("sets")
+                        Text("Poäng").tag("points")
                     }
 
                     if scoreType == "points" {
-                        TextField("Score target (optional)", text: $scoreTargetText)
+                        TextField("Poängmål (valfritt)", text: $scoreTargetText)
                             .keyboardType(.numberPad)
                     }
 
-                    TextField("Source tournament ID (optional UUID)", text: $sourceTournamentIdText)
+                    TextField("Turnerings-ID (valfritt UUID)", text: $sourceTournamentIdText)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
-                    TextField("Source tournament type", text: $sourceTournamentType)
+                    TextField("Turneringstyp (valfritt)", text: $sourceTournamentType)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
-                    Toggle("Team A serves first", isOn: $teamAServesFirst)
+                    Toggle("Lag A servar först", isOn: $teamAServesFirst)
                 }
 
                 Section {
@@ -54,9 +71,13 @@ struct SingleGameView: View {
                         Task {
                             isSubmitting = true
                             defer { isSubmitting = false }
+
+                            let teamAIds: [UUID?] = [teamAPlayer1Id, isOneVsOne ? nil : teamAPlayer2Id]
+                            let teamBIds: [UUID?] = [teamBPlayer1Id, isOneVsOne ? nil : teamBPlayer2Id]
+
                             await viewModel.submitSingleGame(
-                                teamAName: teamAName,
-                                teamBName: teamBName,
+                                teamAPlayerIds: teamAIds,
+                                teamBPlayerIds: teamBIds,
                                 teamAScore: teamAScore,
                                 teamBScore: teamBScore,
                                 scoreType: scoreType,
@@ -68,11 +89,9 @@ struct SingleGameView: View {
                         }
                     } label: {
                         if isSubmitting {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
+                            ProgressView().frame(maxWidth: .infinity)
                         } else {
-                            Text("Save Match")
-                                .frame(maxWidth: .infinity)
+                            Text("Spara match").frame(maxWidth: .infinity)
                         }
                     }
                     .disabled(isSubmitting)
@@ -80,18 +99,21 @@ struct SingleGameView: View {
 
                 if let status = viewModel.statusMessage {
                     Section("Status") {
-                        Text(status)
-                            .foregroundStyle(.secondary)
+                        Text(status).foregroundStyle(.secondary)
                     }
                 }
-
-                Section("What this does") {
-                    Text("Note for non-coders: this is the native equivalent of the web app's single-game form. It now also sends match metadata (like score mode, tournament source, and who serves first) so web history and stats stay accurate.")
-                        .foregroundStyle(.secondary)
-                }
             }
-            .navigationTitle("Single Game")
+            .navigationTitle("Singelmatch")
             .padelLiquidGlassChrome()
+        }
+    }
+
+    private func playerPicker(title: String, selection: Binding<UUID?>) -> some View {
+        Picker(title, selection: selection) {
+            Text("Välj spelare").tag(Optional<UUID>.none)
+            ForEach(viewModel.players) { player in
+                Text(player.profileName).tag(Optional(player.id))
+            }
         }
     }
 }
