@@ -4,6 +4,7 @@ enum APIError: LocalizedError {
     case missingConfiguration
     case badURL
     case requestFailed(statusCode: Int)
+    case unauthorized
 
     var errorDescription: String? {
         switch self {
@@ -13,7 +14,23 @@ enum APIError: LocalizedError {
             return "Invalid request URL."
         case .requestFailed(let statusCode):
             return "Request failed with status code \(statusCode)."
+        case .unauthorized:
+            return "You must be an admin to perform this action."
         }
+    }
+}
+
+struct ProfileAdminUpdate: Encodable {
+    let isAdmin: Bool?
+    let isRegular: Bool?
+    let isApproved: Bool?
+    let isDeleted: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case isAdmin = "is_admin"
+        case isRegular = "is_regular"
+        case isApproved = "is_approved"
+        case isDeleted = "is_deleted"
     }
 }
 
@@ -62,6 +79,38 @@ struct SupabaseRESTClient {
             path: "/rest/v1/availability_scheduled_games",
             query: "select=id,starts_at,location,description&order=starts_at.asc"
         )
+    }
+
+    func fetchAdminProfiles(isRequesterAdmin: Bool) async throws -> [AdminProfile] {
+        guard isRequesterAdmin else { throw APIError.unauthorized }
+        return try await request(
+            path: "/rest/v1/profiles",
+            query: "select=id,full_name,elo,is_admin,is_regular,is_approved,is_deleted&order=full_name.asc"
+        )
+    }
+
+    func updateAdminProfile(id: UUID, updates: ProfileAdminUpdate, isRequesterAdmin: Bool) async throws {
+        guard isRequesterAdmin else { throw APIError.unauthorized }
+        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
+        guard let url = URL(string: "\(AppConfig.supabaseURL)/rest/v1/profiles?id=eq.\(id.uuidString)") else {
+            throw APIError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try encoder.encode(updates)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.requestFailed(statusCode: -1)
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.requestFailed(statusCode: httpResponse.statusCode)
+        }
     }
 
     func submitMatch(_ match: MatchSubmission) async throws {

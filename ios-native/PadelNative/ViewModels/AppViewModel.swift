@@ -17,9 +17,16 @@ struct HeadToHeadSummary: Identifiable {
 
 @MainActor
 final class AppViewModel: ObservableObject {
+    struct AdminActionBanner {
+        let message: String
+        let isSuccess: Bool
+    }
+
     @Published var players: [Player] = []
     @Published var matches: [Match] = []
     @Published var schedule: [ScheduleEntry] = []
+    @Published var adminProfiles: [AdminProfile] = []
+    @Published var adminBanner: AdminActionBanner?
     @Published var lastErrorMessage: String?
     @Published var statusMessage: String?
     @Published var isAuthenticated = false
@@ -198,6 +205,12 @@ final class AppViewModel: ObservableObject {
             self.players = try await playersTask
             self.matches = try await matchesTask
             self.schedule = try await scheduleTask
+
+            if canUseAdmin {
+                self.adminProfiles = try await apiClient.fetchAdminProfiles(isRequesterAdmin: true)
+            } else {
+                self.adminProfiles = []
+            }
             self.lastErrorMessage = nil
         } catch {
             // Note for non-coders:
@@ -206,7 +219,109 @@ final class AppViewModel: ObservableObject {
             self.players = SampleData.players
             self.matches = SampleData.matches
             self.schedule = SampleData.schedule
+            self.adminProfiles = canUseAdmin ? SampleData.adminProfiles : []
             self.lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshAdminData() async {
+        guard canUseAdmin else {
+            adminProfiles = []
+            return
+        }
+
+        do {
+            adminProfiles = try await apiClient.fetchAdminProfiles(isRequesterAdmin: true)
+        } catch {
+            adminBanner = AdminActionBanner(message: "Could not refresh admin data: \(error.localizedDescription)", isSuccess: false)
+        }
+    }
+
+    func clearAdminBanner() {
+        adminBanner = nil
+    }
+
+    func toggleAdminRole(for profile: AdminProfile) async {
+        guard canUseAdmin else { return }
+        guard profile.id != currentPlayer?.id else {
+            adminBanner = AdminActionBanner(message: "You cannot remove your own admin role.", isSuccess: false)
+            return
+        }
+
+        await runAdminMutation(
+            bannerSuccessMessage: profile.isAdmin ? "Admin role removed for \(profile.fullName)." : "Admin role granted to \(profile.fullName)."
+        ) {
+            try await apiClient.updateAdminProfile(
+                id: profile.id,
+                updates: ProfileAdminUpdate(isAdmin: !profile.isAdmin, isRegular: nil, isApproved: nil, isDeleted: nil),
+                isRequesterAdmin: canUseAdmin
+            )
+        }
+    }
+
+    func toggleApproval(for profile: AdminProfile) async {
+        guard canUseAdmin else { return }
+
+        await runAdminMutation(
+            bannerSuccessMessage: profile.isApproved ? "Approval revoked for \(profile.fullName)." : "\(profile.fullName) is now approved."
+        ) {
+            try await apiClient.updateAdminProfile(
+                id: profile.id,
+                updates: ProfileAdminUpdate(isAdmin: nil, isRegular: nil, isApproved: !profile.isApproved, isDeleted: nil),
+                isRequesterAdmin: canUseAdmin
+            )
+        }
+    }
+
+    func toggleRegularRole(for profile: AdminProfile) async {
+        guard canUseAdmin else { return }
+
+        await runAdminMutation(
+            bannerSuccessMessage: profile.isRegular ? "Regular status removed for \(profile.fullName)." : "Regular status enabled for \(profile.fullName)."
+        ) {
+            try await apiClient.updateAdminProfile(
+                id: profile.id,
+                updates: ProfileAdminUpdate(isAdmin: nil, isRegular: !profile.isRegular, isApproved: nil, isDeleted: nil),
+                isRequesterAdmin: canUseAdmin
+            )
+        }
+    }
+
+    func toggleDeactivation(for profile: AdminProfile) async {
+        guard canUseAdmin else { return }
+        guard profile.id != currentPlayer?.id else {
+            adminBanner = AdminActionBanner(message: "You cannot deactivate your own account.", isSuccess: false)
+            return
+        }
+
+        // Note for non-coders:
+        // Deactivating a profile also removes sensitive permissions so the account is
+        // effectively blocked from privileged areas until reactivated.
+        let deactivating = !profile.isDeleted
+        let updates = ProfileAdminUpdate(
+            isAdmin: deactivating ? false : nil,
+            isRegular: deactivating ? false : true,
+            isApproved: deactivating ? false : true,
+            isDeleted: deactivating
+        )
+
+        await runAdminMutation(
+            bannerSuccessMessage: deactivating ? "\(profile.fullName) has been deactivated." : "\(profile.fullName) has been reactivated."
+        ) {
+            try await apiClient.updateAdminProfile(id: profile.id, updates: updates, isRequesterAdmin: canUseAdmin)
+        }
+    }
+
+    private func runAdminMutation(
+        bannerSuccessMessage: String,
+        action: () async throws -> Void
+    ) async {
+        do {
+            try await action()
+            adminBanner = AdminActionBanner(message: bannerSuccessMessage, isSuccess: true)
+            await bootstrap()
+        } catch {
+            adminBanner = AdminActionBanner(message: "Admin action failed: \(error.localizedDescription)", isSuccess: false)
         }
     }
 
@@ -271,5 +386,35 @@ enum SampleData {
     static let schedule: [ScheduleEntry] = [
         ScheduleEntry(id: UUID(), startsAt: .now.addingTimeInterval(172_800), location: "Center Court", description: "Friendly doubles"),
         ScheduleEntry(id: UUID(), startsAt: .now.addingTimeInterval(345_600), location: "North Hall", description: "Weekly ladder"),
+    ]
+
+    static let adminProfiles: [AdminProfile] = [
+        AdminProfile(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            fullName: "Alex",
+            elo: 1510,
+            isAdmin: true,
+            isRegular: true,
+            isApproved: true,
+            isDeleted: false
+        ),
+        AdminProfile(
+            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            fullName: "Sam",
+            elo: 1465,
+            isAdmin: false,
+            isRegular: true,
+            isApproved: true,
+            isDeleted: false
+        ),
+        AdminProfile(
+            id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+            fullName: "Robin",
+            elo: 1430,
+            isAdmin: false,
+            isRegular: false,
+            isApproved: false,
+            isDeleted: false
+        )
     ]
 }
