@@ -18,18 +18,32 @@ enum APIError: LocalizedError {
 }
 
 struct MatchSubmission: Encodable {
-    let teamAName: String
-    let teamBName: String
+    let teamAName: [String]
+    let teamBName: [String]
+    let teamAPlayerIds: [UUID?]
+    let teamBPlayerIds: [UUID?]
     let teamAScore: Int
     let teamBScore: Int
+    let scoreType: String
+    let scoreTarget: Int?
+    let sourceTournamentId: UUID?
+    let sourceTournamentType: String
+    let teamAServesFirst: Bool
     let playedAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case teamAName = "team_a_name"
-        case teamBName = "team_b_name"
-        case teamAScore = "team_a_score"
-        case teamBScore = "team_b_score"
-        case playedAt = "played_at"
+        case teamAName = "team1"
+        case teamBName = "team2"
+        case teamAPlayerIds = "team1_ids"
+        case teamBPlayerIds = "team2_ids"
+        case teamAScore = "team1_sets"
+        case teamBScore = "team2_sets"
+        case scoreType = "score_type"
+        case scoreTarget = "score_target"
+        case sourceTournamentId = "source_tournament_id"
+        case sourceTournamentType = "source_tournament_type"
+        case teamAServesFirst = "team1_serves_first"
+        case playedAt = "created_at"
     }
 }
 
@@ -155,7 +169,7 @@ struct SupabaseRESTClient {
     func fetchRecentMatches(limit: Int = 20) async throws -> [Match] {
         try await request(
             path: "/rest/v1/matches",
-            query: "select=id,played_at,team_a_name,team_b_name,team_a_score,team_b_score&order=played_at.desc&limit=\(limit)"
+            query: "select=id,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)"
         )
     }
 

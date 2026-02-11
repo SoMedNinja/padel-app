@@ -7,6 +7,11 @@ struct SingleGameView: View {
     @State private var teamBName = ""
     @State private var teamAScore = 6
     @State private var teamBScore = 4
+    @State private var scoreType = "sets"
+    @State private var scoreTargetText = ""
+    @State private var sourceTournamentIdText = ""
+    @State private var sourceTournamentType = "standalone"
+    @State private var teamAServesFirst = true
     @State private var isSubmitting = false
 
     var body: some View {
@@ -22,6 +27,28 @@ struct SingleGameView: View {
                     Stepper("Team B: \(teamBScore)", value: $teamBScore, in: 0...99)
                 }
 
+                Section("Match metadata") {
+                    Picker("Score type", selection: $scoreType) {
+                        Text("Sets").tag("sets")
+                        Text("Points").tag("points")
+                    }
+
+                    if scoreType == "points" {
+                        TextField("Score target (optional)", text: $scoreTargetText)
+                            .keyboardType(.numberPad)
+                    }
+
+                    TextField("Source tournament ID (optional UUID)", text: $sourceTournamentIdText)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                    TextField("Source tournament type", text: $sourceTournamentType)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                    Toggle("Team A serves first", isOn: $teamAServesFirst)
+                }
+
                 Section {
                     Button {
                         Task {
@@ -31,7 +58,12 @@ struct SingleGameView: View {
                                 teamAName: teamAName,
                                 teamBName: teamBName,
                                 teamAScore: teamAScore,
-                                teamBScore: teamBScore
+                                teamBScore: teamBScore,
+                                scoreType: scoreType,
+                                scoreTarget: Int(scoreTargetText),
+                                sourceTournamentId: UUID(uuidString: sourceTournamentIdText.trimmingCharacters(in: .whitespacesAndNewlines)),
+                                sourceTournamentType: sourceTournamentType,
+                                teamAServesFirst: teamAServesFirst
                             )
                         }
                     } label: {
@@ -54,7 +86,7 @@ struct SingleGameView: View {
                 }
 
                 Section("What this does") {
-                    Text("Note for non-coders: this is the native equivalent of the web app's single-game form. It sends one completed match to the same backend table.")
+                    Text("Note for non-coders: this is the native equivalent of the web app's single-game form. It now also sends match metadata (like score mode, tournament source, and who serves first) so web history and stats stay accurate.")
                         .foregroundStyle(.secondary)
                 }
             }
