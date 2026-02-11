@@ -2283,11 +2283,10 @@ final class AppViewModel: ObservableObject {
             selectedTournamentId = tournaments.first?.id
         }
 
-        if participantIds.count < 4 {
-            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
-            return
-        }
-
+        // Note for non-coders:
+        // Only tournament creation receives a fresh participant list from the UI form.
+        // Delete/start/score/complete actions work on an already-created tournament,
+        // so they should not reference a local `participantIds` variable here.
         isTournamentActionRunning = true
         tournamentActionErrorMessage = nil
 
@@ -2335,11 +2334,6 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        if participantIds.count < 4 {
-            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
-            return
-        }
-
         isTournamentActionRunning = true
         tournamentActionErrorMessage = nil
 
@@ -2362,11 +2356,6 @@ final class AppViewModel: ObservableObject {
 
         guard let tournament = activeTournament else {
             tournamentStatusMessage = "No active tournament to complete."
-            return
-        }
-
-        if participantIds.count < 4 {
-            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
             return
         }
 
@@ -2423,12 +2412,6 @@ final class AppViewModel: ObservableObject {
             )
             activeTournament = tournaments[index]
         }
-
-        if participantIds.count < 4 {
-            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
-            return
-        }
-
         isTournamentActionRunning = true
         tournamentActionErrorMessage = nil
 
