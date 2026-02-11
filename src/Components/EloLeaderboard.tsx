@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import Avatar from "./Avatar";
 import ProfileName from "./ProfileName";
+import RivalryModal from "./RivalryModal";
+import { Sparkline } from "./Shared/Sparkline";
 import { GUEST_ID } from "../utils/guest";
 import { getStoredAvatar } from "../utils/avatar";
-import { getStreak, getTrendIndicator } from "../utils/stats";
+import { getStreak } from "../utils/stats";
 import { Match, PlayerStats } from "../types";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
 import { useStore } from "../store/useStore";
@@ -41,6 +43,14 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
   const { user } = useStore();
   const [sortKey, setSortKey] = useState<string>("elo");
   const [asc, setAsc] = useState<boolean>(false);
+  const [rivalryOpen, setRivalryOpen] = useState(false);
+  const [selectedRival, setSelectedRival] = useState<PlayerStats | null>(null);
+
+  const handlePlayerClick = (p: PlayerStats) => {
+    if (!user || p.id === user.id) return;
+    setSelectedRival(p);
+    setRivalryOpen(true);
+  };
 
   const mergedPlayers = useMemo(() => {
     if (!players.length) return [];
@@ -97,7 +107,13 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
       // Optimization: Pre-calculate streak and trend once per data change
       const streakRaw = getStreak(s.recentResults);
       const streak = streakRaw.replace("W", "V").replace("L", "F");
-      const trend = getTrendIndicator(s.recentResults);
+
+      // Extract ELO history for sparkline (last 10 matches)
+      const eloHistory = player.history ? player.history.slice(-10).map(h => h.elo) : [];
+      // Always include current ELO as the last point if it's not already there
+      if (player.elo && (eloHistory.length === 0 || eloHistory[eloHistory.length - 1] !== player.elo)) {
+        eloHistory.push(player.elo);
+      }
 
       return {
         ...player,
@@ -106,7 +122,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
         games: s.recentResults.length,
         recentResults: s.recentResults.slice(-5),
         streak,
-        trend,
+        eloHistory,
       };
     });
   }, [matches, players, isFiltered]);
@@ -260,8 +276,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                   </Tooltip>
                 </TableCell>
                 <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none', cursor: 'help' }}>
-                  <Tooltip title="Form baserat på de senaste 5 matcherna" arrow>
-                    <Box component="span">Trend</Box>
+                  <Tooltip title="Form baserat på ELO-förändring över de senaste matcherna" arrow>
+                    <Box component="span">Form</Box>
                   </Tooltip>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
@@ -281,6 +297,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
               {virtualItems.map((virtualItem) => {
                 const p = sortedPlayers[virtualItem.index];
                 if (!p) return null;
+                const isMe = p.id === user?.id;
                 return (
                   <TableRow
                     component="div"
@@ -289,6 +306,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     data-index={virtualItem.index}
                     aria-rowindex={virtualItem.index + 1}
                     hover
+                    onClick={() => handlePlayerClick(p)}
                     sx={{
                       position: 'absolute',
                       top: 0,
@@ -301,7 +319,11 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       borderBottom: '1px solid',
                       borderColor: 'divider',
                       minHeight: 56,
-                      bgcolor: p.id === user?.id ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                      bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                      cursor: isMe || !user ? 'default' : 'pointer',
+                      '&:hover': {
+                        bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.12) : undefined
+                      }
                     }}
                   >
                     <TableCell component="div" sx={{ borderBottom: 'none' }}>
@@ -319,7 +341,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{(p as any).streak || "—"}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>
-                      <Typography variant="body2" component="span">{(p as any).trend || "—"}</Typography>
+                      <Sparkline data={(p as any).eloHistory || []} />
                     </TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
                   </TableRow>
@@ -328,6 +350,16 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
             </TableBody>
           </Table>
         </TableContainer>
+
+        {selectedRival && (
+          <RivalryModal
+            open={rivalryOpen}
+            onClose={() => setRivalryOpen(false)}
+            currentUser={user}
+            selectedPlayer={selectedRival}
+            matches={matches}
+          />
+        )}
       </CardContent>
     </Card>
   );

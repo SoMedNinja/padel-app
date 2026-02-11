@@ -229,6 +229,24 @@ const BADGE_DEFINITIONS: BadgeDefinition[] = [
     groupOrder: 21
   },
   {
+    idPrefix: "sets-won",
+    icon: "🍽️",
+    title: "Set-slukaren",
+    description: (target) => `Vinn totalt ${target} set`,
+    thresholds: [10, 25, 50, 100, 250],
+    group: "Prestationer",
+    groupOrder: 22
+  },
+  {
+    idPrefix: "guest-helper",
+    icon: "🤝",
+    title: "Gästvänlig",
+    description: (target) => `Spela med ${target} gäster`,
+    thresholds: [1, 5, 10, 20],
+    group: "Prestationer",
+    groupOrder: 23
+  },
+  {
     idPrefix: "clean-sheets",
     icon: "🧹",
     title: "Nollan",
@@ -393,6 +411,8 @@ export interface PlayerBadgeStats {
   tournamentPodiums: number;
   americanoWins: number;
   mexicanoWins: number;
+  totalSetsWon: number;
+  guestPartners: number;
 }
 
 /**
@@ -439,7 +459,9 @@ export const buildAllPlayersBadgeStats = (
       tournamentWins: 0,
       tournamentPodiums: 0,
       americanoWins: 0,
-      mexicanoWins: 0
+      mexicanoWins: 0,
+      totalSetsWon: 0,
+      guestPartners: 0
     };
     partnerSets[profile.id] = new Set();
     opponentSets[profile.id] = new Set();
@@ -506,7 +528,8 @@ export const buildAllPlayersBadgeStats = (
           matchesLast30Days: 0, marathonMatches: 0, quickWins: 0, closeWins: 0,
           cleanSheets: 0, nightOwlMatches: 0, earlyBirdMatches: 0, uniquePartners: 0,
           uniqueOpponents: 0, tournamentsPlayed: 0, tournamentWins: 0,
-          tournamentPodiums: 0, americanoWins: 0, mexicanoWins: 0
+          tournamentPodiums: 0, americanoWins: 0, mexicanoWins: 0,
+          totalSetsWon: 0, guestPartners: 0
         };
         partnerSets[id] = new Set();
         opponentSets[id] = new Set();
@@ -542,6 +565,13 @@ export const buildAllPlayersBadgeStats = (
       }
 
       stats.matchesPlayed += 1;
+      stats.totalSetsWon += isTeam1 ? Number(match.team1_sets) : Number(match.team2_sets);
+
+      const myTeamIds = isTeam1 ? match.team1_ids : match.team2_ids;
+      myTeamIds.forEach(pid => {
+        if (pid === GUEST_ID) stats.guestPartners += 1;
+      });
+
       if (playerWon) {
         stats.wins += 1;
         stats.currentWinStreak += 1;
@@ -652,6 +682,8 @@ export const buildPlayerBadges = (
     "clean-sheets": stats.cleanSheets,
     "night-owl": stats.nightOwlMatches,
     "early-bird": stats.earlyBirdMatches,
+    "sets-won": stats.totalSetsWon,
+    "guest-helper": stats.guestPartners,
     partners: stats.uniquePartners,
     rivals: stats.uniqueOpponents,
     "tournaments-played": stats.tournamentsPlayed,

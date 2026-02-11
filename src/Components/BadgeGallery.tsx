@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { Dialog, DialogTitle, DialogContent, Grid, Button, Typography, Paper, IconButton, ButtonBase } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
+import { Dialog, DialogTitle, DialogContent, Grid, Button, Typography, Paper, IconButton, ButtonBase, LinearProgress, Box, Tooltip, Tab, Tabs, Stack } from "@mui/material";
+import { Close as CloseIcon, Lock as LockIcon } from "@mui/icons-material";
 import { buildPlayerBadges } from "../utils/badges";
+import { useState } from "react";
 import { Profile } from "../types";
 
 interface BadgeGalleryProps {
@@ -23,79 +24,136 @@ export default function BadgeGallery({
   allPlayerStats,
   playerId
 }: BadgeGalleryProps) {
-  const { earnedBadges } = useMemo(() => buildPlayerBadges(stats, allPlayerStats, playerId), [stats, allPlayerStats, playerId]);
+  const [tab, setTab] = useState(0);
+  const { earnedBadges, lockedBadges } = useMemo(() => buildPlayerBadges(stats, allPlayerStats, playerId), [stats, allPlayerStats, playerId]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
       <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Välj framhävd merit
+        Meriter
         <IconButton onClick={onClose} size="small" aria-label="Stäng"><CloseIcon /></IconButton>
       </DialogTitle>
-      <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: 4 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Välj en merit att visa bredvid ditt namn.
-        </Typography>
 
-        <Grid container spacing={1.5}>
-          <Grid size={{ xs: 12 }}>
-            <Button
-              fullWidth
-              variant={!currentBadgeId ? "contained" : "outlined"}
-              onClick={() => onSelect(null)}
-              sx={{ py: 1.5, borderRadius: 2, mb: 1 }}
-            >
-              Ingen merit
-            </Button>
-          </Grid>
-          {earnedBadges.map((badge) => {
-            const isSelected = currentBadgeId === badge.id;
-            return (
-              <Grid size={{ xs: 4, sm: 3 }} key={badge.id}>
-                <ButtonBase
-                  component={Paper}
-                  variant="outlined"
-                  aria-label={`Välj merit: ${badge.title}`}
-                  aria-pressed={isSelected}
-                  sx={{
-                    p: 1.5,
-                    width: '100%',
-                    textAlign: 'center',
-                    borderRadius: 3,
-                    transition: 'all 0.2s',
-                    borderColor: isSelected ? 'primary.main' : 'divider',
-                    bgcolor: isSelected ? 'rgba(211, 47, 47, 0.08)' : 'background.paper',
-                    '&:hover': {
-                      borderColor: 'primary.light',
-                      bgcolor: 'rgba(211, 47, 47, 0.04)',
-                    },
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    height: '100%',
-                    justifyContent: 'center',
-                    border: '1px solid',
-                  }}
-                  onClick={() => onSelect(badge.id)}
+      <Tabs
+        value={tab}
+        onChange={(_, newValue) => setTab(newValue)}
+        sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
+        variant="fullWidth"
+      >
+        <Tab label={`Intjänade (${earnedBadges.length})`} sx={{ fontWeight: 700 }} />
+        <Tab label="Kommande" sx={{ fontWeight: 700 }} />
+      </Tabs>
+
+      <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: 4, pt: 2 }}>
+        {tab === 0 ? (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Välj en merit att visa bredvid ditt namn på topplistan.
+            </Typography>
+
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12 }}>
+                <Button
+                  fullWidth
+                  variant={!currentBadgeId ? "contained" : "outlined"}
+                  onClick={() => onSelect(null)}
+                  sx={{ py: 1.5, borderRadius: 2, mb: 1 }}
                 >
-                  <Typography variant="h5">{badge.icon}</Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontWeight: 800,
-                      fontSize: '0.65rem',
-                      textTransform: 'uppercase',
-                      lineHeight: 1.1,
-                      wordBreak: 'break-word'
-                    }}
-                  >
-                    {badge.title}
-                  </Typography>
-                </ButtonBase>
+                  Ingen merit
+                </Button>
               </Grid>
-            );
-          })}
-        </Grid>
+              {earnedBadges.map((badge) => {
+                const isSelected = currentBadgeId === badge.id;
+                return (
+                  <Grid size={{ xs: 4, sm: 3 }} key={badge.id}>
+                    <Tooltip title={badge.description} arrow>
+                      <ButtonBase
+                        component={Paper}
+                        variant="outlined"
+                        aria-label={`Välj merit: ${badge.title}`}
+                        aria-pressed={isSelected}
+                        sx={{
+                          p: 1.5,
+                          width: '100%',
+                          textAlign: 'center',
+                          borderRadius: 3,
+                          transition: 'all 0.2s',
+                          borderColor: isSelected ? 'primary.main' : 'divider',
+                          bgcolor: isSelected ? 'rgba(211, 47, 47, 0.08)' : 'background.paper',
+                          '&:hover': {
+                            borderColor: 'primary.light',
+                            bgcolor: 'rgba(211, 47, 47, 0.04)',
+                          },
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          height: '100%',
+                          justifyContent: 'center',
+                          border: '1px solid',
+                        }}
+                        onClick={() => onSelect(badge.id)}
+                      >
+                        <Typography variant="h5">{badge.icon}</Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: 800,
+                            fontSize: '0.65rem',
+                            textTransform: 'uppercase',
+                            lineHeight: 1.1,
+                            wordBreak: 'break-word'
+                          }}
+                        >
+                          {badge.title}
+                        </Typography>
+                        {badge.tier !== "Unique" && (
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem', opacity: 0.6, fontWeight: 900 }}>
+                            {badge.tier}
+                          </Typography>
+                        )}
+                      </ButtonBase>
+                    </Tooltip>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          </>
+        ) : (
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              Här ser du framsteg mot nästa nivå av meriter.
+            </Typography>
+            {lockedBadges
+              .filter(b => b.progress && b.progress.current > 0) // Only show those with some progress
+              .sort((a, b) => ((b.progress?.current || 0) / (b.progress?.target || 1)) - ((a.progress?.current || 0) / (a.progress?.target || 1)))
+              .slice(0, 10)
+              .map(badge => (
+              <Box key={badge.id} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                  <Box sx={{ fontSize: '1.5rem', opacity: 0.5 }}><LockIcon fontSize="small" /></Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{badge.title}</Typography>
+                    <Typography variant="caption" color="text.secondary">{badge.description}</Typography>
+                  </Box>
+                  <Typography variant="caption" sx={{ fontWeight: 800 }}>
+                    {badge.progress?.current} / {badge.progress?.target}
+                  </Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={((badge.progress?.current || 0) / (badge.progress?.target || 1)) * 100}
+                  sx={{ height: 6, borderRadius: 3 }}
+                />
+              </Box>
+            ))}
+            {lockedBadges.filter(b => b.progress && b.progress.current > 0).length === 0 && (
+              <Typography variant="body2" sx={{ textAlign: 'center', py: 4, opacity: 0.6 }}>
+                Inga påbörjade meriter ännu. Fortsätt spela!
+              </Typography>
+            )}
+          </Stack>
+        )}
       </DialogContent>
     </Dialog>
   );

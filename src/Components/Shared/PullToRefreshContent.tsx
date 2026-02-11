@@ -6,14 +6,15 @@ export const RefreshingContent = () => (
       <Box className="padel-ball bouncing-ball" />
       <Box className="ball-shadow" sx={{ position: 'absolute', bottom: -2 }} />
     </Box>
-    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', mt: 1 }}>
-      Uppdaterar...
+    <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', mt: 1, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      Hämtar senaste resultaten...
     </Typography>
   </Box>
 );
 
 export const PullingContent = () => (
   <Box sx={{ p: 2, textAlign: 'center', opacity: 0.6 }}>
-    <Typography variant="body2">Dra för att uppdatera...</Typography>
+    <Box sx={{ mb: 1, fontSize: '1.2rem' }}>🎾</Box>
+    <Typography variant="body2" sx={{ fontWeight: 600 }}>Dra för att se vad som hänt...</Typography>
   </Box>
 );

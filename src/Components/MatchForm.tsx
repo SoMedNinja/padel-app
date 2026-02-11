@@ -69,6 +69,7 @@ import {
 } from "../types";
 import TheShareable from "./Shared/TheShareable";
 import { formatScore } from "../utils/format";
+import MatchSuccessCeremony from "./MatchSuccessCeremony";
 
 
 interface MatchFormProps {
@@ -109,6 +110,7 @@ export default function MatchForm({
   const [showExtraScores, setShowExtraScores] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCeremonyActive, setIsCeremonyActive] = useState(false);
   const [query, setQuery] = useState("");
   useEffect(() => { setQuery(""); }, [step]);
   const wizardSteps = ["Lag A", "Lag B", "Resultat", "Granska"];
@@ -375,7 +377,8 @@ export default function MatchForm({
     createRecap(team1, team2, scoreA, scoreB);
     buildEveningRecap(matches, newMatch);
     resetWizard(true);
-    setRecapMode("evening");
+    setRecapMode("match");
+    setIsCeremonyActive(true);
     setShowRecap(true);
     setIsSubmitting(false);
     toast.success(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
@@ -1047,13 +1050,13 @@ export default function MatchForm({
             </Box>
             <Box sx={{ display: "flex", gap: 1 }}>
               <Tooltip title="Visa kvällens sammanfattning">
-                <Button variant={recapMode === "evening" ? "contained" : "outlined"} size="small" onClick={() => setRecapMode("evening")} disabled={!eveningRecap} aria-pressed={recapMode === "evening"}>Kväll</Button>
+                <Button variant={recapMode === "evening" ? "contained" : "outlined"} size="small" onClick={() => { setRecapMode("evening"); setIsCeremonyActive(false); }} disabled={!eveningRecap} aria-pressed={recapMode === "evening"}>Kväll</Button>
               </Tooltip>
               <Tooltip title="Visa denna match-recap">
                 <Button variant={recapMode === "match" ? "contained" : "outlined"} size="small" onClick={() => setRecapMode("match")} disabled={!matchRecap} aria-pressed={recapMode === "match"}>Match</Button>
               </Tooltip>
-              {recapMode === "evening" && (
-                <IconButton size="small" onClick={() => setShowRecap(false)} aria-label="Stäng">
+              {(recapMode === "evening" || !isCeremonyActive) && (
+                <IconButton size="small" onClick={() => { setShowRecap(false); setIsCeremonyActive(false); }} aria-label="Stäng">
                   <CloseIcon />
                 </IconButton>
               )}
@@ -1062,6 +1065,11 @@ export default function MatchForm({
 
           <Divider />
 
+          {isCeremonyActive && recapMode === "match" && matchRecap ? (
+            <MatchSuccessCeremony
+              recap={matchRecap}
+            />
+          ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {recapMode === "evening" && eveningRecap ? (
               <>
@@ -1148,6 +1156,7 @@ export default function MatchForm({
               </>
             ) : null}
           </Box>
+          )}
 
           <Divider />
 
