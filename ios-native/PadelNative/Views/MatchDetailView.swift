@@ -6,6 +6,9 @@ struct MatchDetailView: View {
 
     @State private var editTeamAScore = 0
     @State private var editTeamBScore = 0
+    @State private var editScoreType = "sets"
+    @State private var editScoreTargetText = ""
+    @State private var editPlayedAt = Date()
     @State private var showDeleteConfirm = false
 
     private let formatter: DateFormatter = {
@@ -72,8 +75,29 @@ struct MatchDetailView: View {
                     Stepper("Lag A: \(editTeamAScore)", value: $editTeamAScore, in: 0...99)
                     Stepper("Lag B: \(editTeamBScore)", value: $editTeamBScore, in: 0...99)
 
+                    Picker("Poängtyp", selection: $editScoreType) {
+                        Text("Set").tag("sets")
+                        Text("Poäng").tag("points")
+                    }
+
+                    if editScoreType == "points" {
+                        TextField("Poängmål (valfritt)", text: $editScoreTargetText)
+                            .keyboardType(.numberPad)
+                    }
+
+                    DatePicker("Spelad", selection: $editPlayedAt)
+
                     Button("Spara ändring") {
-                        Task { await viewModel.updateMatchScores(match, teamAScore: editTeamAScore, teamBScore: editTeamBScore) }
+                        Task {
+                            await viewModel.updateMatch(
+                                match,
+                                playedAt: editPlayedAt,
+                                teamAScore: editTeamAScore,
+                                teamBScore: editTeamBScore,
+                                scoreType: editScoreType,
+                                scoreTarget: Int(editScoreTargetText)
+                            )
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -98,6 +122,9 @@ struct MatchDetailView: View {
         .onAppear {
             editTeamAScore = match.teamAScore
             editTeamBScore = match.teamBScore
+            editScoreType = match.scoreType ?? "sets"
+            editScoreTargetText = match.scoreTarget.map(String.init) ?? ""
+            editPlayedAt = match.playedAt
         }
         .alert("Radera match?", isPresented: $showDeleteConfirm) {
             Button("Radera", role: .destructive) {

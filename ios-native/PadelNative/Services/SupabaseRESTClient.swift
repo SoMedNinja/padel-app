@@ -51,12 +51,18 @@ struct MatchSubmission: Encodable {
 }
 
 struct MatchUpdatePatch: Encodable {
+    let playedAt: Date?
     let teamAScore: Int
     let teamBScore: Int
+    let scoreType: String?
+    let scoreTarget: Int?
 
     enum CodingKeys: String, CodingKey {
+        case playedAt = "created_at"
         case teamAScore = "team1_sets"
         case teamBScore = "team2_sets"
+        case scoreType = "score_type"
+        case scoreTarget = "score_target"
     }
 }
 
@@ -218,11 +224,37 @@ struct SupabaseRESTClient {
         )
     }
 
-    func fetchRecentMatches(limit: Int = 20) async throws -> [Match] {
-        try await request(
-            path: "/rest/v1/matches",
-            query: "select=id,created_by,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)"
-        )
+    func fetchRecentMatches(limit: Int = 60) async throws -> [Match] {
+        try await fetchMatchesPage(limit: limit, offset: 0)
+    }
+
+    // Note for non-coders:
+    // History can be very long, so this endpoint supports loading it in chunks
+    // (pagination) and optional filters just like the web app history screen.
+    func fetchMatchesPage(
+        limit: Int,
+        offset: Int,
+        startDate: Date? = nil,
+        endDate: Date? = nil,
+        scoreType: String? = nil,
+        tournamentOnly: Bool = false
+    ) async throws -> [Match] {
+        var query = "select=id,created_by,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)&offset=\(offset)"
+
+        if let startDate {
+            query += "&created_at=gte.\(Self.isoDateTimeFormatter.string(from: startDate))"
+        }
+        if let endDate {
+            query += "&created_at=lte.\(Self.isoDateTimeFormatter.string(from: endDate))"
+        }
+        if let scoreType, !scoreType.isEmpty {
+            query += "&score_type=eq.\(scoreType)"
+        }
+        if tournamentOnly {
+            query += "&source_tournament_id=not.is.null"
+        }
+
+        return try await request(path: "/rest/v1/matches", query: query)
     }
 
     // Note for non-coders:
@@ -481,12 +513,64 @@ struct SupabaseRESTClient {
         }
     }
 
-    func updateMatchScores(matchId: UUID, teamAScore: Int, teamBScore: Int) async throws {
+    func updateMatch(
+        matchId: UUID,
+        playedAt: Date? = nil,
+        teamAScore: Int,
+        teamBScore: Int,
+        scoreType: String? = nil,
+        scoreTarget: Int? = nil
+    ) async throws {
         try await sendPatch(
             path: "/rest/v1/matches",
             query: "id=eq.\(matchId.uuidString)",
-            body: MatchUpdatePatch(teamAScore: teamAScore, teamBScore: teamBScore)
+            body: MatchUpdatePatch(
+                playedAt: playedAt,
+                teamAScore: teamAScore,
+                teamBScore: teamBScore,
+                scoreType: scoreType,
+                scoreTarget: scoreTarget
+            )
         )
+    }
+
+    // Note for non-coders:
+    // This RPC replaces the full participant list in one transaction, so tournament
+    // setup never ends up half-saved if the app closes mid-request.
+    func replaceTournamentParticipants(tournamentId: UUID, participantIds: [UUID]) async throws {
+        struct ReplaceParticipantsPayload: Encodable {
+            let targetTournamentId: UUID
+            let newProfileIds: [UUID]
+
+            enum CodingKeys: String, CodingKey {
+                case targetTournamentId = "target_tournament_id"
+                case newProfileIds = "new_profile_ids"
+            }
+        }
+
+        do {
+            try await sendPost(
+                path: "/rest/v1/rpc/replace_mexicana_participants",
+                body: ReplaceParticipantsPayload(targetTournamentId: tournamentId, newProfileIds: participantIds)
+            )
+        } catch {
+            // Note for non-coders:
+            // If the RPC is not deployed yet, we fallback to delete+insert so setup still works.
+            try await sendDelete(path: "/rest/v1/mexicana_participants", query: "tournament_id=eq.\(tournamentId.uuidString)")
+
+            struct ParticipantInsert: Encodable {
+                let tournamentId: UUID
+                let profileId: UUID
+
+                enum CodingKeys: String, CodingKey {
+                    case tournamentId = "tournament_id"
+                    case profileId = "profile_id"
+                }
+            }
+
+            let payload = participantIds.map { ParticipantInsert(tournamentId: tournamentId, profileId: $0) }
+            _ = try await sendPostForData(path: "/rest/v1/mexicana_participants", body: payload, preferHeader: "return=minimal")
+        }
     }
 
     func deleteMatch(matchId: UUID) async throws {
@@ -990,4 +1074,10 @@ private extension SupabaseRESTClient {
             startDateValue: start
         )
     }
+
+    static let isoDateTimeFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 }

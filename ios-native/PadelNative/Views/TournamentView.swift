@@ -19,6 +19,7 @@ struct TournamentView: View {
     @State private var newTournamentDate = Date()
     @State private var includeScheduledDate = true
     @State private var selectedPanel: TournamentPanel = .setup
+    @State private var selectedParticipantIds: Set<UUID> = []
 
     @State private var showStartConfirmation = false
     @State private var showCancelConfirmation = false
@@ -76,6 +77,12 @@ struct TournamentView: View {
             .task {
                 if viewModel.tournaments.isEmpty {
                     await viewModel.loadTournamentData()
+                }
+                if selectedParticipantIds.isEmpty {
+                    // Note for non-coders:
+                    // We preselect regular members as a smart default so setup is faster,
+                    // but organizers can still adjust the list before creating the draft.
+                    selectedParticipantIds = Set(viewModel.players.filter { $0.isRegular }.map { $0.id })
                 }
             }
             .confirmationDialog("Start this tournament?", isPresented: $showStartConfirmation) {
@@ -168,6 +175,36 @@ struct TournamentView: View {
                     }
                 }
 
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Participants (\(selectedParticipantIds.count))")
+                        .font(.subheadline.weight(.semibold))
+
+                    Text("Note for non-coders: välj vilka spelare som faktiskt deltar så turneringens rundor och tabell blir korrekta direkt från start.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(viewModel.players) { player in
+                        Button {
+                            if selectedParticipantIds.contains(player.id) {
+                                selectedParticipantIds.remove(player.id)
+                            } else {
+                                selectedParticipantIds.insert(player.id)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: selectedParticipantIds.contains(player.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedParticipantIds.contains(player.id) ? .green : .secondary)
+                                Text(player.profileName)
+                                Spacer()
+                                Text("ELO \(player.elo)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
                 Toggle("Set scheduled date", isOn: $includeScheduledDate)
                 if includeScheduledDate {
                     DatePicker("Scheduled at", selection: $newTournamentDate)
@@ -180,7 +217,8 @@ struct TournamentView: View {
                             location: newTournamentLocation,
                             scheduledAt: includeScheduledDate ? newTournamentDate : nil,
                             scoreTarget: newTournamentScoreTarget,
-                            tournamentType: newTournamentType
+                            tournamentType: newTournamentType,
+                            participantIds: Array(selectedParticipantIds)
                         )
                         newTournamentName = ""
                         newTournamentLocation = ""
@@ -193,7 +231,7 @@ struct TournamentView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament || selectedParticipantIds.count < 4)
             }
         }
     }
