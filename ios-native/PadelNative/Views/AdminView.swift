@@ -300,9 +300,19 @@ struct AdminView: View {
                     .font(.footnote)
                     .textSelection(.enabled)
 
-                ShareLink(item: content) {
-                    Label("Share output", systemImage: "square.and.arrow.up")
+                if let cardURL = adminShareImageURL(content: content, title: title) {
+                    ShareLink(item: cardURL) {
+                        Label("Share as image", systemImage: "photo.on.rectangle")
+                    }
                 }
+
+                ShareLink(item: content) {
+                    Label("Share output text", systemImage: "square.and.arrow.up")
+                }
+
+                Text("Note for non-coders: image sharing gives a cleaner card in chat apps; text sharing remains as backup.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             } else {
                 Text("No preview yet. Generate one using the actions above.")
                     .foregroundStyle(.secondary)
@@ -314,6 +324,16 @@ struct AdminView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+
+    private func adminShareImageURL(content: String, title: String) -> URL? {
+        let lines = content.split(separator: "\n").map(String.init).prefix(18)
+        return try? ShareCardService.createShareImageFile(
+            title: title,
+            bodyLines: Array(lines),
+            fileNamePrefix: "admin-report"
+        )
     }
 
     @ViewBuilder

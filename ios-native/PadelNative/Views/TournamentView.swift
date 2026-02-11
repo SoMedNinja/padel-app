@@ -374,16 +374,41 @@ struct TournamentView: View {
     private var shareCard: some View {
         SectionCard(title: "Share / Export") {
             if let exportText = viewModel.exportTextForSelectedCompletedTournament() {
+                if let cardURL = tournamentShareImageURL(text: exportText) {
+                    ShareLink(item: cardURL) {
+                        Label("Share Tournament Card", systemImage: "photo.on.rectangle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
                 ShareLink(item: exportText) {
-                    Label("Share Tournament Summary", systemImage: "square.and.arrow.up")
+                    Label("Share Tournament Summary (Text)", systemImage: "square.and.arrow.up")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+
+                Text("Note for non-coders: den visuella delningsbilden är mer iOS-native och lättare att posta i chat/sociala appar.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             } else {
                 Text("Complete tournament to enable rich summary export.")
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+
+    private func tournamentShareImageURL(text: String) -> URL? {
+        let lines = text
+            .split(separator: "\n")
+            .map(String.init)
+            .prefix(16)
+        return try? ShareCardService.createShareImageFile(
+            title: "Tournament Summary",
+            bodyLines: Array(lines),
+            fileNamePrefix: "tournament-summary"
+        )
     }
 
     private var historicalResults: some View {

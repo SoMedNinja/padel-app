@@ -1,7 +1,29 @@
 import SwiftUI
+import UIKit
+import UserNotifications
+
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    // Note for non-coders:
+    // We register these callbacks so iOS can hand us push-token and notification tap events.
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        // Note for non-coders: token logging helps verify APNs wiring during development.
+        let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        print("APNs token: \(token)")
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        print("APNs registration failed: \(error.localizedDescription)")
+    }
+}
 
 @main
 struct PadelNativeApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appViewModel = AppViewModel()
 
     var body: some Scene {
@@ -68,6 +90,9 @@ struct PadelNativeApp: App {
             .environmentObject(appViewModel)
             .task {
                 await appViewModel.restoreSession()
+            }
+            .task {
+                await appViewModel.prepareNativeCapabilities()
             }
             .task(id: appViewModel.isAuthenticated) {
                 if appViewModel.isAuthenticated {

@@ -1,4 +1,5 @@
 import Foundation
+import UserNotifications
 
 struct ProfileEloPoint: Identifiable {
     let id: UUID
@@ -289,6 +290,9 @@ final class AppViewModel: ObservableObject {
     @Published var deepLinkedPollId: UUID?
     @Published var deepLinkedPollDayId: UUID?
     @Published var deepLinkedSingleGameMode: String?
+    @Published var areScheduleNotificationsEnabled = false
+    @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
+    @Published var isBiometricLockEnabled = false
 
     // Note for non-coders:
     // These values mirror the web app's "dismiss this notice on this device" behavior.
@@ -303,6 +307,8 @@ final class AppViewModel: ObservableObject {
 
     private let authService = AuthService()
     private let apiClient = SupabaseRESTClient()
+    private let notificationService = NotificationService()
+    private let biometricAuthService = BiometricAuthService()
     private var liveSyncTask: Task<Void, Never>?
     private var liveSyncDebounceTask: Task<Void, Never>?
     private var liveUpdateBannerTask: Task<Void, Never>?
@@ -335,6 +341,8 @@ final class AppViewModel: ObservableObject {
     private let dismissedRecentMatchIdKey = "dashboard.dismissedRecentMatchId"
     private let dismissedScheduledGameIdKey = "dashboard.dismissedScheduledGameId"
     private let dismissedTournamentNoticeIdKey = "dashboard.dismissedTournamentNoticeId"
+    private let scheduleNotificationsEnabledKey = "settings.scheduleNotificationsEnabled"
+    private let biometricLockEnabledKey = "settings.biometricLockEnabled"
 
     init() {
         dismissedHighlightMatchId = Self.uuidValue(from: dismissalStore, key: dismissedHighlightIdKey)
@@ -342,6 +350,75 @@ final class AppViewModel: ObservableObject {
         dismissedRecentMatchId = Self.uuidValue(from: dismissalStore, key: dismissedRecentMatchIdKey)
         dismissedScheduledGameId = Self.uuidValue(from: dismissalStore, key: dismissedScheduledGameIdKey)
         dismissedTournamentNoticeId = Self.uuidValue(from: dismissalStore, key: dismissedTournamentNoticeIdKey)
+        areScheduleNotificationsEnabled = dismissalStore.bool(forKey: scheduleNotificationsEnabledKey)
+        isBiometricLockEnabled = dismissalStore.bool(forKey: biometricLockEnabledKey)
+    }
+
+    // Note for non-coders:
+    // This runs native-only setup (notification status, remote push registration) when app starts.
+    func prepareNativeCapabilities() async {
+        notificationPermissionStatus = await notificationService.currentStatus()
+        if areScheduleNotificationsEnabled && (notificationPermissionStatus == .authorized || notificationPermissionStatus == .provisional) {
+            notificationService.registerForRemoteNotifications()
+            await notificationService.scheduleUpcomingGameReminders(schedule)
+        }
+    }
+
+    func setScheduleNotificationsEnabled(_ enabled: Bool) async {
+        if enabled {
+            do {
+                let granted = try await notificationService.requestAuthorization()
+                notificationPermissionStatus = await notificationService.currentStatus()
+                guard granted else {
+                    areScheduleNotificationsEnabled = false
+                    statusMessage = "Notiser är inte tillåtna ännu. Aktivera i iOS-inställningar om du vill ha påminnelser."
+                    dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
+                    return
+                }
+                areScheduleNotificationsEnabled = true
+                dismissalStore.set(true, forKey: scheduleNotificationsEnabledKey)
+                notificationService.registerForRemoteNotifications()
+                await notificationService.scheduleUpcomingGameReminders(schedule)
+                statusMessage = "Notiser aktiverade. Du får påminnelse före kommande matcher."
+            } catch {
+                areScheduleNotificationsEnabled = false
+                dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
+                statusMessage = "Kunde inte aktivera notiser: \(error.localizedDescription)"
+            }
+            return
+        }
+
+        areScheduleNotificationsEnabled = false
+        dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
+        await notificationService.clearScheduledGameReminders()
+        statusMessage = "Notispåminnelser avstängda för den här enheten."
+    }
+
+    func setBiometricLockEnabled(_ enabled: Bool) async {
+        if enabled {
+            guard biometricAuthService.canUseBiometrics() else {
+                statusMessage = "Face ID/Touch ID är inte tillgängligt på den här enheten."
+                isBiometricLockEnabled = false
+                dismissalStore.set(false, forKey: biometricLockEnabledKey)
+                return
+            }
+
+            do {
+                try await biometricAuthService.authenticate(reason: "Bekräfta att du vill skydda PadelNative med Face ID/Touch ID")
+                isBiometricLockEnabled = true
+                dismissalStore.set(true, forKey: biometricLockEnabledKey)
+                statusMessage = "Biometriskt applås aktiverat."
+            } catch {
+                isBiometricLockEnabled = false
+                dismissalStore.set(false, forKey: biometricLockEnabledKey)
+                statusMessage = "Kunde inte aktivera biometriskt lås: \(error.localizedDescription)"
+            }
+            return
+        }
+
+        isBiometricLockEnabled = false
+        dismissalStore.set(false, forKey: biometricLockEnabledKey)
+        statusMessage = "Biometriskt applås avstängt."
     }
 
     // Note for non-coders:
@@ -463,6 +540,17 @@ final class AppViewModel: ObservableObject {
 
         do {
             let identity = try await authService.restoreSession()
+            if isBiometricLockEnabled {
+                do {
+                    try await biometricAuthService.authenticate(reason: "Lås upp PadelNative")
+                } catch {
+                    isAuthenticated = false
+                    currentIdentity = nil
+                    authMessage = "Biometrisk verifiering krävs för att återställa sessionen."
+                    stopLiveSync()
+                    return
+                }
+            }
             applySignedInState(identity: identity)
             await bootstrap()
         } catch AuthServiceError.noStoredSession {
@@ -967,6 +1055,9 @@ final class AppViewModel: ObservableObject {
             syncVoteDraftsFromPolls()
             _ = await tournamentTask
             await refreshAdminProfiles(silently: true)
+            if areScheduleNotificationsEnabled {
+                await notificationService.scheduleUpcomingGameReminders(schedule)
+            }
             self.lastErrorMessage = nil
             startLiveSyncIfNeeded()
         } catch {
@@ -984,6 +1075,9 @@ final class AppViewModel: ObservableObject {
             self.adminProfiles = []
             self.polls = []
             self.voteDraftsByDay = [:]
+            if areScheduleNotificationsEnabled {
+                await notificationService.scheduleUpcomingGameReminders(schedule)
+            }
             self.lastErrorMessage = error.localizedDescription
         }
     }
@@ -1212,6 +1306,9 @@ final class AppViewModel: ObservableObject {
 
             if scheduleSignature(latestSchedule) != scheduleSignature(schedule) {
                 schedule = latestSchedule
+                if areScheduleNotificationsEnabled {
+                    await notificationService.scheduleUpcomingGameReminders(schedule)
+                }
                 changedCollections.append("schedule")
             }
 
@@ -1384,6 +1481,9 @@ final class AppViewModel: ObservableObject {
             schedule = try await scheduleTask
             syncVoteDraftsFromPolls()
             await applyPendingDeepLinkVoteIfNeeded()
+            if areScheduleNotificationsEnabled {
+                await notificationService.scheduleUpcomingGameReminders(schedule)
+            }
             scheduleErrorMessage = nil
         } catch {
             scheduleErrorMessage = "Could not refresh schedule data: \(error.localizedDescription)"
