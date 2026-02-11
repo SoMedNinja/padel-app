@@ -19,6 +19,7 @@ struct TournamentView: View {
                 .padding()
             }
             .navigationTitle("Tournament")
+            .padelLiquidGlassChrome()
         }
     }
 }

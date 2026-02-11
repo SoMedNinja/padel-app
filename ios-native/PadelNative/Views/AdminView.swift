@@ -49,6 +49,7 @@ struct AdminView: View {
                 }
             }
             .navigationTitle("Admin")
+            .padelLiquidGlassChrome()
             .refreshable {
                 await viewModel.bootstrap()
             }

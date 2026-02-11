@@ -44,5 +44,6 @@ struct MainTabView: View {
                     }
             }
         }
+        .padelLiquidGlassChrome()
     }
 }

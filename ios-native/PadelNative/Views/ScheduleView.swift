@@ -34,6 +34,7 @@ struct ScheduleView: View {
                 }
             }
             .navigationTitle("Schedule")
+            .padelLiquidGlassChrome()
             .refreshable {
                 await viewModel.bootstrap()
             }

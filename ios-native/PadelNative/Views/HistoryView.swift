@@ -28,6 +28,7 @@ struct HistoryView: View {
                 }
             }
             .navigationTitle("History")
+            .padelLiquidGlassChrome()
             .refreshable {
                 await viewModel.bootstrap()
             }
