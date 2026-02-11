@@ -188,6 +188,13 @@ def create_simulation():
         ("P1B (600)", 600, 50, 1000, "Win", 11, 611),
         ("P2A (1000)", 1000, 50, 1000, "Loss", -7, 993),
         ("P2B (1000)", 1000, 50, 1000, "Loss", -7, 993),
+        ("", "", "", "", "", "", ""),
+        ("Scenario 4: Carry (Loss)", "T1: P1A(1400) & P1B(600) vs T2: Avg 1000. 0-2 Loss for T1."),
+        ("Player", "Start ELO", "Games", "Opp. Avg", "Result", "Delta", "End ELO"),
+        ("P1A (1400)", 1400, 50, 1000, "Loss", -11, 1389),
+        ("P1B (600)", 600, 50, 1000, "Loss", -4, 596),
+        ("P2A (1000)", 1000, 50, 1000, "Win", 7, 1007),
+        ("P2B (1000)", 1000, 50, 1000, "Win", 7, 1007),
     ]
 
     for r_idx, row_data in enumerate(scenarios, 1):
