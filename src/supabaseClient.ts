@@ -7,23 +7,22 @@ const supabaseUrl = envSupabaseUrl || "";
 const supabaseAnonKey = envSupabaseAnonKey || "";
 const isPublishableKey = supabaseAnonKey.startsWith("sb_publishable_");
 
+const supabaseConfigWarning = !envSupabaseUrl || !envSupabaseAnonKey
+  ? "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment."
+  : isPublishableKey
+    ? "VITE_SUPABASE_ANON_KEY uses sb_publishable_*. Use the Supabase anon public key from Project Settings -> API -> Project API keys."
+    : null;
+
 if (isPublishableKey) {
-  // Note for non-coders: Supabase "publishable" keys won't authenticate Edge Functions, so we warn loudly.
+  // Note for non-coders: this key family often causes auth confusion and 401-style failures in app features.
   console.warn(
-    "Warning: VITE_SUPABASE_ANON_KEY is a publishable key (sb_publishable_*). It must be the anon public key; publishable keys cause 401 errors for Edge Functions. Admin note: find the anon public key in Supabase Dashboard → Project Settings → API → Project API keys."
+    "Warning: VITE_SUPABASE_ANON_KEY is sb_publishable_*. Replace it with the anon public key from Supabase Dashboard -> Project Settings -> API."
   );
 }
 
-const isSupabaseConfigured = Boolean(envSupabaseUrl && envSupabaseAnonKey);
-const missingSupabaseMessage =
-  "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
-
-if (typeof envSupabaseAnonKey === "string" && envSupabaseAnonKey.startsWith("sb_publishable_")) {
-  // Note for non-coders: the publishable key is not accepted by Edge Functions; use the anon public key from Supabase.
-  console.warn(
-    "VITE_SUPABASE_ANON_KEY looks like a publishable key. Edge Functions require the anon public key from Supabase -> Project Settings -> API."
-  );
-}
+const isSupabaseConfigured = !supabaseConfigWarning;
+const missingSupabaseMessage = supabaseConfigWarning
+  || "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
 
 const createMockQuery = (): any => {
   const response = { data: [], error: null };
@@ -49,7 +48,7 @@ const createMockQuery = (): any => {
 };
 
 const createMockSupabase = (): any => ({
-  // Note for non-coders: this mock makes missing setup obvious without crashing the whole app.
+  // Note for non-coders: this mock makes configuration mistakes obvious without crashing the whole app.
   auth: {
     getUser: () => Promise.resolve({ data: { user: null }, error: null }),
     onAuthStateChange: () => ({
@@ -77,4 +76,4 @@ export const supabase: SupabaseClient = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : (createMockSupabase() as unknown as SupabaseClient);
 
-export { isSupabaseConfigured, supabaseAnonKey, supabaseUrl };
+export { isSupabaseConfigured, supabaseAnonKey, supabaseUrl, supabaseConfigWarning };

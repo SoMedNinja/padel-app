@@ -58,6 +58,7 @@ private struct ProfileAuthRow: Decodable {
 
 enum AuthServiceError: LocalizedError {
     case missingConfiguration
+    case invalidConfiguration(message: String)
     case invalidCredentials
     case noStoredSession
     case requestFailed(statusCode: Int, message: String)
@@ -67,6 +68,8 @@ enum AuthServiceError: LocalizedError {
         switch self {
         case .missingConfiguration:
             return "Supabase configuration is missing."
+        case .invalidConfiguration(let message):
+            return message
         case .invalidCredentials:
             return "Invalid email or password."
         case .noStoredSession:
@@ -204,6 +207,9 @@ struct AuthService {
     }
 
     private func requestAuthToken(endpoint: String, body: Any) async throws -> SupabaseAuthResponse {
+        if let warning = AppConfig.configurationWarning {
+            throw AuthServiceError.invalidConfiguration(message: warning)
+        }
         guard AppConfig.isConfigured else { throw AuthServiceError.missingConfiguration }
         guard let url = URL(string: "\(AppConfig.supabaseURL)\(endpoint)") else {
             throw APIError.badURL
@@ -227,19 +233,72 @@ struct AuthService {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            let message: String
-            if let data,
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let error = json["msg"] as? String ?? json["error_description"] as? String {
-                message = error
-            } else if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
-                throw AuthServiceError.invalidCredentials
-            } else {
-                message = "Authentication request failed with status code \(httpResponse.statusCode)."
+            let serverMessage = extractServerMessage(from: data)
+
+            if let serverMessage {
+                if isCredentialError(serverMessage) {
+                    throw AuthServiceError.invalidCredentials
+                }
+
+                // Note for non-coders:
+                // 401 can be caused by bad credentials OR wrong app configuration (URL/key mismatch).
+                // We preserve server text so support can quickly see which one it is.
+                throw AuthServiceError.requestFailed(statusCode: httpResponse.statusCode, message: serverMessage)
             }
 
-            throw AuthServiceError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
+                throw AuthServiceError.requestFailed(
+                    statusCode: httpResponse.statusCode,
+                    message: "Authentication failed. Verify Supabase URL/key and then verify email/password."
+                )
+            }
+
+            throw AuthServiceError.requestFailed(
+                statusCode: httpResponse.statusCode,
+                message: "Authentication request failed with status code \(httpResponse.statusCode)."
+            )
         }
+    }
+
+    private func extractServerMessage(from data: Data?) -> String? {
+        guard let data,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return nil
+        }
+
+        let directCandidates: [String?] = [
+            json["msg"] as? String,
+            json["message"] as? String,
+            json["error"] as? String,
+            json["error_description"] as? String,
+            json["hint"] as? String
+        ]
+
+        if let message = directCandidates
+            .compactMap({ $0?.trimmingCharacters(in: .whitespacesAndNewlines) })
+            .first(where: { !$0.isEmpty }) {
+            return message
+        }
+
+        if let errorObject = json["error"] as? [String: Any],
+           let nestedMessage = (
+            errorObject["message"] as? String ??
+            errorObject["description"] as? String
+           )?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !nestedMessage.isEmpty {
+            return nestedMessage
+        }
+
+        return nil
+    }
+
+    private func isCredentialError(_ message: String) -> Bool {
+        let normalized = message.lowercased()
+        return normalized.contains("invalid login credentials")
+            || normalized.contains("invalid email or password")
+            || normalized.contains("email not confirmed")
+            || normalized.contains("email not verified")
     }
 
     private func persist(session: AuthSession) throws {
