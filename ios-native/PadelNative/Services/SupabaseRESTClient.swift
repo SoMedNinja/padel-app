@@ -163,6 +163,20 @@ private struct AdminDeactivatePatch: Encodable {
     }
 }
 
+private struct ProfileUpdatePatch: Encodable {
+    let fullName: String?
+    let profileName: String?
+    let avatarURL: String?
+    let featuredBadgeId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case fullName = "full_name"
+        case profileName = "name"
+        case avatarURL = "avatar_url"
+        case featuredBadgeId = "featured_badge_id"
+    }
+}
+
 struct SupabaseRESTClient {
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -177,7 +191,7 @@ struct SupabaseRESTClient {
     }()
 
     func fetchLeaderboard() async throws -> [Player] {
-        try await request(path: "/rest/v1/profiles", query: "select=id,full_name,elo,is_admin,is_regular&order=elo.desc")
+        try await request(path: "/rest/v1/profiles", query: "select=id,full_name,name,elo,is_admin,is_regular,avatar_url,featured_badge_id&order=elo.desc")
     }
 
     func fetchAdminProfiles() async throws -> [AdminProfile] {
@@ -675,6 +689,28 @@ struct SupabaseRESTClient {
                 isAdmin: false,
                 isRegular: false,
                 avatarURL: nil
+            )
+        )
+    }
+
+    // Note for non-coders:
+    // This updates the same profile columns as web profile setup (name, avatar, featured badge).
+    // We patch only the signed-in user's own row, so profile edits stay scoped to that person.
+    func updateOwnProfile(
+        profileId: UUID,
+        fullName: String? = nil,
+        profileName: String? = nil,
+        avatarURL: String? = nil,
+        featuredBadgeId: String? = nil
+    ) async throws {
+        try await sendPatch(
+            path: "/rest/v1/profiles",
+            query: "id=eq.\(profileId.uuidString)",
+            body: ProfileUpdatePatch(
+                fullName: fullName,
+                profileName: profileName,
+                avatarURL: avatarURL,
+                featuredBadgeId: featuredBadgeId
             )
         )
     }

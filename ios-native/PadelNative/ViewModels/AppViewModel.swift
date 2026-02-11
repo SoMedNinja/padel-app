@@ -101,6 +101,22 @@ struct DashboardMVPResult {
     }
 }
 
+
+struct ProfileBadgeOption: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let icon: String
+    let hint: String
+}
+
+struct ProfilePerformanceWidget: Identifiable {
+    let id: String
+    let title: String
+    let value: String
+    let detail: String
+    let symbol: String
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     private enum LiveSyncScope: Hashable {
@@ -129,7 +145,11 @@ final class AppViewModel: ObservableObject {
     @Published var hasRecoveryFailed = false
     @Published var sessionRecoveryError: String?
     @Published var isGuestMode = false
-    @Published var selectedAvatarSymbol = "person.crop.circle.fill"
+    @Published var profileAvatarURLInput = ""
+    @Published var profileDisplayNameDraft = ""
+    @Published var selectedFeaturedBadgeId: String?
+    @Published var isSavingProfileSetup = false
+    @Published var profileSetupMessage: String?
     @Published var activeTournament: Tournament?
     @Published var tournaments: [Tournament] = []
     @Published var selectedTournamentId: UUID?
@@ -300,6 +320,10 @@ final class AppViewModel: ObservableObject {
         currentIdentity = nil
         authMessage = nil
         statusMessage = nil
+        profileSetupMessage = nil
+        profileDisplayNameDraft = ""
+        profileAvatarURLInput = ""
+        selectedFeaturedBadgeId = nil
         adminProfiles = []
         adminBanner = nil
         adminReportPreviewText = nil
@@ -366,6 +390,65 @@ final class AppViewModel: ObservableObject {
 
     var currentPlayer: Player? { authenticatedProfile }
 
+    var profileSetupPrompt: String {
+        if isGuestMode {
+            return "Log in to set up your player profile, upload an avatar, and choose a featured badge."
+        }
+        if isAwaitingApproval {
+            return "Your account is waiting for admin approval. You can still update your profile while you wait."
+        }
+        return "Keep your profile up to date so teammates can recognize you in schedule invites and stats widgets."
+    }
+
+    var availableBadgeOptions: [ProfileBadgeOption] {
+        [
+            ProfileBadgeOption(id: "king-of-elo", title: "King of ELO", icon: "crown.fill", hint: "Top ranked right now"),
+            ProfileBadgeOption(id: "wins-10", title: "10 Wins", icon: "rosette", hint: "Unlocked after 10 wins"),
+            ProfileBadgeOption(id: "hot-streak", title: "Hot Streak", icon: "flame.fill", hint: "Winning streak specialist"),
+            ProfileBadgeOption(id: "tournament-runner", title: "Tournament Runner", icon: "trophy.fill", hint: "Strong tournament track record")
+        ]
+    }
+
+    private var currentPlayerMatches: [Match] {
+        guard let currentPlayer else { return [] }
+        return matches.filter { match in
+            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
+            if playerIds.contains(currentPlayer.id) {
+                return true
+            }
+            return match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+                || match.teamBName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+                || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.profileName)
+                || match.teamBName.localizedCaseInsensitiveContains(currentPlayer.profileName)
+        }
+    }
+
+    var profilePerformanceWidgets: [ProfilePerformanceWidget] {
+        guard let currentPlayer else { return [] }
+        let myMatches = currentPlayerMatches
+        let wins = myMatches.filter { match in
+            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
+            let iAmTeamA = teamAIds.contains(currentPlayer.id) || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+            return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+        }.count
+        let tournamentsPlayed = myMatches.filter { $0.sourceTournamentId != nil }.count
+        let closeMatches = myMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 1 }.count
+
+        return [
+            ProfilePerformanceWidget(id: "elo", title: "Current ELO", value: "\(currentPlayer.elo)", detail: "Live rating used in matchup balancing", symbol: "chart.line.uptrend.xyaxis"),
+            ProfilePerformanceWidget(id: "winRate", title: "Win rate", value: "\(profileWinRate)%", detail: "\(wins) wins in \(myMatches.count) matches", symbol: "percent"),
+            ProfilePerformanceWidget(id: "tournaments", title: "Tournament games", value: "\(tournamentsPlayed)", detail: "Matches with a tournament source", symbol: "trophy"),
+            ProfilePerformanceWidget(id: "clutch", title: "Close battles", value: "\(closeMatches)", detail: "Matches decided by one set", symbol: "bolt.heart"),
+        ]
+    }
+
+    var highlightedBadgeTitle: String {
+        guard let currentPlayer else { return "No badge selected" }
+        let selectedId = selectedFeaturedBadgeId ?? currentPlayer.featuredBadgeId
+        guard let selectedId else { return "No badge selected" }
+        return availableBadgeOptions.first(where: { $0.id == selectedId })?.title ?? selectedId
+    }
+
     // Note for non-coders:
     // This mirrors web route guards. Guests cannot see the schedule, and signed-in users
     // only see it if their profile explicitly marks them as a regular member.
@@ -413,26 +496,19 @@ final class AppViewModel: ObservableObject {
 
     var profileWinRate: Int {
         guard let currentPlayer else { return 0 }
-        let involvingCurrent = matches.filter { match in
-            match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
-                || match.teamBName.localizedCaseInsensitiveContains(currentPlayer.fullName)
-        }
+        let involvingCurrent = currentPlayerMatches
         guard !involvingCurrent.isEmpty else { return 0 }
         let wins = involvingCurrent.filter { match in
-            if match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName) {
-                return match.teamAScore > match.teamBScore
-            }
-            return match.teamBScore > match.teamAScore
+            let iAmTeamA = match.teamAPlayerIds.compactMap { $0 }.contains(currentPlayer.id)
+                || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+                || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.profileName)
+            return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         }
         return Int((Double(wins.count) / Double(involvingCurrent.count)) * 100)
     }
 
     var profileMatchesPlayed: Int {
-        guard let currentPlayer else { return 0 }
-        return matches.filter { match in
-            match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
-                || match.teamBName.localizedCaseInsensitiveContains(currentPlayer.fullName)
-        }.count
+        currentPlayerMatches.count
     }
 
     var headToHeadSummary: [HeadToHeadSummary] {
@@ -546,6 +622,7 @@ final class AppViewModel: ObservableObject {
             async let tournamentTask = loadTournamentData(silently: true)
 
             self.players = try await playersTask
+            syncProfileSetupDraftFromCurrentPlayer()
             self.matches = try await matchesTask
             self.schedule = try await scheduleTask
             self.polls = sortPolls(try await pollsTask)
@@ -559,6 +636,7 @@ final class AppViewModel: ObservableObject {
             // If backend values are missing or internet is unavailable,
             // we still show sample data so the app stays usable.
             self.players = SampleData.players
+            syncProfileSetupDraftFromCurrentPlayer()
             self.matches = SampleData.matches
             self.schedule = SampleData.schedule
             self.activeTournament = SampleData.tournament
@@ -610,6 +688,59 @@ final class AppViewModel: ObservableObject {
     func openScheduleTab() {
         guard canSeeSchedule else { return }
         selectedMainTab = 3
+    }
+
+    func openDashboardFiltered(_ filter: DashboardMatchFilter) {
+        dashboardFilter = filter
+        selectedMainTab = 1
+    }
+
+    func openHistoryTab() {
+        selectedMainTab = 2
+    }
+
+    // Note for non-coders:
+    // This prepares editable text fields from the current server values so users can tweak profile setup safely.
+    func syncProfileSetupDraftFromCurrentPlayer() {
+        guard let currentPlayer else { return }
+        profileDisplayNameDraft = currentPlayer.profileName
+        profileAvatarURLInput = currentPlayer.avatarURL ?? ""
+        selectedFeaturedBadgeId = currentPlayer.featuredBadgeId
+    }
+
+    // Note for non-coders:
+    // We save profile setup details to the same Supabase profile row used by web.
+    // Avatar can be a normal URL or a locally selected image encoded as a data URL.
+    func saveProfileSetup() async {
+        guard let profileId = currentPlayer?.id else {
+            profileSetupMessage = "Log in first to save profile setup."
+            return
+        }
+
+        let trimmedName = profileDisplayNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedName.count >= 2 else {
+            profileSetupMessage = "Please use at least 2 characters for your display name."
+            return
+        }
+
+        let cleanedAvatar = profileAvatarURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        isSavingProfileSetup = true
+        defer { isSavingProfileSetup = false }
+
+        do {
+            try await apiClient.updateOwnProfile(
+                profileId: profileId,
+                fullName: trimmedName,
+                profileName: trimmedName,
+                avatarURL: cleanedAvatar.isEmpty ? nil : cleanedAvatar,
+                featuredBadgeId: selectedFeaturedBadgeId
+            )
+            profileSetupMessage = "Profile setup saved."
+            await bootstrap()
+            syncProfileSetupDraftFromCurrentPlayer()
+        } catch {
+            profileSetupMessage = "Could not save profile setup: \(error.localizedDescription)"
+        }
     }
 
     // Note for non-coders:
@@ -666,6 +797,7 @@ final class AppViewModel: ObservableObject {
 
             if playerSignature(latestPlayers) != playerSignature(players) {
                 players = latestPlayers
+                syncProfileSetupDraftFromCurrentPlayer()
                 changedCollections.append("players")
                 if canUseAdmin {
                     await refreshAdminProfiles(silently: true)
