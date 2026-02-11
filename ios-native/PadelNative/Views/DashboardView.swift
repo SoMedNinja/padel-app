@@ -214,31 +214,24 @@ struct DashboardView: View {
                 }
             }
 
-            if !viewModel.shouldShowDashboardGuestRestriction {
-                Section("Head-to-Head") {
-                    if viewModel.headToHeadSummary.isEmpty {
-                        Text("No rivalry data yet.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(viewModel.headToHeadSummary) { summary in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(summary.pairing)
-                                    .font(.subheadline.weight(.semibold))
-                                Text("Matches played: \(summary.matchesPlayed)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("Close matches: \(summary.closeMatches)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                }
-            } else {
-                Section("Head-to-Head") {
-                    Text("Guest mode: head-to-head comparisons are hidden to match web access rules.")
+            Section("Head-to-Head") {
+                if viewModel.headToHeadSummary.isEmpty {
+                    Text("No rivalry data yet.")
                         .foregroundStyle(.secondary)
+                } else {
+                    ForEach(viewModel.headToHeadSummary) { summary in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(summary.pairing)
+                                .font(.subheadline.weight(.semibold))
+                            Text("Matches played: \(summary.matchesPlayed)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Close matches: \(summary.closeMatches)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
             }
         }

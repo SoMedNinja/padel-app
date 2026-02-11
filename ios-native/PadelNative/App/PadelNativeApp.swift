@@ -14,7 +14,7 @@ struct PadelNativeApp: App {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                } else if appViewModel.isAuthenticated || appViewModel.isGuestMode {
+                } else if appViewModel.isAuthenticated {
                     if appViewModel.isAwaitingApproval {
                         VStack(spacing: 14) {
                             Text("Väntar på godkännande")

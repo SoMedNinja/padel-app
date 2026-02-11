@@ -173,6 +173,8 @@ struct ScheduleView: View {
                 .disabled(viewModel.isScheduleActionRunning)
 
                 ForEach(viewModel.polls) { poll in
+                    let reminder = viewModel.reminderAvailability(for: poll)
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Vecka \(poll.weekNumber) (\(poll.weekYear)) • \(poll.status.rawValue.capitalized)")
                             .font(.subheadline)
@@ -181,6 +183,10 @@ struct ScheduleView: View {
                             get: { viewModel.onlyMissingVotesByPoll[poll.id] == true },
                             set: { viewModel.onlyMissingVotesByPoll[poll.id] = $0 }
                         ))
+
+                        Text(reminder.helper)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
                         HStack {
                             if poll.status == .open {
@@ -192,6 +198,7 @@ struct ScheduleView: View {
                                 Task { await viewModel.sendAvailabilityReminder(for: poll) }
                             }
                             .buttonStyle(.bordered)
+                            .disabled(!reminder.canSend || viewModel.isScheduleActionRunning)
 
                             Button("Radera", role: .destructive) {
                                 Task { await viewModel.deleteAvailabilityPoll(poll) }

@@ -27,7 +27,7 @@ struct AuthView: View {
                 Text("Padel Club")
                     .font(.largeTitle.bold())
 
-                Text("Note for non-coders: this is the same auth gateway as web (login, sign up, password reset, or guest mode).")
+                Text("Note for non-coders: this is the same auth gateway as web (login, sign up, and password reset).")
                     .font(.footnote)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -84,11 +84,6 @@ struct AuthView: View {
                         .disabled(viewModel.isAuthenticating)
                     }
 
-                    Button("Fortsätt som gäst") {
-                        viewModel.continueAsGuest()
-                    }
-                    .frame(maxWidth: .infinity)
-                    .disabled(viewModel.isAuthenticating)
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)

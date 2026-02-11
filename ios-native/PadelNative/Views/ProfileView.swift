@@ -12,9 +12,7 @@ struct ProfileView: View {
                 VStack(spacing: 16) {
                     accountSection
 
-                    if viewModel.isGuestMode {
-                        guestSection
-                    } else if let current = viewModel.currentPlayer {
+                    if let current = viewModel.currentPlayer {
                         currentPlayerSection(current)
                         profileSetupSection
                         badgesSection(current)
@@ -26,7 +24,7 @@ struct ProfileView: View {
                     Button(role: .destructive) {
                         viewModel.signOut()
                     } label: {
-                        Label(viewModel.isGuestMode ? "Exit guest mode" : "Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -51,16 +49,6 @@ struct ProfileView: View {
                     .foregroundStyle(.secondary)
             }
             Text(viewModel.profileSetupPrompt)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var guestSection: some View {
-        SectionCard(title: "Guest mode") {
-            Text("You are browsing as a guest. Log in to set up your profile, upload an avatar, and unlock merits and personal stats.")
-                .foregroundStyle(.secondary)
-            Text("Note for non-coders: this matches web behavior where guest users can browse but cannot save profile setup changes.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
