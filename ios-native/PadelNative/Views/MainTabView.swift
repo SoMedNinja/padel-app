@@ -70,24 +70,30 @@ struct MainTabView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .overlay(alignment: .bottom) {
+        .safeAreaInset(edge: .bottom) {
             // Note for non-coders:
-            // This floating + button mirrors the web app's quick-add action so users
-            // can submit a match from anywhere without switching tabs.
-            Button {
-                showQuickAdd = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 58, height: 58)
-                    .background(Circle().fill(Color.accentColor))
-                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+            // We place quick-add inside iOS safe area so it avoids clashing with the
+            // tab bar/home indicator, which feels more native on different iPhones.
+            if viewModel.selectedMainTab != 5 {
+                HStack {
+                    Spacer()
+                    Button {
+                        showQuickAdd = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 58, height: 58)
+                            .background(Circle().fill(AppColors.brandPrimary))
+                            .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                    }
+                    .accessibilityLabel("Snabblägg till match")
+                    .disabled(!viewModel.canCreateMatches)
+                    .opacity(viewModel.canCreateMatches ? 1 : 0.45)
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 6)
+                }
             }
-            .padding(.bottom, 18)
-            .accessibilityLabel("Snabblägg till match")
-            .disabled(!viewModel.canCreateMatches)
-            .opacity(viewModel.canCreateMatches ? 1 : 0.45)
         }
         .sheet(isPresented: $showQuickAdd) {
             SingleGameView()

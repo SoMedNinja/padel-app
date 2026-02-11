@@ -61,6 +61,15 @@ do this:
 4. Ensure `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` are bumped correctly before each release.
 5. Follow `docs/IOS_RELEASE_GUIDE.md` for upload to TestFlight and then the App Store.
 
+
+## Design alignment policy (web + iOS)
+
+- We align both clients through semantic tokens (brand, success, warning, surface) rather than raw one-off colors.
+- iOS intentionally keeps native behavior and typography (SF/System) for familiarity and accessibility.
+- Quick-add on iOS is safe-area aware so it avoids clashing with tab/home-indicator regions on different iPhones.
+
+> Note for non-coders: this means users recognize the same product identity on both platforms, but each app still feels natural for its device.
+
 ## Feature parity notes
 
 The iOS app now includes route-level parity for the web app's primary user flows:

@@ -158,7 +158,7 @@ struct AdminView: View {
                             if profile.isApproved {
                                 Label("Approved", systemImage: "checkmark.seal.fill")
                                     .font(.caption)
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(AppColors.success)
                             } else {
                                 Label("Pending", systemImage: "hourglass")
                                     .font(.caption)
@@ -347,7 +347,7 @@ struct AdminView: View {
         .foregroundStyle(.white)
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(banner.style == .success ? Color.green : Color.red)
+        .background(banner.style == .success ? AppColors.success : Color.red)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
