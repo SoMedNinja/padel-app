@@ -12,16 +12,26 @@ struct ScheduleView: View {
 
     var body: some View {
         NavigationStack {
-            List(viewModel.schedule) { item in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(item.description)
-                        .font(.headline)
-                    Text(item.location)
-                    Text(formatter.string(from: item.startsAt))
-                        .font(.caption)
+            List {
+                Section {
+                    Text("Note for non-coders: this tab is only shown for regular members, matching the web app's route permissions.")
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 4)
+
+                Section("Upcoming") {
+                    ForEach(viewModel.schedule) { item in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(item.description)
+                                .font(.headline)
+                            Text(item.location)
+                            Text(formatter.string(from: item.startsAt))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
             }
             .navigationTitle("Schedule")
             .refreshable {
