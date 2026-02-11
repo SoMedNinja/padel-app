@@ -2,6 +2,7 @@ import Foundation
 
 struct Match: Identifiable, Codable {
     let id: UUID
+    let createdBy: UUID?
     let playedAt: Date
     let teamAName: String
     let teamBName: String
@@ -17,6 +18,7 @@ struct Match: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id
+        case createdBy = "created_by"
         case playedAt = "created_at"
         case teamAName = "team1"
         case teamBName = "team2"
@@ -47,6 +49,7 @@ struct Match: Identifiable, Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
+        createdBy = try container.decodeIfPresent(UUID.self, forKey: .createdBy)
         playedAt = try container.decodeIfPresent(Date.self, forKey: .playedAt) ?? .distantPast
         teamAName = try Self.decodeTeamName(from: container, key: .teamAName)
         teamBName = try Self.decodeTeamName(from: container, key: .teamBName)
@@ -63,6 +66,7 @@ struct Match: Identifiable, Codable {
 
     init(
         id: UUID,
+        createdBy: UUID? = nil,
         playedAt: Date,
         teamAName: String,
         teamBName: String,
@@ -77,6 +81,7 @@ struct Match: Identifiable, Codable {
         teamAServesFirst: Bool? = true
     ) {
         self.id = id
+        self.createdBy = createdBy
         self.playedAt = playedAt
         self.teamAName = teamAName
         self.teamBName = teamBName
@@ -94,6 +99,7 @@ struct Match: Identifiable, Codable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(createdBy, forKey: .createdBy)
         try container.encode(playedAt, forKey: .playedAt)
         try container.encode(teamAName.split(separator: "&").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, forKey: .teamAName)
         try container.encode(teamBName.split(separator: "&").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, forKey: .teamBName)

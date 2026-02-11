@@ -1,5 +1,14 @@
 import SwiftUI
 
+private enum TournamentPanel: String, CaseIterable, Identifiable {
+    case setup = "Setup"
+    case run = "Run"
+    case results = "Results"
+    case history = "History"
+
+    var id: String { rawValue }
+}
+
 struct TournamentView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
@@ -9,6 +18,7 @@ struct TournamentView: View {
     @State private var newTournamentScoreTarget = 24
     @State private var newTournamentDate = Date()
     @State private var includeScheduledDate = true
+    @State private var selectedPanel: TournamentPanel = .setup
 
     @State private var showStartConfirmation = false
     @State private var showCancelConfirmation = false
@@ -29,11 +39,33 @@ struct TournamentView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     tournamentPicker
-                    createTournamentCard
-                    activeTournamentOverview
-                    activeRoundEditor
-                    liveStandings
-                    historicalResults
+
+                    SectionCard(title: "Tournament workspace") {
+                        Picker("Panel", selection: $selectedPanel) {
+                            ForEach(TournamentPanel.allCases) { panel in
+                                Text(panel.rawValue).tag(panel)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text("Note for non-coders: delarna Setup/Run/Results/History följer samma mentala steg som webbens turneringsflöde.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    switch selectedPanel {
+                    case .setup:
+                        createTournamentCard
+                        activeTournamentOverview
+                    case .run:
+                        runHelperCard
+                        activeRoundEditor
+                    case .results:
+                        liveStandings
+                        shareCard
+                    case .history:
+                        historicalResults
+                    }
                 }
                 .padding()
             }
@@ -91,9 +123,7 @@ struct TournamentView: View {
                     Picker("Selected Tournament", selection: Binding<UUID?>(
                         get: { viewModel.selectedTournamentId },
                         set: { newValue in
-                            Task {
-                                await viewModel.selectTournament(id: newValue)
-                            }
+                            Task { await viewModel.selectTournament(id: newValue) }
                         }
                     )) {
                         Text("No selection").tag(Optional<UUID>.none)
@@ -103,7 +133,7 @@ struct TournamentView: View {
                         }
                     }
 
-                    Text("Note for non-coders: this list includes active and historical tournaments, so you can review old completed events or switch back to a current one.")
+                    Text("Note for non-coders: listan blandar pågående och historiska turneringar så arrangören snabbt kan växla kontext.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -117,6 +147,7 @@ struct TournamentView: View {
                 TextField("Tournament name", text: $newTournamentName)
                     .textInputAutocapitalization(.words)
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+
                 TextField("Location (optional)", text: $newTournamentLocation)
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
 
@@ -124,6 +155,12 @@ struct TournamentView: View {
                     Text("Americano").tag("americano")
                     Text("Mexicano").tag("mexicano")
                 }
+
+                Text(newTournamentType == "mexicano"
+                     ? "Note for non-coders: Mexicano betyder att spelare roterar position efter poäng, så tabellen blir extra viktig mellan rundor."
+                     : "Note for non-coders: Americano skapar balanserade matcher per runda med tydlig poängsummering.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
                 Picker("Score target", selection: $newTournamentScoreTarget) {
                     ForEach(scoreTargetOptions, id: \.self) { value in
@@ -150,19 +187,13 @@ struct TournamentView: View {
                     }
                 } label: {
                     if viewModel.isTournamentActionRunning {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
+                        ProgressView().frame(maxWidth: .infinity)
                     } else {
-                        Text("Create Draft Tournament")
-                            .frame(maxWidth: .infinity)
+                        Text("Create Draft Tournament").frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
-
-                Text("Note for non-coders: a new tournament starts in 'draft' so organizers can confirm details before starting live rounds.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -183,30 +214,14 @@ struct TournamentView: View {
                     }
 
                     if let message = viewModel.tournamentStatusMessage {
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        Text(message).font(.footnote).foregroundStyle(.secondary)
                     }
 
                     if let errorMessage = viewModel.tournamentActionErrorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+                        Text(errorMessage).font(.footnote).foregroundStyle(.red)
                     }
 
                     actionButtons(for: tournament)
-
-                    if let exportText = viewModel.exportTextForSelectedCompletedTournament() {
-                        ShareLink(item: exportText) {
-                            Label("Share Completed Standings", systemImage: "square.and.arrow.up")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    Text("Note for non-coders: this screen supports create/start/cancel/abandon/delete with explicit confirmations, matching the control flow from web.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             } else {
                 Text("No tournament selected.")
@@ -217,47 +232,60 @@ struct TournamentView: View {
         }
     }
 
+    private var runHelperCard: some View {
+        SectionCard(title: "Run Helper") {
+            if let suggestion = nextRoundSuggestion {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Next suggested round: #\(suggestion.round.roundNumber)")
+                        .font(.headline)
+                    Text("\(suggestion.team1) vs \(suggestion.team2)")
+                    if !suggestion.resting.isEmpty {
+                        Text("Resting: \(suggestion.resting)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Note for non-coders: hjälpkortet pekar på nästa runda som saknar resultat så arrangören kan hålla tempo mellan matcher.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Alla rundor har redan score, eller så finns inga rundor än.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     @ViewBuilder
     private func actionButtons(for tournament: Tournament) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if tournament.status == "draft" {
-                Button("Start Tournament") {
-                    showStartConfirmation = true
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                Button("Start Tournament") { showStartConfirmation = true }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
             }
 
             if tournament.status == "in_progress" {
                 Button("Complete Tournament") {
-                    Task {
-                        await viewModel.completeActiveTournament()
-                    }
+                    Task { await viewModel.completeActiveTournament() }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
 
-                Button("Mark Abandoned") {
-                    showAbandonConfirmation = true
-                }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                Button("Mark Abandoned") { showAbandonConfirmation = true }
+                    .buttonStyle(.bordered)
+                    .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
             }
 
             if tournament.status == "draft" || tournament.status == "in_progress" {
-                Button("Cancel Tournament") {
-                    showCancelConfirmation = true
-                }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                Button("Cancel Tournament") { showCancelConfirmation = true }
+                    .buttonStyle(.bordered)
+                    .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
             }
 
-            Button("Delete Tournament") {
-                showDeleteConfirmation = true
-            }
-            .buttonStyle(.bordered)
-            .tint(.red)
-            .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+            Button("Delete Tournament") { showDeleteConfirmation = true }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
         }
     }
 
@@ -269,8 +297,7 @@ struct TournamentView: View {
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(viewModel.tournamentRounds) { round in
-                        RoundEditorRow(round: round, canEdit: viewModel.canMutateTournament) {
-                            team1Score, team2Score in
+                        RoundEditorRow(round: round, canEdit: viewModel.canMutateTournament) { team1Score, team2Score in
                             await viewModel.saveTournamentRound(round: round, team1Score: team1Score, team2Score: team2Score)
                         }
                     }
@@ -306,6 +333,21 @@ struct TournamentView: View {
         }
     }
 
+    private var shareCard: some View {
+        SectionCard(title: "Share / Export") {
+            if let exportText = viewModel.exportTextForSelectedCompletedTournament() {
+                ShareLink(item: exportText) {
+                    Label("Share Tournament Summary", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Text("Complete tournament to enable rich summary export.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var historicalResults: some View {
         SectionCard(title: "Result History") {
             if viewModel.tournamentHistoryResults.isEmpty {
@@ -315,7 +357,7 @@ struct TournamentView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(viewModel.tournamentHistoryResults.prefix(12)) { result in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Tournament: \(result.tournamentId.uuidString.prefix(8))…")
+                            Text(viewModel.tournamentName(for: result.tournamentId))
                                 .font(.subheadline.weight(.semibold))
                             Text("Rank #\(result.rank) • W\(result.wins)-L\(result.losses) • PF \(result.pointsFor) / PA \(result.pointsAgainst)")
                                 .font(.caption)
@@ -329,6 +371,24 @@ struct TournamentView: View {
                 }
             }
         }
+    }
+
+    private var nextRoundSuggestion: (round: TournamentRound, team1: String, team2: String, resting: String)? {
+        guard let firstPending = viewModel.tournamentRounds.first(where: { $0.team1Score == nil || $0.team2Score == nil }) else { return nil }
+
+        let team1 = firstPending.team1Ids
+            .map { id in viewModel.players.first(where: { $0.id == id })?.profileName ?? "Unknown" }
+            .joined(separator: " & ")
+
+        let team2 = firstPending.team2Ids
+            .map { id in viewModel.players.first(where: { $0.id == id })?.profileName ?? "Unknown" }
+            .joined(separator: " & ")
+
+        let resting = firstPending.restingIds
+            .map { id in viewModel.players.first(where: { $0.id == id })?.profileName ?? "Unknown" }
+            .joined(separator: ", ")
+
+        return (firstPending, team1, team2, resting)
     }
 
     private func readableStatus(_ status: String) -> String {
@@ -381,11 +441,9 @@ private struct RoundEditorRow: View {
                 }
             } label: {
                 if isSaving {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
+                    ProgressView().frame(maxWidth: .infinity)
                 } else {
-                    Text("Save Round")
-                        .frame(maxWidth: .infinity)
+                    Text("Save Round").frame(maxWidth: .infinity)
                 }
             }
             .buttonStyle(.bordered)

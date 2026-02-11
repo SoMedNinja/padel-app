@@ -118,6 +118,15 @@ struct DashboardMatchHighlight {
     let matchDateKey: String
 }
 
+
+struct MatchEloChangeRow: Identifiable {
+    let id: UUID
+    let playerName: String
+    let delta: Int
+    let estimatedBefore: Int
+    let estimatedAfter: Int
+}
+
 struct DashboardMVPResult {
     let player: Player
     let wins: Int
@@ -258,6 +267,13 @@ final class AppViewModel: ObservableObject {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    private static let uiDateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
         return formatter
     }()
 
@@ -623,6 +639,48 @@ final class AppViewModel: ObservableObject {
 
     var canMutateTournament: Bool { isAuthenticated }
     var canCreateMatches: Bool { isAuthenticated && canUseSingleGame }
+
+    // Note for non-coders:
+    // Match deletion follows web rules: admins can delete any match, and match creators
+    // can delete their own entries even without admin rights.
+    func canDeleteMatch(_ match: Match) -> Bool {
+        guard isAuthenticated else { return false }
+        if canUseAdmin { return true }
+        guard let myProfileId = currentPlayer?.id else { return false }
+        return match.createdBy == myProfileId
+    }
+
+    // Note for non-coders:
+    // This returns a simple ELO change table per match participant so users can understand
+    // who gained/lost rating in the selected result, similar to the web history details.
+    func eloBreakdown(for match: Match) -> [MatchEloChangeRow] {
+        let participantIds = Array(Set((match.teamAPlayerIds + match.teamBPlayerIds).compactMap { $0 }))
+        return participantIds
+            .map { playerId in
+                let delta = estimatedEloDelta(for: match, playerId: playerId)
+                let currentElo = players.first(where: { $0.id == playerId })?.elo ?? 1400
+                let estimatedBefore = currentElo - delta
+                let name = players.first(where: { $0.id == playerId })?.fullName
+                    ?? players.first(where: { $0.id == playerId })?.profileName
+                    ?? "Unknown player"
+                return MatchEloChangeRow(
+                    id: playerId,
+                    playerName: name,
+                    delta: delta,
+                    estimatedBefore: estimatedBefore,
+                    estimatedAfter: currentElo
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.delta != rhs.delta { return lhs.delta > rhs.delta }
+                return lhs.playerName < rhs.playerName
+            }
+    }
+
+    func tournamentName(for tournamentId: UUID) -> String {
+        tournaments.first(where: { $0.id == tournamentId })?.name
+        ?? "Tournament \(tournamentId.uuidString.prefix(8))…"
+    }
 
     var isAwaitingApproval: Bool {
         guard let identity = currentIdentity else { return false }
@@ -1426,8 +1484,8 @@ final class AppViewModel: ObservableObject {
     }
 
     func deleteMatch(_ match: Match) async {
-        guard canUseAdmin else {
-            statusMessage = "Endast admin kan radera matcher i iOS-appen just nu."
+        guard canDeleteMatch(match) else {
+            statusMessage = "Du kan bara radera egna matcher (eller vara admin)."
             return
         }
         do {
@@ -1934,17 +1992,23 @@ final class AppViewModel: ObservableObject {
         let lines = tournamentStandings.map { standing in
             "#\(standing.rank) \(standing.playerName) • \(standing.pointsFor) pts • W\(standing.wins)-L\(standing.losses)"
         }
+        let scoredRounds = tournamentRounds.filter { $0.team1Score != nil && $0.team2Score != nil }.count
+        let totalRounds = tournamentRounds.count
 
         // Note for non-coders:
-        // This text payload mirrors what web shares in its modal so it can be copied,
-        // sent to chat apps, or passed to iOS ShareLink without extra formatting work.
+        // This richer payload includes format, rounds, and optional location/date so the
+        // shared text works like an event recap (similar to web share output).
         return ([
             "\(tournament.name) (\(tournament.tournamentType.capitalized))",
             "Status: Completed",
+            tournament.location?.isEmpty == false ? "Location: \(tournament.location!)" : nil,
+            tournament.scheduledAt.map { "Scheduled: \(Self.uiDateTimeFormatter.string(from: $0))" },
+            "Rounds scored: \(scoredRounds)/\(totalRounds)",
             "",
             "Standings:",
-        ] + lines).joined(separator: "\n")
+        ].compactMap { $0 } + lines).joined(separator: "\n")
     }
+
 
     func saveTournamentRound(round: TournamentRound, team1Score: Int, team2Score: Int) async {
         guard canMutateTournament else {
