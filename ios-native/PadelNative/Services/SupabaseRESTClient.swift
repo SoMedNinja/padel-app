@@ -194,6 +194,16 @@ struct SupabaseRESTClient {
         )
     }
 
+    // Note for non-coders:
+    // Admin reports often need more history than the dashboard cards.
+    // This endpoint loads a larger match range for report generation.
+    func fetchMatchesForAdminReports(limit: Int = 500) async throws -> [Match] {
+        try await request(
+            path: "/rest/v1/matches",
+            query: "select=id,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)"
+        )
+    }
+
     func fetchSchedule() async throws -> [ScheduleEntry] {
         try await request(
             path: "/rest/v1/availability_scheduled_games",
@@ -377,6 +387,44 @@ struct SupabaseRESTClient {
             throw APIError.requestFailed(statusCode: -1)
         }
         return decoded
+    }
+
+
+
+    // Note for non-coders:
+    // This calls the same edge function as web admin when testing or sending weekly summary emails.
+    func invokeWeeklySummary(
+        accessToken: String,
+        playerId: UUID?,
+        timeframe: String,
+        week: Int? = nil,
+        year: Int? = nil
+    ) async throws -> WeeklySummaryResponse {
+        struct WeeklySummaryPayload: Encodable {
+            let playerId: UUID?
+            let timeframe: String
+            let week: Int?
+            let year: Int?
+        }
+
+        let data = try await sendFunctionRequest(
+            functionName: "weekly-summary",
+            body: WeeklySummaryPayload(playerId: playerId, timeframe: timeframe, week: week, year: year),
+            accessToken: accessToken
+        )
+        return try decoder.decode(WeeklySummaryResponse.self, from: data)
+    }
+
+    // Note for non-coders:
+    // This runs the tournament email queue processor used by the web admin tools.
+    func invokeTournamentSummary(accessToken: String) async throws -> TournamentSummaryResponse {
+        struct EmptyPayload: Encodable {}
+        let data = try await sendFunctionRequest(
+            functionName: "tournament-summary",
+            body: EmptyPayload(),
+            accessToken: accessToken
+        )
+        return try decoder.decode(TournamentSummaryResponse.self, from: data)
     }
 
     func submitMatch(_ match: MatchSubmission) async throws {
@@ -721,7 +769,7 @@ struct SupabaseRESTClient {
         try await perform(request)
     }
 
-    private func sendFunctionRequest<T: Encodable>(functionName: String, body: T) async throws -> Data {
+    private func sendFunctionRequest<T: Encodable>(functionName: String, body: T, accessToken: String? = nil) async throws -> Data {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
         guard let url = URL(string: "\(AppConfig.supabaseURL)/functions/v1/\(functionName)") else {
             throw APIError.badURL
@@ -730,7 +778,8 @@ struct SupabaseRESTClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        let bearerToken = accessToken ?? AppConfig.supabaseAnonKey
+        request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
 
@@ -768,6 +817,25 @@ struct SupabaseRESTClient {
         let data = try await sendPostForData(path: path, body: body, preferHeader: preferHeader)
         return try decoder.decode([T].self, from: data)
     }
+}
+
+
+
+struct WeeklySummaryResponse: Decodable {
+    let success: Bool?
+    let message: String?
+    let sent: Int?
+    let total: Int?
+    let error: String?
+    let hint: String?
+}
+
+struct TournamentSummaryResponse: Decodable {
+    let success: Bool?
+    let message: String?
+    let sent: Int?
+    let skipped: Int?
+    let error: String?
 }
 
 struct PollReminderResult: Decodable {
