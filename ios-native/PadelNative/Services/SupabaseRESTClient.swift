@@ -711,6 +711,68 @@ struct SupabaseRESTClient {
         let latestResultState: String
     }
 
+    struct GlobalLiveMarker: Equatable {
+        let playerState: String
+        let matchState: String
+        let scheduleState: String
+        let pollState: String
+        let tournamentState: TournamentLiveMarker
+    }
+
+    // Note for non-coders:
+    // This bundles tiny "latest row" fingerprints for core sections so the app can
+    // detect changes quickly before doing a heavier full data refresh.
+    func fetchGlobalLiveMarker() async throws -> GlobalLiveMarker {
+        struct ProbeRow: Decodable {
+            let id: UUID
+            let createdAt: Date?
+            let updatedAt: Date?
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case createdAt = "created_at"
+                case updatedAt = "updated_at"
+            }
+        }
+
+        async let latestProfileTask: [ProbeRow] = request(
+            path: "/rest/v1/profiles",
+            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+        )
+        async let latestMatchTask: [ProbeRow] = request(
+            path: "/rest/v1/matches",
+            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+        )
+        async let latestScheduleTask: [ProbeRow] = request(
+            path: "/rest/v1/availability_scheduled_games",
+            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+        )
+        async let latestPollTask: [ProbeRow] = request(
+            path: "/rest/v1/availability_polls",
+            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+        )
+        async let tournamentMarkerTask = fetchTournamentLiveMarker()
+
+        let profile = try await latestProfileTask.first
+        let match = try await latestMatchTask.first
+        let schedule = try await latestScheduleTask.first
+        let poll = try await latestPollTask.first
+        let tournament = try await tournamentMarkerTask
+
+        func state(_ row: ProbeRow?) -> String {
+            guard let row else { return "none" }
+            return "\(row.id.uuidString)|\(row.updatedAt?.timeIntervalSince1970 ?? 0)|\(row.createdAt?.timeIntervalSince1970 ?? 0)"
+        }
+
+        return GlobalLiveMarker(
+            playerState: state(profile),
+            matchState: state(match),
+            scheduleState: state(schedule),
+            pollState: state(poll),
+            tournamentState: tournament
+        )
+    }
+
     // Note for non-coders:
     // This lightweight probe gives us "has tournament data changed?" without downloading
     // every tournament round/result on each background sync cycle.

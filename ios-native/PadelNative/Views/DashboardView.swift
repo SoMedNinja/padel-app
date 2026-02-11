@@ -153,8 +153,22 @@ struct DashboardView: View {
                         Text(filter.title).tag(filter)
                     }
                 }
-                .pickerStyle(.segmented)
-                // Note for non-coders: this segmented control is the iOS version of the web filter bar.
+                .pickerStyle(.menu)
+                // Note for non-coders: we use a menu here because iOS segmented controls become cramped with many options.
+
+                if viewModel.dashboardFilter == .custom {
+                    DatePicker("From", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
+                    DatePicker("To", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+
+                    Button("Reset to all") {
+                        viewModel.dashboardFilter = .all
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Text("Active filter: \(viewModel.dashboardActiveFilterLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("MVP") {

@@ -28,7 +28,7 @@ struct ProfileView: View {
     @State private var selectedFilter: DashboardMatchFilter = .all
 
     private var profileFilterOptions: [DashboardMatchFilter] {
-        [.last7, .last30, .tournaments, .all]
+        [.last7, .last30, .tournaments, .custom, .all]
     }
 
     var body: some View {
@@ -80,7 +80,21 @@ struct ProfileView: View {
                     Text(filter.title).tag(filter)
                 }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
+
+            if selectedFilter == .custom {
+                DatePicker("From", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
+                DatePicker("To", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+
+                Button("Reset to all") {
+                    selectedFilter = .all
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Text("Active filter: \(selectedFilter == .custom ? viewModel.dashboardActiveFilterLabel : selectedFilter.title)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

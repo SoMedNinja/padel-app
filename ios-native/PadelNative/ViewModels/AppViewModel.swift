@@ -88,6 +88,7 @@ enum DashboardMatchFilter: String, CaseIterable, Identifiable {
     case short
     case long
     case tournaments
+    case custom
 
     var id: String { rawValue }
 
@@ -99,6 +100,7 @@ enum DashboardMatchFilter: String, CaseIterable, Identifiable {
         case .short: return "Short"
         case .long: return "Long"
         case .tournaments: return "Tournament"
+        case .custom: return "Custom"
         }
     }
 }
@@ -279,6 +281,8 @@ final class AppViewModel: ObservableObject {
     @Published var adminEmailStatusMessage: String?
     @Published var liveUpdateBanner: String?
     @Published var dashboardFilter: DashboardMatchFilter = .all
+    @Published var dashboardCustomStartDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+    @Published var dashboardCustomEndDate: Date = .now
     @Published var isDashboardLoading = false
     @Published var selectedMainTab = 1
     @Published var historyFilters = HistoryFilterState()
@@ -306,12 +310,16 @@ final class AppViewModel: ObservableObject {
     private var liveSyncTask: Task<Void, Never>?
     private var liveSyncDebounceTask: Task<Void, Never>?
     private var liveUpdateBannerTask: Task<Void, Never>?
+    private var lastGlobalLiveMarker: SupabaseRESTClient.GlobalLiveMarker?
+    private var lastFullLiveSyncAt: Date?
+    private var consecutiveLiveProbeFailures = 0
     private var hasPendingDeepLinkedVote = false
     private var deepLinkedVoteSlots: [AvailabilitySlot] = []
     private var pendingLiveSyncScopes: Set<LiveSyncScope> = []
     private var lastTournamentMarker: SupabaseRESTClient.TournamentLiveMarker?
-    private let liveSyncIntervalNanoseconds: UInt64 = 18_000_000_000
+    private let liveSyncIntervalNanoseconds: UInt64 = 6_000_000_000
     private let liveSyncDebounceNanoseconds: UInt64 = 900_000_000
+    private let liveSyncFallbackRefreshNanoseconds: UInt64 = 90_000_000_000
     private let historyPageSize = 50
     private static let adminDayFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -788,6 +796,30 @@ final class AppViewModel: ObservableObject {
         filteredMatches(matches, filter: dashboardFilter)
     }
 
+    // Note for non-coders:
+    // We show this label in the UI so people can confirm which filter scope is currently applied.
+    var dashboardActiveFilterLabel: String {
+        if dashboardFilter == .custom {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            return "Custom: \(formatter.string(from: dashboardCustomStartDate)) → \(formatter.string(from: dashboardCustomEndDate))"
+        }
+        return dashboardFilter.title
+    }
+
+    // Note for non-coders:
+    // End date is normalized to 23:59:59 so selecting a day includes all matches played that day.
+    var dashboardCustomDateRange: (start: Date, end: Date) {
+        let calendar = Calendar.current
+        let rawStart = calendar.startOfDay(for: dashboardCustomStartDate)
+        let rawEndDay = calendar.startOfDay(for: dashboardCustomEndDate)
+        let start = min(rawStart, rawEndDay)
+        let normalizedEndDay = max(rawStart, rawEndDay)
+        let end = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: normalizedEndDay) ?? dashboardCustomEndDate
+        return (start, end)
+    }
+
     private func filteredMatches(_ source: [Match], filter: DashboardMatchFilter) -> [Match] {
         let now = Date()
         let calendar = Calendar.current
@@ -807,6 +839,9 @@ final class AppViewModel: ObservableObject {
         case .last30:
             guard let cutoff = calendar.date(byAdding: .day, value: -30, to: now) else { return source }
             return source.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
+        case .custom:
+            let range = dashboardCustomDateRange
+            return source.filter { $0.playedAt >= range.start && $0.playedAt <= range.end }
         }
     }
 
@@ -1157,6 +1192,9 @@ final class AppViewModel: ObservableObject {
         liveUpdateBannerTask = nil
         pendingLiveSyncScopes.removeAll()
         lastTournamentMarker = nil
+        lastGlobalLiveMarker = nil
+        lastFullLiveSyncAt = nil
+        consecutiveLiveProbeFailures = 0
         liveUpdateBanner = nil
     }
 
@@ -1173,6 +1211,39 @@ final class AppViewModel: ObservableObject {
     private func performLiveSyncProbe() async {
         guard isAuthenticated else { return }
 
+        do {
+            // Note for non-coders:
+            // "Global live marker" is a tiny fingerprint of the newest rows in each section.
+            // If marker did not change, we skip heavy full downloads and keep sync lightweight.
+            let globalMarker = try await apiClient.fetchGlobalLiveMarker()
+            let needsFallbackRefresh: Bool
+            if let lastFullLiveSyncAt {
+                needsFallbackRefresh = Date().timeIntervalSince(lastFullLiveSyncAt) >= Double(liveSyncFallbackRefreshNanoseconds) / 1_000_000_000
+            } else {
+                needsFallbackRefresh = true
+            }
+
+            let markerChanged = (lastGlobalLiveMarker != nil && lastGlobalLiveMarker != globalMarker)
+            lastGlobalLiveMarker = globalMarker
+
+            guard markerChanged || needsFallbackRefresh else { return }
+
+            if markerChanged {
+                liveUpdateBanner = "Live updates detected. Syncing latest data…"
+            }
+
+            await performFullLiveRefresh()
+            lastFullLiveSyncAt = Date()
+            consecutiveLiveProbeFailures = 0
+        } catch {
+            consecutiveLiveProbeFailures += 1
+            // Note for non-coders:
+            // We silently continue after transient failures so normal usage is not interrupted.
+            // Next cycles keep trying automatically.
+        }
+    }
+
+    private func performFullLiveRefresh() async {
         do {
             async let playersTask = apiClient.fetchLeaderboard()
             async let matchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
@@ -1231,7 +1302,7 @@ final class AppViewModel: ObservableObject {
             }
         } catch {
             // Note for non-coders:
-            // Live sync errors are intentionally silent so background polling never disrupts normal app usage.
+            // Full sync errors are intentionally silent so background refresh never blocks normal app usage.
         }
     }
 
