@@ -15,6 +15,17 @@ struct HeadToHeadSummary: Identifiable {
     let closeMatches: Int
 }
 
+struct AdminActionBanner: Identifiable {
+    enum Style {
+        case success
+        case failure
+    }
+
+    let id = UUID()
+    let message: String
+    let style: Style
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     @Published var players: [Player] = []
@@ -32,6 +43,9 @@ final class AppViewModel: ObservableObject {
     @Published var tournamentHistoryResults: [TournamentResult] = []
     @Published var tournamentStatusMessage: String?
     @Published var isTournamentLoading = false
+    @Published var adminProfiles: [AdminProfile] = []
+    @Published var adminBanner: AdminActionBanner?
+    @Published var isAdminActionRunning = false
 
     private(set) var signedInEmail: String?
 
@@ -124,6 +138,8 @@ final class AppViewModel: ObservableObject {
         signedInEmail = nil
         authMessage = nil
         statusMessage = nil
+        adminProfiles = []
+        adminBanner = nil
     }
 
     // Note for non-coders:
@@ -207,6 +223,7 @@ final class AppViewModel: ObservableObject {
             self.matches = try await matchesTask
             self.schedule = try await scheduleTask
             _ = await tournamentTask
+            await refreshAdminProfiles(silently: true)
             self.lastErrorMessage = nil
         } catch {
             // Note for non-coders:
@@ -219,7 +236,89 @@ final class AppViewModel: ObservableObject {
             self.tournamentRounds = SampleData.tournamentRounds
             self.tournamentStandings = SampleData.tournamentStandings
             self.tournamentHistoryResults = SampleData.tournamentResultsHistory
+            self.adminProfiles = []
             self.lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshAdminProfiles(silently: Bool = false) async {
+        guard canUseAdmin else {
+            adminProfiles = []
+            return
+        }
+
+        if !silently {
+            isAdminActionRunning = true
+        }
+        defer {
+            if !silently {
+                isAdminActionRunning = false
+            }
+        }
+
+        do {
+            adminProfiles = try await apiClient.fetchAdminProfiles()
+        } catch {
+            adminBanner = AdminActionBanner(
+                message: "Could not refresh admin users: \(error.localizedDescription)",
+                style: .failure
+            )
+        }
+    }
+
+    func setApproval(for profile: AdminProfile, approved: Bool) async {
+        await runAdminMutation(successMessage: approved ? "User approved." : "User approval removed.") {
+            try await apiClient.updateProfileAdminFlags(profileId: profile.id, isApproved: approved)
+        }
+    }
+
+    func setAdminRole(for profile: AdminProfile, isAdmin: Bool) async {
+        await runAdminMutation(successMessage: isAdmin ? "Admin role granted." : "Admin role removed.") {
+            try await apiClient.updateProfileAdminFlags(profileId: profile.id, isAdmin: isAdmin)
+        }
+    }
+
+    func setRegularRole(for profile: AdminProfile, isRegular: Bool) async {
+        await runAdminMutation(successMessage: isRegular ? "Regular access enabled." : "Regular access removed.") {
+            try await apiClient.updateProfileAdminFlags(profileId: profile.id, isRegular: isRegular)
+        }
+    }
+
+    func deactivateProfile(_ profile: AdminProfile) async {
+        if currentPlayer?.id == profile.id {
+            adminBanner = AdminActionBanner(
+                message: "You cannot deactivate your own admin profile.",
+                style: .failure
+            )
+            return
+        }
+
+        await runAdminMutation(successMessage: "User deactivated.") {
+            try await apiClient.deactivateProfile(profileId: profile.id)
+        }
+    }
+
+    private func runAdminMutation(successMessage: String, action: () async throws -> Void) async {
+        guard canUseAdmin else {
+            adminBanner = AdminActionBanner(
+                message: "Admin access is required to perform this action.",
+                style: .failure
+            )
+            return
+        }
+
+        isAdminActionRunning = true
+        defer { isAdminActionRunning = false }
+
+        do {
+            try await action()
+            adminBanner = AdminActionBanner(message: successMessage, style: .success)
+            await refreshAdminProfiles(silently: true)
+        } catch {
+            adminBanner = AdminActionBanner(
+                message: "Admin action failed: \(error.localizedDescription)",
+                style: .failure
+            )
         }
     }
 
