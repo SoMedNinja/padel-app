@@ -66,20 +66,86 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     return siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl;
   };
 
+  const getSafeRedirectUrl = () => {
+    const siteUrl = resolveSiteUrl().trim();
+
+    // Note for non-coders: auth links only work with full web addresses.
+    // In some PWA/native contexts the browser origin can be "null" or "capacitor://...",
+    // so we skip custom redirect values unless they are valid http/https URLs.
+    if (!siteUrl) return undefined;
+
+    try {
+      const parsed = new URL(siteUrl);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.toString();
+      }
+    } catch {
+      return undefined;
+    }
+
+    return undefined;
+  };
+
+  const toFriendlyAuthError = (message: string) => {
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes("invalid login credentials") || normalized.includes("invalid email or password")) {
+      return "Fel e-post eller lösenord. Kontrollera att kontot är bekräftat via länken i din e-post och försök igen.";
+    }
+
+    if (normalized.includes("email not confirmed") || normalized.includes("email not verified")) {
+      return "Kontot är inte bekräftat ännu. Öppna länken i bekräftelsemejlet först.";
+    }
+
+    if (normalized.includes("data couldn't be read because it is missing")) {
+      return "Kunde inte skapa konto just nu. Testa igen om en stund eller använd en annan webbläsare.";
+    }
+
+    if (normalized.includes("network") || normalized.includes("fetch")) {
+      return "Nätverksfel. Kontrollera din uppkoppling och försök igen.";
+    }
+
+    return message;
+  };
+
+  const resendConfirmationEmail = async (normalizedEmail: string, normalizedPassword: string) => {
+    const redirectUrl = getSafeRedirectUrl();
+    const { error } = await withTimeout(
+      supabase.auth.signUp({
+        email: normalizedEmail,
+        password: normalizedPassword,
+        options: redirectUrl ? { emailRedirectTo: redirectUrl } : undefined,
+      }),
+      "Det tar längre tid än vanligt att skicka nytt bekräftelsemejl. Försök igen om en stund."
+    );
+
+    if (error) {
+      setNoticeSeverity("error");
+      setNotice(toFriendlyAuthError(error.message));
+      return;
+    }
+
+    setNoticeSeverity("success");
+    setNotice("Nytt bekräftelsemejl skickat. Öppna länken i mejlet och försök logga in igen.");
+  };
+
   const submit = async () => {
     if (isSubmitting) return;
     setNotice("");
-    if (!email || !password) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password;
+
+    if (!normalizedEmail || !normalizedPassword) {
       setNoticeSeverity("error");
       setNotice("Fyll i både e-post och lösenord.");
       return;
     }
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       setNoticeSeverity("error");
       setNotice("Ange en giltig e-postadress.");
       return;
     }
-    if (password.length < 8) {
+    if (isSignup && normalizedPassword.length < 8) {
       setNoticeSeverity("error");
       setNotice("Lösenordet måste vara minst 8 tecken.");
       return;
@@ -88,43 +154,61 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     setIsSubmitting(true);
     try {
       if (isSignup) {
-        const siteUrl = resolveSiteUrl();
+        const redirectUrl = getSafeRedirectUrl();
         const { data, error } = await withTimeout(
           supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: siteUrl,
-            },
+            email: normalizedEmail,
+            password: normalizedPassword,
+            options: redirectUrl ? { emailRedirectTo: redirectUrl } : undefined,
           }),
           "Det tar längre tid än vanligt att skapa kontot. Försök igen om en stund."
         );
 
         if (error) {
           setNoticeSeverity("error");
-          setNotice(error.message);
+          setNotice(toFriendlyAuthError(error.message));
           return;
         }
+
+        // Note for non-coders: we persist normalized input so follow-up login attempts use clean values.
+        setEmail(normalizedEmail);
+        setPassword(normalizedPassword);
+
         if (data?.session?.user) {
           onAuth(data.session.user);
           return;
         }
+
+        setIsSignup(false);
         setNoticeSeverity("success");
         setNotice("Bekräftelselänk skickad! Kolla din e-post för att aktivera kontot.");
       } else {
         const { data, error } = await withTimeout(
           supabase.auth.signInWithPassword({
-            email,
-            password,
+            email: normalizedEmail,
+            password: normalizedPassword,
           }),
           "Det tar längre tid än vanligt att logga in. Kontrollera din uppkoppling och försök igen."
         );
 
         if (error) {
+          const loweredError = error.message.toLowerCase();
+          if (
+            loweredError.includes("invalid login credentials") ||
+            loweredError.includes("invalid email or password")
+          ) {
+            await resendConfirmationEmail(normalizedEmail, normalizedPassword);
+            return;
+          }
+
           setNoticeSeverity("error");
-          setNotice(error.message);
+          setNotice(toFriendlyAuthError(error.message));
           return;
         }
+
+        setEmail(normalizedEmail);
+        setPassword(normalizedPassword);
+
         if (data.user) {
           // Note for non-coders: we re-enable the button even after success so the UI never gets stuck.
           onAuth(data.user);
@@ -134,42 +218,53 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Något gick fel vid inloggningen.";
       setNoticeSeverity("error");
-      setNotice(message);
+      setNotice(toFriendlyAuthError(message));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handlePasswordReset = async () => {
-    if (!email) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
       setNoticeSeverity("error");
       setNotice("Ange e-postadressen du vill återställa lösenordet för.");
       return;
     }
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       setNoticeSeverity("error");
       setNotice("Ange en giltig e-postadress.");
       return;
     }
+
+    const redirectUrl = getSafeRedirectUrl();
+
     setIsSubmitting(true);
     try {
       const { error } = await withTimeout(
-        supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: resolveSiteUrl(),
-        }),
+        supabase.auth.resetPasswordForEmail(
+          normalizedEmail,
+          redirectUrl
+            ? {
+                redirectTo: redirectUrl,
+              }
+            : undefined
+        ),
         "Det tar längre tid än vanligt att skicka återställningslänken. Försök igen om en stund."
       );
       if (error) {
         setNoticeSeverity("error");
-        setNotice(error.message);
+        setNotice(toFriendlyAuthError(error.message));
         return;
       }
+      setEmail(normalizedEmail);
       setNoticeSeverity("success");
       setNotice("Återställningslänk skickad! Kolla din e-post.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Något gick fel vid återställningen.";
       setNoticeSeverity("error");
-      setNotice(message);
+      setNotice(toFriendlyAuthError(message));
     } finally {
       setIsSubmitting(false);
     }
