@@ -3,9 +3,9 @@ import SwiftUI
 struct ScheduleView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
-    @State private var inviteDate = ""
-    @State private var inviteStartTime = "18:00"
-    @State private var inviteEndTime = "20:00"
+    @State private var inviteDateValue = Date()
+    @State private var inviteStartTimeValue = ScheduleView.defaultTime(hour: 18, minute: 0)
+    @State private var inviteEndTimeValue = ScheduleView.defaultTime(hour: 20, minute: 0)
     @State private var inviteLocation = ""
     @State private var inviteAction = "create"
     @State private var inviteTitle = "Padelpass"
@@ -13,6 +13,10 @@ struct ScheduleView: View {
     @State private var expandedPolls: [UUID: Bool] = [:]
     @State private var selectedInvitePollId: UUID?
     @State private var selectedInviteDayId: UUID?
+    @State private var addToLocalCalendar = false
+    @State private var localCalendarStatus: String?
+
+    private let calendarService = CalendarService()
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -25,6 +29,31 @@ struct ScheduleView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
+        return formatter
+    }()
+
+    private static func defaultTime(hour: Int, minute: Int) -> Date {
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: .now)
+        components.hour = hour
+        components.minute = minute
+        return Calendar.current.date(from: components) ?? .now
+    }
+
+    private static let inviteDateISOFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    private static let inviteTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "HH:mm"
         return formatter
     }()
 
@@ -41,7 +70,6 @@ struct ScheduleView: View {
             .padelLiquidGlassChrome()
             .task {
                 await viewModel.refreshScheduleData()
-                prefillInviteDateIfNeeded()
                 syncExpandedPollDefaults()
             }
             .onChange(of: viewModel.polls.count) { _, _ in
@@ -274,14 +302,19 @@ struct ScheduleView: View {
                 }
                 .onChange(of: selectedInviteDayId) { _, newDayId in
                     guard let day = inviteDays.first(where: { $0.id == newDayId }) else { return }
-                    inviteDate = day.date
+                    inviteDateValue = dateValue(fromISO: day.date)
                 }
 
-                TextField("Datum (YYYY-MM-DD)", text: $inviteDate)
-                TextField("Starttid (HH:MM)", text: $inviteStartTime)
-                TextField("Sluttid (HH:MM)", text: $inviteEndTime)
+                DatePicker("Datum", selection: $inviteDateValue, displayedComponents: .date)
+                DatePicker("Starttid", selection: $inviteStartTimeValue, displayedComponents: .hourAndMinute)
+                DatePicker("Sluttid", selection: $inviteEndTimeValue, displayedComponents: .hourAndMinute)
                 TextField("Plats", text: $inviteLocation)
                 TextField("Titel", text: $inviteTitle)
+
+                Toggle("Lägg också till i min iPhone-kalender", isOn: $addToLocalCalendar)
+                Text("Note for non-coders: DatePicker använder iOS egen datum/tidsväljare så admin slipper skriva format manuellt.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
 
                 Picker("Åtgärd", selection: $inviteAction) {
                     Text("Skapa").tag("create")
@@ -303,20 +336,41 @@ struct ScheduleView: View {
 
                 Button(viewModel.isScheduleActionRunning ? "Skickar…" : "Skicka kalenderinbjudan") {
                     Task {
+                        localCalendarStatus = nil
                         await viewModel.sendCalendarInvite(
                             pollId: selectedInvitePollId,
-                            date: inviteDate,
-                            startTime: inviteStartTime,
-                            endTime: inviteEndTime,
+                            date: Self.inviteDateISOFormatter.string(from: inviteDateValue),
+                            startTime: Self.inviteTimeFormatter.string(from: inviteStartTimeValue),
+                            endTime: Self.inviteTimeFormatter.string(from: inviteEndTimeValue),
                             location: inviteLocation.isEmpty ? nil : inviteLocation,
                             inviteeProfileIds: Array(selectedInvitees),
                             action: inviteAction,
                             title: inviteTitle.isEmpty ? nil : inviteTitle
                         )
+
+                        guard addToLocalCalendar, inviteAction != "cancel" else { return }
+                        do {
+                            try await calendarService.upsertLocalEvent(
+                                title: inviteTitle.isEmpty ? "Padelpass" : inviteTitle,
+                                date: inviteDateValue,
+                                startTime: inviteStartTimeValue,
+                                endTime: inviteEndTimeValue,
+                                location: inviteLocation.isEmpty ? nil : inviteLocation
+                            )
+                            localCalendarStatus = "Lokal kalenderpost skapad i iPhone-kalendern."
+                        } catch {
+                            localCalendarStatus = "Kunde inte spara i lokal kalender: \(error.localizedDescription)"
+                        }
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(selectedInvitees.isEmpty || inviteDate.isEmpty || !isValidTime(inviteStartTime) || !isValidTime(inviteEndTime))
+                .disabled(selectedInvitees.isEmpty || inviteEndTimeValue <= inviteStartTimeValue)
+
+                if let localCalendarStatus {
+                    Text(localCalendarStatus)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
 
                 Text("Note for non-coders: dagväljaren minskar fel genom att återanvända datum direkt från omröstningen istället för fri inmatning.")
                     .font(.footnote)
@@ -387,17 +441,9 @@ struct ScheduleView: View {
         .sorted { $0.name < $1.name }
     }
 
-    private func isValidTime(_ value: String) -> Bool {
-        let parts = value.split(separator: ":")
-        guard parts.count == 2, let h = Int(parts[0]), let m = Int(parts[1]) else { return false }
-        return (0...23).contains(h) && (0...59).contains(m)
-    }
 
-    private func prefillInviteDateIfNeeded() {
-        guard inviteDate.isEmpty else { return }
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withFullDate]
-        inviteDate = iso.string(from: .now)
+    private func dateValue(fromISO rawDate: String) -> Date {
+        ScheduleView.inviteDateISOFormatter.date(from: rawDate) ?? .now
     }
 
     private func parsedDate(_ rawDate: String) -> String {

@@ -104,10 +104,17 @@ struct SingleGameView: View {
                         Text(recap.eveningSummary)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        ShareLink(item: recap.sharePayload) {
-                            Label("Dela recap", systemImage: "square.and.arrow.up")
+
+                        if let shareImageURL = recapShareImageURL(for: recap) {
+                            ShareLink(item: shareImageURL) {
+                                Label("Dela recap som bild", systemImage: "photo.on.rectangle")
+                            }
                         }
-                        Text("Note for non-coders: ShareLink öppnar iOS-delning så du kan skicka samma text till till exempel Messages, Mail eller Slack.")
+
+                        ShareLink(item: recap.sharePayload) {
+                            Label("Dela recap som text", systemImage: "square.and.arrow.up")
+                        }
+                        Text("Note for non-coders: bilddelning känns mer native i iOS, medan textdelen är fallback om någon app bara tar emot text.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -125,6 +132,15 @@ struct SingleGameView: View {
             }
             .padelLiquidGlassChrome()
         }
+    }
+
+    private func recapShareImageURL(for recap: SingleGameRecap) -> URL? {
+        let lines = [recap.matchSummary, "", recap.eveningSummary]
+        return try? ShareCardService.createShareImageFile(
+            title: "Padel recap",
+            bodyLines: lines,
+            fileNamePrefix: "single-game-recap"
+        )
     }
 
     private var teamSetupSection: some View {

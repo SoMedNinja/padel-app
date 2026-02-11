@@ -216,6 +216,24 @@ struct ProfileView: View {
             Text(viewModel.profileSetupPrompt)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            Toggle("Påminn mig om kommande matcher (notiser)", isOn: Binding(
+                get: { viewModel.areScheduleNotificationsEnabled },
+                set: { enabled in
+                    Task { await viewModel.setScheduleNotificationsEnabled(enabled) }
+                }
+            ))
+
+            Toggle("Lås upp appen med Face ID / Touch ID", isOn: Binding(
+                get: { viewModel.isBiometricLockEnabled },
+                set: { enabled in
+                    Task { await viewModel.setBiometricLockEnabled(enabled) }
+                }
+            ))
+
+            Text("Note for non-coders: toggles above are iOS-only extras. Notifications can alert before matches, and biometric lock adds device-level privacy.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 
