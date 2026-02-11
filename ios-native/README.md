@@ -8,6 +8,7 @@ This folder contains a **native iOS SwiftUI app** that mirrors the current web a
 
 - Native SwiftUI tab app architecture.
 - Supabase REST integration via `URLSession`.
+- Runtime config fallback via `PadelNative/Resources/RuntimeSupabaseConfig.plist` plus built-in defaults in `AppConfig.swift`, so auth still works if Info.plist key mapping or resource bundling is missing in a local Xcode setup.
 - Feature-oriented models and view models.
 - Offline-friendly fallback sample data if API config is missing.
 - Route parity with key web routes (Profile, Dashboard, History + Match Details, Schedule, Tournament, Single Game, Admin).
@@ -24,6 +25,15 @@ This folder contains a **native iOS SwiftUI app** that mirrors the current web a
 4. Fill `PadelNative/Config/AppSecrets.xcconfig` with your Supabase URL + anon key.
 5. Build and run.
 
+
+## Troubleshooting: still cannot sign in/sign up
+
+1. In Supabase Dashboard -> **Authentication -> Providers -> Email**, ensure **Email provider is enabled**.
+2. If users should be able to register from the app, ensure **Enable email signups** is on.
+3. If your project requires confirmation, new signups may need email verification before login works.
+4. In Supabase Dashboard -> **Authentication -> URL Configuration**, set valid redirect/site URLs for your environment.
+
+> Note for non-coders: your app can know the correct backend URL/key and still fail login if your Supabase project authentication rules block that login flow.
 
 ## Troubleshooting: code-signing fails with missing Info.plist
 
