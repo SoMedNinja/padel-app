@@ -32,6 +32,8 @@ This folder contains a **native iOS SwiftUI app** that mirrors the current web a
 2. If users should be able to register from the app, ensure **Enable email signups** is on.
 3. If your project requires confirmation, new signups may need email verification before login works.
 4. In Supabase Dashboard -> **Authentication -> URL Configuration**, set valid redirect/site URLs for your environment.
+5. In app config (`PadelNative/Config/AppSecrets.xcconfig`), set **SUPABASE_ANON_KEY** to the **anon public key** from Supabase API settings (avoid keys starting with `sb_publishable_`).
+
 
 > Note for non-coders: your app can know the correct backend URL/key and still fail login if your Supabase project authentication rules block that login flow.
 

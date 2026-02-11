@@ -12,16 +12,32 @@ enum AppConfig {
     static let supabaseAnonKey: String = value(for: "SUPABASE_ANON_KEY")
 
     static var isConfigured: Bool {
-        !supabaseURL.isEmpty && !supabaseAnonKey.isEmpty
+        configurationWarning == nil
     }
 
     // Note for non-coders:
-    // Supabase anon/publishable keys are meant for client apps and are safe to ship.
-    // (Server/service-role keys are the secret ones and must never be put in mobile apps.)
+    // We intentionally keep built-in fallback values empty so the app cannot silently connect
+    // to the wrong Supabase project. If configuration is missing, login fails fast with a clear
+    // setup message instead of pretending the password was wrong.
     private static let builtInFallback: [String: String] = [
-        "SUPABASE_URL": "https://hiasgpbuqhiwutpgugjk.supabase.co",
-        "SUPABASE_ANON_KEY": "sb_publishable_VPkXuJh-Wp-VElcUIpZK8A_sRtJUuSC"
+        "SUPABASE_URL": "",
+        "SUPABASE_ANON_KEY": ""
     ]
+
+    static var configurationWarning: String? {
+        if supabaseURL.isEmpty || supabaseAnonKey.isEmpty {
+            return "Supabase URL/key saknas i appens konfiguration."
+        }
+
+        if supabaseAnonKey.hasPrefix("sb_publishable_") {
+            // Note for non-coders:
+            // "publishable" and "anon" are two different key families in Supabase.
+            // This app expects the anon public key for auth/rest compatibility.
+            return "Fel nyckeltyp: använd Supabase anon public key (inte sb_publishable_*)."
+        }
+
+        return nil
+    }
 
     private static func value(for key: String) -> String {
         let candidates: [String?] = [
