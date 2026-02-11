@@ -579,7 +579,38 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func submitSingleGame(teamAName: String, teamBName: String, teamAScore: Int, teamBScore: Int) async {
+
+    // Note for non-coders:
+    // We store up to two player names per team to match the web schema exactly.
+    // If someone enters only one name, we pad with an empty second slot instead of failing the save.
+    private func normalizedTeamNames(from rawTeam: String) -> [String] {
+        var names = rawTeam
+            .split(separator: "&")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        if names.isEmpty {
+            names = [rawTeam.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+        if names.count == 1 {
+            names.append("")
+        }
+        if names.count > 2 {
+            names = Array(names.prefix(2))
+        }
+        return names
+    }
+    func submitSingleGame(
+        teamAName: String,
+        teamBName: String,
+        teamAScore: Int,
+        teamBScore: Int,
+        scoreType: String = "sets",
+        scoreTarget: Int? = nil,
+        sourceTournamentId: UUID? = nil,
+        sourceTournamentType: String = "standalone",
+        teamAServesFirst: Bool = true
+    ) async {
         let trimmedA = teamAName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedB = teamBName.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -593,12 +624,32 @@ final class AppViewModel: ObservableObject {
             return
         }
 
+        let normalizedScoreType = scoreType == "points" ? "points" : "sets"
+        let normalizedTarget = normalizedScoreType == "points" ? scoreTarget : nil
+        let normalizedTournamentType = sourceTournamentType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "standalone"
+            : sourceTournamentType.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Note for non-coders:
+        // The web database expects exactly two slots in each team ID list.
+        // iOS single-game currently uses manual team names, so we safely send unknown IDs as nil placeholders.
+        let unknownIds: [UUID?] = [nil, nil]
+        let teamANames = normalizedTeamNames(from: trimmedA)
+        let teamBNames = normalizedTeamNames(from: trimmedB)
+
         do {
             let submission = MatchSubmission(
-                teamAName: trimmedA,
-                teamBName: trimmedB,
+                teamAName: teamANames.isEmpty ? [trimmedA] : teamANames,
+                teamBName: teamBNames.isEmpty ? [trimmedB] : teamBNames,
+                teamAPlayerIds: unknownIds,
+                teamBPlayerIds: unknownIds,
                 teamAScore: teamAScore,
                 teamBScore: teamBScore,
+                scoreType: normalizedScoreType,
+                scoreTarget: normalizedTarget,
+                sourceTournamentId: sourceTournamentId,
+                sourceTournamentType: normalizedTournamentType,
+                teamAServesFirst: teamAServesFirst,
                 playedAt: .now
             )
 
@@ -613,7 +664,14 @@ final class AppViewModel: ObservableObject {
                 teamAName: trimmedA,
                 teamBName: trimmedB,
                 teamAScore: teamAScore,
-                teamBScore: teamBScore
+                teamBScore: teamBScore,
+                teamAPlayerIds: unknownIds,
+                teamBPlayerIds: unknownIds,
+                scoreType: normalizedScoreType,
+                scoreTarget: normalizedTarget,
+                sourceTournamentId: sourceTournamentId,
+                sourceTournamentType: normalizedTournamentType,
+                teamAServesFirst: teamAServesFirst
             )
             matches.insert(localMatch, at: 0)
             statusMessage = "Match saved successfully."
