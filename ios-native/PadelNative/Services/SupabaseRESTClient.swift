@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 enum APIError: LocalizedError {
     case missingConfiguration
@@ -178,6 +181,184 @@ struct SupabaseRESTClient {
             path: "/rest/v1/availability_scheduled_games",
             query: "select=id,starts_at,location,description&order=starts_at.asc"
         )
+    }
+
+    func fetchAvailabilityPolls() async throws -> [AvailabilityPoll] {
+        let polls: [AvailabilityPoll] = try await request(
+            path: "/rest/v1/availability_polls",
+            query: "select=*,days:availability_poll_days(*,votes:availability_votes(*)),mail_logs:availability_poll_mail_log(id,poll_id,sent_by,sent_at,created_at)&order=week_year.asc&order=week_number.asc"
+        )
+
+        let nowDate = Self.dateOnlyFormatter.string(from: .now)
+        return polls.map { poll in
+            var normalized = poll
+            if normalized.status == .open && normalized.endDate < nowDate {
+                normalized.status = .closed
+            }
+            normalized.days = (normalized.days ?? []).sorted(by: { $0.date < $1.date })
+            normalized.mailLogs = (normalized.mailLogs ?? []).sorted(by: { $0.sentAt > $1.sentAt })
+            return normalized
+        }
+    }
+
+    // Note for non-coders:
+    // This mirrors the web flow: first try one database function (RPC) so poll+days
+    // are saved atomically, then fallback to direct table inserts if needed.
+    func createAvailabilityPoll(weekYear: Int, weekNumber: Int, createdBy: UUID) async throws -> AvailabilityPoll {
+        let range = Self.isoWeekRange(week: weekNumber, year: weekYear)
+
+        struct PollRPCPayload: Encodable {
+            let weekYear: Int
+            let weekNumber: Int
+            let startDate: String
+            let endDate: String
+
+            enum CodingKeys: String, CodingKey {
+                case weekYear = "p_week_year"
+                case weekNumber = "p_week_number"
+                case startDate = "p_start_date"
+                case endDate = "p_end_date"
+            }
+        }
+
+        do {
+            let data = try await sendPostForData(
+                path: "/rest/v1/rpc/create_availability_poll_with_days",
+                body: PollRPCPayload(weekYear: weekYear, weekNumber: weekNumber, startDate: range.start, endDate: range.end),
+                preferHeader: "return=representation"
+            )
+
+            if let row = try? decoder.decode(AvailabilityPoll.self, from: data) {
+                return row
+            }
+            if let rows = try? decoder.decode([AvailabilityPoll].self, from: data), let row = rows.first {
+                return row
+            }
+        } catch {
+            // Note for non-coders:
+            // Some deployments may not yet expose the RPC in Supabase schema cache.
+            // In that case we fallback to direct inserts below.
+        }
+
+        struct PollInsertPayload: Encodable {
+            let createdBy: UUID
+            let weekYear: Int
+            let weekNumber: Int
+            let startDate: String
+            let endDate: String
+
+            enum CodingKeys: String, CodingKey {
+                case createdBy = "created_by"
+                case weekYear = "week_year"
+                case weekNumber = "week_number"
+                case startDate = "start_date"
+                case endDate = "end_date"
+            }
+        }
+
+        let insertedPollData = try await sendPostForData(
+            path: "/rest/v1/availability_polls",
+            body: [PollInsertPayload(createdBy: createdBy, weekYear: weekYear, weekNumber: weekNumber, startDate: range.start, endDate: range.end)],
+            preferHeader: "return=representation"
+        )
+        guard let poll = try decoder.decode([AvailabilityPoll].self, from: insertedPollData).first else {
+            throw APIError.requestFailed(statusCode: -1)
+        }
+
+        struct PollDayInsertPayload: Encodable {
+            let pollId: UUID
+            let date: String
+
+            enum CodingKeys: String, CodingKey {
+                case pollId = "poll_id"
+                case date
+            }
+        }
+
+        let dayRows = (0..<7).map { offset -> PollDayInsertPayload in
+            let nextDate = Calendar(identifier: .iso8601).date(byAdding: .day, value: offset, to: range.startDateValue) ?? range.startDateValue
+            return PollDayInsertPayload(pollId: poll.id, date: Self.dateOnlyFormatter.string(from: nextDate))
+        }
+        try await sendPost(path: "/rest/v1/availability_poll_days", body: dayRows)
+        return poll
+    }
+
+    func closeAvailabilityPoll(pollId: UUID) async throws {
+        struct ClosePollPayload: Encodable {
+            let status: String
+            let closedAt: Date
+
+            enum CodingKeys: String, CodingKey {
+                case status
+                case closedAt = "closed_at"
+            }
+        }
+
+        try await sendPatch(
+            path: "/rest/v1/availability_polls",
+            query: "id=eq.\(pollId.uuidString)",
+            body: ClosePollPayload(status: "closed", closedAt: .now)
+        )
+    }
+
+    func deleteAvailabilityPoll(pollId: UUID) async throws {
+        try await sendDelete(path: "/rest/v1/availability_polls", query: "id=eq.\(pollId.uuidString)")
+    }
+
+    func upsertAvailabilityVote(dayId: UUID, profileId: UUID, slotPreferences: [AvailabilitySlot]) async throws {
+        struct VoteUpsertPayload: Encodable {
+            let pollDayId: UUID
+            let profileId: UUID
+            let slot: AvailabilitySlot?
+            let slotPreferences: [AvailabilitySlot]?
+
+            enum CodingKeys: String, CodingKey {
+                case pollDayId = "poll_day_id"
+                case profileId = "profile_id"
+                case slot
+                case slotPreferences = "slot_preferences"
+            }
+        }
+
+        let normalized = slotPreferences.isEmpty ? nil : slotPreferences
+        let payload = [VoteUpsertPayload(
+            pollDayId: dayId,
+            profileId: profileId,
+            slot: normalized?.count == 1 ? normalized?.first : nil,
+            slotPreferences: normalized
+        )]
+        try await sendPost(path: "/rest/v1/availability_votes?on_conflict=poll_day_id,profile_id", body: payload, preferHeader: "resolution=merge-duplicates")
+    }
+
+    func removeAvailabilityVote(dayId: UUID, profileId: UUID) async throws {
+        try await sendDelete(
+            path: "/rest/v1/availability_votes",
+            query: "poll_day_id=eq.\(dayId.uuidString)&profile_id=eq.\(profileId.uuidString)"
+        )
+    }
+
+    func sendAvailabilityPollReminder(pollId: UUID, onlyMissingVotes: Bool) async throws -> PollReminderResult {
+        struct ReminderPayload: Encodable {
+            let pollId: UUID
+            let testRecipientEmail: String?
+            let onlyMissingVotes: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case pollId
+                case testRecipientEmail
+                case onlyMissingVotes
+            }
+        }
+
+        let data = try await sendFunctionRequest(
+            functionName: "availability-poll-mail",
+            body: ReminderPayload(pollId: pollId, testRecipientEmail: nil, onlyMissingVotes: onlyMissingVotes)
+        )
+        let decoded = try decoder.decode(PollReminderResult.self, from: data)
+        guard decoded.success else {
+            throw APIError.requestFailed(statusCode: -1)
+        }
+        return decoded
     }
 
     func submitMatch(_ match: MatchSubmission) async throws {
@@ -395,6 +576,23 @@ struct SupabaseRESTClient {
         try await perform(request)
     }
 
+    private func sendPostForData<T: Encodable>(path: String, body: T, preferHeader: String = "return=minimal") async throws -> Data {
+        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)") else {
+            throw APIError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(preferHeader, forHTTPHeaderField: "Prefer")
+        request.httpBody = try encoder.encode(body)
+
+        return try await performForData(request)
+    }
+
     private func sendPatch<T: Encodable>(path: String, query: String, body: T) async throws {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
         guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(query)") else {
@@ -422,6 +620,47 @@ struct SupabaseRESTClient {
         }
     }
 
+    private func performForData(_ request: URLRequest) async throws -> Data {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.requestFailed(statusCode: -1)
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.requestFailed(statusCode: httpResponse.statusCode)
+        }
+        return data
+    }
+
+    private func sendDelete(path: String, query: String) async throws {
+        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(query)") else {
+            throw APIError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+
+        try await perform(request)
+    }
+
+    private func sendFunctionRequest<T: Encodable>(functionName: String, body: T) async throws -> Data {
+        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
+        guard let url = URL(string: "\(AppConfig.supabaseURL)/functions/v1/\(functionName)") else {
+            throw APIError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(body)
+
+        return try await performForData(request)
+    }
+
 
     private func request<T: Decodable>(path: String, query: String) async throws -> [T] {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
@@ -443,5 +682,55 @@ struct SupabaseRESTClient {
         }
 
         return try decoder.decode([T].self, from: data)
+    }
+}
+
+struct PollReminderResult: Decodable {
+    let success: Bool
+    let sent: Int
+    let total: Int
+    let totalBeforeVoteFilter: Int?
+    let votedProfileCount: Int?
+    let onlyMissingVotes: Bool?
+    let mode: String?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case sent
+        case total
+        case totalBeforeVoteFilter = "totalBeforeVoteFilter"
+        case votedProfileCount = "votedProfileCount"
+        case onlyMissingVotes = "onlyMissingVotes"
+        case mode
+        case error
+    }
+}
+
+private extension SupabaseRESTClient {
+    static let dateOnlyFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    static func isoWeekRange(week: Int, year: Int) -> (start: String, end: String, startDateValue: Date) {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        var components = DateComponents()
+        components.weekOfYear = week
+        components.yearForWeekOfYear = year
+        components.weekday = 2
+        let start = calendar.date(from: components) ?? .now
+        let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
+        return (
+            start: dateOnlyFormatter.string(from: start),
+            end: dateOnlyFormatter.string(from: end),
+            startDateValue: start
+        )
     }
 }
