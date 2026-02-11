@@ -36,6 +36,10 @@ final class AppViewModel: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isAuthenticating = false
     @Published var authMessage: String?
+    @Published var isCheckingSession = true
+    @Published var hasRecoveryFailed = false
+    @Published var sessionRecoveryError: String?
+    @Published var isGuestMode = false
     @Published var selectedAvatarSymbol = "person.crop.circle.fill"
     @Published var activeTournament: Tournament?
     @Published var tournamentRounds: [TournamentRound] = []
@@ -48,16 +52,13 @@ final class AppViewModel: ObservableObject {
     @Published var isAdminActionRunning = false
 
     private(set) var signedInEmail: String?
+    private(set) var currentIdentity: AuthIdentity?
 
-    private var accountStore: [String: String] = [
-        "alex@padel.app": "padel123",
-        "sam@padel.app": "padel123"
-    ]
+    private let authService = AuthService()
+    private let apiClient = SupabaseRESTClient()
 
     // Note for non-coders:
-    // We keep auth details in-memory for this starter iOS client so teams can test
-    // the full sign in / sign up flow before wiring secure production authentication.
-    // In production, this should use Supabase Auth sessions and secure storage.
+    // This signs in with the same Supabase backend used by the web app.
     func signIn(email: String, password: String) async {
         let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -70,22 +71,18 @@ final class AppViewModel: ObservableObject {
         isAuthenticating = true
         defer { isAuthenticating = false }
 
-        try? await Task.sleep(nanoseconds: 350_000_000)
-
-        guard let storedPassword = accountStore[normalizedEmail], storedPassword == normalizedPassword else {
-            authMessage = "Invalid email or password."
-            return
+        do {
+            let identity = try await authService.signIn(email: normalizedEmail, password: normalizedPassword)
+            applySignedInState(identity: identity)
+            authMessage = nil
+            await bootstrap()
+        } catch {
+            authMessage = error.localizedDescription
         }
-
-        signedInEmail = normalizedEmail
-        isAuthenticated = true
-        authMessage = nil
-        await bootstrap()
     }
 
     // Note for non-coders:
-    // Sign up creates a new account in this prototype auth store and then signs the
-    // person in immediately, matching the instant onboarding pattern in the web app.
+    // Sign up mirrors the web flow: create account, then continue with that identity.
     func signUp(name: String, email: String, password: String) async {
         let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -96,8 +93,8 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        guard normalizedPassword.count >= 6 else {
-            authMessage = "Password must be at least 6 characters."
+        guard normalizedPassword.count >= 8 else {
+            authMessage = "Password must be at least 8 characters."
             return
         }
 
@@ -106,57 +103,137 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        if accountStore[normalizedEmail] != nil {
-            authMessage = "An account already exists with this email."
+        isAuthenticating = true
+        defer { isAuthenticating = false }
+
+        do {
+            let identity = try await authService.signUp(email: normalizedEmail, password: normalizedPassword, name: normalizedName)
+            applySignedInState(identity: identity)
+            authMessage = nil
+            await bootstrap()
+        } catch {
+            authMessage = error.localizedDescription
+        }
+    }
+
+    func sendPasswordReset(email: String) async {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedEmail.isEmpty else {
+            authMessage = "Please enter an email address."
             return
         }
 
-        accountStore[normalizedEmail] = normalizedPassword
-        signedInEmail = normalizedEmail
-        isAuthenticated = true
+        isAuthenticating = true
+        defer { isAuthenticating = false }
+
+        do {
+            try await authService.resetPassword(email: normalizedEmail)
+            authMessage = "Password reset link sent. Check your email inbox."
+        } catch {
+            authMessage = error.localizedDescription
+        }
+    }
+
+    func continueAsGuest() {
+        // Note for non-coders:
+        // Guest mode allows browsing without account access, but editing actions stay locked.
+        isGuestMode = true
+        isAuthenticated = false
+        signedInEmail = nil
+        currentIdentity = .guest
         authMessage = nil
-
-        if players.isEmpty {
-            players = SampleData.players
-        }
-
-        if !players.contains(where: { $0.fullName.caseInsensitiveCompare(normalizedName) == .orderedSame }) {
-            players.insert(
-                Player(id: UUID(), fullName: normalizedName, elo: 1200, isAdmin: false, isRegular: true),
-                at: 0
-            )
-        }
-
-        await bootstrap()
     }
 
     func signOut() {
         // Note for non-coders:
-        // Signing out clears local session state and returns to the auth screen,
-        // similar to how the web app returns to its login flow.
+        // Signing out clears local state and also asks Supabase to end server session.
+        Task {
+            await authService.signOut(accessToken: nil)
+        }
         isAuthenticated = false
+        isGuestMode = false
         signedInEmail = nil
+        currentIdentity = nil
         authMessage = nil
         statusMessage = nil
         adminProfiles = []
         adminBanner = nil
     }
 
+    func restoreSession() async {
+        isCheckingSession = true
+        hasRecoveryFailed = false
+        sessionRecoveryError = nil
+
+        defer { isCheckingSession = false }
+
+        do {
+            let identity = try await authService.restoreSession()
+            applySignedInState(identity: identity)
+            await bootstrap()
+        } catch AuthServiceError.noStoredSession {
+            isAuthenticated = false
+            isGuestMode = false
+            currentIdentity = nil
+            hasRecoveryFailed = false
+            sessionRecoveryError = nil
+        } catch {
+            isAuthenticated = false
+            isGuestMode = false
+            currentIdentity = nil
+            hasRecoveryFailed = true
+            sessionRecoveryError = error.localizedDescription
+        }
+    }
+
+    func retrySessionRecovery() async {
+        await restoreSession()
+    }
+
+    private func applySignedInState(identity: AuthIdentity) {
+        isGuestMode = identity.isGuest
+        isAuthenticated = !identity.isGuest
+        signedInEmail = identity.email
+        currentIdentity = identity
+        hasRecoveryFailed = false
+        sessionRecoveryError = nil
+    }
+
     // Note for non-coders:
-    // We map the signed-in email to a player profile name if possible so the right
-    // person appears in Profile and permission-gated sections.
+    // We now match players by the authenticated profile id instead of guessing from email text.
     var currentPlayer: Player? {
-        guard let signedInEmail else { return players.first }
-        let emailPrefix = signedInEmail.split(separator: "@").first?.replacingOccurrences(of: ".", with: " ") ?? ""
-        if let exact = players.first(where: { $0.fullName.caseInsensitiveCompare(String(emailPrefix)) == .orderedSame }) {
+        if isGuestMode {
+            return nil
+        }
+
+        guard let identity = currentIdentity else { return players.first }
+        if let exact = players.first(where: { $0.id == identity.profileId }) {
             return exact
+        }
+        if let byName = players.first(where: { $0.fullName.caseInsensitiveCompare(identity.fullName) == .orderedSame }) {
+            return byName
         }
         return players.first
     }
 
-    var canSeeSchedule: Bool { currentPlayer?.isRegular ?? true }
-    var canUseAdmin: Bool { currentPlayer?.isAdmin ?? false }
-    var canMutateTournament: Bool { isAuthenticated }
+    var canSeeSchedule: Bool {
+        guard !isGuestMode else { return true }
+        return currentIdentity?.isRegular ?? currentPlayer?.isRegular ?? true
+    }
+
+    var canUseAdmin: Bool {
+        guard !isGuestMode else { return false }
+        return currentIdentity?.isAdmin ?? currentPlayer?.isAdmin ?? false
+    }
+
+    var canMutateTournament: Bool { isAuthenticated && !isGuestMode }
+    var canCreateMatches: Bool { isAuthenticated && !isGuestMode }
+
+    var isAwaitingApproval: Bool {
+        guard !isGuestMode else { return false }
+        guard let identity = currentIdentity else { return false }
+        return !identity.isAdmin && !identity.isApproved
+    }
 
     var adminSnapshot: AdminSnapshot {
         AdminSnapshot(
@@ -210,7 +287,6 @@ final class AppViewModel: ObservableObject {
         .map { $0 }
     }
 
-    private let apiClient = SupabaseRESTClient()
 
     func bootstrap() async {
         do {
