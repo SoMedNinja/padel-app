@@ -254,6 +254,15 @@ const BADGE_DEFINITIONS: BadgeDefinition[] = [
     thresholds: [5, 10, 25, 50],
     group: "Vinster",
     groupOrder: 22
+  },
+  {
+    idPrefix: "sets-lost",
+    icon: "🎁",
+    title: "Generösitet",
+    description: (target) => `Förlora totalt ${target} set`,
+    thresholds: [10, 25, 50, 100, 250],
+    group: "Prestationer",
+    groupOrder: 24
   }
 ];
 
@@ -267,6 +276,12 @@ const UNIQUE_BADGE_DEFINITIONS = [
   { id: "social-butterfly", icon: "🦋", title: "Sociala fjärilen", description: "Flest unika partners", group: "Unika Meriter", groupOrder: 0 },
   { id: "monthly-giant", icon: "🐘", title: "Månadens gigant", description: "Flest matcher senaste 30 dagarna", group: "Unika Meriter", groupOrder: 0 },
   { id: "the-wall", icon: "🧱", title: "Väggen", description: "Flest vinster med noll insläppta set", group: "Unika Meriter", groupOrder: 0 },
+  { id: "loss-machine", icon: "🌪️", title: "Motvind", description: "Högst förlustprocent (minst 20 spelade matcher)", group: "Unika Meriter", groupOrder: 0 },
+  { id: "trough-dweller", icon: "🤿", title: "Bottenkänning", description: "Lägst ELO just nu (minst 10 spelade matcher)", group: "Unika Meriter", groupOrder: 0 },
+  { id: "biggest-fall", icon: "⚓", title: "Sänket", description: "Störst enskild ELO-förlust", group: "Unika Meriter", groupOrder: 0 },
+  { id: "hard-times", icon: "🩹", title: "Otursprenumerant", description: "Flest förluster totalt", group: "Unika Meriter", groupOrder: 0 },
+  { id: "most-generous", icon: "💝", title: "Generös", description: "Flest förlorade set totalt", group: "Unika Meriter", groupOrder: 0 },
+  { id: "cold-streak-pro", icon: "❄️", title: "Isvind", description: "Längst förluststreak", group: "Unika Meriter", groupOrder: 0 },
 ];
 
 const BADGE_ICON_MAP = BADGE_DEFINITIONS.reduce((acc, def) => {
@@ -412,6 +427,10 @@ export interface PlayerBadgeStats {
   americanoWins: number;
   mexicanoWins: number;
   totalSetsWon: number;
+  totalSetsLost: number;
+  biggestEloLoss: number;
+  currentLossStreak: number;
+  bestLossStreak: number;
   guestPartners: number;
 }
 
@@ -461,6 +480,10 @@ export const buildAllPlayersBadgeStats = (
       americanoWins: 0,
       mexicanoWins: 0,
       totalSetsWon: 0,
+      totalSetsLost: 0,
+      biggestEloLoss: 0,
+      currentLossStreak: 0,
+      bestLossStreak: 0,
       guestPartners: 0
     };
     partnerSets[profile.id] = new Set();
@@ -529,7 +552,9 @@ export const buildAllPlayersBadgeStats = (
           cleanSheets: 0, nightOwlMatches: 0, earlyBirdMatches: 0, uniquePartners: 0,
           uniqueOpponents: 0, tournamentsPlayed: 0, tournamentWins: 0,
           tournamentPodiums: 0, americanoWins: 0, mexicanoWins: 0,
-          totalSetsWon: 0, guestPartners: 0
+          totalSetsWon: 0, totalSetsLost: 0,
+          biggestEloLoss: 0, currentLossStreak: 0, bestLossStreak: 0,
+          guestPartners: 0
         };
         partnerSets[id] = new Set();
         opponentSets[id] = new Set();
@@ -566,6 +591,7 @@ export const buildAllPlayersBadgeStats = (
 
       stats.matchesPlayed += 1;
       stats.totalSetsWon += isTeam1 ? Number(match.team1_sets) : Number(match.team2_sets);
+      stats.totalSetsLost += isTeam1 ? Number(match.team2_sets) : Number(match.team1_sets);
 
       const myTeamIds = isTeam1 ? match.team1_ids : match.team2_ids;
       myTeamIds.forEach(pid => {
@@ -576,6 +602,7 @@ export const buildAllPlayersBadgeStats = (
         stats.wins += 1;
         stats.currentWinStreak += 1;
         stats.bestWinStreak = Math.max(stats.bestWinStreak, stats.currentWinStreak);
+        stats.currentLossStreak = 0;
         if (opponentAvg > playerPreElo) {
           if (!stats.firstWinVsHigherEloAt) stats.firstWinVsHigherEloAt = match.created_at || null;
           stats.biggestUpsetEloGap = Math.max(stats.biggestUpsetEloGap, Math.round(opponentAvg - playerPreElo));
@@ -583,6 +610,8 @@ export const buildAllPlayersBadgeStats = (
       } else {
         stats.losses += 1;
         stats.currentWinStreak = 0;
+        stats.currentLossStreak += 1;
+        stats.bestLossStreak = Math.max(stats.bestLossStreak, stats.currentLossStreak);
       }
 
       // Update ELO
@@ -594,6 +623,9 @@ export const buildAllPlayersBadgeStats = (
       const delta = Math.round(
         playerK * marginMultiplier * matchWeight * effectiveWeight * ((playerWon ? 1 : 0) - expected)
       );
+      if (delta < 0) {
+        stats.biggestEloLoss = Math.max(stats.biggestEloLoss, Math.abs(delta));
+      }
       player.elo += delta;
       player.games += 1;
     };
@@ -690,7 +722,8 @@ export const buildPlayerBadges = (
     "tournaments-wins": stats.tournamentWins,
     "tournaments-podiums": stats.tournamentPodiums,
     "americano-wins": stats.americanoWins,
-    "mexicano-wins": stats.mexicanoWins
+    "mexicano-wins": stats.mexicanoWins,
+    "sets-lost": stats.totalSetsLost
   };
 
   const badges: Badge[] = [
@@ -761,6 +794,12 @@ export const buildPlayerBadges = (
           case "social-butterfly": val = s.uniquePartners; break;
           case "monthly-giant": val = s.matchesLast30Days; break;
           case "the-wall": val = s.cleanSheets; break;
+          case "loss-machine": if (s.matchesPlayed >= 20) val = (s.losses / s.matchesPlayed); break;
+          case "trough-dweller": if (s.matchesPlayed >= 10) val = 10000 - s.currentElo; break;
+          case "biggest-fall": val = s.biggestEloLoss; break;
+          case "hard-times": val = s.losses; break;
+          case "most-generous": val = s.totalSetsLost; break;
+          case "cold-streak-pro": val = s.bestLossStreak; break;
         }
 
         if (val > bestValueMap[def.id]) {
@@ -778,12 +817,16 @@ export const buildPlayerBadges = (
         const isEarned = hId === playerId;
         let formattedValue: string | number = val;
 
-        if (def.id === "win-machine") {
+        if (def.id === "win-machine" || def.id === "loss-machine") {
           formattedValue = `${Math.round(val * 100)}%`;
         } else if (def.id === "king-of-elo") {
           formattedValue = `${Math.round(val)} ELO`;
+        } else if (def.id === "trough-dweller") {
+          formattedValue = `${10000 - Math.round(val)} ELO`;
         } else if (def.id === "upset-king") {
           formattedValue = `+${Math.round(val)} ELO`;
+        } else if (def.id === "biggest-fall") {
+          formattedValue = `-${Math.round(val)} ELO`;
         } else {
           formattedValue = Math.round(val);
         }
