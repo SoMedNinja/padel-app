@@ -200,34 +200,39 @@ final class AppViewModel: ObservableObject {
     }
 
     // Note for non-coders:
-    // We now match players by the authenticated profile id instead of guessing from email text.
-    var currentPlayer: Player? {
-        if isGuestMode {
+    // Permissions now come from the signed-in user's own profile row only.
+    // If that row is missing, we deny access by default to avoid exposing admin/member-only areas.
+    private var authenticatedProfile: Player? {
+        guard !isGuestMode, let profileId = currentIdentity?.profileId else {
             return nil
         }
-
-        guard let identity = currentIdentity else { return players.first }
-        if let exact = players.first(where: { $0.id == identity.profileId }) {
-            return exact
-        }
-        if let byName = players.first(where: { $0.fullName.caseInsensitiveCompare(identity.fullName) == .orderedSame }) {
-            return byName
-        }
-        return players.first
+        return players.first(where: { $0.id == profileId })
     }
 
+    var currentPlayer: Player? { authenticatedProfile }
+
+    // Note for non-coders:
+    // This mirrors web route guards. Guests cannot see the schedule, and signed-in users
+    // only see it if their profile explicitly marks them as a regular member.
     var canSeeSchedule: Bool {
-        guard !isGuestMode else { return true }
-        return currentIdentity?.isRegular ?? currentPlayer?.isRegular ?? true
+        guard !isGuestMode else { return false }
+        guard let profile = authenticatedProfile else { return false }
+        return profile.isRegular
     }
 
+    // Note for non-coders:
+    // Missing profile/role data is treated as "not admin" so we never grant admin by accident.
     var canUseAdmin: Bool {
         guard !isGuestMode else { return false }
-        return currentIdentity?.isAdmin ?? currentPlayer?.isAdmin ?? false
+        guard let profile = authenticatedProfile else { return false }
+        return profile.isAdmin
     }
 
+    var canSeeTournament: Bool { !isGuestMode }
+    var canUseSingleGame: Bool { !isGuestMode }
+
     var canMutateTournament: Bool { isAuthenticated && !isGuestMode }
-    var canCreateMatches: Bool { isAuthenticated && !isGuestMode }
+    var canCreateMatches: Bool { isAuthenticated && canUseSingleGame }
 
     var isAwaitingApproval: Bool {
         guard !isGuestMode else { return false }
