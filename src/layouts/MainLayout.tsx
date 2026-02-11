@@ -127,12 +127,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   borderRadius: 2,
                   display: 'grid',
                   placeItems: 'center',
-                  background: 'linear-gradient(140deg, #b71c1c, #ff8f00)',
+                  background: (theme) => `linear-gradient(140deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.main})`,
                   color: '#fff',
                   fontWeight: 800,
                   fontSize: 14,
                   letterSpacing: '0.08em',
-                  boxShadow: '0 6px 12px rgba(183, 28, 28, 0.2)',
+                  boxShadow: '0 6px 12px rgba(183, 28, 28, 0.2)', // Note for non-coders: subtle shadow helps the logo stand out from the toolbar.
                 }}
               >
                 GS

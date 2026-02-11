@@ -22,7 +22,7 @@ struct AuthView: View {
 
                 Image(systemName: "sportscourt.fill")
                     .font(.system(size: 54))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.brandPrimary)
 
                 Text("Padel Club")
                     .font(.largeTitle.bold())

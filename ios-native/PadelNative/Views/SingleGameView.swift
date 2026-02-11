@@ -88,7 +88,7 @@ struct SingleGameView: View {
                     Section("Klart 🎉") {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Match sparad", systemImage: "checkmark.seal.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(AppColors.success)
                                 .symbolEffect(.bounce, value: showSuccessState)
                             Text("Note for non-coders: den här lilla celebration-rutan visar att allt gick bra innan formuläret nollställs för nästa match.")
                                 .font(.footnote)

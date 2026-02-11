@@ -104,7 +104,7 @@ struct ScheduleView: View {
 
             if let message = viewModel.scheduleActionMessage {
                 Label(message, systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.success)
             }
         }
     }
@@ -176,12 +176,12 @@ struct ScheduleView: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(summary.isGreen ? Color.green.opacity(0.2) : Color.gray.opacity(0.2), in: Capsule())
+                    .background(summary.isGreen ? AppColors.success.opacity(0.2) : Color.gray.opacity(0.2), in: Capsule())
             }
 
             Text("Röster: \(summary.totalVoters) • \(summary.compatibleSlot?.displayName ?? "Ingen gemensam tid ännu")")
                 .font(.caption)
-                .foregroundStyle(summary.isGreen ? .green : .secondary)
+                .foregroundStyle(summary.isGreen ? AppColors.success : .secondary)
 
             if viewModel.canVoteInSchedulePolls && poll.status == .open {
                 Toggle("Jag kan spela denna dag", isOn: Binding(
@@ -275,7 +275,7 @@ struct ScheduleView: View {
                 Button(viewModel.isScheduleActionRunning ? "Skapar…" : "Skapa omröstning") {
                     Task { await viewModel.createAvailabilityPoll() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(viewModel.isScheduleActionRunning || viewModel.selectedScheduleWeekKey.isEmpty)
             }
         }
@@ -363,7 +363,7 @@ struct ScheduleView: View {
                         }
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(selectedInvitees.isEmpty || inviteEndTimeValue <= inviteStartTimeValue)
 
                 if let localCalendarStatus {
@@ -407,11 +407,10 @@ struct ScheduleView: View {
     }
 
     private func statusChip(for poll: AvailabilityPoll) -> some View {
-        Text(poll.status == .open ? "Öppen" : "Stängd")
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(poll.status == .open ? Color.green.opacity(0.18) : Color.gray.opacity(0.18), in: Capsule())
+        StatusChip(
+            title: poll.status == .open ? "Öppen" : "Stängd",
+            tint: poll.status == .open ? AppColors.success : .gray
+        )
     }
 
     private func syncExpandedPollDefaults() {

@@ -12,7 +12,7 @@ struct SectionCard<Content: View>: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.surfaceMuted)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
