@@ -24,6 +24,23 @@ This folder contains a **native iOS SwiftUI app** that mirrors the current web a
 4. Fill `PadelNative/Config/AppSecrets.xcconfig` with your Supabase URL + anon key.
 5. Build and run.
 
+
+## Troubleshooting: code-signing fails with missing Info.plist
+
+If Xcode shows this error:
+
+`Cannot code sign because the target does not have an Info.plist file ...`
+
+do this:
+
+1. Regenerate the project from `ios-native`:
+   - `xcodegen generate`
+2. Re-open `PadelNative.xcodeproj`.
+3. In Xcode, select the **PadelNative** target -> **Build Settings**.
+4. Search for `Generate Info.plist File` and confirm it is **Yes**.
+
+> Note for non-coders: every iOS app needs an `Info.plist`, which is a metadata file that tells iOS basic app facts (name, permissions text, etc.). This project is configured to generate it automatically so you do not have to manage a separate file manually.
+
 ## Setup path B: manual Xcode app setup
 
 1. Open Xcode and create a new **iOS App** named `PadelNative`.
