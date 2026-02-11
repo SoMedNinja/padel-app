@@ -3,6 +3,20 @@ import SwiftUI
 struct TournamentView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
+    @State private var newTournamentName = ""
+    @State private var newTournamentLocation = ""
+    @State private var newTournamentType = "americano"
+    @State private var newTournamentScoreTarget = 24
+    @State private var newTournamentDate = Date()
+    @State private var includeScheduledDate = true
+
+    @State private var showStartConfirmation = false
+    @State private var showCancelConfirmation = false
+    @State private var showAbandonConfirmation = false
+    @State private var showDeleteConfirmation = false
+
+    private let scoreTargetOptions = [16, 21, 24, 31]
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -14,6 +28,8 @@ struct TournamentView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    tournamentPicker
+                    createTournamentCard
                     activeTournamentOverview
                     activeRoundEditor
                     liveStandings
@@ -26,19 +42,134 @@ struct TournamentView: View {
                 await viewModel.loadTournamentData()
             }
             .task {
-                if viewModel.activeTournament == nil && viewModel.tournamentRounds.isEmpty {
+                if viewModel.tournaments.isEmpty {
                     await viewModel.loadTournamentData()
                 }
+            }
+            .confirmationDialog("Start this tournament?", isPresented: $showStartConfirmation) {
+                Button("Start", role: .none) {
+                    Task { await viewModel.startSelectedTournament() }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This moves a draft tournament into live play.")
+            }
+            .confirmationDialog("Cancel this tournament?", isPresented: $showCancelConfirmation) {
+                Button("Cancel Tournament", role: .destructive) {
+                    Task { await viewModel.cancelSelectedTournament() }
+                }
+                Button("Keep", role: .cancel) { }
+            } message: {
+                Text("Use this when the event should be marked as cancelled before completion.")
+            }
+            .confirmationDialog("Mark as abandoned?", isPresented: $showAbandonConfirmation) {
+                Button("Mark Abandoned", role: .destructive) {
+                    Task { await viewModel.abandonSelectedTournament() }
+                }
+                Button("Keep", role: .cancel) { }
+            } message: {
+                Text("Use this when the tournament started but could not be finished.")
+            }
+            .confirmationDialog("Delete this tournament permanently?", isPresented: $showDeleteConfirmation) {
+                Button("Delete", role: .destructive) {
+                    Task { await viewModel.deleteSelectedTournament() }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This removes the tournament and related rows from the database.")
             }
             .padelLiquidGlassChrome()
         }
     }
 
+    private var tournamentPicker: some View {
+        SectionCard(title: "Tournament List / History") {
+            if viewModel.isTournamentLoading && viewModel.tournaments.isEmpty {
+                ProgressView("Loading tournaments…")
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Selected Tournament", selection: Binding<UUID?>(
+                        get: { viewModel.selectedTournamentId },
+                        set: { newValue in
+                            Task {
+                                await viewModel.selectTournament(id: newValue)
+                            }
+                        }
+                    )) {
+                        Text("No selection").tag(Optional<UUID>.none)
+                        ForEach(viewModel.tournaments) { tournament in
+                            Text("\(tournament.name) • \(readableStatus(tournament.status))")
+                                .tag(Optional(tournament.id))
+                        }
+                    }
+
+                    Text("Note for non-coders: this list includes active and historical tournaments, so you can review old completed events or switch back to a current one.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var createTournamentCard: some View {
+        SectionCard(title: "Create Tournament") {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("Tournament name", text: $newTournamentName)
+                    .textInputAutocapitalization(.words)
+                    .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                TextField("Location (optional)", text: $newTournamentLocation)
+                    .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+
+                Picker("Tournament type", selection: $newTournamentType) {
+                    Text("Americano").tag("americano")
+                    Text("Mexicano").tag("mexicano")
+                }
+
+                Picker("Score target", selection: $newTournamentScoreTarget) {
+                    ForEach(scoreTargetOptions, id: \.self) { value in
+                        Text("\(value)").tag(value)
+                    }
+                }
+
+                Toggle("Set scheduled date", isOn: $includeScheduledDate)
+                if includeScheduledDate {
+                    DatePicker("Scheduled at", selection: $newTournamentDate)
+                }
+
+                Button {
+                    Task {
+                        await viewModel.createTournament(
+                            name: newTournamentName,
+                            location: newTournamentLocation,
+                            scheduledAt: includeScheduledDate ? newTournamentDate : nil,
+                            scoreTarget: newTournamentScoreTarget,
+                            tournamentType: newTournamentType
+                        )
+                        newTournamentName = ""
+                        newTournamentLocation = ""
+                    }
+                } label: {
+                    if viewModel.isTournamentActionRunning {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Create Draft Tournament")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+
+                Text("Note for non-coders: a new tournament starts in 'draft' so organizers can confirm details before starting live rounds.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var activeTournamentOverview: some View {
-        SectionCard(title: "Active Tournament") {
-            if viewModel.isTournamentLoading && viewModel.activeTournament == nil {
-                ProgressView("Loading tournament…")
-            } else if let tournament = viewModel.activeTournament {
+        SectionCard(title: "Selected Tournament") {
+            if let tournament = viewModel.activeTournament {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(tournament.name)
                         .font(.title3.weight(.semibold))
@@ -50,9 +181,6 @@ struct TournamentView: View {
                     if let scheduledAt = tournament.scheduledAt {
                         Text("Scheduled: \(dateFormatter.string(from: scheduledAt))")
                     }
-                    Text("Note for non-coders: this card mirrors the web app's active tournament summary and updates whenever data is refreshed from the backend.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
 
                     if let message = viewModel.tournamentStatusMessage {
                         Text(message)
@@ -60,35 +188,83 @@ struct TournamentView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if tournament.status != "completed" {
-                        Button("Complete Tournament") {
-                            Task {
-                                await viewModel.completeActiveTournament()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!viewModel.canMutateTournament)
+                    if let errorMessage = viewModel.tournamentActionErrorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
                     }
 
-                    if !viewModel.canMutateTournament {
-                        Text("Guest mode: viewing is allowed, but only signed-in users can update rounds or complete a tournament.")
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
+                    actionButtons(for: tournament)
+
+                    if let exportText = viewModel.exportTextForSelectedCompletedTournament() {
+                        ShareLink(item: exportText) {
+                            Label("Share Completed Standings", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
                     }
+
+                    Text("Note for non-coders: this screen supports create/start/cancel/abandon/delete with explicit confirmations, matching the control flow from web.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             } else {
-                Text("No active tournament right now.")
-                Text("Note for non-coders: when there is no active tournament in the database, this section stays visible and explains why the rest of the page is empty.")
+                Text("No tournament selected.")
+                Text("Tip: choose one from the list above or create a new draft tournament.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
     }
 
+    @ViewBuilder
+    private func actionButtons(for tournament: Tournament) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if tournament.status == "draft" {
+                Button("Start Tournament") {
+                    showStartConfirmation = true
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+            }
+
+            if tournament.status == "in_progress" {
+                Button("Complete Tournament") {
+                    Task {
+                        await viewModel.completeActiveTournament()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+
+                Button("Mark Abandoned") {
+                    showAbandonConfirmation = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+            }
+
+            if tournament.status == "draft" || tournament.status == "in_progress" {
+                Button("Cancel Tournament") {
+                    showCancelConfirmation = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+            }
+
+            Button("Delete Tournament") {
+                showDeleteConfirmation = true
+            }
+            .buttonStyle(.bordered)
+            .tint(.red)
+            .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+        }
+    }
+
     private var activeRoundEditor: some View {
         SectionCard(title: "Round Entry / Update") {
             if viewModel.tournamentRounds.isEmpty {
-                Text("No rounds found for the active tournament.")
+                Text("No rounds found for this tournament.")
                     .foregroundStyle(.secondary)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
@@ -100,15 +276,11 @@ struct TournamentView: View {
                     }
                 }
             }
-
-            Text("Note for non-coders: each row writes scores to the backend and then forces a reload so standings and history stay in sync.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 
     private var liveStandings: some View {
-        SectionCard(title: "Live Standings") {
+        SectionCard(title: "Standings") {
             if viewModel.tournamentStandings.isEmpty {
                 Text("Standings will appear when scores are available.")
                     .foregroundStyle(.secondary)
@@ -135,7 +307,7 @@ struct TournamentView: View {
     }
 
     private var historicalResults: some View {
-        SectionCard(title: "Historical Results") {
+        SectionCard(title: "Result History") {
             if viewModel.tournamentHistoryResults.isEmpty {
                 Text("No historical tournament results yet.")
                     .foregroundStyle(.secondary)
@@ -164,6 +336,8 @@ struct TournamentView: View {
         case "draft": return "Draft"
         case "in_progress": return "In Progress"
         case "completed": return "Completed"
+        case "abandoned": return "Abandoned"
+        case "cancelled": return "Cancelled"
         default: return status.capitalized
         }
     }
@@ -190,6 +364,9 @@ private struct RoundEditorRow: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Round \(round.roundNumber)")
                 .font(.subheadline.weight(.semibold))
+            Text("Round mode: \((round.mode ?? "unknown").capitalized)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             HStack {
                 Stepper("Team 1: \(team1Score)", value: $team1Score, in: 0...99)
@@ -213,12 +390,6 @@ private struct RoundEditorRow: View {
             }
             .buttonStyle(.bordered)
             .disabled(!canEdit || isSaving)
-
-            if !canEdit {
-                Text("Sign in to edit round scores.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
         .padding(.vertical, 8)
     }

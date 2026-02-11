@@ -84,6 +84,24 @@ struct TournamentResultSubmission: Encodable {
     }
 }
 
+struct TournamentCreationRequest: Encodable {
+    let name: String
+    let status: String
+    let tournamentType: String
+    let scheduledAt: Date?
+    let location: String?
+    let scoreTarget: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case status
+        case tournamentType = "tournament_type"
+        case scheduledAt = "scheduled_at"
+        case location
+        case scoreTarget = "score_target"
+    }
+}
+
 struct AdminProfile: Identifiable, Decodable {
     let id: UUID
     let name: String
@@ -394,6 +412,13 @@ struct SupabaseRESTClient {
         return tournaments.first
     }
 
+    func fetchTournaments() async throws -> [Tournament] {
+        try await request(
+            path: "/rest/v1/mexicana_tournaments",
+            query: "select=*&order=created_at.desc"
+        )
+    }
+
     func fetchTournamentRounds(tournamentId: UUID) async throws -> [TournamentRound] {
         try await request(
             path: "/rest/v1/mexicana_rounds",
@@ -406,6 +431,57 @@ struct SupabaseRESTClient {
             path: "/rest/v1/mexicana_results",
             query: "select=*&tournament_id=eq.\(tournamentId.uuidString)&order=rank.asc"
         )
+    }
+
+    func createTournament(_ requestPayload: TournamentCreationRequest) async throws -> Tournament {
+        let rows: [Tournament] = try await sendPostForDecodableArray(
+            path: "/rest/v1/mexicana_tournaments",
+            body: [requestPayload],
+            preferHeader: "return=representation"
+        )
+        guard let inserted = rows.first else {
+            throw APIError.requestFailed(statusCode: -1)
+        }
+        return inserted
+    }
+
+    func updateTournamentStatus(tournamentId: UUID, status: String) async throws {
+        struct TournamentStatusUpdate: Encodable {
+            let status: String
+        }
+
+        try await sendPatch(
+            path: "/rest/v1/mexicana_tournaments",
+            query: "id=eq.\(tournamentId.uuidString)",
+            body: TournamentStatusUpdate(status: status)
+        )
+    }
+
+    func deleteTournament(tournamentId: UUID) async throws {
+        struct DeleteTournamentRPCPayload: Encodable {
+            let targetTournamentId: UUID
+
+            enum CodingKeys: String, CodingKey {
+                case targetTournamentId = "target_tournament_id"
+            }
+        }
+
+        do {
+            try await sendPost(
+                path: "/rest/v1/rpc/delete_mexicana_tournament",
+                body: DeleteTournamentRPCPayload(targetTournamentId: tournamentId)
+            )
+            return
+        } catch {
+            // Note for non-coders:
+            // Some Supabase projects may not have the helper function installed yet.
+            // We fallback to manual child-row deletes so users can still remove tournaments.
+        }
+
+        try await sendDelete(path: "/rest/v1/mexicana_participants", query: "tournament_id=eq.\(tournamentId.uuidString)")
+        try await sendDelete(path: "/rest/v1/mexicana_rounds", query: "tournament_id=eq.\(tournamentId.uuidString)")
+        try await sendDelete(path: "/rest/v1/mexicana_results", query: "tournament_id=eq.\(tournamentId.uuidString)")
+        try await sendDelete(path: "/rest/v1/mexicana_tournaments", query: "id=eq.\(tournamentId.uuidString)")
     }
 
     func fetchCompletedTournamentResults(limit: Int = 50) async throws -> [TournamentResult] {
@@ -681,6 +757,15 @@ struct SupabaseRESTClient {
             throw APIError.requestFailed(statusCode: httpResponse.statusCode)
         }
 
+        return try decoder.decode([T].self, from: data)
+    }
+
+    private func sendPostForDecodableArray<T: Decodable, Body: Encodable>(
+        path: String,
+        body: Body,
+        preferHeader: String
+    ) async throws -> [T] {
+        let data = try await sendPostForData(path: path, body: body, preferHeader: preferHeader)
         return try decoder.decode([T].self, from: data)
     }
 }
