@@ -16,6 +16,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.padelnative
         PRODUCT_NAME: PadelNative
         SWIFT_VERSION: 5.0
+        # NOTE for non-coders: this tells Xcode to create the app's Info.plist file automatically during build.
+        # Without it, Xcode can't package the app and code signing fails.
+        GENERATE_INFOPLIST_FILE: YES
         MARKETING_VERSION: 1.0.0
         CURRENT_PROJECT_VERSION: 1
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
