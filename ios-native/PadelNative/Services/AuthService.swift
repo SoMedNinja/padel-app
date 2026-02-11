@@ -156,6 +156,12 @@ struct AuthService {
         return try await resolveIdentity(user: response.user, accessToken: response.accessToken)
     }
 
+    // Note for non-coders:
+    // Some admin server calls require the logged-in access token to prove who is triggering an action.
+    func currentAccessToken() -> String? {
+        (try? loadPersistedSession())?.accessToken
+    }
+
     func signOut(accessToken: String?) async {
         defer { clearPersistedSession() }
         let persistedAccessToken = (try? loadPersistedSession())?.accessToken

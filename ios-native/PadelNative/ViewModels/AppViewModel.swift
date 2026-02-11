@@ -26,6 +26,22 @@ struct AdminActionBanner: Identifiable {
     let style: Style
 }
 
+enum AdminWeeklyTimeframe: String, CaseIterable, Identifiable {
+    case last7 = "7days"
+    case last30 = "30days"
+    case isoWeek = "isoWeek"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .last7: return "Last 7 days"
+        case .last30: return "Last 30 days"
+        case .isoWeek: return "ISO week"
+        }
+    }
+}
+
 struct ScheduleWeekOption: Identifiable {
     let key: String
     let label: String
@@ -127,6 +143,12 @@ final class AppViewModel: ObservableObject {
     @Published var adminProfiles: [AdminProfile] = []
     @Published var adminBanner: AdminActionBanner?
     @Published var isAdminActionRunning = false
+    @Published var isAdminReportRunning = false
+    @Published var isAdminEmailActionRunning = false
+    @Published var adminReportPreviewText: String?
+    @Published var adminReportStatusMessage: String?
+    @Published var adminEmailPreviewText: String?
+    @Published var adminEmailStatusMessage: String?
     @Published var liveUpdateBanner: String?
     @Published var dashboardFilter: DashboardMatchFilter = .all
     @Published var isDashboardLoading = false
@@ -152,6 +174,15 @@ final class AppViewModel: ObservableObject {
     private var lastTournamentMarker: SupabaseRESTClient.TournamentLiveMarker?
     private let liveSyncIntervalNanoseconds: UInt64 = 18_000_000_000
     private let liveSyncDebounceNanoseconds: UInt64 = 900_000_000
+    private static let adminDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
     private let dismissalStore = UserDefaults.standard
     private let dismissedHighlightIdKey = "dashboard.dismissedHighlightMatchId"
     private let dismissedHighlightDateKeyStore = "dashboard.dismissedHighlightDate"
@@ -271,6 +302,10 @@ final class AppViewModel: ObservableObject {
         statusMessage = nil
         adminProfiles = []
         adminBanner = nil
+        adminReportPreviewText = nil
+        adminReportStatusMessage = nil
+        adminEmailPreviewText = nil
+        adminEmailStatusMessage = nil
         polls = []
         voteDraftsByDay = [:]
         scheduleActionMessage = nil
@@ -1038,6 +1073,236 @@ final class AppViewModel: ObservableObject {
             )
         }
     }
+
+
+    var adminMatchEveningOptions: [String] {
+        let formatter = Self.adminDayFormatter
+        let keys = Set(matches.map { formatter.string(from: $0.playedAt) })
+        return keys.sorted(by: >)
+    }
+
+    // Note for non-coders:
+    // This creates a plain-language report text that admins can preview and share.
+    func generateMatchEveningReport(for dayKey: String) {
+        guard canUseAdmin else {
+            adminReportStatusMessage = "Admin access is required to create reports."
+            return
+        }
+
+        let formatter = Self.adminDayFormatter
+        let selectedMatches = matches.filter { formatter.string(from: $0.playedAt) == dayKey }
+
+        guard selectedMatches.isEmpty == false else {
+            adminReportPreviewText = nil
+            adminReportStatusMessage = "No matches found for \(dayKey)."
+            return
+        }
+
+        let totalMatches = selectedMatches.count
+        let totalGames = selectedMatches.reduce(0) { $0 + $1.teamAScore + $1.teamBScore }
+
+        var winsByPlayer: [UUID: Int] = [:]
+        for match in selectedMatches {
+            let teamAWon = match.teamAScore > match.teamBScore
+            let winners = teamAWon ? match.teamAPlayerIds : match.teamBPlayerIds
+            for id in winners {
+                guard let id else { continue }
+                winsByPlayer[id, default: 0] += 1
+            }
+        }
+
+        let topEntries = winsByPlayer
+            .sorted { lhs, rhs in
+                if lhs.value != rhs.value { return lhs.value > rhs.value }
+                let leftName = players.first(where: { $0.id == lhs.key })?.fullName ?? "Guest"
+                let rightName = players.first(where: { $0.id == rhs.key })?.fullName ?? "Guest"
+                return leftName < rightName
+            }
+            .prefix(3)
+            .map { entry in
+                let name = players.first(where: { $0.id == entry.key })?.fullName ?? "Guest"
+                return "• \(name): \(entry.value) wins"
+            }
+
+        adminReportPreviewText = ([
+            "Match Evening Report",
+            "Date: \(dayKey)",
+            "Matches played: \(totalMatches)",
+            "Total games scored: \(totalGames)",
+            "",
+            "Top performers:",
+            topEntries.isEmpty ? "• No winners could be calculated." : topEntries.joined(separator: "\n")
+        ]).joined(separator: "\n")
+        adminReportStatusMessage = "Evening report ready to preview/share."
+    }
+
+    // Note for non-coders:
+    // This composes a share-friendly tournament summary similar to the web admin share output.
+    func generateTournamentReport(for tournamentId: UUID) async {
+        guard canUseAdmin else {
+            adminReportStatusMessage = "Admin access is required to create reports."
+            return
+        }
+
+        isAdminReportRunning = true
+        defer { isAdminReportRunning = false }
+
+        do {
+            let standings = try await apiClient.fetchTournamentStandings(tournamentId: tournamentId)
+            guard let tournament = tournaments.first(where: { $0.id == tournamentId }) else {
+                adminReportStatusMessage = "Tournament not found in local state."
+                return
+            }
+
+            let lines = standings.prefix(8).map { result in
+                let name = players.first(where: { $0.id == result.profileId })?.fullName ?? "Guest"
+                return "#\(result.rank) \(name) • \(result.pointsFor) pts • W\(result.wins)-L\(result.losses)"
+            }
+
+            adminReportPreviewText = ([
+                "Tournament Report",
+                "Name: \(tournament.name)",
+                "Type: \(tournament.tournamentType.capitalized)",
+                "Status: \(tournament.status)",
+                "",
+                "Standings:",
+                lines.isEmpty ? "No standings found yet." : lines.joined(separator: "\n")
+            ]).joined(separator: "\n")
+            adminReportStatusMessage = "Tournament report ready to preview/share."
+        } catch {
+            adminReportStatusMessage = "Could not generate tournament report: \(error.localizedDescription)"
+        }
+    }
+
+    func buildWeeklyEmailPreview(timeframe: AdminWeeklyTimeframe, week: Int?, year: Int?) {
+        guard canUseAdmin else {
+            adminEmailStatusMessage = "Admin access is required to preview email actions."
+            return
+        }
+
+        let now = Date()
+        let calendar = Calendar(identifier: .iso8601)
+        let startDate: Date
+        switch timeframe {
+        case .last7:
+            startDate = calendar.date(byAdding: .day, value: -7, to: now) ?? now
+        case .last30:
+            startDate = calendar.date(byAdding: .day, value: -30, to: now) ?? now
+        case .isoWeek:
+            if let week, let year {
+                var components = DateComponents()
+                components.calendar = calendar
+                components.yearForWeekOfYear = year
+                components.weekOfYear = week
+                components.weekday = 2
+                startDate = calendar.date(from: components) ?? now
+            } else {
+                startDate = calendar.date(byAdding: .day, value: -7, to: now) ?? now
+            }
+        }
+
+        let filtered = matches.filter { $0.playedAt >= startDate && $0.playedAt <= now }
+        let uniquePlayers = Set(filtered.flatMap { $0.teamAPlayerIds + $0.teamBPlayerIds }.compactMap { $0 })
+
+        adminEmailPreviewText = ([
+            "Weekly Email Preview",
+            "Timeframe: \(timeframe.title)",
+            "Matches in window: \(filtered.count)",
+            "Players included: \(uniquePlayers.count)",
+            "",
+            "Note for non-coders: this preview estimates who would appear in the weekly email before sending any test/broadcast action."
+        ]).joined(separator: "\n")
+        adminEmailStatusMessage = "Weekly preview generated."
+    }
+
+    func buildTournamentEmailPreview(for tournamentId: UUID) async {
+        guard canUseAdmin else {
+            adminEmailStatusMessage = "Admin access is required to preview email actions."
+            return
+        }
+
+        isAdminEmailActionRunning = true
+        defer { isAdminEmailActionRunning = false }
+
+        do {
+            let rounds = try await apiClient.fetchTournamentRounds(tournamentId: tournamentId)
+            let standings = try await apiClient.fetchTournamentStandings(tournamentId: tournamentId)
+            guard let tournament = tournaments.first(where: { $0.id == tournamentId }) else {
+                adminEmailStatusMessage = "Tournament not found in local state."
+                return
+            }
+
+            adminEmailPreviewText = ([
+                "Tournament Email Preview",
+                "Tournament: \(tournament.name)",
+                "Rounds with scores: \(rounds.filter { $0.team1Score != nil && $0.team2Score != nil }.count)",
+                "Standings rows: \(standings.count)",
+                "",
+                "Note for non-coders: this preview checks that tournament data is present before you run a test send action."
+            ]).joined(separator: "\n")
+            adminEmailStatusMessage = "Tournament preview generated."
+        } catch {
+            adminEmailStatusMessage = "Could not build tournament preview: \(error.localizedDescription)"
+        }
+    }
+
+    func sendWeeklyEmailTest(timeframe: AdminWeeklyTimeframe, week: Int?, year: Int?) async {
+        guard canUseAdmin else {
+            adminEmailStatusMessage = "Admin access is required to send weekly email tests."
+            return
+        }
+        guard let accessToken = authService.currentAccessToken() else {
+            adminEmailStatusMessage = "Missing session token. Please sign in again."
+            return
+        }
+
+        isAdminEmailActionRunning = true
+        defer { isAdminEmailActionRunning = false }
+
+        do {
+            let response = try await apiClient.invokeWeeklySummary(
+                accessToken: accessToken,
+                playerId: currentPlayer?.id,
+                timeframe: timeframe.rawValue,
+                week: week,
+                year: year
+            )
+            if response.success == true {
+                adminEmailStatusMessage = "Weekly email action completed. Sent \(response.sent ?? 0) of \(response.total ?? 0)."
+            } else {
+                let details = response.error ?? response.message ?? "Unknown error"
+                adminEmailStatusMessage = "Weekly email action failed: \(details)"
+            }
+        } catch {
+            adminEmailStatusMessage = "Could not send weekly email action: \(error.localizedDescription)"
+        }
+    }
+
+    func sendTournamentEmailTest() async {
+        guard canUseAdmin else {
+            adminEmailStatusMessage = "Admin access is required to run tournament email actions."
+            return
+        }
+        guard let accessToken = authService.currentAccessToken() else {
+            adminEmailStatusMessage = "Missing session token. Please sign in again."
+            return
+        }
+
+        isAdminEmailActionRunning = true
+        defer { isAdminEmailActionRunning = false }
+
+        do {
+            let response = try await apiClient.invokeTournamentSummary(accessToken: accessToken)
+            if response.success == true {
+                adminEmailStatusMessage = "Tournament email action completed. Sent \(response.sent ?? 0), skipped \(response.skipped ?? 0)."
+            } else {
+                adminEmailStatusMessage = "Tournament email action failed: \(response.error ?? response.message ?? "Unknown error")"
+            }
+        } catch {
+            adminEmailStatusMessage = "Could not run tournament email action: \(error.localizedDescription)"
+        }
+    }
+
 
 
     func loadTournamentData(silently: Bool = false) async {
