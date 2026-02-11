@@ -2,11 +2,10 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject private var viewModel: AppViewModel
-    @State private var selectedTab = 0
     @State private var showQuickAdd = false
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $viewModel.selectedMainTab) {
             ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.crop.circle")
