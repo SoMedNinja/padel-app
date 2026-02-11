@@ -25,7 +25,12 @@ struct ProfileView: View {
                         }
                     }
 
-                    if let current = viewModel.currentPlayer {
+                    if viewModel.isGuestMode {
+                        SectionCard(title: "Guest Mode") {
+                            Text("Note for non-coders: guest mode is read-only. You can explore stats/history but cannot submit matches or manage tournaments.")
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if let current = viewModel.currentPlayer {
                         SectionCard(title: "Current Player") {
                             HStack {
                                 Image(systemName: viewModel.selectedAvatarSymbol)
@@ -83,7 +88,7 @@ struct ProfileView: View {
                     Button(role: .destructive) {
                         viewModel.signOut()
                     } label: {
-                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                        Label(viewModel.isGuestMode ? "Exit Guest Mode" : "Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)

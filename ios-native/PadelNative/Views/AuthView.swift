@@ -27,7 +27,7 @@ struct AuthView: View {
                 Text("Padel Club")
                     .font(.largeTitle.bold())
 
-                Text("Note for non-coders: this screen is the native iOS version of the web login/signup flow. It controls who can access the dashboard and profile features.")
+                Text("Note for non-coders: this is the same auth gateway as web (login, sign up, password reset, or guest mode).")
                     .font(.footnote)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -73,6 +73,22 @@ struct AuthView: View {
                         }
                     }
                     .disabled(viewModel.isAuthenticating)
+
+                    if mode == .signIn {
+                        Button("Forgot password?") {
+                            Task {
+                                await viewModel.sendPasswordReset(email: email)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .disabled(viewModel.isAuthenticating)
+                    }
+
+                    Button("Continue as guest") {
+                        viewModel.continueAsGuest()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .disabled(viewModel.isAuthenticating)
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
@@ -82,6 +98,7 @@ struct AuthView: View {
                         .font(.footnote)
                         .foregroundStyle(.red)
                         .padding(.horizontal)
+                        .multilineTextAlignment(.center)
                 }
 
                 Spacer()

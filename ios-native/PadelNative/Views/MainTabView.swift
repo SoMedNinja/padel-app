@@ -33,11 +33,13 @@ struct MainTabView: View {
                     .tag(3)
             }
 
-            TournamentView()
-                .tabItem {
-                    Label("Tournament", systemImage: "trophy")
-                }
-                .tag(4)
+            if !viewModel.isGuestMode {
+                TournamentView()
+                    .tabItem {
+                        Label("Tournament", systemImage: "trophy")
+                    }
+                    .tag(4)
+            }
 
             if viewModel.canUseAdmin {
                 AdminView()
@@ -63,6 +65,8 @@ struct MainTabView: View {
             }
             .padding(.bottom, 18)
             .accessibilityLabel("Quick add match")
+            .disabled(!viewModel.canCreateMatches)
+            .opacity(viewModel.canCreateMatches ? 1 : 0.45)
         }
         .sheet(isPresented: $showQuickAdd) {
             SingleGameView()
