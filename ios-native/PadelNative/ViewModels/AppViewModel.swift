@@ -1,5 +1,35 @@
 import Foundation
 
+struct ProfileEloPoint: Identifiable {
+    let id: UUID
+    let matchId: UUID
+    let date: Date
+    let elo: Int
+}
+
+struct ProfileComboStat: Identifiable {
+    let id: String
+    let title: String
+    let value: String
+    let detail: String
+    let symbol: String
+}
+
+struct ProfileMeritMilestone: Identifiable {
+    let id: String
+    let title: String
+    let description: String
+    let icon: String
+    let current: Int
+    let target: Int
+    let unlocked: Bool
+
+    var progress: Double {
+        guard target > 0 else { return 0 }
+        return min(1, Double(current) / Double(target))
+    }
+}
+
 struct AdminSnapshot {
     let playerCount: Int
     let matchCount: Int
@@ -413,9 +443,16 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    var profilePerformanceWidgets: [ProfilePerformanceWidget] {
+    // Note for non-coders:
+    // Profile tabs should react to the same quick filters as web profile (7d/30d/tournament/all),
+    // so this helper applies those date/type rules consistently to profile-only match lists.
+    func matchesForProfile(filter: DashboardMatchFilter) -> [Match] {
+        filteredMatches(currentPlayerMatches, filter: filter)
+    }
+
+    func profilePerformanceWidgets(filter: DashboardMatchFilter) -> [ProfilePerformanceWidget] {
         guard let currentPlayer else { return [] }
-        let myMatches = currentPlayerMatches
+        let myMatches = matchesForProfile(filter: filter)
         let wins = myMatches.filter { match in
             let teamAIds = match.teamAPlayerIds.compactMap { $0 }
             let iAmTeamA = teamAIds.contains(currentPlayer.id) || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
@@ -423,12 +460,106 @@ final class AppViewModel: ObservableObject {
         }.count
         let tournamentsPlayed = myMatches.filter { $0.sourceTournamentId != nil }.count
         let closeMatches = myMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 1 }.count
+        let winRate = myMatches.isEmpty ? 0 : Int((Double(wins) / Double(myMatches.count) * 100).rounded())
 
         return [
             ProfilePerformanceWidget(id: "elo", title: "Current ELO", value: "\(currentPlayer.elo)", detail: "Live rating used in matchup balancing", symbol: "chart.line.uptrend.xyaxis"),
-            ProfilePerformanceWidget(id: "winRate", title: "Win rate", value: "\(profileWinRate)%", detail: "\(wins) wins in \(myMatches.count) matches", symbol: "percent"),
+            ProfilePerformanceWidget(id: "winRate", title: "Win rate", value: "\(winRate)%", detail: "\(wins) wins in \(myMatches.count) matches", symbol: "percent"),
             ProfilePerformanceWidget(id: "tournaments", title: "Tournament games", value: "\(tournamentsPlayed)", detail: "Matches with a tournament source", symbol: "trophy"),
             ProfilePerformanceWidget(id: "clutch", title: "Close battles", value: "\(closeMatches)", detail: "Matches decided by one set", symbol: "bolt.heart"),
+        ]
+    }
+
+    var profilePerformanceWidgets: [ProfilePerformanceWidget] {
+        profilePerformanceWidgets(filter: .all)
+    }
+
+    func profileEloTimeline(filter: DashboardMatchFilter) -> [ProfileEloPoint] {
+        guard let currentPlayer else { return [] }
+        let filtered = matchesForProfile(filter: filter).sorted { $0.playedAt < $1.playedAt }
+        guard !filtered.isEmpty else {
+            return [ProfileEloPoint(id: UUID(), matchId: UUID(), date: Date(), elo: currentPlayer.elo)]
+        }
+
+        var estimatedCurrent = currentPlayer.elo
+        var beforeMatchRating: [UUID: Int] = [:]
+        for match in filtered.reversed() {
+            let delta = estimatedEloDelta(for: match, playerId: currentPlayer.id)
+            beforeMatchRating[match.id] = estimatedCurrent - delta
+            estimatedCurrent -= delta
+        }
+
+        return filtered.map { match in
+            let baseline = beforeMatchRating[match.id] ?? currentPlayer.elo
+            let delta = estimatedEloDelta(for: match, playerId: currentPlayer.id)
+            return ProfileEloPoint(id: match.id, matchId: match.id, date: match.playedAt, elo: baseline + delta)
+        }
+    }
+
+    func profileComboStats(filter: DashboardMatchFilter) -> [ProfileComboStat] {
+        guard let currentPlayer else { return [] }
+        let myMatches = matchesForProfile(filter: filter)
+        var teammateGames: [UUID: Int] = [:]
+        var teammateWins: [UUID: Int] = [:]
+        var opponentGames: [UUID: Int] = [:]
+
+        for match in myMatches {
+            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
+            let teamBIds = match.teamBPlayerIds.compactMap { $0 }
+            let iAmTeamA = teamAIds.contains(currentPlayer.id)
+            let myTeam = iAmTeamA ? teamAIds : teamBIds
+            let opponentTeam = iAmTeamA ? teamBIds : teamAIds
+            let didWin = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+
+            for teammateId in myTeam where teammateId != currentPlayer.id {
+                teammateGames[teammateId, default: 0] += 1
+                if didWin { teammateWins[teammateId, default: 0] += 1 }
+            }
+
+            for opponentId in opponentTeam {
+                opponentGames[opponentId, default: 0] += 1
+            }
+        }
+
+        let topTeammate = teammateGames.max { lhs, rhs in lhs.value < rhs.value }
+        let bestCombo = teammateGames
+            .filter { $0.value >= 2 }
+            .max { lhs, rhs in
+                let lhsRate = Double(teammateWins[lhs.key, default: 0]) / Double(lhs.value)
+                let rhsRate = Double(teammateWins[rhs.key, default: 0]) / Double(rhs.value)
+                return lhsRate < rhsRate
+            }
+        let densestOpponent = opponentGames.max { lhs, rhs in lhs.value < rhs.value }
+
+        let teammateName = topTeammate.map { playerName(for: $0.key) } ?? "No teammate data"
+        let comboName = bestCombo.map { playerName(for: $0.key) } ?? "Need 2+ shared matches"
+        let comboRate = bestCombo.map {
+            let wins = teammateWins[$0.key, default: 0]
+            return "\(Int((Double(wins) / Double(max(1, $0.value)) * 100).rounded()))%"
+        } ?? "--"
+        let densityName = densestOpponent.map { playerName(for: $0.key) } ?? "No matchup data"
+
+        return [
+            ProfileComboStat(id: "top-teammate", title: "Most played teammate", value: teammateName, detail: topTeammate.map { "\($0.value) matches together" } ?? "Play more matches to populate this tile", symbol: "person.2.fill"),
+            ProfileComboStat(id: "best-combo", title: "Best win-rate combo", value: "\(comboName) · \(comboRate)", detail: bestCombo.map { "\(teammateWins[$0.key, default: 0]) wins in \($0.value) matches" } ?? "Needs at least two shared matches", symbol: "chart.bar.doc.horizontal"),
+            ProfileComboStat(id: "matchup-density", title: "Highest matchup density", value: densityName, detail: densestOpponent.map { "Faced \($0.value) times in selected filter" } ?? "No opponents detected for this filter", symbol: "square.grid.3x3.fill")
+        ]
+    }
+
+    func profileMeritMilestones(filter: DashboardMatchFilter) -> [ProfileMeritMilestone] {
+        guard let currentPlayer else { return [] }
+        let myMatches = matchesForProfile(filter: filter)
+        let wins = myMatches.filter { didCurrentPlayerWin($0, player: currentPlayer) }.count
+        let tournamentGames = myMatches.filter { $0.sourceTournamentId != nil }.count
+        let closeWins = myMatches.filter { didCurrentPlayerWin($0, player: currentPlayer) && abs($0.teamAScore - $0.teamBScore) <= 1 }.count
+        let topRanked = players.sorted { $0.elo > $1.elo }.first?.id == currentPlayer.id
+
+        return [
+            ProfileMeritMilestone(id: "wins-10", title: "10 Wins", description: "Unlock after ten wins in the selected period.", icon: "rosette", current: wins, target: 10, unlocked: wins >= 10),
+            ProfileMeritMilestone(id: "wins-25", title: "25 Wins Trophy", description: "Trophy milestone for sustained match wins.", icon: "trophy.fill", current: wins, target: 25, unlocked: wins >= 25),
+            ProfileMeritMilestone(id: "tournament-runner", title: "Tournament Runner", description: "Play tournament matches to unlock this merit.", icon: "medal.fill", current: tournamentGames, target: 8, unlocked: tournamentGames >= 8),
+            ProfileMeritMilestone(id: "clutch-closer", title: "Clutch Closer", description: "Win tight matches decided by one set.", icon: "flame.fill", current: closeWins, target: 6, unlocked: closeWins >= 6),
+            ProfileMeritMilestone(id: "king-of-elo", title: "King of ELO", description: "Awarded when you hold top ELO on the leaderboard.", icon: "crown.fill", current: topRanked ? 1 : 0, target: 1, unlocked: topRanked)
         ]
     }
 
@@ -521,25 +652,52 @@ final class AppViewModel: ObservableObject {
     }
 
     var dashboardFilteredMatches: [Match] {
+        filteredMatches(matches, filter: dashboardFilter)
+    }
+
+    private func filteredMatches(_ source: [Match], filter: DashboardMatchFilter) -> [Match] {
         let now = Date()
         let calendar = Calendar.current
 
-        switch dashboardFilter {
+        switch filter {
         case .all:
-            return matches
+            return source
         case .short:
-            return matches.filter { ($0.scoreType ?? "sets") == "sets" && max($0.teamAScore, $0.teamBScore) <= 3 }
+            return source.filter { ($0.scoreType ?? "sets") == "sets" && max($0.teamAScore, $0.teamBScore) <= 3 }
         case .long:
-            return matches.filter { ($0.scoreType ?? "sets") == "sets" && max($0.teamAScore, $0.teamBScore) >= 6 }
+            return source.filter { ($0.scoreType ?? "sets") == "sets" && max($0.teamAScore, $0.teamBScore) >= 6 }
         case .tournaments:
-            return matches.filter { $0.sourceTournamentId != nil }
+            return source.filter { $0.sourceTournamentId != nil }
         case .last7:
-            guard let cutoff = calendar.date(byAdding: .day, value: -7, to: now) else { return matches }
-            return matches.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
+            guard let cutoff = calendar.date(byAdding: .day, value: -7, to: now) else { return source }
+            return source.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
         case .last30:
-            guard let cutoff = calendar.date(byAdding: .day, value: -30, to: now) else { return matches }
-            return matches.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
+            guard let cutoff = calendar.date(byAdding: .day, value: -30, to: now) else { return source }
+            return source.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
         }
+    }
+
+    private func didCurrentPlayerWin(_ match: Match, player: Player) -> Bool {
+        let teamAIds = match.teamAPlayerIds.compactMap { $0 }
+        let iAmTeamA = teamAIds.contains(player.id) || match.teamAName.localizedCaseInsensitiveContains(player.fullName)
+        return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+    }
+
+    private func playerName(for id: UUID) -> String {
+        players.first(where: { $0.id == id })?.profileName
+        ?? players.first(where: { $0.id == id })?.fullName
+        ?? "Unknown"
+    }
+
+    private func estimatedEloDelta(for match: Match, playerId: UUID) -> Int {
+        let teamAIds = match.teamAPlayerIds.compactMap { $0 }
+        let teamBIds = match.teamBPlayerIds.compactMap { $0 }
+        let iAmTeamA = teamAIds.contains(playerId)
+        let didWin = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+        let margin = abs(match.teamAScore - match.teamBScore)
+        let base = match.sourceTournamentId != nil ? 22 : 16
+        let marginBonus = min(4, margin)
+        return didWin ? base + marginBonus : -(base + marginBonus)
     }
 
     var latestHighlightMatch: DashboardMatchHighlight? {
