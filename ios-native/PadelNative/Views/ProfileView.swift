@@ -232,7 +232,7 @@ struct ProfileView: View {
     private var avatarFallback: some View {
         Image(systemName: "person.crop.circle.fill")
             .font(.system(size: 42))
-            .foregroundStyle(.accent)
+            .foregroundStyle(Color.accentColor)
             .frame(width: 56, height: 56)
             .background(Circle().fill(Color.accentColor.opacity(0.15)))
     }
