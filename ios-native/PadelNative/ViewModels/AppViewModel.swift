@@ -26,15 +26,34 @@ struct AdminActionBanner: Identifiable {
     let style: Style
 }
 
+struct ScheduleWeekOption: Identifiable {
+    let key: String
+    let label: String
+    let week: Int
+    let year: Int
+
+    var id: String { key }
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     private enum LiveSyncScope: Hashable {
         case tournaments
+        case schedule
     }
 
     @Published var players: [Player] = []
     @Published var matches: [Match] = []
     @Published var schedule: [ScheduleEntry] = []
+    @Published var polls: [AvailabilityPoll] = []
+    @Published var scheduleWeekOptions: [ScheduleWeekOption] = []
+    @Published var selectedScheduleWeekKey: String = ""
+    @Published var voteDraftsByDay: [UUID: VoteDraft] = [:]
+    @Published var isScheduleLoading = false
+    @Published var isScheduleActionRunning = false
+    @Published var scheduleActionMessage: String?
+    @Published var scheduleErrorMessage: String?
+    @Published var onlyMissingVotesByPoll: [UUID: Bool] = [:]
     @Published var lastErrorMessage: String?
     @Published var statusMessage: String?
     @Published var isAuthenticated = false
@@ -173,6 +192,10 @@ final class AppViewModel: ObservableObject {
         statusMessage = nil
         adminProfiles = []
         adminBanner = nil
+        polls = []
+        voteDraftsByDay = [:]
+        scheduleActionMessage = nil
+        scheduleErrorMessage = nil
         stopLiveSync()
     }
 
@@ -236,6 +259,14 @@ final class AppViewModel: ObservableObject {
         guard !isGuestMode else { return false }
         guard let profile = authenticatedProfile else { return false }
         return profile.isRegular
+    }
+
+    var canManageSchedulePolls: Bool {
+        canUseAdmin
+    }
+
+    var canVoteInSchedulePolls: Bool {
+        canSeeSchedule
     }
 
     // Note for non-coders:
@@ -312,15 +343,23 @@ final class AppViewModel: ObservableObject {
 
 
     func bootstrap() async {
+        if scheduleWeekOptions.isEmpty {
+            scheduleWeekOptions = buildUpcomingWeeks()
+            selectedScheduleWeekKey = scheduleWeekOptions.dropFirst().first?.key ?? scheduleWeekOptions.first?.key ?? ""
+        }
+
         do {
             async let playersTask = apiClient.fetchLeaderboard()
             async let matchesTask = apiClient.fetchRecentMatches()
             async let scheduleTask = apiClient.fetchSchedule()
+            async let pollsTask = apiClient.fetchAvailabilityPolls()
             async let tournamentTask = loadTournamentData(silently: true)
 
             self.players = try await playersTask
             self.matches = try await matchesTask
             self.schedule = try await scheduleTask
+            self.polls = sortPolls(try await pollsTask)
+            syncVoteDraftsFromPolls()
             _ = await tournamentTask
             await refreshAdminProfiles(silently: true)
             self.lastErrorMessage = nil
@@ -337,6 +376,8 @@ final class AppViewModel: ObservableObject {
             self.tournamentStandings = SampleData.tournamentStandings
             self.tournamentHistoryResults = SampleData.tournamentResultsHistory
             self.adminProfiles = []
+            self.polls = []
+            self.voteDraftsByDay = [:]
             self.lastErrorMessage = error.localizedDescription
         }
     }
@@ -382,11 +423,13 @@ final class AppViewModel: ObservableObject {
             async let playersTask = apiClient.fetchLeaderboard()
             async let matchesTask = apiClient.fetchRecentMatches()
             async let scheduleTask = apiClient.fetchSchedule()
+            async let pollsTask = apiClient.fetchAvailabilityPolls()
             async let tournamentMarkerTask = apiClient.fetchTournamentLiveMarker()
 
             let latestPlayers = try await playersTask
             let latestMatches = try await matchesTask
             let latestSchedule = try await scheduleTask
+            let latestPolls = sortPolls(try await pollsTask)
             let latestTournamentMarker = try await tournamentMarkerTask
 
             var changedCollections: [String] = []
@@ -407,6 +450,12 @@ final class AppViewModel: ObservableObject {
             if scheduleSignature(latestSchedule) != scheduleSignature(schedule) {
                 schedule = latestSchedule
                 changedCollections.append("schedule")
+            }
+
+            if pollSignature(latestPolls) != pollSignature(polls) {
+                polls = latestPolls
+                syncVoteDraftsFromPolls()
+                changedCollections.append("polls")
             }
 
             if lastTournamentMarker != nil && lastTournamentMarker != latestTournamentMarker {
@@ -477,6 +526,241 @@ final class AppViewModel: ObservableObject {
         entries
             .map { "\($0.id.uuidString)|\($0.startsAt.timeIntervalSince1970)|\($0.location)|\($0.description)" }
             .joined(separator: "||")
+    }
+
+    private func pollSignature(_ polls: [AvailabilityPoll]) -> String {
+        polls
+            .map { poll in
+                let days = (poll.days ?? []).map { day in
+                    let votes = (day.votes ?? []).map { vote in
+                        let slots = (vote.slotPreferences ?? []).map(\.rawValue).joined(separator: ",")
+                        return "\(vote.profileId.uuidString)|\(vote.slot?.rawValue ?? "none")|\(slots)"
+                    }.joined(separator: "#")
+                    return "\(day.id.uuidString)|\(day.date)|\(votes)"
+                }.joined(separator: "||")
+                return "\(poll.id.uuidString)|\(poll.status.rawValue)|\(days)"
+            }
+            .joined(separator: "@@")
+    }
+
+    private func sortPolls(_ unsorted: [AvailabilityPoll]) -> [AvailabilityPoll] {
+        unsorted.sorted { lhs, rhs in
+            let lhsPriority = lhs.status == .open ? 0 : 1
+            let rhsPriority = rhs.status == .open ? 0 : 1
+            if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+            if lhs.weekYear != rhs.weekYear { return lhs.weekYear < rhs.weekYear }
+            return lhs.weekNumber < rhs.weekNumber
+        }
+    }
+
+    private func syncVoteDraftsFromPolls() {
+        guard let profileId = currentPlayer?.id else {
+            voteDraftsByDay = [:]
+            return
+        }
+
+        var next = voteDraftsByDay
+        for poll in polls {
+            for day in poll.days ?? [] {
+                guard next[day.id] == nil else { continue }
+                if let vote = day.votes?.first(where: { $0.profileId == profileId }) {
+                    let slots = Set(vote.slotPreferences ?? (vote.slot.map { [$0] } ?? []))
+                    next[day.id] = VoteDraft(hasVote: true, slots: slots)
+                } else {
+                    next[day.id] = VoteDraft(hasVote: false, slots: [])
+                }
+            }
+        }
+        voteDraftsByDay = next
+    }
+
+    func draftForDay(_ day: AvailabilityPollDay) -> VoteDraft {
+        voteDraftsByDay[day.id] ?? VoteDraft(hasVote: false, slots: [])
+    }
+
+    func setVoteEnabled(_ enabled: Bool, day: AvailabilityPollDay) {
+        var draft = draftForDay(day)
+        draft.hasVote = enabled
+        voteDraftsByDay[day.id] = draft
+    }
+
+    func setSlot(_ slot: AvailabilitySlot, selected: Bool, day: AvailabilityPollDay) {
+        var draft = draftForDay(day)
+        draft.hasVote = true
+        if selected {
+            draft.slots.insert(slot)
+        } else {
+            draft.slots.remove(slot)
+        }
+        voteDraftsByDay[day.id] = draft
+    }
+
+    func setFullDay(_ enabled: Bool, day: AvailabilityPollDay) {
+        var draft = draftForDay(day)
+        draft.hasVote = true
+        if enabled {
+            draft.slots = []
+        } else if draft.slots.isEmpty {
+            // Note for non-coders:
+            // Turning off "all day" preselects all explicit slots so users can quickly uncheck what they cannot do.
+            draft.slots = Set(AvailabilitySlot.allCases)
+        }
+        voteDraftsByDay[day.id] = draft
+    }
+
+    // Note for non-coders:
+    // This refreshes only schedule-related data (polls + scheduled games) without reloading every tab.
+    func refreshScheduleData() async {
+        isScheduleLoading = true
+        defer { isScheduleLoading = false }
+
+        do {
+            async let pollsTask = apiClient.fetchAvailabilityPolls()
+            async let scheduleTask = apiClient.fetchSchedule()
+            polls = sortPolls(try await pollsTask)
+            schedule = try await scheduleTask
+            syncVoteDraftsFromPolls()
+            scheduleErrorMessage = nil
+        } catch {
+            scheduleErrorMessage = "Could not refresh schedule data: \(error.localizedDescription)"
+        }
+    }
+
+    func createAvailabilityPoll() async {
+        guard canManageSchedulePolls else {
+            scheduleErrorMessage = "Admin access is required to create polls."
+            return
+        }
+        guard let option = scheduleWeekOptions.first(where: { $0.key == selectedScheduleWeekKey }) else {
+            scheduleErrorMessage = "Choose a valid week first."
+            return
+        }
+        guard let profileId = currentPlayer?.id else {
+            scheduleErrorMessage = "You must be signed in with a player profile."
+            return
+        }
+
+        isScheduleActionRunning = true
+        defer { isScheduleActionRunning = false }
+
+        do {
+            _ = try await apiClient.createAvailabilityPoll(weekYear: option.year, weekNumber: option.week, createdBy: profileId)
+            scheduleActionMessage = "Poll created successfully."
+            scheduleErrorMessage = nil
+            await refreshScheduleData()
+        } catch {
+            scheduleErrorMessage = "Could not create poll: \(error.localizedDescription)"
+        }
+    }
+
+    func closeAvailabilityPoll(_ poll: AvailabilityPoll) async {
+        guard canManageSchedulePolls else {
+            scheduleErrorMessage = "Admin access is required to close polls."
+            return
+        }
+
+        isScheduleActionRunning = true
+        defer { isScheduleActionRunning = false }
+
+        do {
+            try await apiClient.closeAvailabilityPoll(pollId: poll.id)
+            scheduleActionMessage = "Poll closed."
+            scheduleErrorMessage = nil
+            await refreshScheduleData()
+        } catch {
+            scheduleErrorMessage = "Could not close poll: \(error.localizedDescription)"
+        }
+    }
+
+    func deleteAvailabilityPoll(_ poll: AvailabilityPoll) async {
+        guard canManageSchedulePolls else {
+            scheduleErrorMessage = "Admin access is required to delete polls."
+            return
+        }
+
+        isScheduleActionRunning = true
+        defer { isScheduleActionRunning = false }
+
+        do {
+            try await apiClient.deleteAvailabilityPoll(pollId: poll.id)
+            scheduleActionMessage = "Poll deleted."
+            scheduleErrorMessage = nil
+            await refreshScheduleData()
+        } catch {
+            scheduleErrorMessage = "Could not delete poll: \(error.localizedDescription)"
+        }
+    }
+
+    func submitVote(for day: AvailabilityPollDay) async {
+        guard canVoteInSchedulePolls else {
+            scheduleErrorMessage = "Regular member access is required to vote."
+            return
+        }
+        guard let profileId = currentPlayer?.id else {
+            scheduleErrorMessage = "You must be signed in to vote."
+            return
+        }
+
+        let draft = draftForDay(day)
+        isScheduleActionRunning = true
+        defer { isScheduleActionRunning = false }
+
+        do {
+            if !draft.hasVote {
+                try await apiClient.removeAvailabilityVote(dayId: day.id, profileId: profileId)
+                scheduleActionMessage = "Vote removed."
+            } else {
+                try await apiClient.upsertAvailabilityVote(dayId: day.id, profileId: profileId, slotPreferences: Array(draft.slots))
+                scheduleActionMessage = "Vote saved."
+            }
+            scheduleErrorMessage = nil
+            await refreshScheduleData()
+        } catch {
+            scheduleErrorMessage = "Could not save vote: \(error.localizedDescription)"
+        }
+    }
+
+    func sendAvailabilityReminder(for poll: AvailabilityPoll) async {
+        guard canManageSchedulePolls else {
+            scheduleErrorMessage = "Admin access is required to send reminders."
+            return
+        }
+
+        isScheduleActionRunning = true
+        defer { isScheduleActionRunning = false }
+
+        do {
+            let result = try await apiClient.sendAvailabilityPollReminder(
+                pollId: poll.id,
+                onlyMissingVotes: onlyMissingVotesByPoll[poll.id] == true
+            )
+            scheduleActionMessage = "Reminder sent to \(result.sent)/\(result.total) players."
+            scheduleErrorMessage = nil
+            await refreshScheduleData()
+        } catch {
+            scheduleErrorMessage = "Could not send reminder: \(error.localizedDescription)"
+        }
+    }
+
+    private func buildUpcomingWeeks(count: Int = 26) -> [ScheduleWeekOption] {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = .current
+
+        var options: [ScheduleWeekOption] = []
+        var seen: Set<String> = []
+
+        for offset in stride(from: 0, to: count * 7 + 1, by: 7) {
+            guard options.count < count else { break }
+            let date = calendar.date(byAdding: .day, value: offset, to: .now) ?? .now
+            let week = calendar.component(.weekOfYear, from: date)
+            let year = calendar.component(.yearForWeekOfYear, from: date)
+            let key = "\(year)-W\(String(format: "%02d", week))"
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            options.append(ScheduleWeekOption(key: key, label: "Week \(week) (\(year))", week: week, year: year))
+        }
+
+        return options
     }
 
     func refreshAdminProfiles(silently: Bool = false) async {
