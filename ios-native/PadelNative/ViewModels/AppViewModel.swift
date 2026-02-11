@@ -35,6 +35,56 @@ struct ScheduleWeekOption: Identifiable {
     var id: String { key }
 }
 
+enum DashboardMatchFilter: String, CaseIterable, Identifiable {
+    case all
+    case last7
+    case last30
+    case short
+    case long
+    case tournaments
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return "All"
+        case .last7: return "Last 7d"
+        case .last30: return "Last 30d"
+        case .short: return "Short"
+        case .long: return "Long"
+        case .tournaments: return "Tournament"
+        }
+    }
+}
+
+struct DashboardMatchHighlight {
+    enum Reason {
+        case upset
+        case thriller
+        case crush
+        case titans
+    }
+
+    let matchId: UUID
+    let reason: Reason
+    let title: String
+    let description: String
+    let matchDateKey: String
+}
+
+struct DashboardMVPResult {
+    let player: Player
+    let wins: Int
+    let games: Int
+    let periodEloGain: Int
+    let score: Double
+
+    var winRate: Double {
+        guard games > 0 else { return 0 }
+        return Double(wins) / Double(games)
+    }
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     private enum LiveSyncScope: Hashable {
@@ -74,6 +124,17 @@ final class AppViewModel: ObservableObject {
     @Published var adminBanner: AdminActionBanner?
     @Published var isAdminActionRunning = false
     @Published var liveUpdateBanner: String?
+    @Published var dashboardFilter: DashboardMatchFilter = .all
+    @Published var isDashboardLoading = false
+    @Published var selectedMainTab = 1
+
+    // Note for non-coders:
+    // These values mirror the web app's "dismiss this notice on this device" behavior.
+    @Published private(set) var dismissedHighlightMatchId: UUID?
+    @Published private(set) var dismissedHighlightDateKey: String?
+    @Published private(set) var dismissedRecentMatchId: UUID?
+    @Published private(set) var dismissedScheduledGameId: UUID?
+    @Published private(set) var dismissedTournamentNoticeId: UUID?
 
     private(set) var signedInEmail: String?
     private(set) var currentIdentity: AuthIdentity?
@@ -87,6 +148,20 @@ final class AppViewModel: ObservableObject {
     private var lastTournamentMarker: SupabaseRESTClient.TournamentLiveMarker?
     private let liveSyncIntervalNanoseconds: UInt64 = 18_000_000_000
     private let liveSyncDebounceNanoseconds: UInt64 = 900_000_000
+    private let dismissalStore = UserDefaults.standard
+    private let dismissedHighlightIdKey = "dashboard.dismissedHighlightMatchId"
+    private let dismissedHighlightDateKeyStore = "dashboard.dismissedHighlightDate"
+    private let dismissedRecentMatchIdKey = "dashboard.dismissedRecentMatchId"
+    private let dismissedScheduledGameIdKey = "dashboard.dismissedScheduledGameId"
+    private let dismissedTournamentNoticeIdKey = "dashboard.dismissedTournamentNoticeId"
+
+    init() {
+        dismissedHighlightMatchId = Self.uuidValue(from: dismissalStore, key: dismissedHighlightIdKey)
+        dismissedHighlightDateKey = dismissalStore.string(forKey: dismissedHighlightDateKeyStore)
+        dismissedRecentMatchId = Self.uuidValue(from: dismissalStore, key: dismissedRecentMatchIdKey)
+        dismissedScheduledGameId = Self.uuidValue(from: dismissalStore, key: dismissedScheduledGameIdKey)
+        dismissedTournamentNoticeId = Self.uuidValue(from: dismissalStore, key: dismissedTournamentNoticeIdKey)
+    }
 
     // Note for non-coders:
     // This signs in with the same Supabase backend used by the web app.
@@ -341,8 +416,84 @@ final class AppViewModel: ObservableObject {
         .map { $0 }
     }
 
+    var dashboardFilteredMatches: [Match] {
+        let now = Date()
+        let calendar = Calendar.current
+
+        switch dashboardFilter {
+        case .all:
+            return matches
+        case .short:
+            return matches.filter { ($0.scoreType ?? "sets") == "sets" && max($0.teamAScore, $0.teamBScore) <= 3 }
+        case .long:
+            return matches.filter { ($0.scoreType ?? "sets") == "sets" && max($0.teamAScore, $0.teamBScore) >= 6 }
+        case .tournaments:
+            return matches.filter { $0.sourceTournamentId != nil }
+        case .last7:
+            guard let cutoff = calendar.date(byAdding: .day, value: -7, to: now) else { return matches }
+            return matches.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
+        case .last30:
+            guard let cutoff = calendar.date(byAdding: .day, value: -30, to: now) else { return matches }
+            return matches.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
+        }
+    }
+
+    var latestHighlightMatch: DashboardMatchHighlight? {
+        findMatchHighlight(matches: matches, players: players)
+    }
+
+    var showHighlightCard: Bool {
+        guard let highlight = latestHighlightMatch else { return false }
+        return dismissedHighlightMatchId != highlight.matchId
+    }
+
+    var latestRecentMatch: Match? {
+        guard let latest = matches.first else { return nil }
+        let twoHoursAgo = Date().addingTimeInterval(-2 * 60 * 60)
+        guard latest.playedAt >= twoHoursAgo else { return nil }
+        guard dismissedRecentMatchId != latest.id else { return nil }
+        return latest
+    }
+
+    var nextScheduledGameNotice: ScheduleEntry? {
+        let now = Date()
+        let upcoming = schedule
+            .filter { $0.startsAt >= now }
+            .sorted { $0.startsAt < $1.startsAt }
+            .first
+        guard let upcoming else { return nil }
+        guard dismissedScheduledGameId != upcoming.id else { return nil }
+        return upcoming
+    }
+
+    var activeTournamentNotice: Tournament? {
+        guard let tournament = activeTournament,
+              tournament.status == "in_progress" || tournament.status == "draft" else {
+            return nil
+        }
+        guard dismissedTournamentNoticeId != tournament.id else { return nil }
+        return tournament
+    }
+
+    var currentMVP: DashboardMVPResult? {
+        mvp(for: matchesForSameEvening, minimumGames: 3)
+    }
+
+    var periodMVP: DashboardMVPResult? {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? .distantPast
+        let periodMatches = matches.filter { $0.playedAt >= cutoff }
+        return mvp(for: periodMatches, minimumGames: 6)
+    }
+
+    var shouldShowDashboardGuestRestriction: Bool {
+        isGuestMode
+    }
+
 
     func bootstrap() async {
+        isDashboardLoading = true
+        defer { isDashboardLoading = false }
+
         if scheduleWeekOptions.isEmpty {
             scheduleWeekOptions = buildUpcomingWeeks()
             selectedScheduleWeekKey = scheduleWeekOptions.dropFirst().first?.key ?? scheduleWeekOptions.first?.key ?? ""
@@ -380,6 +531,46 @@ final class AppViewModel: ObservableObject {
             self.voteDraftsByDay = [:]
             self.lastErrorMessage = error.localizedDescription
         }
+    }
+
+    func syncHighlightDismissalWindow() {
+        guard let highlight = latestHighlightMatch else { return }
+        checkAndResetHighlightDismissal(for: highlight.matchDateKey)
+    }
+
+    func dismissHighlightCard() {
+        guard let highlight = latestHighlightMatch else { return }
+        dismissedHighlightMatchId = highlight.matchId
+        dismissedHighlightDateKey = highlight.matchDateKey
+        dismissalStore.set(highlight.matchId.uuidString, forKey: dismissedHighlightIdKey)
+        dismissalStore.set(highlight.matchDateKey, forKey: dismissedHighlightDateKeyStore)
+    }
+
+    func dismissRecentMatchNotice() {
+        guard let latest = matches.first else { return }
+        dismissedRecentMatchId = latest.id
+        dismissalStore.set(latest.id.uuidString, forKey: dismissedRecentMatchIdKey)
+    }
+
+    func dismissScheduledGameNotice() {
+        guard let upcoming = nextScheduledGameNotice else { return }
+        dismissedScheduledGameId = upcoming.id
+        dismissalStore.set(upcoming.id.uuidString, forKey: dismissedScheduledGameIdKey)
+    }
+
+    func dismissTournamentNotice() {
+        guard let tournament = activeTournament else { return }
+        dismissedTournamentNoticeId = tournament.id
+        dismissalStore.set(tournament.id.uuidString, forKey: dismissedTournamentNoticeIdKey)
+    }
+
+    func openTournamentTab() {
+        selectedMainTab = 4
+    }
+
+    func openScheduleTab() {
+        guard canSeeSchedule else { return }
+        selectedMainTab = 3
     }
 
     // Note for non-coders:
@@ -1024,6 +1215,184 @@ final class AppViewModel: ObservableObject {
     // Note for non-coders:
     // We store up to two player names per team to match the web schema exactly.
     // If someone enters only one name, we pad with an empty second slot instead of failing the save.
+    private func findMatchHighlight(matches: [Match], players: [Player]) -> DashboardMatchHighlight? {
+        guard !matches.isEmpty, !players.isEmpty else { return nil }
+
+        let latestDate = Calendar.current.startOfDay(for: matches[0].playedAt)
+        let latestMatches = matches.filter { Calendar.current.isDate($0.playedAt, inSameDayAs: latestDate) }
+        guard !latestMatches.isEmpty else { return nil }
+
+        struct Candidate {
+            let match: Match
+            let reason: DashboardMatchHighlight.Reason
+            let score: Double
+            let title: String
+            let description: String
+        }
+
+        let eloByPlayer = Dictionary(uniqueKeysWithValues: players.map { ($0.id, Double($0.elo)) })
+        var candidates: [Candidate] = []
+
+        for match in latestMatches {
+            let teamAElo = averagePreMatchElo(for: match.teamAPlayerIds, eloByPlayer: eloByPlayer)
+            let teamBElo = averagePreMatchElo(for: match.teamBPlayerIds, eloByPlayer: eloByPlayer)
+            let expectedAWin = expectedScore(teamAElo, teamBElo)
+            let teamAWon = match.teamAScore > match.teamBScore
+            let winnerExpected = teamAWon ? expectedAWin : (1 - expectedAWin)
+            let margin = abs(match.teamAScore - match.teamBScore)
+            let totalElo = teamAElo + teamBElo
+
+            if winnerExpected < 0.35 {
+                candidates.append(Candidate(
+                    match: match,
+                    reason: .upset,
+                    score: (0.5 - winnerExpected) * 100,
+                    title: "Kvällens Skräll",
+                    description: "Underdog-seger! \(teamAWon ? "Lag 1" : "Lag 2") vann trots låg vinstchans."
+                ))
+            }
+
+            if margin <= 1 {
+                candidates.append(Candidate(
+                    match: match,
+                    reason: .thriller,
+                    score: 50 - abs(winnerExpected - 0.5) * 20,
+                    title: "Kvällens Rysare",
+                    description: "En jämn match som slutade \(match.teamAScore)-\(match.teamBScore)."
+                ))
+            }
+
+            if margin >= 3 {
+                candidates.append(Candidate(
+                    match: match,
+                    reason: .crush,
+                    score: Double(margin * 10),
+                    title: "Kvällens Kross",
+                    description: "Klar seger med \(match.teamAScore)-\(match.teamBScore)."
+                ))
+            }
+
+            if totalElo > 2200 {
+                candidates.append(Candidate(
+                    match: match,
+                    reason: .titans,
+                    score: (totalElo - 2000) / 10,
+                    title: "Giganternas Kamp",
+                    description: "Match med kvällens högsta samlade ELO (\(Int(totalElo.rounded())))."
+                ))
+            }
+        }
+
+        guard !candidates.isEmpty else { return nil }
+
+        let priority: [DashboardMatchHighlight.Reason: Int] = [.upset: 4, .thriller: 3, .crush: 2, .titans: 1]
+        let best = candidates.sorted { lhs, rhs in
+            let lp = priority[lhs.reason, default: 0]
+            let rp = priority[rhs.reason, default: 0]
+            if lp != rp { return lp > rp }
+            return lhs.score > rhs.score
+        }.first
+
+        guard let best else { return nil }
+        return DashboardMatchHighlight(
+            matchId: best.match.id,
+            reason: best.reason,
+            title: best.title,
+            description: best.description,
+            matchDateKey: Self.dayKey(for: best.match.playedAt)
+        )
+    }
+
+    private var matchesForSameEvening: [Match] {
+        guard let latest = matches.first else { return [] }
+        return matches.filter { Calendar.current.isDate($0.playedAt, inSameDayAs: latest.playedAt) }
+    }
+
+    private func mvp(for periodMatches: [Match], minimumGames: Int) -> DashboardMVPResult? {
+        guard !periodMatches.isEmpty else { return nil }
+
+        struct MvpStat {
+            var wins = 0
+            var games = 0
+            var periodEloGain = 0
+        }
+
+        var stats: [UUID: MvpStat] = [:]
+
+        for match in periodMatches {
+            let teamAWon = match.teamAScore > match.teamBScore
+            let margin = abs(match.teamAScore - match.teamBScore)
+            let gain = max(4, margin * 2)
+
+            for id in match.teamAPlayerIds.compactMap({ $0 }) {
+                var current = stats[id, default: MvpStat()]
+                current.games += 1
+                current.periodEloGain += teamAWon ? gain : -gain
+                if teamAWon { current.wins += 1 }
+                stats[id] = current
+            }
+
+            for id in match.teamBPlayerIds.compactMap({ $0 }) {
+                var current = stats[id, default: MvpStat()]
+                current.games += 1
+                current.periodEloGain += teamAWon ? -gain : gain
+                if !teamAWon { current.wins += 1 }
+                stats[id] = current
+            }
+        }
+
+        // Note for non-coders:
+        // This scoring mirrors the web formula: Elo gain + win-rate bonus + activity bonus.
+        let scored: [DashboardMVPResult] = players.compactMap { player in
+            let stat = stats[player.id] ?? MvpStat()
+            guard stat.games >= minimumGames else { return nil }
+            let winRate = stat.games == 0 ? 0 : Double(stat.wins) / Double(stat.games)
+            let score = Double(stat.periodEloGain) + (winRate * 15) + (Double(stat.games) * 0.5)
+            return DashboardMVPResult(player: player, wins: stat.wins, games: stat.games, periodEloGain: stat.periodEloGain, score: score)
+        }
+
+        return scored.sorted { lhs, rhs in
+            if abs(lhs.score - rhs.score) > 0.001 { return lhs.score > rhs.score }
+            if lhs.periodEloGain != rhs.periodEloGain { return lhs.periodEloGain > rhs.periodEloGain }
+            if lhs.player.elo != rhs.player.elo { return lhs.player.elo > rhs.player.elo }
+            if lhs.wins != rhs.wins { return lhs.wins > rhs.wins }
+            return lhs.player.fullName.localizedCaseInsensitiveCompare(rhs.player.fullName) == .orderedAscending
+        }.first
+    }
+
+    private func averagePreMatchElo(for playerIds: [UUID?], eloByPlayer: [UUID: Double]) -> Double {
+        let values = playerIds.compactMap { id -> Double? in
+            guard let id else { return nil }
+            return eloByPlayer[id]
+        }
+        guard !values.isEmpty else { return 1000 }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    private func expectedScore(_ a: Double, _ b: Double) -> Double {
+        1 / (1 + pow(10, (b - a) / 400))
+    }
+
+    private func checkAndResetHighlightDismissal(for matchDateKey: String) {
+        guard dismissedHighlightDateKey != matchDateKey else { return }
+        dismissedHighlightDateKey = matchDateKey
+        dismissedHighlightMatchId = nil
+        dismissalStore.set(matchDateKey, forKey: dismissedHighlightDateKeyStore)
+        dismissalStore.removeObject(forKey: dismissedHighlightIdKey)
+    }
+
+    private static func dayKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private static func uuidValue(from store: UserDefaults, key: String) -> UUID? {
+        guard let raw = store.string(forKey: key) else { return nil }
+        return UUID(uuidString: raw)
+    }
+
     private func normalizedTeamNames(from rawTeam: String) -> [String] {
         var names = rawTeam
             .split(separator: "&")
