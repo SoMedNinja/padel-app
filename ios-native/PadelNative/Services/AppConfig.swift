@@ -26,7 +26,11 @@ enum AppConfig {
 
     static var configurationWarning: String? {
         if supabaseURL.isEmpty || supabaseAnonKey.isEmpty {
-            return "Supabase URL/key saknas i appens konfiguration."
+            // Note for non-coders:
+            // This extra message helps us separate two different setup mistakes:
+            // 1) The values were never added.
+            // 2) The values were added in the wrong place so Xcode cannot read them.
+            return missingConfigDetails()
         }
 
         if supabaseAnonKey.hasPrefix("sb_publishable_") {
@@ -37,6 +41,21 @@ enum AppConfig {
         }
 
         return nil
+    }
+
+    private static func missingConfigDetails() -> String {
+        let placeholdersInInfoPlist = [
+            Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
+            Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String
+        ]
+        .compactMap(trimmed)
+        .contains { $0.hasPrefix("$(") && $0.hasSuffix(")") }
+
+        if placeholdersInInfoPlist {
+            return "Supabase URL/key saknas i appens konfiguration. Kontrollera att PadelNative/Config/AppSecrets.xcconfig innehåller SUPABASE_URL och SUPABASE_ANON_KEY."
+        }
+
+        return "Supabase URL/key saknas i appens konfiguration. Lägg in SUPABASE_URL och SUPABASE_ANON_KEY i PadelNative/Config/AppSecrets.xcconfig och bygg appen igen."
     }
 
     private static func value(for key: String) -> String {
@@ -74,8 +93,7 @@ enum AppConfig {
     }
 
     private static func normalize(_ raw: String?) -> String? {
-        let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !trimmed.isEmpty else { return nil }
+        guard let trimmed = trimmed(raw) else { return nil }
 
         // Note for non-coders:
         // If a value still looks like "$(SUPABASE_URL)", Xcode never replaced it,
@@ -85,5 +103,10 @@ enum AppConfig {
         }
 
         return trimmed
+    }
+
+    private static func trimmed(_ raw: String?) -> String? {
+        let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
