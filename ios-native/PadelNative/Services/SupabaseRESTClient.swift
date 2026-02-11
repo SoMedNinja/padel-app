@@ -67,6 +67,67 @@ struct TournamentResultSubmission: Encodable {
     }
 }
 
+struct AdminProfile: Identifiable, Decodable {
+    let id: UUID
+    let name: String
+    let isAdmin: Bool
+    let isApproved: Bool
+    let isRegular: Bool
+    let isDeleted: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case isAdmin = "is_admin"
+        case isApproved = "is_approved"
+        case isRegular = "is_regular"
+        case isDeleted = "is_deleted"
+    }
+
+    // Note for non-coders:
+    // Admin rows can come from older records that miss one of the boolean flags.
+    // We default to the safest behavior so unapproved/deleted states are not hidden.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Unknown player"
+        isAdmin = try container.decodeIfPresent(Bool.self, forKey: .isAdmin) ?? false
+        isApproved = try container.decodeIfPresent(Bool.self, forKey: .isApproved) ?? false
+        isRegular = try container.decodeIfPresent(Bool.self, forKey: .isRegular) ?? false
+        isDeleted = try container.decodeIfPresent(Bool.self, forKey: .isDeleted) ?? false
+    }
+}
+
+private struct AdminProfilePatch: Encodable {
+    let isAdmin: Bool?
+    let isApproved: Bool?
+    let isRegular: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case isAdmin = "is_admin"
+        case isApproved = "is_approved"
+        case isRegular = "is_regular"
+    }
+}
+
+private struct AdminDeactivatePatch: Encodable {
+    let name: String
+    let isDeleted: Bool
+    let isApproved: Bool
+    let isAdmin: Bool
+    let isRegular: Bool
+    let avatarURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case isDeleted = "is_deleted"
+        case isApproved = "is_approved"
+        case isAdmin = "is_admin"
+        case isRegular = "is_regular"
+        case avatarURL = "avatar_url"
+    }
+}
+
 struct SupabaseRESTClient {
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -82,6 +143,13 @@ struct SupabaseRESTClient {
 
     func fetchLeaderboard() async throws -> [Player] {
         try await request(path: "/rest/v1/profiles", query: "select=id,full_name,elo,is_admin,is_regular&order=elo.desc")
+    }
+
+    func fetchAdminProfiles() async throws -> [AdminProfile] {
+        try await request(
+            path: "/rest/v1/profiles",
+            query: "select=id,name,is_admin,is_approved,is_regular,is_deleted&is_deleted=is.false&order=name.asc"
+        )
     }
 
     func fetchRecentMatches(limit: Int = 20) async throws -> [Match] {
@@ -182,6 +250,38 @@ struct SupabaseRESTClient {
             query: "id=eq.\(tournamentId.uuidString)",
             body: payload
         )
+    }
+
+    func updateProfileAdminFlags(
+        profileId: UUID,
+        isAdmin: Bool? = nil,
+        isApproved: Bool? = nil,
+        isRegular: Bool? = nil
+    ) async throws {
+        try await sendPatch(
+            path: "/rest/v1/profiles",
+            query: "id=eq.\(profileId.uuidString)",
+            body: AdminProfilePatch(isAdmin: isAdmin, isApproved: isApproved, isRegular: isRegular)
+        )
+    }
+
+    func deactivateProfile(profileId: UUID) async throws {
+        try await sendPatch(
+            path: "/rest/v1/profiles",
+            query: "id=eq.\(profileId.uuidString)",
+            body: AdminDeactivatePatch(
+                name: "deleted user",
+                isDeleted: true,
+                isApproved: false,
+                isAdmin: false,
+                isRegular: false,
+                avatarURL: nil
+            )
+        )
+    }
+
+    func callAdminRPC<T: Encodable>(functionName: String, body: T) async throws {
+        try await sendPost(path: "/rest/v1/rpc/\(functionName)", body: body)
     }
 
     private func sendPost<T: Encodable>(path: String, body: T, preferHeader: String = "return=minimal") async throws {
