@@ -28,5 +28,6 @@ struct MatchDetailView: View {
             }
         }
         .navigationTitle("Match Details")
+        .padelLiquidGlassChrome()
     }
 }

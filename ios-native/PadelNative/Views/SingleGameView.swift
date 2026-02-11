@@ -59,6 +59,7 @@ struct SingleGameView: View {
                 }
             }
             .navigationTitle("Single Game")
+            .padelLiquidGlassChrome()
         }
     }
 }

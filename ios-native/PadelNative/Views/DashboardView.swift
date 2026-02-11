@@ -30,6 +30,7 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("Dashboard")
+            .padelLiquidGlassChrome()
             .refreshable {
                 await viewModel.bootstrap()
             }

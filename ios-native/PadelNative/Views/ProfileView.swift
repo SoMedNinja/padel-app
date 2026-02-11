@@ -30,6 +30,7 @@ struct ProfileView: View {
                 .padding()
             }
             .navigationTitle("Profile")
+            .padelLiquidGlassChrome()
         }
     }
 }
