@@ -26,6 +26,12 @@ final class AppViewModel: ObservableObject {
     @Published var isAuthenticating = false
     @Published var authMessage: String?
     @Published var selectedAvatarSymbol = "person.crop.circle.fill"
+    @Published var activeTournament: Tournament?
+    @Published var tournamentRounds: [TournamentRound] = []
+    @Published var tournamentStandings: [TournamentStanding] = []
+    @Published var tournamentHistoryResults: [TournamentResult] = []
+    @Published var tournamentStatusMessage: String?
+    @Published var isTournamentLoading = false
 
     private(set) var signedInEmail: String?
 
@@ -134,6 +140,7 @@ final class AppViewModel: ObservableObject {
 
     var canSeeSchedule: Bool { currentPlayer?.isRegular ?? true }
     var canUseAdmin: Bool { currentPlayer?.isAdmin ?? false }
+    var canMutateTournament: Bool { isAuthenticated }
 
     var adminSnapshot: AdminSnapshot {
         AdminSnapshot(
@@ -194,10 +201,12 @@ final class AppViewModel: ObservableObject {
             async let playersTask = apiClient.fetchLeaderboard()
             async let matchesTask = apiClient.fetchRecentMatches()
             async let scheduleTask = apiClient.fetchSchedule()
+            async let tournamentTask = loadTournamentData(silently: true)
 
             self.players = try await playersTask
             self.matches = try await matchesTask
             self.schedule = try await scheduleTask
+            _ = await tournamentTask
             self.lastErrorMessage = nil
         } catch {
             // Note for non-coders:
@@ -206,7 +215,187 @@ final class AppViewModel: ObservableObject {
             self.players = SampleData.players
             self.matches = SampleData.matches
             self.schedule = SampleData.schedule
+            self.activeTournament = SampleData.tournament
+            self.tournamentRounds = SampleData.tournamentRounds
+            self.tournamentStandings = SampleData.tournamentStandings
+            self.tournamentHistoryResults = SampleData.tournamentResultsHistory
             self.lastErrorMessage = error.localizedDescription
+        }
+    }
+
+
+    func loadTournamentData(silently: Bool = false) async {
+        if !silently {
+            isTournamentLoading = true
+        }
+        defer {
+            if !silently {
+                isTournamentLoading = false
+            }
+        }
+
+        do {
+            let tournament = try await apiClient.fetchActiveTournament()
+            activeTournament = tournament
+
+            if let tournament {
+                async let roundsTask = apiClient.fetchTournamentRounds(tournamentId: tournament.id)
+                async let standingsTask = apiClient.fetchTournamentStandings(tournamentId: tournament.id)
+                let rounds = try await roundsTask
+                let standingRows = try await standingsTask
+                tournamentRounds = rounds
+                tournamentStandings = resolveStandings(fromRounds: rounds, backendResults: standingRows)
+            } else {
+                tournamentRounds = []
+                tournamentStandings = []
+            }
+
+            tournamentHistoryResults = try await apiClient.fetchCompletedTournamentResults()
+            tournamentStatusMessage = nil
+        } catch {
+            // Note for non-coders:
+            // If the network call fails, we keep any on-screen tournament data intact
+            // and show a message so users know they can try a manual refresh.
+            tournamentStatusMessage = "Could not load tournament data: \(error.localizedDescription)"
+        }
+    }
+
+    func saveTournamentRound(round: TournamentRound, team1Score: Int, team2Score: Int) async {
+        guard canMutateTournament else {
+            tournamentStatusMessage = "Guests can view tournaments, but sign in is required to save scores."
+            return
+        }
+
+        do {
+            try await apiClient.saveTournamentRoundScore(roundId: round.id, team1Score: team1Score, team2Score: team2Score)
+            tournamentStatusMessage = "Round \(round.roundNumber) score saved."
+            await loadTournamentData(silently: false)
+        } catch {
+            tournamentStatusMessage = "Could not save round score: \(error.localizedDescription)"
+        }
+    }
+
+    func completeActiveTournament() async {
+        guard canMutateTournament else {
+            tournamentStatusMessage = "Guests can view tournaments, but sign in is required to complete them."
+            return
+        }
+
+        guard let tournament = activeTournament else {
+            tournamentStatusMessage = "No active tournament to complete."
+            return
+        }
+
+        do {
+            let submissions = tournamentStandings.map {
+                TournamentResultSubmission(
+                    tournamentId: tournament.id,
+                    profileId: $0.profileId,
+                    rank: $0.rank,
+                    pointsFor: $0.pointsFor,
+                    pointsAgainst: $0.pointsAgainst,
+                    matchesPlayed: $0.matchesPlayed,
+                    wins: $0.wins,
+                    losses: $0.losses
+                )
+            }
+            try await apiClient.saveTournamentStandings(submissions)
+            try await apiClient.completeTournament(tournamentId: tournament.id)
+            tournamentStatusMessage = "Tournament completed and standings saved."
+            await loadTournamentData(silently: false)
+        } catch {
+            tournamentStatusMessage = "Could not complete tournament: \(error.localizedDescription)"
+        }
+    }
+
+    private func resolveStandings(fromRounds rounds: [TournamentRound], backendResults: [TournamentResult]) -> [TournamentStanding] {
+        if !backendResults.isEmpty {
+            return backendResults.compactMap { result in
+                guard let profileId = result.profileId else { return nil }
+                return TournamentStanding(
+                    id: result.id,
+                    profileId: profileId,
+                    playerName: players.first(where: { $0.id == profileId })?.fullName ?? "Unknown player",
+                    rank: result.rank,
+                    pointsFor: result.pointsFor,
+                    pointsAgainst: result.pointsAgainst,
+                    wins: result.wins,
+                    losses: result.losses,
+                    matchesPlayed: result.matchesPlayed
+                )
+            }
+        }
+
+        struct Accumulator {
+            var pointsFor = 0
+            var pointsAgainst = 0
+            var wins = 0
+            var losses = 0
+            var matchesPlayed = 0
+        }
+
+        var stats: [UUID: Accumulator] = [:]
+        for round in rounds {
+            guard let team1Score = round.team1Score, let team2Score = round.team2Score else { continue }
+
+            for playerId in round.team1Ids {
+                var current = stats[playerId, default: Accumulator()]
+                current.pointsFor += team1Score
+                current.pointsAgainst += team2Score
+                current.matchesPlayed += 1
+                if team1Score > team2Score {
+                    current.wins += 1
+                } else if team1Score < team2Score {
+                    current.losses += 1
+                }
+                stats[playerId] = current
+            }
+
+            for playerId in round.team2Ids {
+                var current = stats[playerId, default: Accumulator()]
+                current.pointsFor += team2Score
+                current.pointsAgainst += team1Score
+                current.matchesPlayed += 1
+                if team2Score > team1Score {
+                    current.wins += 1
+                } else if team2Score < team1Score {
+                    current.losses += 1
+                }
+                stats[playerId] = current
+            }
+        }
+
+        let sorted = stats.map { playerId, stat in
+            TournamentStanding(
+                id: playerId,
+                profileId: playerId,
+                playerName: players.first(where: { $0.id == playerId })?.fullName ?? "Unknown player",
+                rank: 0,
+                pointsFor: stat.pointsFor,
+                pointsAgainst: stat.pointsAgainst,
+                wins: stat.wins,
+                losses: stat.losses,
+                matchesPlayed: stat.matchesPlayed
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.pointsFor != rhs.pointsFor { return lhs.pointsFor > rhs.pointsFor }
+            if lhs.pointDiff != rhs.pointDiff { return lhs.pointDiff > rhs.pointDiff }
+            return lhs.wins > rhs.wins
+        }
+
+        return sorted.enumerated().map { index, standing in
+            TournamentStanding(
+                id: standing.id,
+                profileId: standing.profileId,
+                playerName: standing.playerName,
+                rank: index + 1,
+                pointsFor: standing.pointsFor,
+                pointsAgainst: standing.pointsAgainst,
+                wins: standing.wins,
+                losses: standing.losses,
+                matchesPlayed: standing.matchesPlayed
+            )
         }
     }
 
@@ -271,5 +460,43 @@ enum SampleData {
     static let schedule: [ScheduleEntry] = [
         ScheduleEntry(id: UUID(), startsAt: .now.addingTimeInterval(172_800), location: "Center Court", description: "Friendly doubles"),
         ScheduleEntry(id: UUID(), startsAt: .now.addingTimeInterval(345_600), location: "North Hall", description: "Weekly ladder"),
+    ]
+
+    static let tournament = Tournament(
+        id: UUID(),
+        name: "Weekly Americano",
+        status: "in_progress",
+        tournamentType: "americano",
+        scheduledAt: .now,
+        completedAt: nil,
+        location: "Center Court",
+        scoreTarget: 24,
+        createdAt: .now.addingTimeInterval(-3600)
+    )
+
+    static let tournamentRounds: [TournamentRound] = [
+        TournamentRound(
+            id: UUID(),
+            tournamentId: tournament.id,
+            roundNumber: 1,
+            team1Ids: [players[0].id, players[1].id],
+            team2Ids: [players[2].id],
+            restingIds: [],
+            team1Score: 24,
+            team2Score: 18,
+            mode: "americano",
+            createdAt: .now.addingTimeInterval(-2800)
+        )
+    ]
+
+    static let tournamentStandings: [TournamentStanding] = [
+        TournamentStanding(id: players[0].id, profileId: players[0].id, playerName: players[0].fullName, rank: 1, pointsFor: 24, pointsAgainst: 18, wins: 1, losses: 0, matchesPlayed: 1),
+        TournamentStanding(id: players[1].id, profileId: players[1].id, playerName: players[1].fullName, rank: 2, pointsFor: 24, pointsAgainst: 18, wins: 1, losses: 0, matchesPlayed: 1),
+        TournamentStanding(id: players[2].id, profileId: players[2].id, playerName: players[2].fullName, rank: 3, pointsFor: 18, pointsAgainst: 24, wins: 0, losses: 1, matchesPlayed: 1)
+    ]
+
+    static let tournamentResultsHistory: [TournamentResult] = [
+        TournamentResult(id: UUID(), tournamentId: tournament.id, profileId: players[0].id, rank: 1, pointsFor: 96, pointsAgainst: 74, matchesPlayed: 5, wins: 4, losses: 1, createdAt: .now.addingTimeInterval(-604_800)),
+        TournamentResult(id: UUID(), tournamentId: tournament.id, profileId: players[1].id, rank: 2, pointsFor: 90, pointsAgainst: 80, matchesPlayed: 5, wins: 3, losses: 2, createdAt: .now.addingTimeInterval(-604_800)),
     ]
 }
