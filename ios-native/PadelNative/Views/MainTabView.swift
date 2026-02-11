@@ -40,12 +40,21 @@ struct MainTabView: View {
                     .tag(4)
             }
 
+
+            if viewModel.canUseSingleGame {
+                SingleGameView()
+                    .tabItem {
+                        Label("Match", systemImage: "plus.square.on.square")
+                    }
+                    .tag(5)
+            }
+
             if viewModel.canUseAdmin {
                 AdminView()
                     .tabItem {
                         Label("Admin", systemImage: "gearshape.2")
                     }
-                    .tag(5)
+                    .tag(6)
             }
         }
         .overlay(alignment: .top) {

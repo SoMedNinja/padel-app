@@ -25,6 +25,9 @@ struct SingleGameView: View {
                     Text("Note for non-coders: när du slår på 1 mot 1 döljer appen den andra spelaren i varje lag.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    Text("Note for non-coders: om du öppnar den här vyn via en länk med mode=1v1 eller mode=2v2 förinställs knappen automatiskt.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("Lag") {
@@ -104,6 +107,11 @@ struct SingleGameView: View {
                 }
             }
             .navigationTitle("Singelmatch")
+            .onAppear {
+                if let mode = viewModel.consumeSingleGameMode() {
+                    isOneVsOne = mode == "1v1"
+                }
+            }
             .padelLiquidGlassChrome()
         }
     }

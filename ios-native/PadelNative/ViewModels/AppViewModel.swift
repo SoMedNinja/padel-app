@@ -144,7 +144,6 @@ final class AppViewModel: ObservableObject {
     @Published var isCheckingSession = true
     @Published var hasRecoveryFailed = false
     @Published var sessionRecoveryError: String?
-    @Published var isGuestMode = false
     @Published var profileAvatarURLInput = ""
     @Published var profileDisplayNameDraft = ""
     @Published var selectedFeaturedBadgeId: String?
@@ -176,6 +175,7 @@ final class AppViewModel: ObservableObject {
     @Published var selectedHistoryFilter: DashboardMatchFilter = .all
     @Published var deepLinkedPollId: UUID?
     @Published var deepLinkedPollDayId: UUID?
+    @Published var deepLinkedSingleGameMode: String?
 
     // Note for non-coders:
     // These values mirror the web app's "dismiss this notice on this device" behavior.
@@ -193,6 +193,8 @@ final class AppViewModel: ObservableObject {
     private var liveSyncTask: Task<Void, Never>?
     private var liveSyncDebounceTask: Task<Void, Never>?
     private var liveUpdateBannerTask: Task<Void, Never>?
+    private var hasPendingDeepLinkedVote = false
+    private var deepLinkedVoteSlots: [AvailabilitySlot] = []
     private var pendingLiveSyncScopes: Set<LiveSyncScope> = []
     private var lastTournamentMarker: SupabaseRESTClient.TournamentLiveMarker?
     private let liveSyncIntervalNanoseconds: UInt64 = 18_000_000_000
@@ -298,19 +300,6 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func continueAsGuest() {
-        // Note for non-coders:
-        // Guest mode allows browsing without account access, but editing actions stay locked.
-        isGuestMode = true
-        isAuthenticated = false
-        signedInEmail = nil
-        currentIdentity = .guest
-        authMessage = nil
-        Task {
-            await bootstrap()
-        }
-    }
-
     func signOut() {
         // Note for non-coders:
         // Signing out clears local state and also asks Supabase to end server session.
@@ -318,7 +307,6 @@ final class AppViewModel: ObservableObject {
             await authService.signOut(accessToken: nil)
         }
         isAuthenticated = false
-        isGuestMode = false
         signedInEmail = nil
         currentIdentity = nil
         authMessage = nil
@@ -337,6 +325,11 @@ final class AppViewModel: ObservableObject {
         voteDraftsByDay = [:]
         scheduleActionMessage = nil
         scheduleErrorMessage = nil
+        deepLinkedPollId = nil
+        deepLinkedPollDayId = nil
+        deepLinkedSingleGameMode = nil
+        hasPendingDeepLinkedVote = false
+        deepLinkedVoteSlots = []
         stopLiveSync()
     }
 
@@ -353,14 +346,12 @@ final class AppViewModel: ObservableObject {
             await bootstrap()
         } catch AuthServiceError.noStoredSession {
             isAuthenticated = false
-            isGuestMode = false
             currentIdentity = nil
             hasRecoveryFailed = false
             sessionRecoveryError = nil
             stopLiveSync()
         } catch {
             isAuthenticated = false
-            isGuestMode = false
             currentIdentity = nil
             hasRecoveryFailed = true
             sessionRecoveryError = error.localizedDescription
@@ -373,8 +364,7 @@ final class AppViewModel: ObservableObject {
     }
 
     private func applySignedInState(identity: AuthIdentity) {
-        isGuestMode = identity.isGuest
-        isAuthenticated = !identity.isGuest
+        isAuthenticated = true
         signedInEmail = identity.email
         currentIdentity = identity
         hasRecoveryFailed = false
@@ -385,7 +375,7 @@ final class AppViewModel: ObservableObject {
     // Permissions now come from the signed-in user's own profile row only.
     // If that row is missing, we deny access by default to avoid exposing admin/member-only areas.
     private var authenticatedProfile: Player? {
-        guard !isGuestMode, let profileId = currentIdentity?.profileId else {
+        guard let profileId = currentIdentity?.profileId else {
             return nil
         }
         return players.first(where: { $0.id == profileId })
@@ -394,9 +384,6 @@ final class AppViewModel: ObservableObject {
     var currentPlayer: Player? { authenticatedProfile }
 
     var profileSetupPrompt: String {
-        if isGuestMode {
-            return "Log in to set up your player profile, upload an avatar, and choose a featured badge."
-        }
         if isAwaitingApproval {
             return "Your account is waiting for admin approval. You can still update your profile while you wait."
         }
@@ -453,10 +440,10 @@ final class AppViewModel: ObservableObject {
     }
 
     // Note for non-coders:
-    // This mirrors web route guards. Guests cannot see the schedule, and signed-in users
-    // only see it if their profile explicitly marks them as a regular member.
+    // This mirrors web route guards. Signed-in users can see schedule only when
+    // their profile is marked as a regular member.
     var canSeeSchedule: Bool {
-        guard !isGuestMode else { return false }
+        guard isAuthenticated else { return false }
         guard let profile = authenticatedProfile else { return false }
         return profile.isRegular
     }
@@ -472,19 +459,18 @@ final class AppViewModel: ObservableObject {
     // Note for non-coders:
     // Missing profile/role data is treated as "not admin" so we never grant admin by accident.
     var canUseAdmin: Bool {
-        guard !isGuestMode else { return false }
+        guard isAuthenticated else { return false }
         guard let profile = authenticatedProfile else { return false }
         return profile.isAdmin
     }
 
-    var canSeeTournament: Bool { !isGuestMode }
-    var canUseSingleGame: Bool { !isGuestMode }
+    var canSeeTournament: Bool { isAuthenticated }
+    var canUseSingleGame: Bool { isAuthenticated }
 
-    var canMutateTournament: Bool { isAuthenticated && !isGuestMode }
+    var canMutateTournament: Bool { isAuthenticated }
     var canCreateMatches: Bool { isAuthenticated && canUseSingleGame }
 
     var isAwaitingApproval: Bool {
-        guard !isGuestMode else { return false }
         guard let identity = currentIdentity else { return false }
         return !identity.isAdmin && !identity.isApproved
     }
@@ -603,10 +589,6 @@ final class AppViewModel: ObservableObject {
         return mvp(for: periodMatches, minimumGames: 6)
     }
 
-    var shouldShowDashboardGuestRestriction: Bool {
-        isGuestMode
-    }
-
 
     func bootstrap() async {
         isDashboardLoading = true
@@ -694,27 +676,58 @@ final class AppViewModel: ObservableObject {
     }
 
     // Note for non-coders:
-    // This reads links like padelnative://schedule?pollId=...&dayId=... so users can jump into voting directly.
+    // This reads links for schedule votes and single-game mode so the app can open the right tool directly.
     func handleIncomingURL(_ url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
         let hostOrPath = (components.host ?? components.path).lowercased()
-        guard hostOrPath.contains("schedule") else { return }
-
-        openScheduleTab()
-
         let items = components.queryItems ?? []
-        if let pollIdString = items.first(where: { $0.name == "pollId" })?.value,
-           let pollId = UUID(uuidString: pollIdString) {
-            deepLinkedPollId = pollId
-        }
-        if let dayIdString = items.first(where: { $0.name == "dayId" })?.value,
-           let dayId = UUID(uuidString: dayIdString) {
-            deepLinkedPollDayId = dayId
+
+        if hostOrPath.contains("schedule") {
+            openScheduleTab()
+
+            if let pollIdString = items.first(where: { $0.name == "pollId" || $0.name == "poll" })?.value,
+               let pollId = UUID(uuidString: pollIdString) {
+                deepLinkedPollId = pollId
+            }
+            if let dayIdString = items.first(where: { $0.name == "dayId" || $0.name == "day" })?.value,
+               let dayId = UUID(uuidString: dayIdString) {
+                deepLinkedPollDayId = dayId
+            }
+
+            if let slotsRaw = items.first(where: { $0.name == "slots" })?.value {
+                deepLinkedVoteSlots = slotsRaw
+                    .split(separator: ",")
+                    .compactMap { AvailabilitySlot(rawValue: String($0).trimmingCharacters(in: .whitespacesAndNewlines)) }
+            } else {
+                // Note for non-coders: no slots means "all day" just like web deep links.
+                deepLinkedVoteSlots = []
+            }
+
+            hasPendingDeepLinkedVote = deepLinkedPollDayId != nil
+            if deepLinkedPollId == nil && deepLinkedPollDayId == nil {
+                scheduleActionMessage = "Länken öppnade schemafliken, men saknade omröstningsdetaljer."
+            }
+            return
         }
 
-        if deepLinkedPollId == nil && deepLinkedPollDayId == nil {
-            scheduleActionMessage = "Länken öppnade schemafliken, men saknade omröstningsdetaljer."
+        if hostOrPath.contains("single-game") || hostOrPath.contains("singlegame") {
+            guard canUseSingleGame else {
+                authMessage = "Logga in för att öppna matchformuläret från en länk."
+                return
+            }
+
+            selectedMainTab = 5
+            if let mode = items.first(where: { $0.name == "mode" })?.value {
+                deepLinkedSingleGameMode = mode.lowercased()
+            }
         }
+    }
+
+    // Note for non-coders:
+    // Deep-link mode is consumed once so the form does not keep resetting while you type.
+    func consumeSingleGameMode() -> String? {
+        defer { deepLinkedSingleGameMode = nil }
+        return deepLinkedSingleGameMode
     }
 
     func openDashboardFiltered(_ filter: DashboardMatchFilter) {
@@ -774,7 +787,7 @@ final class AppViewModel: ObservableObject {
     // This starts a background sync loop (polling fallback) so the app stays updated
     // even when another person changes data from web/admin screens.
     private func startLiveSyncIfNeeded() {
-        guard (isAuthenticated || isGuestMode), liveSyncTask == nil else { return }
+        guard isAuthenticated, liveSyncTask == nil else { return }
 
         liveSyncTask = Task { [weak self] in
             guard let self else { return }
@@ -805,7 +818,7 @@ final class AppViewModel: ObservableObject {
     }
 
     private func performLiveSyncProbe() async {
-        guard isAuthenticated || isGuestMode else { return }
+        guard isAuthenticated else { return }
 
         do {
             async let playersTask = apiClient.fetchLeaderboard()
@@ -1009,10 +1022,63 @@ final class AppViewModel: ObservableObject {
             polls = sortPolls(try await pollsTask)
             schedule = try await scheduleTask
             syncVoteDraftsFromPolls()
+            await applyPendingDeepLinkVoteIfNeeded()
             scheduleErrorMessage = nil
         } catch {
             scheduleErrorMessage = "Could not refresh schedule data: \(error.localizedDescription)"
         }
+    }
+
+    private func applyPendingDeepLinkVoteIfNeeded() async {
+        guard hasPendingDeepLinkedVote else { return }
+        guard canVoteInSchedulePolls else {
+            hasPendingDeepLinkedVote = false
+            scheduleErrorMessage = "Du behöver regular-medlemskap för att rösta via direktlänk."
+            return
+        }
+
+        guard let profileId = currentPlayer?.id,
+              let dayId = deepLinkedPollDayId,
+              let poll = polls.first(where: { deepLinkedPollId == nil || $0.id == deepLinkedPollId }),
+              let day = poll.days?.first(where: { $0.id == dayId }) else {
+            hasPendingDeepLinkedVote = false
+            scheduleErrorMessage = "Direktlänken hittade ingen giltig omröstningsdag."
+            return
+        }
+
+        hasPendingDeepLinkedVote = false
+        voteDraftsByDay[day.id] = VoteDraft(hasVote: true, slots: Set(deepLinkedVoteSlots))
+
+        do {
+            try await apiClient.upsertAvailabilityVote(dayId: day.id, profileId: profileId, slotPreferences: deepLinkedVoteSlots)
+            scheduleActionMessage = "Direktlänken öppnade rätt dag och sparade din röst."
+            scheduleErrorMessage = nil
+            await refreshScheduleData()
+        } catch {
+            scheduleErrorMessage = "Kunde inte spara röst via direktlänk: \(error.localizedDescription)"
+        }
+    }
+
+    // Note for non-coders:
+    // This helper mirrors web reminder rules so admins can see *why* a button is disabled.
+    func reminderAvailability(for poll: AvailabilityPoll) -> (canSend: Bool, helper: String) {
+        let sentCount = poll.mailLogs?.count ?? 0
+        if sentCount >= 2 {
+            return (false, "Max 2 mail redan skickade för denna omröstning.")
+        }
+
+        let latest = poll.mailLogs?.map(\.sentAt).max()
+        guard let latest else {
+            return (true, "Inga utskick ännu.")
+        }
+
+        let nextAllowed = latest.addingTimeInterval(24 * 60 * 60)
+        if Date() < nextAllowed {
+            let hoursLeft = Int(ceil(nextAllowed.timeIntervalSinceNow / 3600))
+            return (false, "Vänta cirka \(hoursLeft)h till nästa utskick.")
+        }
+
+        return (true, "Du kan skicka påminnelse nu.")
     }
 
     func createAvailabilityPoll() async {
@@ -1112,6 +1178,12 @@ final class AppViewModel: ObservableObject {
     func sendAvailabilityReminder(for poll: AvailabilityPoll) async {
         guard canManageSchedulePolls else {
             scheduleErrorMessage = "Admin access is required to send reminders."
+            return
+        }
+
+        let availability = reminderAvailability(for: poll)
+        guard availability.canSend else {
+            scheduleErrorMessage = availability.helper
             return
         }
 
@@ -1695,7 +1767,7 @@ final class AppViewModel: ObservableObject {
 
     func saveTournamentRound(round: TournamentRound, team1Score: Int, team2Score: Int) async {
         guard canMutateTournament else {
-            tournamentStatusMessage = "Guests can view tournaments, but sign in is required to save scores."
+            tournamentStatusMessage = "Sign in is required to save scores."
             return
         }
 
@@ -1715,7 +1787,7 @@ final class AppViewModel: ObservableObject {
 
     func completeActiveTournament() async {
         guard canMutateTournament else {
-            tournamentStatusMessage = "Guests can view tournaments, but sign in is required to complete them."
+            tournamentStatusMessage = "Sign in is required to complete tournaments."
             return
         }
 

@@ -7,17 +7,6 @@ struct AuthIdentity {
     let isAdmin: Bool
     let isRegular: Bool
     let isApproved: Bool
-    let isGuest: Bool
-
-    static let guest = AuthIdentity(
-        profileId: UUID(),
-        email: "guest@local",
-        fullName: "Guest",
-        isAdmin: false,
-        isRegular: true,
-        isApproved: true,
-        isGuest: true
-    )
 }
 
 struct AuthSession: Codable {
@@ -185,8 +174,7 @@ struct AuthService {
             fullName: profile.fullName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? profile.fullName! : "Player",
             isAdmin: profile.isAdmin ?? false,
             isRegular: profile.isRegular ?? true,
-            isApproved: profile.isApproved ?? false,
-            isGuest: false
+            isApproved: profile.isApproved ?? false
         )
     }
 
