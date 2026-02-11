@@ -49,6 +49,19 @@ struct MainTabView: View {
                     .tag(5)
             }
         }
+        .overlay(alignment: .top) {
+            // Note for non-coders:
+            // This small banner confirms background sync changed visible data.
+            if let updateBanner = viewModel.liveUpdateBanner {
+                Text(updateBanner)
+                    .font(.footnote.weight(.semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
         .overlay(alignment: .bottom) {
             // Note for non-coders:
             // This floating + button mirrors the web app's quick-add action so users

@@ -234,6 +234,86 @@ struct SupabaseRESTClient {
         )
     }
 
+    struct TournamentLiveMarker: Equatable {
+        let tournamentState: String
+        let latestRoundState: String
+        let latestResultState: String
+    }
+
+    // Note for non-coders:
+    // This lightweight probe gives us "has tournament data changed?" without downloading
+    // every tournament round/result on each background sync cycle.
+    func fetchTournamentLiveMarker() async throws -> TournamentLiveMarker {
+        struct TournamentProbeRow: Decodable {
+            let id: UUID
+            let status: String
+            let createdAt: Date?
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case status
+                case createdAt = "created_at"
+            }
+        }
+
+        struct RoundProbeRow: Decodable {
+            let id: UUID
+            let team1Score: Int?
+            let team2Score: Int?
+            let createdAt: Date?
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case team1Score = "team1_score"
+                case team2Score = "team2_score"
+                case createdAt = "created_at"
+            }
+        }
+
+        struct ResultProbeRow: Decodable {
+            let id: UUID
+            let createdAt: Date?
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case createdAt = "created_at"
+            }
+        }
+
+        async let latestTournamentTask: [TournamentProbeRow] = request(
+            path: "/rest/v1/mexicana_tournaments",
+            query: "select=id,status,created_at&order=created_at.desc&limit=1"
+        )
+        async let latestRoundTask: [RoundProbeRow] = request(
+            path: "/rest/v1/mexicana_rounds",
+            query: "select=id,team1_score,team2_score,created_at&order=created_at.desc&limit=1"
+        )
+        async let latestResultTask: [ResultProbeRow] = request(
+            path: "/rest/v1/mexicana_results",
+            query: "select=id,created_at&order=created_at.desc&limit=1"
+        )
+
+        let latestTournament = try await latestTournamentTask.first
+        let latestRound = try await latestRoundTask.first
+        let latestResult = try await latestResultTask.first
+
+        let tournamentState = latestTournament.map {
+            "\($0.id.uuidString)|\($0.status)|\($0.createdAt?.timeIntervalSince1970 ?? 0)"
+        } ?? "none"
+        let latestRoundState = latestRound.map {
+            "\($0.id.uuidString)|\($0.team1Score ?? -1)|\($0.team2Score ?? -1)|\($0.createdAt?.timeIntervalSince1970 ?? 0)"
+        } ?? "none"
+        let latestResultState = latestResult.map {
+            "\($0.id.uuidString)|\($0.createdAt?.timeIntervalSince1970 ?? 0)"
+        } ?? "none"
+
+        return TournamentLiveMarker(
+            tournamentState: tournamentState,
+            latestRoundState: latestRoundState,
+            latestResultState: latestResultState
+        )
+    }
+
     func saveTournamentRoundScore(roundId: UUID, team1Score: Int, team2Score: Int) async throws {
         try await sendPatch(
             path: "/rest/v1/mexicana_rounds",

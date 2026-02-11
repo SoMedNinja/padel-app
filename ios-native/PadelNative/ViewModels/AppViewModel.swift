@@ -28,6 +28,10 @@ struct AdminActionBanner: Identifiable {
 
 @MainActor
 final class AppViewModel: ObservableObject {
+    private enum LiveSyncScope: Hashable {
+        case tournaments
+    }
+
     @Published var players: [Player] = []
     @Published var matches: [Match] = []
     @Published var schedule: [ScheduleEntry] = []
@@ -50,12 +54,20 @@ final class AppViewModel: ObservableObject {
     @Published var adminProfiles: [AdminProfile] = []
     @Published var adminBanner: AdminActionBanner?
     @Published var isAdminActionRunning = false
+    @Published var liveUpdateBanner: String?
 
     private(set) var signedInEmail: String?
     private(set) var currentIdentity: AuthIdentity?
 
     private let authService = AuthService()
     private let apiClient = SupabaseRESTClient()
+    private var liveSyncTask: Task<Void, Never>?
+    private var liveSyncDebounceTask: Task<Void, Never>?
+    private var liveUpdateBannerTask: Task<Void, Never>?
+    private var pendingLiveSyncScopes: Set<LiveSyncScope> = []
+    private var lastTournamentMarker: SupabaseRESTClient.TournamentLiveMarker?
+    private let liveSyncIntervalNanoseconds: UInt64 = 18_000_000_000
+    private let liveSyncDebounceNanoseconds: UInt64 = 900_000_000
 
     // Note for non-coders:
     // This signs in with the same Supabase backend used by the web app.
@@ -142,6 +154,9 @@ final class AppViewModel: ObservableObject {
         signedInEmail = nil
         currentIdentity = .guest
         authMessage = nil
+        Task {
+            await bootstrap()
+        }
     }
 
     func signOut() {
@@ -158,6 +173,7 @@ final class AppViewModel: ObservableObject {
         statusMessage = nil
         adminProfiles = []
         adminBanner = nil
+        stopLiveSync()
     }
 
     func restoreSession() async {
@@ -177,12 +193,14 @@ final class AppViewModel: ObservableObject {
             currentIdentity = nil
             hasRecoveryFailed = false
             sessionRecoveryError = nil
+            stopLiveSync()
         } catch {
             isAuthenticated = false
             isGuestMode = false
             currentIdentity = nil
             hasRecoveryFailed = true
             sessionRecoveryError = error.localizedDescription
+            stopLiveSync()
         }
     }
 
@@ -306,6 +324,7 @@ final class AppViewModel: ObservableObject {
             _ = await tournamentTask
             await refreshAdminProfiles(silently: true)
             self.lastErrorMessage = nil
+            startLiveSyncIfNeeded()
         } catch {
             // Note for non-coders:
             // If backend values are missing or internet is unavailable,
@@ -320,6 +339,144 @@ final class AppViewModel: ObservableObject {
             self.adminProfiles = []
             self.lastErrorMessage = error.localizedDescription
         }
+    }
+
+    // Note for non-coders:
+    // This starts a background sync loop (polling fallback) so the app stays updated
+    // even when another person changes data from web/admin screens.
+    private func startLiveSyncIfNeeded() {
+        guard (isAuthenticated || isGuestMode), liveSyncTask == nil else { return }
+
+        liveSyncTask = Task { [weak self] in
+            guard let self else { return }
+            await self.runLiveSyncLoop()
+        }
+    }
+
+    private func stopLiveSync() {
+        liveSyncTask?.cancel()
+        liveSyncTask = nil
+        liveSyncDebounceTask?.cancel()
+        liveSyncDebounceTask = nil
+        liveUpdateBannerTask?.cancel()
+        liveUpdateBannerTask = nil
+        pendingLiveSyncScopes.removeAll()
+        lastTournamentMarker = nil
+        liveUpdateBanner = nil
+    }
+
+    private func runLiveSyncLoop() async {
+        await performLiveSyncProbe()
+
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: liveSyncIntervalNanoseconds)
+            guard !Task.isCancelled else { break }
+            await performLiveSyncProbe()
+        }
+    }
+
+    private func performLiveSyncProbe() async {
+        guard isAuthenticated || isGuestMode else { return }
+
+        do {
+            async let playersTask = apiClient.fetchLeaderboard()
+            async let matchesTask = apiClient.fetchRecentMatches()
+            async let scheduleTask = apiClient.fetchSchedule()
+            async let tournamentMarkerTask = apiClient.fetchTournamentLiveMarker()
+
+            let latestPlayers = try await playersTask
+            let latestMatches = try await matchesTask
+            let latestSchedule = try await scheduleTask
+            let latestTournamentMarker = try await tournamentMarkerTask
+
+            var changedCollections: [String] = []
+
+            if playerSignature(latestPlayers) != playerSignature(players) {
+                players = latestPlayers
+                changedCollections.append("players")
+                if canUseAdmin {
+                    await refreshAdminProfiles(silently: true)
+                }
+            }
+
+            if matchSignature(latestMatches) != matchSignature(matches) {
+                matches = latestMatches
+                changedCollections.append("matches")
+            }
+
+            if scheduleSignature(latestSchedule) != scheduleSignature(schedule) {
+                schedule = latestSchedule
+                changedCollections.append("schedule")
+            }
+
+            if lastTournamentMarker != nil && lastTournamentMarker != latestTournamentMarker {
+                queueLiveSync(scope: .tournaments)
+            }
+            lastTournamentMarker = latestTournamentMarker
+
+            if !changedCollections.isEmpty {
+                showLiveUpdateBanner(for: changedCollections)
+            }
+        } catch {
+            // Note for non-coders:
+            // Live sync errors are intentionally silent so background polling never disrupts normal app usage.
+        }
+    }
+
+    private func queueLiveSync(scope: LiveSyncScope) {
+        pendingLiveSyncScopes.insert(scope)
+        liveSyncDebounceTask?.cancel()
+        liveSyncDebounceTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: liveSyncDebounceNanoseconds)
+            guard !Task.isCancelled else { return }
+            await self.flushDebouncedLiveSync()
+        }
+    }
+
+    private func flushDebouncedLiveSync() async {
+        let scopes = pendingLiveSyncScopes
+        pendingLiveSyncScopes.removeAll()
+
+        if scopes.contains(.tournaments) {
+            await loadTournamentData(silently: true)
+            showLiveUpdateBanner(for: ["tournament"])
+        }
+    }
+
+    private func showLiveUpdateBanner(for collections: [String]) {
+        let unique = Array(Set(collections)).sorted()
+        let noun = unique.count == 1 ? "section" : "sections"
+        liveUpdateBanner = "Updated \(unique.joined(separator: ", ")) \(noun)."
+
+        liveUpdateBannerTask?.cancel()
+        liveUpdateBannerTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 2_200_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.liveUpdateBanner = nil
+            }
+        }
+    }
+
+    private func playerSignature(_ players: [Player]) -> String {
+        players
+            .map { "\($0.id.uuidString)|\($0.fullName)|\($0.elo)|\($0.isAdmin)|\($0.isRegular)" }
+            .joined(separator: "||")
+    }
+
+    private func matchSignature(_ matches: [Match]) -> String {
+        matches
+            .map {
+                "\($0.id.uuidString)|\($0.playedAt.timeIntervalSince1970)|\($0.teamAScore)|\($0.teamBScore)|\($0.teamAName)|\($0.teamBName)"
+            }
+            .joined(separator: "||")
+    }
+
+    private func scheduleSignature(_ entries: [ScheduleEntry]) -> String {
+        entries
+            .map { "\($0.id.uuidString)|\($0.startsAt.timeIntervalSince1970)|\($0.location)|\($0.description)" }
+            .joined(separator: "||")
     }
 
     func refreshAdminProfiles(silently: Bool = false) async {
