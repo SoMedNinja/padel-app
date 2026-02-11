@@ -1,0 +1,19 @@
+name: PadelNative
+options:
+  deploymentTarget:
+    iOS: 17.0
+targets:
+  PadelNative:
+    type: application
+    platform: iOS
+    sources:
+      - PadelNative
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.padelnative
+        SWIFT_VERSION: 5.0
+        INFOPLIST_KEY_SUPABASE_URL: $(SUPABASE_URL)
+        INFOPLIST_KEY_SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
+    configFiles:
+      Debug: PadelNative/Config/AppSecrets.xcconfig
+      Release: PadelNative/Config/AppSecrets.xcconfig
