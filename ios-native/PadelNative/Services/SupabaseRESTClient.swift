@@ -221,7 +221,7 @@ struct SupabaseRESTClient {
     func fetchRecentMatches(limit: Int = 20) async throws -> [Match] {
         try await request(
             path: "/rest/v1/matches",
-            query: "select=id,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)"
+            query: "select=id,created_by,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)"
         )
     }
 
@@ -231,7 +231,7 @@ struct SupabaseRESTClient {
     func fetchMatchesForAdminReports(limit: Int = 500) async throws -> [Match] {
         try await request(
             path: "/rest/v1/matches",
-            query: "select=id,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)"
+            query: "select=id,created_by,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=\(limit)"
         )
     }
 
