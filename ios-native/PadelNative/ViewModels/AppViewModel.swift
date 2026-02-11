@@ -147,6 +147,29 @@ struct ProfilePerformanceWidget: Identifiable {
     let symbol: String
 }
 
+struct SingleGameSuggestion {
+    let teamAPlayerIds: [UUID?]
+    let teamBPlayerIds: [UUID?]
+    let fairness: Int
+    let winProbability: Double
+    let explanation: String
+}
+
+struct SingleGameRecap {
+    let matchSummary: String
+    let eveningSummary: String
+
+    var sharePayload: String {
+        [
+            "Padel match recap",
+            "",
+            matchSummary,
+            "",
+            eveningSummary,
+        ].joined(separator: "\n")
+    }
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     private enum LiveSyncScope: Hashable {
@@ -2316,6 +2339,185 @@ final class AppViewModel: ObservableObject {
         }
         return names
     }
+    func suggestSingleGameMatchup(isOneVsOne: Bool) -> SingleGameSuggestion? {
+        let requiredPlayers = isOneVsOne ? 2 : 4
+        let availablePlayers = players
+
+        guard availablePlayers.count >= requiredPlayers else {
+            statusMessage = "Det behövs minst \(requiredPlayers) spelare för att föreslå en match."
+            return nil
+        }
+
+        var gamesByPlayer: [UUID: Int] = [:]
+        var teammateCounts: [String: Int] = [:]
+        var opponentCounts: [String: Int] = [:]
+
+        func pairKey(_ a: UUID, _ b: UUID) -> String {
+            [a.uuidString, b.uuidString].sorted().joined(separator: "|")
+        }
+
+        for match in matches {
+            let teamA = match.teamAPlayerIds.compactMap { $0 }
+            let teamB = match.teamBPlayerIds.compactMap { $0 }
+
+            for id in teamA + teamB {
+                gamesByPlayer[id, default: 0] += 1
+            }
+
+            if teamA.count == 2 {
+                teammateCounts[pairKey(teamA[0], teamA[1]), default: 0] += 1
+            }
+            if teamB.count == 2 {
+                teammateCounts[pairKey(teamB[0], teamB[1]), default: 0] += 1
+            }
+
+            for aId in teamA {
+                for bId in teamB {
+                    opponentCounts[pairKey(aId, bId), default: 0] += 1
+                }
+            }
+        }
+
+        func averageElo(_ ids: [UUID]) -> Double {
+            guard ids.isEmpty == false else { return 1400 }
+            let total = ids.reduce(0.0) { partial, id in
+                partial + Double(availablePlayers.first(where: { $0.id == id })?.elo ?? 1400)
+            }
+            return total / Double(ids.count)
+        }
+
+        func choose<T>(_ source: [T], count: Int) -> [[T]] {
+            guard count > 0 else { return [[]] }
+            guard source.count >= count else { return [] }
+            var result: [[T]] = []
+            func recurse(_ index: Int, _ current: [T]) {
+                if current.count == count {
+                    result.append(current)
+                    return
+                }
+                guard index < source.count else { return }
+
+                for next in index..<(source.count - (count - current.count) + 1) {
+                    recurse(next + 1, current + [source[next]])
+                }
+            }
+            recurse(0, [])
+            return result
+        }
+
+        let playerIds = availablePlayers.map(\.id)
+        let gameTarget = Double(requiredPlayers)
+        var bestCandidate: (score: Double, teamA: [UUID], teamB: [UUID], fairness: Int, winProbability: Double)?
+
+        if isOneVsOne {
+            for pair in choose(playerIds, count: 2) {
+                let teamA = [pair[0]]
+                let teamB = [pair[1]]
+                let winProbability = expectedScore(averageElo(teamA), averageElo(teamB))
+                let fairness = max(0, min(100, Int(round((1 - abs(0.5 - winProbability) * 2) * 100))))
+                let opponentPenalty = Double(opponentCounts[pairKey(teamA[0], teamB[0]), default: 0])
+                let gamePenalty = Double(gamesByPlayer[teamA[0], default: 0] + gamesByPlayer[teamB[0], default: 0])
+                let underplayedBonus = (gameTarget - gamePenalty) * 0.5
+                let score = Double(fairness) * 2 - opponentPenalty * 8 - gamePenalty * 3 + underplayedBonus
+
+                if bestCandidate == nil || score > bestCandidate!.score {
+                    bestCandidate = (score, teamA, teamB, fairness, winProbability)
+                }
+            }
+        } else {
+            for group in choose(playerIds, count: 4) {
+                let p1 = group[0]
+                let p2 = group[1]
+                let p3 = group[2]
+                let p4 = group[3]
+                let splits = [
+                    ([p1, p2], [p3, p4]),
+                    ([p1, p3], [p2, p4]),
+                    ([p1, p4], [p2, p3]),
+                ]
+
+                for split in splits {
+                    let teamA = split.0
+                    let teamB = split.1
+                    let winProbability = expectedScore(averageElo(teamA), averageElo(teamB))
+                    let fairness = max(0, min(100, Int(round((1 - abs(0.5 - winProbability) * 2) * 100))))
+
+                    let teammatePenalty = Double(teammateCounts[pairKey(teamA[0], teamA[1]), default: 0] + teammateCounts[pairKey(teamB[0], teamB[1]), default: 0])
+                    let opponentPenalty = Double(teamA.reduce(into: 0) { partial, aId in
+                        partial += teamB.reduce(0) { $0 + opponentCounts[pairKey(aId, $1), default: 0] }
+                    })
+                    let gamePenalty = Double((teamA + teamB).reduce(0) { $0 + gamesByPlayer[$1, default: 0] })
+                    let underplayedBonus = (gameTarget * 2 - gamePenalty) * 0.5
+                    let score = Double(fairness) * 2 - teammatePenalty * 15 - opponentPenalty * 6 - gamePenalty * 3 + underplayedBonus
+
+                    if bestCandidate == nil || score > bestCandidate!.score {
+                        bestCandidate = (score, teamA, teamB, fairness, winProbability)
+                    }
+                }
+            }
+        }
+
+        guard let bestCandidate else {
+            statusMessage = "Kunde inte räkna fram något förslag."
+            return nil
+        }
+
+        statusMessage = "Förslag framtaget med balans- och rotationsregler."
+        return SingleGameSuggestion(
+            teamAPlayerIds: [bestCandidate.teamA.first, isOneVsOne ? nil : bestCandidate.teamA.dropFirst().first],
+            teamBPlayerIds: [bestCandidate.teamB.first, isOneVsOne ? nil : bestCandidate.teamB.dropFirst().first],
+            fairness: bestCandidate.fairness,
+            winProbability: bestCandidate.winProbability,
+            explanation: "Hög fairness betyder jämnare match. Rotationsdelen försöker också undvika samma lagkompisar och motståndare för ofta."
+        )
+    }
+
+    func buildSingleGameRecap(for match: Match) -> SingleGameRecap {
+        let dateKey = Self.dayKey(for: match.playedAt)
+        let dayMatches = matches.filter { Self.dayKey(for: $0.playedAt) == dateKey }
+        let winner = match.teamAScore > match.teamBScore ? match.teamAName : (match.teamBScore > match.teamAScore ? match.teamBName : "Oavgjort")
+
+        var winsByPlayer: [UUID: Int] = [:]
+        for dayMatch in dayMatches {
+            let winners = dayMatch.teamAScore > dayMatch.teamBScore ? dayMatch.teamAPlayerIds : dayMatch.teamBPlayerIds
+            for id in winners {
+                guard let id else { continue }
+                winsByPlayer[id, default: 0] += 1
+            }
+        }
+
+        let leaderboard = winsByPlayer
+            .sorted { lhs, rhs in
+                if lhs.value != rhs.value { return lhs.value > rhs.value }
+                let left = players.first(where: { $0.id == lhs.key })?.profileName ?? "Spelare"
+                let right = players.first(where: { $0.id == rhs.key })?.profileName ?? "Spelare"
+                return left < right
+            }
+            .prefix(3)
+            .map { entry in
+                let name = players.first(where: { $0.id == entry.key })?.profileName ?? "Spelare"
+                return "• \(name): \(entry.value) segrar"
+            }
+
+        let totalPoints = dayMatches.reduce(0) { $0 + $1.teamAScore + $1.teamBScore }
+        let closeGameCount = dayMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 2 }.count
+
+        let matchSummary = [
+            "Match: \(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)",
+            "Vinnare: \(winner)",
+            "Poängtyp: \(match.scoreType == "points" ? "Poäng" : "Set")",
+        ].joined(separator: "\n")
+
+        let eveningSummary = ([
+            "Kväll \(dateKey): \(dayMatches.count) matcher, totalt \(totalPoints) registrerade game.",
+            "Jämna matcher (skillnad ≤ 2): \(closeGameCount)",
+            "Topplista:",
+            leaderboard.isEmpty ? "• Ingen topplista ännu." : leaderboard.joined(separator: "\n"),
+        ]).joined(separator: "\n")
+
+        return SingleGameRecap(matchSummary: matchSummary, eveningSummary: eveningSummary)
+    }
+
     func submitSingleGame(
         teamAPlayerIds: [UUID?],
         teamBPlayerIds: [UUID?],
@@ -2326,7 +2528,7 @@ final class AppViewModel: ObservableObject {
         sourceTournamentId: UUID? = nil,
         sourceTournamentType: String = "standalone",
         teamAServesFirst: Bool = true
-    ) async {
+    ) async -> SingleGameRecap? {
         let normalizedAIds = Array(teamAPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamAPlayerIds.count))
         let normalizedBIds = Array(teamBPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamBPlayerIds.count))
         let compactA = normalizedAIds.compactMap { $0 }
@@ -2334,18 +2536,18 @@ final class AppViewModel: ObservableObject {
 
         guard !compactA.isEmpty, !compactB.isEmpty else {
             statusMessage = "Välj minst en spelare per lag."
-            return
+            return nil
         }
 
         let combined = compactA + compactB
         guard Set(combined).count == combined.count else {
             statusMessage = "Samma spelare kan inte vara i båda lagen."
-            return
+            return nil
         }
 
         guard (0...99).contains(teamAScore), (0...99).contains(teamBScore) else {
             statusMessage = "Poängen måste vara mellan 0 och 99."
-            return
+            return nil
         }
 
         let normalizedScoreType = scoreType == "points" ? "points" : "sets"
@@ -2404,9 +2606,12 @@ final class AppViewModel: ObservableObject {
             )
             matches.insert(localMatch, at: 0)
             statusMessage = "Match sparad."
+            let recap = buildSingleGameRecap(for: localMatch)
             await bootstrap()
+            return recap
         } catch {
             statusMessage = "Kunde inte spara matchen: \(error.localizedDescription)"
+            return nil
         }
     }
 }
