@@ -7,6 +7,7 @@ enum AppConfig {
     // 1) Info.plist (normal Xcode path)
     // 2) Environment variables (useful for CI/testing)
     // 3) RuntimeSupabaseConfig.plist bundled in the app (safe fallback)
+    // 4) Built-in defaults in code (last-resort fallback if resource files are not bundled)
     static let supabaseURL: String = value(for: "SUPABASE_URL")
     static let supabaseAnonKey: String = value(for: "SUPABASE_ANON_KEY")
 
@@ -14,11 +15,20 @@ enum AppConfig {
         !supabaseURL.isEmpty && !supabaseAnonKey.isEmpty
     }
 
+    // Note for non-coders:
+    // Supabase anon/publishable keys are meant for client apps and are safe to ship.
+    // (Server/service-role keys are the secret ones and must never be put in mobile apps.)
+    private static let builtInFallback: [String: String] = [
+        "SUPABASE_URL": "https://hiasgpbuqhiwutpgugjk.supabase.co",
+        "SUPABASE_ANON_KEY": "sb_publishable_VPkXuJh-Wp-VElcUIpZK8A_sRtJUuSC"
+    ]
+
     private static func value(for key: String) -> String {
         let candidates: [String?] = [
             Bundle.main.object(forInfoDictionaryKey: key) as? String,
             ProcessInfo.processInfo.environment[key],
-            bundledFallback()[key]
+            bundledFallback()[key],
+            builtInFallback[key]
         ]
 
         for candidate in candidates {
