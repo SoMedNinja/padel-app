@@ -135,7 +135,19 @@ Match ends 2-0 for Team 1. Players have 30+ games.
 - **Player B Weight:** `1 + (1000 - 800) / 800` = **1.25**
 - **Player A Delta:** `round(20 * 1.1 * 0.5 * 0.75 * (1 - 0.5))` = `round(8.25 * 0.5)` = **+4**
 - **Player B Delta:** `round(20 * 1.1 * 0.5 * 1.25 * (1 - 0.5))` = `round(13.75 * 0.5)` = **+7**
-*(If Team 1 lost instead, Player A would lose more than Player B because the loss uses inverse weights.)*
+
+### Example 4: Mixed Team Ratings (Loss)
+Team 1: Player A (1200 ELO) & Player B (800 ELO) -> Avg 1000.
+Team 2: Player C (1000 ELO) & Player D (1000 ELO) -> Avg 1000.
+Match ends 0-2 for Team 1. Players have 30+ games.
+- **Expected Score:** 0.5
+- **Margin Multiplier:** 1.1
+- **Match Weight:** 0.5
+- **Player A Weight:** 0.75. **Loss Effective Weight:** `1 / 0.75` ≈ **1.33**
+- **Player B Weight:** 1.25. **Loss Effective Weight:** `1 / 1.25` = **0.8**
+- **Player A Delta:** `round(20 * 1.1 * 0.5 * 1.33 * (0 - 0.5))` = `round(11 * 1.33 * -0.5)` = **-7**
+- **Player B Delta:** `round(20 * 1.1 * 0.5 * 0.8 * (0 - 0.5))` = `round(11 * 0.8 * -0.5)` = **-4**
+- **Team 2 Delta:** `round(20 * 1.1 * 0.5 * 1.0 * (1 - 0.5))` = **+6**
 
 ---
 
