@@ -156,6 +156,53 @@ struct ProfilePerformanceWidget: Identifiable {
     let symbol: String
 }
 
+
+
+enum HistoryDatePreset: String, CaseIterable, Identifiable {
+    case all
+    case last7
+    case last30
+    case custom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return "All"
+        case .last7: return "Last 7d"
+        case .last30: return "Last 30d"
+        case .custom: return "Custom"
+        }
+    }
+}
+
+struct HistoryFilterState {
+    var datePreset: HistoryDatePreset = .all
+    var customStartDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+    var customEndDate: Date = .now
+    var tournamentOnly = false
+    var scoreType: String = "all"
+
+    // Note for non-coders:
+    // We use "23:59:59" so the selected end date includes the full day.
+    var normalizedDateRange: (start: Date?, end: Date?) {
+        let calendar = Calendar.current
+        switch datePreset {
+        case .all:
+            return (nil, nil)
+        case .last7:
+            return (calendar.date(byAdding: .day, value: -7, to: .now), .now)
+        case .last30:
+            return (calendar.date(byAdding: .day, value: -30, to: .now), .now)
+        case .custom:
+            let start = calendar.startOfDay(for: customStartDate)
+            let endDay = calendar.startOfDay(for: customEndDate)
+            let end = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: endDay) ?? customEndDate
+            return (start, end)
+        }
+    }
+}
+
 struct SingleGameSuggestion {
     let teamAPlayerIds: [UUID?]
     let teamBPlayerIds: [UUID?]
@@ -234,7 +281,11 @@ final class AppViewModel: ObservableObject {
     @Published var dashboardFilter: DashboardMatchFilter = .all
     @Published var isDashboardLoading = false
     @Published var selectedMainTab = 1
-    @Published var selectedHistoryFilter: DashboardMatchFilter = .all
+    @Published var historyFilters = HistoryFilterState()
+    @Published var historyMatches: [Match] = []
+    @Published var isHistoryLoading = false
+    @Published var isHistoryLoadingMore = false
+    @Published var hasMoreHistoryMatches = true
     @Published var deepLinkedPollId: UUID?
     @Published var deepLinkedPollDayId: UUID?
     @Published var deepLinkedSingleGameMode: String?
@@ -261,6 +312,7 @@ final class AppViewModel: ObservableObject {
     private var lastTournamentMarker: SupabaseRESTClient.TournamentLiveMarker?
     private let liveSyncIntervalNanoseconds: UInt64 = 18_000_000_000
     private let liveSyncDebounceNanoseconds: UInt64 = 900_000_000
+    private let historyPageSize = 50
     private static let adminDayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .iso8601)
@@ -829,6 +881,65 @@ final class AppViewModel: ObservableObject {
     }
 
 
+
+    var historyFilteredMatches: [Match] {
+        historyMatches
+    }
+
+    func reloadHistoryMatches() async {
+        isHistoryLoading = true
+        defer { isHistoryLoading = false }
+
+        do {
+            let range = historyFilters.normalizedDateRange
+            let page = try await apiClient.fetchMatchesPage(
+                limit: historyPageSize,
+                offset: 0,
+                startDate: range.start,
+                endDate: range.end,
+                scoreType: historyFilters.scoreType == "all" ? nil : historyFilters.scoreType,
+                tournamentOnly: historyFilters.tournamentOnly
+            )
+            historyMatches = page
+            hasMoreHistoryMatches = page.count == historyPageSize
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "Could not load match history: \(error.localizedDescription)"
+        }
+    }
+
+    func loadMoreHistoryMatchesIfNeeded(currentMatch: Match) async {
+        guard hasMoreHistoryMatches, !isHistoryLoadingMore else { return }
+        guard let lastVisibleId = historyFilteredMatches.last?.id, lastVisibleId == currentMatch.id else { return }
+
+        isHistoryLoadingMore = true
+        defer { isHistoryLoadingMore = false }
+
+        do {
+            let offset = historyMatches.count
+            let range = historyFilters.normalizedDateRange
+            let nextPage = try await apiClient.fetchMatchesPage(
+                limit: historyPageSize,
+                offset: offset,
+                startDate: range.start,
+                endDate: range.end,
+                scoreType: historyFilters.scoreType == "all" ? nil : historyFilters.scoreType,
+                tournamentOnly: historyFilters.tournamentOnly
+            )
+            if nextPage.isEmpty {
+                hasMoreHistoryMatches = false
+                return
+            }
+
+            let existingIds = Set(historyMatches.map { $0.id })
+            let deduplicated = nextPage.filter { !existingIds.contains($0.id) }
+            historyMatches.append(contentsOf: deduplicated)
+            hasMoreHistoryMatches = nextPage.count == historyPageSize
+        } catch {
+            lastErrorMessage = "Could not load more history: \(error.localizedDescription)"
+        }
+    }
+
     func bootstrap() async {
         isDashboardLoading = true
         defer { isDashboardLoading = false }
@@ -840,14 +951,17 @@ final class AppViewModel: ObservableObject {
 
         do {
             async let playersTask = apiClient.fetchLeaderboard()
-            async let matchesTask = apiClient.fetchRecentMatches()
+            async let matchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
             async let scheduleTask = apiClient.fetchSchedule()
             async let pollsTask = apiClient.fetchAvailabilityPolls()
             async let tournamentTask = loadTournamentData(silently: true)
 
             self.players = try await playersTask
             syncProfileSetupDraftFromCurrentPlayer()
-            self.matches = try await matchesTask
+            let initialMatches = try await matchesTask
+            self.matches = initialMatches
+            self.historyMatches = initialMatches
+            self.hasMoreHistoryMatches = initialMatches.count == historyPageSize
             self.schedule = try await scheduleTask
             self.polls = sortPolls(try await pollsTask)
             syncVoteDraftsFromPolls()
@@ -1061,7 +1175,7 @@ final class AppViewModel: ObservableObject {
 
         do {
             async let playersTask = apiClient.fetchLeaderboard()
-            async let matchesTask = apiClient.fetchRecentMatches()
+            async let matchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
             async let scheduleTask = apiClient.fetchSchedule()
             async let pollsTask = apiClient.fetchAvailabilityPolls()
             async let tournamentMarkerTask = apiClient.fetchTournamentLiveMarker()
@@ -1085,6 +1199,14 @@ final class AppViewModel: ObservableObject {
 
             if matchSignature(latestMatches) != matchSignature(matches) {
                 matches = latestMatches
+
+                // Note for non-coders:
+                // Live sync refreshes the newest chunk; we keep any already-loaded older
+                // pages so long history doesn't disappear while background sync runs.
+                let latestIds = Set(latestMatches.map { $0.id })
+                let olderAlreadyLoaded = historyMatches.filter { !latestIds.contains($0.id) }
+                historyMatches = latestMatches + olderAlreadyLoaded
+
                 changedCollections.append("matches")
             }
 
@@ -1497,13 +1619,27 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func updateMatchScores(_ match: Match, teamAScore: Int, teamBScore: Int) async {
+    func updateMatch(
+        _ match: Match,
+        playedAt: Date,
+        teamAScore: Int,
+        teamBScore: Int,
+        scoreType: String,
+        scoreTarget: Int?
+    ) async {
         guard canUseAdmin else {
             statusMessage = "Endast admin kan ändra matcher i iOS-appen just nu."
             return
         }
         do {
-            try await apiClient.updateMatchScores(matchId: match.id, teamAScore: teamAScore, teamBScore: teamBScore)
+            try await apiClient.updateMatch(
+                matchId: match.id,
+                playedAt: playedAt,
+                teamAScore: teamAScore,
+                teamBScore: teamBScore,
+                scoreType: scoreType,
+                scoreTarget: scoreTarget
+            )
             await bootstrap()
             statusMessage = "Matchresultat uppdaterat."
         } catch {
@@ -1903,7 +2039,8 @@ final class AppViewModel: ObservableObject {
         location: String?,
         scheduledAt: Date?,
         scoreTarget: Int?,
-        tournamentType: String
+        tournamentType: String,
+        participantIds: [UUID]
     ) async {
         guard canMutateTournament else {
             tournamentActionErrorMessage = "Sign in is required to create tournaments."
@@ -1913,6 +2050,11 @@ final class AppViewModel: ObservableObject {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanName.isEmpty {
             tournamentActionErrorMessage = "Tournament name is required."
+            return
+        }
+
+        if participantIds.count < 4 {
+            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
             return
         }
 
@@ -1930,8 +2072,9 @@ final class AppViewModel: ObservableObject {
                     scoreTarget: scoreTarget
                 )
             )
+            try await apiClient.replaceTournamentParticipants(tournamentId: created.id, participantIds: participantIds)
             selectedTournamentId = created.id
-            tournamentStatusMessage = "Tournament created in draft mode."
+            tournamentStatusMessage = "Tournament created in draft mode with \(participantIds.count) participants."
             await loadTournamentData(silently: false)
         } catch {
             tournamentActionErrorMessage = "Could not create tournament: \(error.localizedDescription)"
@@ -1967,6 +2110,11 @@ final class AppViewModel: ObservableObject {
         tournaments.removeAll { $0.id == selected.id }
         if selectedTournamentId == selected.id {
             selectedTournamentId = tournaments.first?.id
+        }
+
+        if participantIds.count < 4 {
+            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
+            return
         }
 
         isTournamentActionRunning = true
@@ -2016,6 +2164,11 @@ final class AppViewModel: ObservableObject {
             return
         }
 
+        if participantIds.count < 4 {
+            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
+            return
+        }
+
         isTournamentActionRunning = true
         tournamentActionErrorMessage = nil
 
@@ -2038,6 +2191,11 @@ final class AppViewModel: ObservableObject {
 
         guard let tournament = activeTournament else {
             tournamentStatusMessage = "No active tournament to complete."
+            return
+        }
+
+        if participantIds.count < 4 {
+            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
             return
         }
 
@@ -2093,6 +2251,11 @@ final class AppViewModel: ObservableObject {
                 createdAt: selected.createdAt
             )
             activeTournament = tournaments[index]
+        }
+
+        if participantIds.count < 4 {
+            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
+            return
         }
 
         isTournamentActionRunning = true
