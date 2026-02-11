@@ -947,7 +947,9 @@ final class AppViewModel: ObservableObject {
 
     private func estimatedEloDelta(for match: Match, playerId: UUID) -> Int {
         let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-        let teamBIds = match.teamBPlayerIds.compactMap { $0 }
+        // Note for non-coders:
+        // We only need to know whether the player belongs to Team A.
+        // Team B is inferred automatically when they are not in Team A.
         let iAmTeamA = teamAIds.contains(playerId)
         let didWin = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         let margin = abs(match.teamAScore - match.teamBScore)
@@ -1077,7 +1079,9 @@ final class AppViewModel: ObservableObject {
             async let matchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
             async let scheduleTask = apiClient.fetchSchedule()
             async let pollsTask = apiClient.fetchAvailabilityPolls()
-            async let tournamentTask = loadTournamentData(silently: true)
+            // Note for non-coders:
+            // `Void` means this background task updates app state but doesn't return a value.
+            async let tournamentTask: Void = loadTournamentData(silently: true)
 
             self.players = try await playersTask
             syncProfileSetupDraftFromCurrentPlayer()
