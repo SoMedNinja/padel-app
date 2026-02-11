@@ -8,6 +8,13 @@ struct AdminSnapshot {
     static let empty = AdminSnapshot(playerCount: 0, matchCount: 0, scheduledCount: 0)
 }
 
+struct HeadToHeadSummary: Identifiable {
+    let id: String
+    let pairing: String
+    let matchesPlayed: Int
+    let closeMatches: Int
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     @Published var players: [Player] = []
@@ -15,11 +22,116 @@ final class AppViewModel: ObservableObject {
     @Published var schedule: [ScheduleEntry] = []
     @Published var lastErrorMessage: String?
     @Published var statusMessage: String?
+    @Published var isAuthenticated = false
+    @Published var isAuthenticating = false
+    @Published var authMessage: String?
+    @Published var selectedAvatarSymbol = "person.crop.circle.fill"
+
+    private(set) var signedInEmail: String?
+
+    private var accountStore: [String: String] = [
+        "alex@padel.app": "padel123",
+        "sam@padel.app": "padel123"
+    ]
 
     // Note for non-coders:
-    // We treat the first profile as the active user in this starter app.
-    // Later, this should come from real login sessions.
-    var currentPlayer: Player? { players.first }
+    // We keep auth details in-memory for this starter iOS client so teams can test
+    // the full sign in / sign up flow before wiring secure production authentication.
+    // In production, this should use Supabase Auth sessions and secure storage.
+    func signIn(email: String, password: String) async {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !normalizedEmail.isEmpty, !normalizedPassword.isEmpty else {
+            authMessage = "Please enter both email and password."
+            return
+        }
+
+        isAuthenticating = true
+        defer { isAuthenticating = false }
+
+        try? await Task.sleep(nanoseconds: 350_000_000)
+
+        guard let storedPassword = accountStore[normalizedEmail], storedPassword == normalizedPassword else {
+            authMessage = "Invalid email or password."
+            return
+        }
+
+        signedInEmail = normalizedEmail
+        isAuthenticated = true
+        authMessage = nil
+        await bootstrap()
+    }
+
+    // Note for non-coders:
+    // Sign up creates a new account in this prototype auth store and then signs the
+    // person in immediately, matching the instant onboarding pattern in the web app.
+    func signUp(name: String, email: String, password: String) async {
+        let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard normalizedName.count >= 2 else {
+            authMessage = "Please enter your full name."
+            return
+        }
+
+        guard normalizedPassword.count >= 6 else {
+            authMessage = "Password must be at least 6 characters."
+            return
+        }
+
+        guard !normalizedEmail.isEmpty else {
+            authMessage = "Please enter an email address."
+            return
+        }
+
+        if accountStore[normalizedEmail] != nil {
+            authMessage = "An account already exists with this email."
+            return
+        }
+
+        accountStore[normalizedEmail] = normalizedPassword
+        signedInEmail = normalizedEmail
+        isAuthenticated = true
+        authMessage = nil
+
+        if players.isEmpty {
+            players = SampleData.players
+        }
+
+        if !players.contains(where: { $0.fullName.caseInsensitiveCompare(normalizedName) == .orderedSame }) {
+            players.insert(
+                Player(id: UUID(), fullName: normalizedName, elo: 1200, isAdmin: false, isRegular: true),
+                at: 0
+            )
+        }
+
+        await bootstrap()
+    }
+
+    func signOut() {
+        // Note for non-coders:
+        // Signing out clears local session state and returns to the auth screen,
+        // similar to how the web app returns to its login flow.
+        isAuthenticated = false
+        signedInEmail = nil
+        authMessage = nil
+        statusMessage = nil
+    }
+
+    // Note for non-coders:
+    // We map the signed-in email to a player profile name if possible so the right
+    // person appears in Profile and permission-gated sections.
+    var currentPlayer: Player? {
+        guard let signedInEmail else { return players.first }
+        let emailPrefix = signedInEmail.split(separator: "@").first?.replacingOccurrences(of: ".", with: " ") ?? ""
+        if let exact = players.first(where: { $0.fullName.caseInsensitiveCompare(String(emailPrefix)) == .orderedSame }) {
+            return exact
+        }
+        return players.first
+    }
+
     var canSeeSchedule: Bool { currentPlayer?.isRegular ?? true }
     var canUseAdmin: Bool { currentPlayer?.isAdmin ?? false }
 
@@ -29,6 +141,50 @@ final class AppViewModel: ObservableObject {
             matchCount: matches.count,
             scheduledCount: schedule.count
         )
+    }
+
+    var profileWinRate: Int {
+        guard let currentPlayer else { return 0 }
+        let involvingCurrent = matches.filter { match in
+            match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+                || match.teamBName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+        }
+        guard !involvingCurrent.isEmpty else { return 0 }
+        let wins = involvingCurrent.filter { match in
+            if match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName) {
+                return match.teamAScore > match.teamBScore
+            }
+            return match.teamBScore > match.teamAScore
+        }
+        return Int((Double(wins.count) / Double(involvingCurrent.count)) * 100)
+    }
+
+    var profileMatchesPlayed: Int {
+        guard let currentPlayer else { return 0 }
+        return matches.filter { match in
+            match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+                || match.teamBName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+        }.count
+    }
+
+    var headToHeadSummary: [HeadToHeadSummary] {
+        var grouped: [String: [Match]] = [:]
+        for match in matches {
+            let pairing = [match.teamAName, match.teamBName].sorted().joined(separator: " vs ")
+            grouped[pairing, default: []].append(match)
+        }
+
+        return grouped.map { key, groupedMatches in
+            HeadToHeadSummary(
+                id: key,
+                pairing: key,
+                matchesPlayed: groupedMatches.count,
+                closeMatches: groupedMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 2 }.count
+            )
+        }
+        .sorted { $0.matchesPlayed > $1.matchesPlayed }
+        .prefix(5)
+        .map { $0 }
     }
 
     private let apiClient = SupabaseRESTClient()
@@ -108,7 +264,8 @@ enum SampleData {
 
     static let matches: [Match] = [
         Match(id: UUID(), playedAt: .now.addingTimeInterval(-86_400), teamAName: "Alex & Sam", teamBName: "Robin & Kim", teamAScore: 6, teamBScore: 4),
-        Match(id: UUID(), playedAt: .now.addingTimeInterval(-172_800), teamAName: "Alex & Kim", teamBName: "Sam & Robin", teamAScore: 7, teamBScore: 5)
+        Match(id: UUID(), playedAt: .now.addingTimeInterval(-172_800), teamAName: "Alex & Kim", teamBName: "Sam & Robin", teamAScore: 7, teamBScore: 5),
+        Match(id: UUID(), playedAt: .now.addingTimeInterval(-250_000), teamAName: "Alex & Sam", teamBName: "Robin & Kim", teamAScore: 6, teamBScore: 5)
     ]
 
     static let schedule: [ScheduleEntry] = [

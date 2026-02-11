@@ -6,11 +6,19 @@ struct PadelNativeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
-                .environmentObject(appViewModel)
-                .task {
+            Group {
+                if appViewModel.isAuthenticated {
+                    MainTabView()
+                } else {
+                    AuthView()
+                }
+            }
+            .environmentObject(appViewModel)
+            .task {
+                if appViewModel.isAuthenticated {
                     await appViewModel.bootstrap()
                 }
+            }
         }
     }
 }
