@@ -13,15 +13,19 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             List(viewModel.matches) { match in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("\(match.teamAName) vs \(match.teamBName)")
-                        .font(.headline)
-                    Text("Score: \(match.teamAScore) - \(match.teamBScore)")
-                    Text(formatter.string(from: match.playedAt))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                NavigationLink {
+                    MatchDetailView(match: match)
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("\(match.teamAName) vs \(match.teamBName)")
+                            .font(.headline)
+                        Text("Score: \(match.teamAScore) - \(match.teamBScore)")
+                        Text(formatter.string(from: match.playedAt))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 4)
             }
             .navigationTitle("History")
             .refreshable {

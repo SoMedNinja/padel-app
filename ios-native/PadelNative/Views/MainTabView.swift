@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject private var viewModel: AppViewModel
+
     var body: some View {
         TabView {
             ProfileView()
@@ -18,15 +20,29 @@ struct MainTabView: View {
                     Label("History", systemImage: "clock.arrow.circlepath")
                 }
 
-            ScheduleView()
-                .tabItem {
-                    Label("Schedule", systemImage: "calendar")
-                }
+            if viewModel.canSeeSchedule {
+                ScheduleView()
+                    .tabItem {
+                        Label("Schedule", systemImage: "calendar")
+                    }
+            }
 
             TournamentView()
                 .tabItem {
                     Label("Tournament", systemImage: "trophy")
                 }
+
+            SingleGameView()
+                .tabItem {
+                    Label("Single Game", systemImage: "sportscourt")
+                }
+
+            if viewModel.canUseAdmin {
+                AdminView()
+                    .tabItem {
+                        Label("Admin", systemImage: "gearshape.2")
+                    }
+            }
         }
     }
 }
