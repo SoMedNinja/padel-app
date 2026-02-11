@@ -33,7 +33,7 @@ struct MainTabView: View {
                     .tag(3)
             }
 
-            if !viewModel.isGuestMode {
+            if viewModel.canSeeTournament {
                 TournamentView()
                     .tabItem {
                         Label("Tournament", systemImage: "trophy")
