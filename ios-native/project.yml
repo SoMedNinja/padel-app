@@ -2,6 +2,9 @@ name: PadelNative
 options:
   deploymentTarget:
     iOS: 17.0
+configs:
+  Debug: debug
+  Release: release
 targets:
   PadelNative:
     type: application
@@ -11,9 +14,18 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.padelnative
+        PRODUCT_NAME: PadelNative
         SWIFT_VERSION: 5.0
+        MARKETING_VERSION: 1.0.0
+        CURRENT_PROJECT_VERSION: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        INFOPLIST_KEY_CFBundleDisplayName: Padel Native
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.sports
         INFOPLIST_KEY_SUPABASE_URL: $(SUPABASE_URL)
         INFOPLIST_KEY_SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
+        # NOTE for non-coders: this key creates a default launch screen without additional storyboard files.
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
     configFiles:
       Debug: PadelNative/Config/AppSecrets.xcconfig
       Release: PadelNative/Config/AppSecrets.xcconfig
