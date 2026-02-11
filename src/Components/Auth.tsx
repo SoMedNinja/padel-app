@@ -132,7 +132,9 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
   const submit = async () => {
     if (isSubmitting) return;
     setNotice("");
-    const normalizedEmail = email.trim().toLowerCase();
+    // Note for non-coders: we only remove accidental spaces around the email.
+    // We do NOT force lowercase here, because some identity providers treat letter case strictly.
+    const normalizedEmail = email.trim();
     const normalizedPassword = password;
 
     if (!normalizedEmail || !normalizedPassword) {
@@ -225,7 +227,9 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
   };
 
   const handlePasswordReset = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
+    // Note for non-coders: for password reset we use the same email cleanup as sign-in,
+    // so users always target the exact account they entered.
+    const normalizedEmail = email.trim();
 
     if (!normalizedEmail) {
       setNoticeSeverity("error");
