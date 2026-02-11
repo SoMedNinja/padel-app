@@ -1,24 +1,45 @@
 import PhotosUI
+import Charts
 import SwiftUI
 import UIKit
+
+private enum ProfileTab: String, CaseIterable, Identifiable {
+    case overview
+    case eloTrend
+    case teammates
+    case merits
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .overview: return "Overview"
+        case .eloTrend: return "ELO trend"
+        case .teammates: return "Teammates"
+        case .merits: return "Merits"
+        }
+    }
+}
 
 struct ProfileView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var selectedAvatarItem: PhotosPickerItem?
+    @State private var selectedTab: ProfileTab = .overview
+    @State private var selectedFilter: DashboardMatchFilter = .all
+
+    private var profileFilterOptions: [DashboardMatchFilter] {
+        [.last7, .last30, .tournaments, .all]
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    accountSection
+                    tabSelector
+                    profileFilterSelector
 
                     if let current = viewModel.currentPlayer {
-                        currentPlayerSection(current)
-                        profileSetupSection
-                        badgesSection(current)
-                        performanceSection
-                        navigationActionsSection
-                        permissionsSection(current)
+                        selectedTabContent(for: current)
                     }
 
                     Button(role: .destructive) {
@@ -36,6 +57,136 @@ struct ProfileView: View {
                 viewModel.syncProfileSetupDraftFromCurrentPlayer()
             }
             .padelLiquidGlassChrome()
+        }
+    }
+
+    private var tabSelector: some View {
+        Picker("Profile tab", selection: $selectedTab) {
+            ForEach(ProfileTab.allCases) { tab in
+                Text(tab.title).tag(tab)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var profileFilterSelector: some View {
+        SectionCard(title: "Profile filter") {
+            Text("Note for non-coders: this filter works like web profile tabs, so every profile statistic below uses the same time/tournament context.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Picker("Filter", selection: $selectedFilter) {
+                ForEach(profileFilterOptions) { filter in
+                    Text(filter.title).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    @ViewBuilder
+    private func selectedTabContent(for current: Player) -> some View {
+        switch selectedTab {
+        case .overview:
+            overviewTab(current)
+        case .eloTrend:
+            eloTrendTab
+        case .teammates:
+            teammatesTab
+        case .merits:
+            meritsTab(current)
+        }
+    }
+
+    private func overviewTab(_ current: Player) -> some View {
+        Group {
+            accountSection
+            currentPlayerSection(current)
+            profileSetupSection
+            performanceSection
+            navigationActionsSection
+            permissionsSection(current)
+        }
+    }
+
+    private var eloTrendTab: some View {
+        SectionCard(title: "ELO timeline") {
+            Text("Note for non-coders: this chart shows how your rating moved match by match in the selected filter window.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            let points = viewModel.profileEloTimeline(filter: selectedFilter)
+            if points.count <= 1 {
+                Text("Play more matches to see an ELO trend line.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Chart(points) { point in
+                    LineMark(
+                        x: .value("Date", point.date),
+                        y: .value("ELO", point.elo)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(.accent)
+
+                    PointMark(
+                        x: .value("Date", point.date),
+                        y: .value("ELO", point.elo)
+                    )
+                    .symbolSize(24)
+                }
+                .frame(height: 220)
+            }
+        }
+    }
+
+    private var teammatesTab: some View {
+        SectionCard(title: "Teammate & opponent matrix") {
+            Text("Note for non-coders: this is the profile equivalent of the web heatmap summary, focused on your strongest and most frequent combinations.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            ForEach(viewModel.profileComboStats(filter: selectedFilter)) { combo in
+                HStack {
+                    Label(combo.title, systemImage: combo.symbol)
+                    Spacer()
+                    Text(combo.value)
+                        .font(.subheadline.weight(.semibold))
+                        .multilineTextAlignment(.trailing)
+                }
+                Text(combo.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Divider()
+            }
+        }
+    }
+
+    private func meritsTab(_ current: Player) -> some View {
+        SectionCard(title: "Merits & milestones") {
+            Text("Note for non-coders: unlocked merits are your achieved badges, while progress bars track trophy-style milestones that are still in progress.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            badgePickerContent(current)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(viewModel.profileMeritMilestones(filter: selectedFilter)) { merit in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label(merit.title, systemImage: merit.icon)
+                            Spacer()
+                            Text(merit.unlocked ? "Unlocked" : "\(merit.current)/\(merit.target)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(merit.unlocked ? .green : .secondary)
+                        }
+                        Text(merit.description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ProgressView(value: merit.progress)
+                    }
+                    Divider()
+                }
+            }
         }
     }
 
@@ -131,6 +282,12 @@ struct ProfileView: View {
 
     private func badgesSection(_ current: Player) -> some View {
         SectionCard(title: "Merits & badges") {
+            badgePickerContent(current)
+        }
+    }
+
+    private func badgePickerContent(_ current: Player) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Choose which unlocked badge should be highlighted beside your name.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -162,7 +319,7 @@ struct ProfileView: View {
 
     private var performanceSection: some View {
         SectionCard(title: "Performance") {
-            ForEach(viewModel.profilePerformanceWidgets) { widget in
+            ForEach(viewModel.profilePerformanceWidgets(filter: selectedFilter)) { widget in
                 HStack {
                     Label(widget.title, systemImage: widget.symbol)
                     Spacer()
