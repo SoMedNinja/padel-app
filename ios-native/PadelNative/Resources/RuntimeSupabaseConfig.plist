@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Note for non-coders: this is a runtime fallback used only when Info.plist values are missing. -->
+	<key>SUPABASE_URL</key>
+	<string>https://hiasgpbuqhiwutpgugjk.supabase.co</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>sb_publishable_VPkXuJh-Wp-VElcUIpZK8A_sRtJUuSC</string>
+</dict>
+</plist>

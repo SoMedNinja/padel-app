@@ -8,6 +8,7 @@ This folder contains a **native iOS SwiftUI app** that mirrors the current web a
 
 - Native SwiftUI tab app architecture.
 - Supabase REST integration via `URLSession`.
+- Runtime config fallback via `PadelNative/Resources/RuntimeSupabaseConfig.plist` so auth still works if Info.plist key mapping is missing in a local Xcode setup.
 - Feature-oriented models and view models.
 - Offline-friendly fallback sample data if API config is missing.
 - Route parity with key web routes (Profile, Dashboard, History + Match Details, Schedule, Tournament, Single Game, Admin).
