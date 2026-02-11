@@ -33,6 +33,40 @@ struct MatchSubmission: Encodable {
     }
 }
 
+
+
+struct TournamentRoundScoreUpdate: Encodable {
+    let team1Score: Int
+    let team2Score: Int
+
+    enum CodingKeys: String, CodingKey {
+        case team1Score = "team1_score"
+        case team2Score = "team2_score"
+    }
+}
+
+struct TournamentResultSubmission: Encodable {
+    let tournamentId: UUID
+    let profileId: UUID
+    let rank: Int
+    let pointsFor: Int
+    let pointsAgainst: Int
+    let matchesPlayed: Int
+    let wins: Int
+    let losses: Int
+
+    enum CodingKeys: String, CodingKey {
+        case tournamentId = "tournament_id"
+        case profileId = "profile_id"
+        case rank
+        case pointsFor = "points_for"
+        case pointsAgainst = "points_against"
+        case matchesPlayed = "matches_played"
+        case wins
+        case losses
+    }
+}
+
 struct SupabaseRESTClient {
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -86,6 +120,114 @@ struct SupabaseRESTClient {
             throw APIError.requestFailed(statusCode: httpResponse.statusCode)
         }
     }
+
+    func fetchActiveTournament() async throws -> Tournament? {
+        // Note for non-coders:
+        // "Active" means the latest tournament that is still running (in progress or draft).
+        let tournaments: [Tournament] = try await request(
+            path: "/rest/v1/mexicana_tournaments",
+            query: "select=*&status=in.(in_progress,draft)&order=created_at.desc&limit=1"
+        )
+        return tournaments.first
+    }
+
+    func fetchTournamentRounds(tournamentId: UUID) async throws -> [TournamentRound] {
+        try await request(
+            path: "/rest/v1/mexicana_rounds",
+            query: "select=*&tournament_id=eq.\(tournamentId.uuidString)&order=round_number.asc"
+        )
+    }
+
+    func fetchTournamentStandings(tournamentId: UUID) async throws -> [TournamentResult] {
+        try await request(
+            path: "/rest/v1/mexicana_results",
+            query: "select=*&tournament_id=eq.\(tournamentId.uuidString)&order=rank.asc"
+        )
+    }
+
+    func fetchCompletedTournamentResults(limit: Int = 50) async throws -> [TournamentResult] {
+        try await request(
+            path: "/rest/v1/mexicana_results",
+            query: "select=*&order=created_at.desc&limit=\(limit)"
+        )
+    }
+
+    func saveTournamentRoundScore(roundId: UUID, team1Score: Int, team2Score: Int) async throws {
+        try await sendPatch(
+            path: "/rest/v1/mexicana_rounds",
+            query: "id=eq.\(roundId.uuidString)",
+            body: TournamentRoundScoreUpdate(team1Score: team1Score, team2Score: team2Score)
+        )
+    }
+
+    func saveTournamentStandings(_ standings: [TournamentResultSubmission]) async throws {
+        guard !standings.isEmpty else { return }
+        try await sendPost(path: "/rest/v1/mexicana_results", body: standings, preferHeader: "resolution=merge-duplicates")
+    }
+
+    func completeTournament(tournamentId: UUID) async throws {
+        struct TournamentCompletionUpdate: Encodable {
+            let status: String
+            let completedAt: Date
+
+            enum CodingKeys: String, CodingKey {
+                case status
+                case completedAt = "completed_at"
+            }
+        }
+
+        let payload = TournamentCompletionUpdate(status: "completed", completedAt: .now)
+        try await sendPatch(
+            path: "/rest/v1/mexicana_tournaments",
+            query: "id=eq.\(tournamentId.uuidString)",
+            body: payload
+        )
+    }
+
+    private func sendPost<T: Encodable>(path: String, body: T, preferHeader: String = "return=minimal") async throws {
+        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)") else {
+            throw APIError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(preferHeader, forHTTPHeaderField: "Prefer")
+        request.httpBody = try encoder.encode(body)
+
+        try await perform(request)
+    }
+
+    private func sendPatch<T: Encodable>(path: String, query: String, body: T) async throws {
+        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(query)") else {
+            throw APIError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try encoder.encode(body)
+
+        try await perform(request)
+    }
+
+    private func perform(_ request: URLRequest) async throws {
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.requestFailed(statusCode: -1)
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.requestFailed(statusCode: httpResponse.statusCode)
+        }
+    }
+
 
     private func request<T: Decodable>(path: String, query: String) async throws -> [T] {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
