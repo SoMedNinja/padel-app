@@ -809,7 +809,8 @@ final class AppViewModel: ObservableObject {
         let timeline = playerEloTimeline(playerId: playerId, filter: .all)
         let cutoff = Date().addingTimeInterval(Double(-days * 24 * 60 * 60))
         let filtered = timeline.filter { $0.date >= cutoff }
-        guard let first = filtered.first, let last = filtered.last else { return 0 }
+        // Note for non-coders: this check means "if there are no timeline entries in this date range, the change is zero".
+        guard !filtered.isEmpty else { return 0 }
         // We need ELO BEFORE the first match in the period.
         // Actually, playerEloTimeline returns ELO AFTER the match.
         // So delta = last.elo - (first.elo - first_match_delta)
