@@ -170,4 +170,19 @@ struct TournamentParticipant: Identifiable, Codable {
             profileAvatarURL = nil
         }
     }
+
+    // Note for non-coders:
+    // Codable means Swift can both read data from the backend (decode)
+    // and also write it back out (encode). Because this model has custom
+    // decoding logic, we also provide matching encoding logic.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(tournamentId, forKey: .tournamentId)
+        try container.encode(profileId, forKey: .profileId)
+
+        var profileContainer = container.nestedContainer(keyedBy: ProfileCodingKeys.self, forKey: .profile)
+        try profileContainer.encode(profileName, forKey: .fullName)
+        try profileContainer.encodeIfPresent(profileAvatarURL, forKey: .avatarURL)
+    }
 }
