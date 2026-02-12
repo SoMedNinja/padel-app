@@ -3,6 +3,7 @@ import Foundation
 struct AppBootstrapSnapshot {
     let players: [Player]
     let matches: [Match]
+    let allMatches: [Match]
     let schedule: [ScheduleEntry]
     let polls: [AvailabilityPoll]
 
@@ -12,6 +13,7 @@ struct AppBootstrapSnapshot {
     static let sampleFallback = AppBootstrapSnapshot(
         players: SampleData.players,
         matches: SampleData.matches,
+        allMatches: SampleData.matches,
         schedule: SampleData.schedule,
         polls: []
     )
@@ -29,12 +31,14 @@ struct AppBootstrapService {
     func fetchInitialSnapshot(historyPageSize: Int) async throws -> AppBootstrapSnapshot {
         async let playersTask = apiClient.fetchLeaderboard()
         async let matchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
+        async let allMatchesTask = apiClient.fetchAllMatches()
         async let scheduleTask = apiClient.fetchSchedule()
         async let pollsTask = apiClient.fetchAvailabilityPolls()
 
         return AppBootstrapSnapshot(
             players: try await playersTask,
             matches: try await matchesTask,
+            allMatches: try await allMatchesTask,
             schedule: try await scheduleTask,
             polls: try await pollsTask
         )
@@ -43,12 +47,13 @@ struct AppBootstrapService {
     struct PartialSnapshot {
         let players: [Player]?
         let matches: [Match]?
+        let allMatches: [Match]?
         let schedule: [ScheduleEntry]?
         let polls: [AvailabilityPoll]?
         let errorsBySection: [String: String]
 
         var hasAnySuccess: Bool {
-            players != nil || matches != nil || schedule != nil || polls != nil
+            players != nil || matches != nil || allMatches != nil || schedule != nil || polls != nil
         }
     }
 
@@ -58,11 +63,13 @@ struct AppBootstrapService {
     func fetchInitialSnapshotPartial(historyPageSize: Int) async -> PartialSnapshot {
         async let playersTask: Result<[Player], Error> = capture { try await apiClient.fetchLeaderboard() }
         async let matchesTask: Result<[Match], Error> = capture { try await apiClient.fetchRecentMatches(limit: historyPageSize) }
+        async let allMatchesTask: Result<[Match], Error> = capture { try await apiClient.fetchAllMatches() }
         async let scheduleTask: Result<[ScheduleEntry], Error> = capture { try await apiClient.fetchSchedule() }
         async let pollsTask: Result<[AvailabilityPoll], Error> = capture { try await apiClient.fetchAvailabilityPolls() }
 
         let playersResult = await playersTask
         let matchesResult = await matchesTask
+        let allMatchesResult = await allMatchesTask
         let scheduleResult = await scheduleTask
         let pollsResult = await pollsTask
 
@@ -74,6 +81,9 @@ struct AppBootstrapService {
         if case .failure(let error) = matchesResult {
             errorsBySection["matches"] = error.localizedDescription
         }
+        if case .failure(let error) = allMatchesResult {
+            errorsBySection["allMatches"] = error.localizedDescription
+        }
         if case .failure(let error) = scheduleResult {
             errorsBySection["schedule"] = error.localizedDescription
         }
@@ -84,6 +94,7 @@ struct AppBootstrapService {
         return PartialSnapshot(
             players: try? playersResult.get(),
             matches: try? matchesResult.get(),
+            allMatches: try? allMatchesResult.get(),
             schedule: try? scheduleResult.get(),
             polls: try? pollsResult.get(),
             errorsBySection: errorsBySection

@@ -246,6 +246,16 @@ struct SupabaseRESTClient {
         try await fetchMatchesPage(limit: limit, offset: 0)
     }
 
+    func fetchAllMatches() async throws -> [Match] {
+        // Note for non-coders:
+        // For ELO parity we need every match ever played. We use a high limit (4000)
+        // to ensure we get the full history in one call for this friend group.
+        try await request(
+            path: "/rest/v1/matches",
+            query: "select=id,created_by,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=4000"
+        )
+    }
+
     // Note for non-coders:
     // History can be very long, so this endpoint supports loading it in chunks
     // (pagination) and optional filters just like the web app history screen.
