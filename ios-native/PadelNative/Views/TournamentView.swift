@@ -422,7 +422,7 @@ struct TournamentView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(viewModel.tournamentName(for: result.tournamentId))
                                 .font(.subheadline.weight(.semibold))
-                            Text("Rank #\(result.rank) • W\(result.wins)-L\(result.losses) • PF \(result.pointsFor) / PA \(result.pointsAgainst)")
+                            Text("\(result.profileId.map { viewModel.tournamentPlayerName(for: $0) } ?? "Gästspelare") • Rank #\(result.rank) • W\(result.wins)-L\(result.losses) • PF \(result.pointsFor) / PA \(result.pointsAgainst)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -440,15 +440,15 @@ struct TournamentView: View {
         guard let firstPending = viewModel.tournamentRounds.first(where: { $0.team1Score == nil || $0.team2Score == nil }) else { return nil }
 
         let team1 = firstPending.team1Ids
-            .map { id in viewModel.players.first(where: { $0.id == id })?.profileName ?? "Unknown" }
+            .map { id in viewModel.tournamentPlayerName(for: id) }
             .joined(separator: " & ")
 
         let team2 = firstPending.team2Ids
-            .map { id in viewModel.players.first(where: { $0.id == id })?.profileName ?? "Unknown" }
+            .map { id in viewModel.tournamentPlayerName(for: id) }
             .joined(separator: " & ")
 
         let resting = firstPending.restingIds
-            .map { id in viewModel.players.first(where: { $0.id == id })?.profileName ?? "Unknown" }
+            .map { id in viewModel.tournamentPlayerName(for: id) }
             .joined(separator: ", ")
 
         return (firstPending, team1, team2, resting)
