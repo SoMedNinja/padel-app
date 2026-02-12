@@ -82,6 +82,14 @@ struct AuthView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .disabled(viewModel.isAuthenticating)
+
+                        Button("Fortsätt som gäst") {
+                            // Note for non-coders:
+                            // Guest mode lets you explore read-only stats before deciding to create an account.
+                            viewModel.continueAsGuest()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .disabled(viewModel.isAuthenticating)
                     }
 
                 }

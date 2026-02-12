@@ -72,6 +72,27 @@ struct MainTabView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
+
+                if viewModel.isGuestMode {
+                    HStack(spacing: 10) {
+                        Image(systemName: "person.crop.circle.badge.exclamationmark")
+                            .foregroundStyle(.orange)
+                        Text("Gästläge: du kan visa statistik, men inte spara ändringar.")
+                            .font(.footnote.weight(.semibold))
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
+                        Button("Logga in") {
+                            // Note for non-coders:
+                            // This exits guest mode and returns to the normal login screen.
+                            viewModel.exitGuestMode()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    .padding(10)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+
                 if let versionMessage = viewModel.appVersionMessage {
                     HStack(spacing: 10) {
                         Image(systemName: viewModel.isUpdateRequired ? "exclamationmark.triangle.fill" : "arrow.down.circle.fill")
@@ -115,8 +136,8 @@ struct MainTabView: View {
                             .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
                     }
                     .accessibilityLabel("Snabblägg till match")
-                     .disabled(!viewModel.canCreateMatches || viewModel.isUpdateRequired)
-                    .opacity(viewModel.canCreateMatches ? 1 : 0.45)
+                     .disabled(!viewModel.canCreateMatches || viewModel.isUpdateRequired || viewModel.isGuestMode)
+                    .opacity(viewModel.canCreateMatches && !viewModel.isGuestMode ? 1 : 0.45)
                     .padding(.trailing, 16)
                     .padding(.bottom, 6)
                 }

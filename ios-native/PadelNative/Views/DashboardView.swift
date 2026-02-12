@@ -81,6 +81,22 @@ struct DashboardView: View {
 
     private var dashboardContent: some View {
         List {
+            if let error = viewModel.lastErrorMessage {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Data refresh warning", systemImage: "exclamationmark.triangle.fill")
+                            .font(.headline)
+                            .foregroundStyle(.orange)
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        // Note for non-coders:
+                        // This card tells users that some widgets may be stale because
+                        // a live refresh failed, even though existing data is still visible.
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
             if let notice = viewModel.activeTournamentNotice {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {

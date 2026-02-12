@@ -251,6 +251,7 @@ final class AppViewModel: ObservableObject {
     @Published var lastErrorMessage: String?
     @Published var statusMessage: String?
     @Published var isAuthenticated = false
+    @Published var isGuestMode = false
     @Published var isAuthenticating = false
     @Published var authMessage: String?
     @Published var isCheckingSession = true
@@ -549,10 +550,13 @@ final class AppViewModel: ObservableObject {
     func signOut() {
         // Note for non-coders:
         // Signing out clears local state and also asks Supabase to end server session.
-        Task {
-            await authService.signOut(accessToken: nil)
+        if !isGuestMode {
+            Task {
+                await authService.signOut(accessToken: nil)
+            }
         }
         isAuthenticated = false
+        isGuestMode = false
         signedInEmail = nil
         currentIdentity = nil
         authMessage = nil
@@ -603,12 +607,14 @@ final class AppViewModel: ObservableObject {
             await bootstrap()
         } catch AuthServiceError.noStoredSession {
             isAuthenticated = false
+            isGuestMode = false
             currentIdentity = nil
             hasRecoveryFailed = false
             sessionRecoveryError = nil
             stopLiveSync()
         } catch {
             isAuthenticated = false
+            isGuestMode = false
             currentIdentity = nil
             hasRecoveryFailed = true
             sessionRecoveryError = error.localizedDescription
@@ -620,8 +626,28 @@ final class AppViewModel: ObservableObject {
         await restoreSession()
     }
 
+
+    func continueAsGuest() {
+        // Note for non-coders:
+        // Guest mode lets people browse read-only stats without creating an account.
+        isGuestMode = true
+        isAuthenticated = false
+        currentIdentity = nil
+        signedInEmail = nil
+        authMessage = nil
+        hasRecoveryFailed = false
+        sessionRecoveryError = nil
+    }
+
+    func exitGuestMode() {
+        // Note for non-coders:
+        // Exiting guest mode returns the app to the normal login flow.
+        isGuestMode = false
+    }
+
     private func applySignedInState(identity: AuthIdentity) {
         isAuthenticated = true
+        isGuestMode = false
         signedInEmail = identity.email
         currentIdentity = identity
         hasRecoveryFailed = false
@@ -792,7 +818,7 @@ final class AppViewModel: ObservableObject {
 
 
     private var accessPolicy: AccessPolicy {
-        AccessPolicy(isAuthenticated: isAuthenticated, profile: authenticatedProfile)
+        AccessPolicy(isAuthenticated: isAuthenticated, isGuest: isGuestMode, profile: authenticatedProfile)
     }
 
     var highlightedBadgeTitle: String {
@@ -1145,36 +1171,50 @@ final class AppViewModel: ObservableObject {
             selectedScheduleWeekKey = scheduleWeekOptions.dropFirst().first?.key ?? scheduleWeekOptions.first?.key ?? ""
         }
 
-        do {
-            // Note for non-coders:
-            // We delegated initial data fetching to AppBootstrapService so this view-model
-            // coordinates state, while the service handles backend loading details.
-            let snapshot = try await bootstrapService.fetchInitialSnapshot(historyPageSize: historyPageSize)
+        let partial = await bootstrapService.fetchInitialSnapshotPartial(historyPageSize: historyPageSize)
 
-            // Note for non-coders:
-            // `Void` means this background task updates app state but doesn't return a value.
-            async let tournamentTask: Void = loadTournamentData(silently: true)
-
-            self.players = snapshot.players
+        if let players = partial.players {
+            self.players = players
             syncProfileSetupDraftFromCurrentPlayer()
-            self.matches = snapshot.matches
-            self.historyMatches = snapshot.matches
-            self.hasMoreHistoryMatches = snapshot.matches.count == historyPageSize
-            self.schedule = snapshot.schedule
-            self.polls = sortPolls(snapshot.polls)
+        }
+        if let matches = partial.matches {
+            self.matches = matches
+            self.historyMatches = matches
+            self.hasMoreHistoryMatches = matches.count == historyPageSize
+        }
+        if let schedule = partial.schedule {
+            self.schedule = schedule
+        }
+        if let polls = partial.polls {
+            self.polls = sortPolls(polls)
             syncVoteDraftsFromPolls()
+        }
+
+        if partial.hasAnySuccess {
+            async let tournamentTask: Void = loadTournamentData(silently: true)
             _ = await tournamentTask
             await refreshAdminProfiles(silently: true)
             if areScheduleNotificationsEnabled {
                 await notificationService.scheduleUpcomingGameReminders(schedule)
             }
             await checkForAppUpdate()
-            self.lastErrorMessage = nil
             startLiveSyncIfNeeded()
-        } catch {
+        }
+
+        if partial.errorsBySection.isEmpty {
+            self.lastErrorMessage = nil
+            return
+        }
+
+        let errorSummary = partial.errorsBySection
+            .sorted { $0.key < $1.key }
+            .map { "\($0.key): \($0.value)" }
+            .joined(separator: " | ")
+
+        if AppConfig.allowsSampleDataFallback, !partial.hasAnySuccess {
             // Note for non-coders:
-            // If backend values are missing or internet is unavailable,
-            // we still show sample data so the app stays usable.
+            // We keep sample fallback in developer builds so screens stay usable during
+            // local setup, but production builds disable this path by default.
             let fallback = AppBootstrapSnapshot.sampleFallback
             self.players = fallback.players
             syncProfileSetupDraftFromCurrentPlayer()
@@ -1193,7 +1233,16 @@ final class AppViewModel: ObservableObject {
                 await notificationService.scheduleUpcomingGameReminders(schedule)
             }
             await checkForAppUpdate()
-            self.lastErrorMessage = error.localizedDescription
+            self.lastErrorMessage = "Live data unavailable. Showing sample data for local testing. Details: \(errorSummary)"
+            return
+        }
+
+        // Note for non-coders:
+        // In production we do not swap to fake sample data. We keep whatever real data
+        // we already have and show a clear message so users know refresh failed.
+        self.lastErrorMessage = "Could not refresh all live data. Showing latest available server data. Details: \(errorSummary)"
+        if !partial.hasAnySuccess, players.isEmpty, matches.isEmpty, schedule.isEmpty {
+            self.lastErrorMessage = "Could not load live data from server. Please check connection and Supabase configuration, then try again. Details: \(errorSummary)"
         }
     }
 

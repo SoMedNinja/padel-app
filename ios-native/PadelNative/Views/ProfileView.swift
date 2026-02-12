@@ -40,12 +40,18 @@ struct ProfileView: View {
 
                     if let current = viewModel.currentPlayer {
                         selectedTabContent(for: current)
+                    } else if viewModel.isGuestMode {
+                        guestModeSection
                     }
 
                     Button(role: .destructive) {
-                        viewModel.signOut()
+                        if viewModel.isGuestMode {
+                            viewModel.exitGuestMode()
+                        } else {
+                            viewModel.signOut()
+                        }
                     } label: {
-                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                        Label(viewModel.isGuestMode ? "Gå till inloggning" : "Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -95,6 +101,21 @@ struct ProfileView: View {
             Text("Active filter: \(selectedFilter == .custom ? viewModel.dashboardActiveFilterLabel : selectedFilter.title)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+
+
+    private var guestModeSection: some View {
+        SectionCard(title: "Guest mode") {
+            Text("Note for non-coders: guest mode is read-only. You can browse public stats, but profile editing and saved actions require a real account.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Button("Logga in") {
+                viewModel.exitGuestMode()
+            }
+            .buttonStyle(.borderedProminent)
         }
     }
 
