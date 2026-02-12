@@ -29,6 +29,7 @@ struct RivalryView: View {
 
                 headerSection
                 statsGrid
+                detailedComparisonSection
                 recentResultsSection
             }
             .padding()
@@ -83,6 +84,8 @@ struct RivalryView: View {
                 statCard(title: "Vinst (start-serve)", value: "\(summary?.serveFirstWins ?? 0) - \(summary?.serveFirstLosses ?? 0)")
                 statCard(title: "Vinst (mottagning)", value: "\(summary?.serveSecondWins ?? 0) - \(summary?.serveSecondLosses ?? 0)")
 
+                statCard(title: "Högsta ELO", value: "\(summary?.highestElo ?? 1000)")
+
                 if mode == "against" {
                     statCard(title: "Vinstchans", value: "\(Int(round((summary?.winProbability ?? 0.5) * 100)))%")
                     statCard(title: "ELO-utbyte", value: "\(summary?.eloDelta ?? 0 >= 0 ? "+" : "")\(summary?.eloDelta ?? 0)", color: (summary?.eloDelta ?? 0) >= 0 ? .green : .red)
@@ -103,6 +106,63 @@ struct RivalryView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
+    }
+
+    private var detailedComparisonSection: some View {
+        Group {
+            if let summary = summary {
+                VStack(spacing: 12) {
+                    comparisonRow(
+                        title: "Antal dagar som månadens MVP",
+                        myValue: "\(viewModel.currentMonthlyMvpDays)",
+                        oppValue: "\(summary.monthlyMvpDays)"
+                    )
+
+                    comparisonRow(
+                        title: "Antal kvällens MVP",
+                        myValue: "\(viewModel.currentEveningMvps)",
+                        oppValue: "\(summary.eveningMvps)"
+                    )
+
+                    comparisonRow(
+                        title: "Turneringar (Gemensamma / Vinster)",
+                        myValue: "\(summary.commonTournaments)",
+                        oppValue: "\(summary.commonTournamentWins)",
+                        myLabel: "Gemensamma",
+                        oppLabel: "Dina vinster"
+                    )
+                }
+            }
+        }
+    }
+
+    private func comparisonRow(title: String, myValue: String, oppValue: String, myLabel: String = "Du", oppLabel: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title.uppercased())
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.secondary)
+
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(myLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(myValue)
+                        .font(.headline.weight(.bold))
+                }
+                Spacer()
+                VStack(alignment: .trailing) {
+                    Text(oppLabel ?? (opponent?.profileName ?? "Motståndare"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(oppValue)
+                        .font(.headline.weight(.bold))
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func statCard(title: String, value: String, color: Color = .primary) -> some View {

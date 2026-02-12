@@ -19,6 +19,13 @@ struct RivalrySummary: Identifiable {
     let winProbability: Double
     let recentResults: [String] // "V", "F"
 
+    // Feature parity fields
+    let highestElo: Int
+    let monthlyMvpDays: Int
+    let eveningMvps: Int
+    let commonTournamentWins: Int
+    let commonTournaments: Int
+
     var winRate: Double {
         guard matchesPlayed > 0 else { return 0 }
         return Double(wins) / Double(matchesPlayed)

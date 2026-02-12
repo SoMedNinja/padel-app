@@ -28,19 +28,31 @@ struct DashboardView: View {
         }
     }
 
+    @State private var showScrollToTop = false
+
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.isDashboardLoading {
-                    loadingState
-                } else if let error = viewModel.lastErrorMessage,
-                          viewModel.players.isEmpty,
-                          viewModel.matches.isEmpty {
-                    errorState(message: error)
-                } else if viewModel.dashboardFilteredMatches.isEmpty {
-                    emptyState
-                } else {
-                    dashboardContent
+            ScrollViewReader { proxy in
+                ZStack(alignment: .bottom) {
+                    content(proxy: proxy)
+
+                    if showScrollToTop {
+                        Button {
+                            withAnimation {
+                                proxy.scrollTo("top", anchor: .top)
+                            }
+                        } label: {
+                            Image(systemName: "chevron.up")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Color.accentColor)
+                                .clipShape(Circle())
+                                .shadow(radius: 4)
+                        }
+                        .padding(.bottom, 20)
+                        .transition(.scale.combined(with: .opacity))
+                    }
                 }
             }
             .navigationTitle("Översikt")
@@ -60,6 +72,23 @@ struct DashboardView: View {
                 await viewModel.bootstrap()
             }
         }
+    }
+
+    @ViewBuilder
+    private func content(proxy: ScrollViewProxy) -> some View {
+        Group {
+            if viewModel.isDashboardLoading {
+                    loadingState
+                } else if let error = viewModel.lastErrorMessage,
+                          viewModel.players.isEmpty,
+                          viewModel.matches.isEmpty {
+                    errorState(message: error)
+                } else if viewModel.dashboardFilteredMatches.isEmpty {
+                    emptyState
+                } else {
+                    dashboardContent
+                }
+            }
     }
 
     private var loadingState: some View {
@@ -99,6 +128,14 @@ struct DashboardView: View {
 
     private var dashboardContent: some View {
         List {
+            Color.clear
+                .frame(height: 1)
+                .id("top")
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .onAppear { showScrollToTop = false }
+                .onDisappear { showScrollToTop = true }
+
             dashboardNoticeSections
             filterSection
             mvpSection
@@ -265,11 +302,11 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 0) {
                         headerCell(title: "Spelare", key: "name", width: 140, alignment: .leading)
-                        headerCell(title: "ELO", key: "elo", width: 60)
+                        headerCell(title: "ELO", key: "elo", width: 60, help: "ELO är ett rankingsystem baserat på flertal faktorer - hur stark du är, hur starkt motståndet är, hur lång matchen är, med mera.")
                         headerCell(title: "Matcher", key: "games", width: 70)
                         headerCell(title: "Vinster", key: "wins", width: 65)
-                        headerCell(title: "Streak", key: "", width: 60)
-                        headerCell(title: "Form", key: "", width: 70)
+                        headerCell(title: "Streak", key: "", width: 60, help: "Antal vinster (V) eller förluster (F) i rad.")
+                        headerCell(title: "Form", key: "", width: 70, help: "Form baserat på ELO-förändring över de senaste matcherna.")
                         headerCell(title: "Vinst %", key: "winPct", width: 70)
                     }
                     .padding(.vertical, 8)
@@ -372,30 +409,43 @@ struct DashboardView: View {
         .buttonStyle(.plain)
     }
 
-    private func headerCell(title: String, key: String, width: CGFloat, alignment: Alignment = .center) -> some View {
-        Button {
-            if !key.isEmpty {
-                if leaderboardSortKey == key {
-                    leaderboardSortAscending.toggle()
-                } else {
-                    leaderboardSortKey = key
-                    leaderboardSortAscending = false
+    private func headerCell(title: String, key: String, width: CGFloat, alignment: Alignment = .center, help: String? = nil) -> some View {
+        HStack(spacing: 2) {
+            Button {
+                if !key.isEmpty {
+                    if leaderboardSortKey == key {
+                        leaderboardSortAscending.toggle()
+                    } else {
+                        leaderboardSortKey = key
+                        leaderboardSortAscending = false
+                    }
+                }
+            } label: {
+                HStack(spacing: 2) {
+                    Text(title)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    if leaderboardSortKey == key && !key.isEmpty {
+                        Image(systemName: leaderboardSortAscending ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color.accentColor)
+                    }
                 }
             }
-        } label: {
-            HStack(spacing: 2) {
-                Text(title)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
-                if leaderboardSortKey == key && !key.isEmpty {
-                    Image(systemName: leaderboardSortAscending ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(Color.accentColor)
+            .disabled(key.isEmpty)
+            .buttonStyle(.plain)
+
+            if let help = help {
+                Menu {
+                    Text(help)
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .frame(width: width, alignment: alignment)
         }
-        .disabled(key.isEmpty)
+        .frame(width: width, alignment: alignment)
     }
 
     private func mvpRow(title: String, result: DashboardMVPResult) -> some View {

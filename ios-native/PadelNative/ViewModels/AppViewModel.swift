@@ -169,6 +169,20 @@ struct ProfilePerformanceWidget: Identifiable {
     }
 }
 
+struct PartnerSynergy: Identifiable {
+    let id: UUID
+    let name: String
+    let games: Int
+    let wins: Int
+}
+
+struct ToughestOpponent: Identifiable {
+    let id: UUID
+    let name: String
+    let games: Int
+    let losses: Int
+}
+
 struct LeaderboardPlayer: Identifiable {
     let id: UUID
     let name: String
@@ -329,6 +343,12 @@ final class AppViewModel: ObservableObject {
     @Published var currentPlayerBadges: [Badge] = []
     @Published var currentRivalryAgainstStats: [RivalrySummary] = []
     @Published var currentRivalryTogetherStats: [RivalrySummary] = []
+    @Published var bestPartner: PartnerSynergy?
+    @Published var toughestOpponent: ToughestOpponent?
+    @Published var americanoWins: Int = 0
+    @Published var mexicanoWins: Int = 0
+    @Published var currentMonthlyMvpDays: Int = 0
+    @Published var currentEveningMvps: Int = 0
     @Published var heatmapCombos: [HeatmapCombo] = []
     @Published var historyFilters = HistoryFilterState()
     @Published var historyMatches: [Match] = []
@@ -3314,14 +3334,196 @@ final class AppViewModel: ObservableObject {
                 playerId: currentId,
                 allPlayerStats: playerBadgeStats
             )
-            let (against, together) = calculateRivalryStats(for: currentId)
+
+            let mvpStats = calculateAllMvpStats()
+
+            let (against, together) = calculateRivalryStats(for: currentId, mvpStats: mvpStats)
             self.currentRivalryAgainstStats = against
             self.currentRivalryTogetherStats = together
             self.heatmapCombos = calculateHeatmapStats(playerId: currentId)
+
+            calculateBestPartnerAndRival(playerId: currentId)
+
+            if let stats = playerBadgeStats[currentId] {
+                self.americanoWins = stats.americanoWins
+                self.mexicanoWins = stats.mexicanoWins
+                self.currentMonthlyMvpDays = mvpStats.monthlyMvpDays[currentId] ?? 0
+                self.currentEveningMvps = mvpStats.eveningMvpCounts[currentId] ?? 0
+            }
         }
     }
 
-    private func calculateRivalryStats(for playerId: UUID) -> (against: [RivalrySummary], together: [RivalrySummary]) {
+    private func calculateAllMvpStats() -> (monthlyMvpDays: [UUID: Int], eveningMvpCounts: [UUID: Int]) {
+        var monthlyMvpDays: [UUID: Int] = [:]
+        var eveningMvpCounts: [UUID: Int] = [:]
+
+        let sortedMatches = allMatches.sorted { $0.playedAt < $1.playedAt }
+        guard !sortedMatches.isEmpty else { return ([:], [:]) }
+
+        // Evening MVPs
+        let groupedByDay = Dictionary(grouping: sortedMatches) { match in
+            Calendar.current.startOfDay(for: match.playedAt)
+        }
+
+        for (_, dayMatches) in groupedByDay {
+            if let winner = mvp(for: dayMatches, minimumGames: 3) {
+                eveningMvpCounts[winner.player.id, default: 0] += 1
+            }
+        }
+
+        // Monthly MVP Days (rolling 30-day window)
+        // Optimization: rolling window similar to PWA
+        struct RollingStat {
+            var wins = 0
+            var games = 0
+            var eloGain = 0
+        }
+
+        var rollingStats: [UUID: RollingStat] = [:]
+        for player in players { rollingStats[player.id] = RollingStat() }
+
+        var windowStartIdx = 0
+        var windowEndIdx = 0
+
+        let firstDate = Calendar.current.startOfDay(for: sortedMatches[0].playedAt)
+        let lastDate = Calendar.current.startOfDay(for: Date())
+
+        var currentDate = firstDate
+        while currentDate <= lastDate {
+            let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!.addingTimeInterval(-0.001)
+            let cutoff = dayEnd.addingTimeInterval(-30 * 24 * 60 * 60)
+
+            // Add matches entering window
+            while windowEndIdx < sortedMatches.count && sortedMatches[windowEndIdx].playedAt <= dayEnd {
+                let m = sortedMatches[windowEndIdx]
+                let teamAWon = m.teamAScore > m.teamBScore
+                let margin = abs(m.teamAScore - m.teamBScore)
+                let gain = max(4, margin * 2)
+
+                for id in m.teamAPlayerIds.compactMap({$0}) {
+                    rollingStats[id]?.games += 1
+                    rollingStats[id]?.eloGain += teamAWon ? gain : -gain
+                    if teamAWon { rollingStats[id]?.wins += 1 }
+                }
+                for id in m.teamBPlayerIds.compactMap({$0}) {
+                    rollingStats[id]?.games += 1
+                    rollingStats[id]?.eloGain += teamAWon ? -gain : gain
+                    if !teamAWon { rollingStats[id]?.wins += 1 }
+                }
+                windowEndIdx += 1
+            }
+
+            // Remove matches leaving window
+            while windowStartIdx < windowEndIdx && sortedMatches[windowStartIdx].playedAt <= cutoff {
+                let m = sortedMatches[windowStartIdx]
+                let teamAWon = m.teamAScore > m.teamBScore
+                let margin = abs(m.teamAScore - m.teamBScore)
+                let gain = max(4, margin * 2)
+
+                for id in m.teamAPlayerIds.compactMap({$0}) {
+                    rollingStats[id]?.games -= 1
+                    rollingStats[id]?.eloGain -= teamAWon ? gain : -gain
+                    if teamAWon { rollingStats[id]?.wins -= 1 }
+                }
+                for id in m.teamBPlayerIds.compactMap({$0}) {
+                    rollingStats[id]?.games -= 1
+                    rollingStats[id]?.eloGain -= teamAWon ? -gain : gain
+                    if !teamAWon { rollingStats[id]?.wins -= 1 }
+                }
+                windowStartIdx += 1
+            }
+
+            // Find winner for this day
+            var bestScore = -Double.greatestFiniteMagnitude
+            var winnerId: UUID?
+
+            for (pid, s) in rollingStats {
+                guard s.games >= 6 else { continue }
+                let winRate = Double(s.wins) / Double(s.games)
+                let score = Double(s.eloGain) + (winRate * 15) + (Double(s.games) * 0.5)
+
+                if score > bestScore {
+                    bestScore = score
+                    winnerId = pid
+                } else if abs(score - bestScore) < 0.001 {
+                    // Tie-breaker: current ELO
+                    if (playerBadgeStats[pid]?.currentElo ?? 0) > (playerBadgeStats[winnerId ?? pid]?.currentElo ?? 0) {
+                        winnerId = pid
+                    }
+                }
+            }
+
+            if let wid = winnerId {
+                monthlyMvpDays[wid, default: 0] += 1
+            }
+
+            currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+
+        return (monthlyMvpDays, eveningMvpCounts)
+    }
+
+    private func calculateBestPartnerAndRival(playerId: UUID) {
+        let cutoff = Date().addingTimeInterval(-30 * 24 * 60 * 60)
+        let recentMatches = allMatches.filter { $0.playedAt >= cutoff }
+
+        var partnerStats: [UUID: (games: Int, wins: Int)] = [:]
+        var rivalStats: [UUID: (games: Int, losses: Int)] = [:]
+
+        for m in recentMatches {
+            let teamA = m.teamAPlayerIds.compactMap { $0 }
+            let teamB = m.teamBPlayerIds.compactMap { $0 }
+            let iAmTeamA = teamA.contains(playerId)
+            let iAmTeamB = teamB.contains(playerId)
+            guard iAmTeamA || iAmTeamB else { continue }
+
+            let myTeam = iAmTeamA ? teamA : teamB
+            let oppTeam = iAmTeamA ? teamB : teamA
+            let won = iAmTeamA ? m.teamAScore > m.teamBScore : m.teamBScore > m.teamAScore
+
+            for pId in myTeam where pId != playerId {
+                var s = partnerStats[pId, default: (0, 0)]
+                s.games += 1
+                if won { s.wins += 1 }
+                partnerStats[pId] = s
+            }
+
+            for oId in oppTeam {
+                var s = rivalStats[oId, default: (0, 0)]
+                s.games += 1
+                if !won { s.losses += 1 }
+                rivalStats[oId] = s
+            }
+        }
+
+        let bestP = partnerStats.max { a, b in
+            let rateA = Double(a.value.wins) / Double(a.value.games)
+            let rateB = Double(b.value.wins) / Double(b.value.games)
+            if abs(rateA - rateB) > 0.001 { return rateA < rateB }
+            return a.value.games < b.value.games
+        }
+
+        if let bp = bestP, let player = players.first(where: { $0.id == bp.key }) {
+            self.bestPartner = PartnerSynergy(id: bp.key, name: player.profileName, games: bp.value.games, wins: bp.value.wins)
+        } else {
+            self.bestPartner = nil
+        }
+
+        let toughestR = rivalStats.max { a, b in
+            let rateA = Double(a.value.losses) / Double(a.value.games)
+            let rateB = Double(b.value.losses) / Double(b.value.games)
+            if abs(rateA - rateB) > 0.001 { return rateA < rateB }
+            return a.value.games < b.value.games
+        }
+
+        if let tr = toughestR, let player = players.first(where: { $0.id == tr.key }) {
+            self.toughestOpponent = ToughestOpponent(id: tr.key, name: player.profileName, games: tr.value.games, losses: tr.value.losses)
+        } else {
+            self.toughestOpponent = nil
+        }
+    }
+
+    private func calculateRivalryStats(for playerId: UUID, mvpStats: (monthlyMvpDays: [UUID: Int], eveningMvpCounts: [UUID: Int])) -> (against: [RivalrySummary], together: [RivalrySummary]) {
         struct Accumulator {
             var wins = 0
             var losses = 0
@@ -3399,6 +3601,15 @@ final class AppViewModel: ObservableObject {
                 let opponentElo = playerBadgeStats[oppId]?.currentElo ?? opponent.elo
                 let winProb = EloService.getWinProbability(rating: Double(playerElo), opponentRating: Double(opponentElo))
 
+                let highestElo = playerBadgeStats[oppId]?.eloHistory.map { $0.elo }.max() ?? opponent.elo
+
+                // Common tournaments
+                let myTournamentIds = Set(tournamentHistoryResults.filter { $0.profileId == playerId }.map { $0.tournamentId })
+                let oppTournamentResults = tournamentHistoryResults.filter { $0.profileId == oppId && myTournamentIds.contains($0.tournamentId) }
+                let commonTournaments = oppTournamentResults.count
+                let playerTournamentWins = tournamentHistoryResults.filter { $0.profileId == playerId && $0.rank == 1 }.map { $0.tournamentId }
+                let commonTournamentWins = oppTournamentResults.filter { playerTournamentWins.contains($0.tournamentId) }.count
+
                 return RivalrySummary(
                     id: oppId,
                     opponentName: opponent.profileName,
@@ -3416,7 +3627,12 @@ final class AppViewModel: ObservableObject {
                     serveSecondWins: acc.serveSecondWins,
                     serveSecondLosses: acc.serveSecondLosses,
                     winProbability: winProb,
-                    recentResults: acc.results
+                    recentResults: acc.results,
+                    highestElo: highestElo,
+                    monthlyMvpDays: mvpStats.monthlyMvpDays[oppId] ?? 0,
+                    eveningMvps: mvpStats.eveningMvpCounts[oppId] ?? 0,
+                    commonTournamentWins: commonTournamentWins,
+                    commonTournaments: commonTournaments
                 )
             }.sorted { $0.matchesPlayed > $1.matchesPlayed }
         }
