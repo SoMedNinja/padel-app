@@ -28,7 +28,7 @@ struct SingleGameView: View {
     @State private var teamBScore = 4
     @State private var scoreType = "sets"
     @State private var scoreTargetText = ""
-    @State private var sourceTournamentIdText = ""
+    @State private var selectedSourceTournamentId: UUID?
     @State private var sourceTournamentType = ""
     @State private var teamAServesFirst = true
     @State private var isSubmitting = false
@@ -130,6 +130,11 @@ struct SingleGameView: View {
             .onAppear {
                 applyDeepLinkModeIfAvailable()
             }
+            .onChange(of: selectedSourceTournamentId) { _, newValue in
+                guard let newValue,
+                      let selectedTournament = viewModel.tournaments.first(where: { $0.id == newValue }) else { return }
+                sourceTournamentType = selectedTournament.tournamentType
+            }
             .padelLiquidGlassChrome()
         }
     }
@@ -145,9 +150,9 @@ struct SingleGameView: View {
 
     private var teamSetupSection: some View {
         Section("Ditt lag") {
-            playerPicker(title: "Lag A – spelare 1", selection: $teamAPlayer1Id)
+            playerSelectorRow(title: "Lag A – spelare 1", selection: $teamAPlayer1Id)
             if !isOneVsOne {
-                playerPicker(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
+                playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
             }
             suggestionButtonSection
         }
@@ -155,9 +160,9 @@ struct SingleGameView: View {
 
     private var opponentSetupSection: some View {
         Section("Motståndare") {
-            playerPicker(title: "Lag B – spelare 1", selection: $teamBPlayer1Id)
+            playerSelectorRow(title: "Lag B – spelare 1", selection: $teamBPlayer1Id)
             if !isOneVsOne {
-                playerPicker(title: "Lag B – spelare 2 (valfri)", selection: $teamBPlayer2Id)
+                playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $teamBPlayer2Id)
             }
             if let fairnessLabel {
                 Text(fairnessLabel)
@@ -182,13 +187,20 @@ struct SingleGameView: View {
                     .keyboardType(.numberPad)
             }
 
-            TextField("Turnerings-ID (valfritt UUID)", text: $sourceTournamentIdText)
+            Picker("Turnering (valfritt)", selection: $selectedSourceTournamentId) {
+                Text("Ingen turnering").tag(Optional<UUID>.none)
+                ForEach(viewModel.tournaments) { tournament in
+                    Text(tournament.name).tag(Optional(tournament.id))
+                }
+            }
+
+            TextField("Turneringstyp (t.ex. mexicano)", text: $sourceTournamentType)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
-            TextField("Turneringstyp (valfritt)", text: $sourceTournamentType)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
+            Text("Note for non-coders: turneringsväljaren hämtar riktiga turneringar från databasen så matchen länkas korrekt utan att skriva UUID manuellt.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             Toggle("Lag A servar först", isOn: $teamAServesFirst)
         }
@@ -257,7 +269,7 @@ struct SingleGameView: View {
                 teamBScore: teamBScore,
                 scoreType: scoreType,
                 scoreTarget: Int(scoreTargetText),
-                sourceTournamentId: UUID(uuidString: sourceTournamentIdText.trimmingCharacters(in: .whitespacesAndNewlines)),
+                sourceTournamentId: selectedSourceTournamentId,
                 sourceTournamentType: sourceTournamentType,
                 teamAServesFirst: teamAServesFirst
             )
@@ -286,7 +298,7 @@ struct SingleGameView: View {
         teamBScore = 4
         scoreType = "sets"
         scoreTargetText = ""
-        sourceTournamentIdText = ""
+        selectedSourceTournamentId = nil
         sourceTournamentType = ""
         teamAServesFirst = true
         fairnessLabel = nil
@@ -305,12 +317,79 @@ struct SingleGameView: View {
         return names.joined(separator: " & ")
     }
 
-    private func playerPicker(title: String, selection: Binding<UUID?>) -> some View {
-        Picker(title, selection: selection) {
-            Text("Välj spelare").tag(Optional<UUID>.none)
-            ForEach(viewModel.players) { player in
-                Text(player.profileName).tag(Optional(player.id))
+    private func playerSelectorRow(title: String, selection: Binding<UUID?>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    Button {
+                        selection.wrappedValue = nil
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "person.crop.circle.badge.xmark")
+                                .font(.title2)
+                            Text("Ingen")
+                                .font(.caption)
+                        }
+                        .frame(width: 76, height: 84)
+                        .background(tileBackground(isSelected: selection.wrappedValue == nil))
+                    }
+                    .buttonStyle(.plain)
+
+                    ForEach(viewModel.players) { player in
+                        Button {
+                            selection.wrappedValue = player.id
+                        } label: {
+                            VStack(spacing: 6) {
+                                playerAvatar(player)
+                                Text(player.profileName)
+                                    .font(.caption)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(width: 84, height: 92)
+                            .background(tileBackground(isSelected: selection.wrappedValue == player.id))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            Text("Note for non-coders: här väljer du spelare via profilbilder istället för en lång dropdown, precis som i webbens matchflöde.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func playerAvatar(_ player: Player) -> some View {
+        Group {
+            if let avatarURL = player.avatarURL,
+               let url = URL(string: avatarURL),
+               url.scheme?.hasPrefix("http") == true {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Image(systemName: "person.crop.circle")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
             }
         }
+        .frame(width: 42, height: 42)
+        .clipShape(Circle())
+    }
+
+    private func tileBackground(isSelected: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(isSelected ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
+            )
     }
 }

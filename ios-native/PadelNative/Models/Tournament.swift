@@ -132,3 +132,42 @@ struct TournamentStanding: Identifiable {
         pointsFor - pointsAgainst
     }
 }
+
+struct TournamentParticipant: Identifiable, Codable {
+    let id: UUID
+    let tournamentId: UUID
+    let profileId: UUID
+    let profileName: String
+    let profileAvatarURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tournamentId = "tournament_id"
+        case profileId = "profile_id"
+        case profile
+    }
+
+    private enum ProfileCodingKeys: String, CodingKey {
+        case name
+        case fullName = "full_name"
+        case avatarURL = "avatar_url"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        tournamentId = try container.decode(UUID.self, forKey: .tournamentId)
+        profileId = try container.decode(UUID.self, forKey: .profileId)
+
+        if let profileContainer = try? container.nestedContainer(keyedBy: ProfileCodingKeys.self, forKey: .profile) {
+            let fallbackName = try profileContainer.decodeIfPresent(String.self, forKey: .name)
+            profileName = try profileContainer.decodeIfPresent(String.self, forKey: .fullName)
+                ?? fallbackName
+                ?? "Player"
+            profileAvatarURL = try profileContainer.decodeIfPresent(String.self, forKey: .avatarURL)
+        } else {
+            profileName = "Player"
+            profileAvatarURL = nil
+        }
+    }
+}

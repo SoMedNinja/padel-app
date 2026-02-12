@@ -267,6 +267,7 @@ final class AppViewModel: ObservableObject {
     @Published var tournamentRounds: [TournamentRound] = []
     @Published var tournamentStandings: [TournamentStanding] = []
     @Published var tournamentHistoryResults: [TournamentResult] = []
+    @Published var tournamentParticipants: [TournamentParticipant] = []
     @Published var tournamentStatusMessage: String?
     @Published var isTournamentLoading = false
     @Published var isTournamentActionRunning = false
@@ -798,22 +799,54 @@ final class AppViewModel: ObservableObject {
         return match.createdBy == myProfileId
     }
 
+    private func fallbackName(from teamLabel: String, at index: Int) -> String {
+        let names = teamLabel
+            .split(separator: "&")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard index < names.count else { return "Spelare \(index + 1)" }
+        return names[index]
+    }
+
+    private func resolvePlayerName(playerId: UUID?, fallbackLabel: String? = nil) -> String {
+        if let playerId {
+            if let player = players.first(where: { $0.id == playerId }) {
+                return player.fullName
+            }
+            if let participant = tournamentParticipants.first(where: { $0.profileId == playerId }) {
+                return participant.profileName
+            }
+            return fallbackLabel ?? "Spelare \(playerId.uuidString.prefix(6))"
+        }
+        return fallbackLabel ?? "Gästspelare"
+    }
+
     // Note for non-coders:
     // This returns a simple ELO change table per match participant so users can understand
     // who gained/lost rating in the selected result, similar to the web history details.
     func eloBreakdown(for match: Match) -> [MatchEloChangeRow] {
-        let participantIds = Array(Set((match.teamAPlayerIds + match.teamBPlayerIds).compactMap { $0 }))
-        return participantIds
-            .map { playerId in
-                let delta = estimatedEloDelta(for: match, playerId: playerId)
-                let currentElo = players.first(where: { $0.id == playerId })?.elo ?? 1400
+        let teamA = match.teamAPlayerIds.enumerated().map { index, playerId in
+            (playerId, fallbackName(from: match.teamAName, at: index))
+        }
+        let teamB = match.teamBPlayerIds.enumerated().map { index, playerId in
+            (playerId, fallbackName(from: match.teamBName, at: index))
+        }
+
+        let participantSlots = (teamA + teamB)
+        let uniqueSlots = Dictionary(grouping: participantSlots, by: { $0.0 }).compactMap { key, slots in
+            slots.first.map { (key, $0.1) }
+        }
+
+        return uniqueSlots
+            .map { playerId, fallbackName in
+                let delta = playerId.map { estimatedEloDelta(for: match, playerId: $0) } ?? 0
+                let currentElo = playerId.flatMap { id in
+                    players.first(where: { $0.id == id })?.elo
+                } ?? 1400
                 let estimatedBefore = currentElo - delta
-                let name = players.first(where: { $0.id == playerId })?.fullName
-                    ?? players.first(where: { $0.id == playerId })?.profileName
-                    ?? "Unknown player"
                 return MatchEloChangeRow(
-                    id: playerId,
-                    playerName: name,
+                    id: playerId ?? UUID(),
+                    playerName: resolvePlayerName(playerId: playerId, fallbackLabel: fallbackName),
                     delta: delta,
                     estimatedBefore: estimatedBefore,
                     estimatedAfter: currentElo
@@ -824,6 +857,11 @@ final class AppViewModel: ObservableObject {
                 return lhs.playerName < rhs.playerName
             }
     }
+
+    func tournamentPlayerName(for profileId: UUID) -> String {
+        resolvePlayerName(playerId: profileId)
+    }
+
 
     func tournamentName(for tournamentId: UUID) -> String {
         tournaments.first(where: { $0.id == tournamentId })?.name
@@ -2184,11 +2222,14 @@ final class AppViewModel: ObservableObject {
             if let tournament {
                 async let roundsTask = apiClient.fetchTournamentRounds(tournamentId: tournament.id)
                 async let standingsTask = apiClient.fetchTournamentStandings(tournamentId: tournament.id)
+                async let participantsTask = apiClient.fetchTournamentParticipants(tournamentId: tournament.id)
                 let rounds = try await roundsTask
                 let standingRows = try await standingsTask
+                tournamentParticipants = try await participantsTask
                 tournamentRounds = rounds
                 tournamentStandings = resolveStandings(fromRounds: rounds, backendResults: standingRows)
             } else {
+                tournamentParticipants = []
                 tournamentRounds = []
                 tournamentStandings = []
             }
@@ -2441,7 +2482,7 @@ final class AppViewModel: ObservableObject {
                 return TournamentStanding(
                     id: result.id,
                     profileId: profileId,
-                    playerName: players.first(where: { $0.id == profileId })?.fullName ?? "Unknown player",
+                    playerName: tournamentPlayerName(for: profileId),
                     rank: result.rank,
                     pointsFor: result.pointsFor,
                     pointsAgainst: result.pointsAgainst,
@@ -2495,7 +2536,7 @@ final class AppViewModel: ObservableObject {
             TournamentStanding(
                 id: playerId,
                 profileId: playerId,
-                playerName: players.first(where: { $0.id == playerId })?.fullName ?? "Unknown player",
+                playerName: tournamentPlayerName(for: playerId),
                 rank: 0,
                 pointsFor: stat.pointsFor,
                 pointsAgainst: stat.pointsAgainst,

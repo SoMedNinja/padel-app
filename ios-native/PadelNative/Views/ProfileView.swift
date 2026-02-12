@@ -13,10 +13,10 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .overview: return "Overview"
+        case .overview: return "Profil"
         case .eloTrend: return "ELO trend"
-        case .teammates: return "Teammates"
-        case .merits: return "Merits"
+        case .teammates: return "Lagkamrater"
+        case .merits: return "Meriter"
         }
     }
 }
@@ -154,7 +154,7 @@ struct ProfileView: View {
     }
 
     private var teammatesTab: some View {
-        SectionCard(title: "Teammate & opponent matrix") {
+        SectionCard(title: "Lagkamrater & motståndare") {
             Text("Note for non-coders: this is the profile equivalent of the web heatmap summary, focused on your strongest and most frequent combinations.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -176,7 +176,7 @@ struct ProfileView: View {
     }
 
     private func meritsTab(_ current: Player) -> some View {
-        SectionCard(title: "Merits & milestones") {
+        SectionCard(title: "Meriter & milstolpar") {
             Text("Note for non-coders: unlocked merits are your achieved badges, while progress bars track trophy-style milestones that are still in progress.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)

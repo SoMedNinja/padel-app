@@ -640,6 +640,13 @@ struct SupabaseRESTClient {
         )
     }
 
+    func fetchTournamentParticipants(tournamentId: UUID) async throws -> [TournamentParticipant] {
+        try await request(
+            path: "/rest/v1/mexicana_participants",
+            query: "select=id,tournament_id,profile_id,profile:profiles(name,full_name,avatar_url)&tournament_id=eq.\(tournamentId.uuidString)"
+        )
+    }
+
     func fetchTournamentStandings(tournamentId: UUID) async throws -> [TournamentResult] {
         try await request(
             path: "/rest/v1/mexicana_results",

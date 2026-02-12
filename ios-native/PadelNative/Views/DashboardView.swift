@@ -171,18 +171,18 @@ struct DashboardView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("MVP") {
+            Section("MVP-centret") {
                 if let evening = viewModel.currentMVP {
-                    mvpRow(title: "Current MVP", result: evening)
+                    mvpRow(title: "Kvällens MVP", result: evening)
                 } else {
-                    Text("No current MVP yet (needs enough games tonight).")
+                    Text("Ingen kvällens MVP ännu (behöver fler matcher i kväll).")
                         .foregroundStyle(.secondary)
                 }
 
                 if let monthly = viewModel.periodMVP {
-                    mvpRow(title: "30-day MVP", result: monthly)
+                    mvpRow(title: "Månadens MVP", result: monthly)
                 } else {
-                    Text("No period MVP yet (needs enough games this month).")
+                    Text("Ingen månadens MVP ännu (behöver fler matcher den här månaden).")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -207,7 +207,7 @@ struct DashboardView: View {
                 }
             }
 
-            Section("ELO Leaderboard") {
+            Section("ELO-topplista") {
                 ForEach(Array(viewModel.players.enumerated()), id: \.element.id) { index, player in
                     HStack {
                         Text("#\(index + 1)")
@@ -228,7 +228,7 @@ struct DashboardView: View {
                 }
             }
 
-            Section("Head-to-Head") {
+            Section("Head-to-head") {
                 if viewModel.headToHeadSummary.isEmpty {
                     Text("No rivalry data yet.")
                         .foregroundStyle(.secondary)
