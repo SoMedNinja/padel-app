@@ -86,6 +86,21 @@ struct TournamentView: View {
                     selectedParticipantIds = Set(viewModel.players.filter { $0.isRegular }.map { $0.id })
                 }
             }
+            .onChange(of: viewModel.selectedTournamentId) { _, newValue in
+                // Note for non-coders: when switching tournaments, we sync the selection list
+                // so organizers can edit the roster of an existing draft correctly.
+                if let tournamentId = newValue,
+                   let tournament = viewModel.tournaments.first(where: { $0.id == tournamentId }),
+                   tournament.status == "draft" {
+                    selectedParticipantIds = Set(viewModel.tournamentParticipants.map { $0.profileId })
+                }
+            }
+            .onChange(of: viewModel.tournamentParticipants.count) { _, _ in
+                // Note for non-coders: sync when participants finish loading from server
+                if let tournament = viewModel.activeTournament, tournament.status == "draft" {
+                     selectedParticipantIds = Set(viewModel.tournamentParticipants.map { $0.profileId })
+                }
+            }
             .confirmationDialog("Start this tournament?", isPresented: $showStartConfirmation) {
                 Button("Start", role: .none) {
                     Task { await viewModel.startSelectedTournament() }
@@ -240,16 +255,58 @@ struct TournamentView: View {
     private var activeTournamentOverview: some View {
         SectionCard(title: "Vald turnering") {
             if let tournament = viewModel.activeTournament {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(tournament.name)
-                        .font(.title3.weight(.semibold))
-                    Text("Status: \(readableStatus(tournament.status))")
-                    Text("Typ: \(tournament.tournamentType.capitalized)")
-                    if let location = tournament.location, !location.isEmpty {
-                        Text("Plats: \(location)")
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(tournament.name)
+                            .font(.title3.weight(.semibold))
+                        Text("Status: \(readableStatus(tournament.status))")
+                        Text("Typ: \(tournament.tournamentType.capitalized)")
+                        if let location = tournament.location, !location.isEmpty {
+                            Text("Plats: \(location)")
+                        }
+                        if let scheduledAt = tournament.scheduledAt {
+                            Text("Planerad: \(dateFormatter.string(from: scheduledAt))")
+                        }
                     }
-                    if let scheduledAt = tournament.scheduledAt {
-                        Text("Planerad: \(dateFormatter.string(from: scheduledAt))")
+
+                    if tournament.status == "draft" {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Deltagarlista (\(selectedParticipantIds.count))")
+                                .font(.subheadline.weight(.bold))
+
+                            ForEach(viewModel.players) { player in
+                                Button {
+                                    if selectedParticipantIds.contains(player.id) {
+                                        selectedParticipantIds.remove(player.id)
+                                    } else {
+                                        selectedParticipantIds.insert(player.id)
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: selectedParticipantIds.contains(player.id) ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(selectedParticipantIds.contains(player.id) ? .green : .secondary)
+                                        Text(player.profileName)
+                                        Spacer()
+                                        Text("ELO \(player.elo)")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            Button("Spara deltagarlista") {
+                                Task {
+                                    await viewModel.replaceTournamentParticipants(
+                                        tournamentId: tournament.id,
+                                        participantIds: Array(selectedParticipantIds)
+                                    )
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                        }
                     }
 
                     if let message = viewModel.tournamentStatusMessage {

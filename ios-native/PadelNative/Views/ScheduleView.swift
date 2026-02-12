@@ -122,7 +122,7 @@ struct ScheduleView: View {
                     )) {
                         pollBody(poll)
                     } label: {
-                        HStack {
+                        HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Vecka \(poll.weekNumber) (\(poll.weekYear))")
                                     .font(.headline)
@@ -130,7 +130,20 @@ struct ScheduleView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+
                             Spacer()
+
+                            let progress = PollDayVoteSummary.calculateProgress(for: poll)
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("\(progress.readyDays)/\(progress.totalDays) spelklara")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.secondary)
+                                ProgressView(value: progress.percentage)
+                                    .tint(AppColors.success)
+                                    .frame(width: 80)
+                                    .scaleEffect(x: 1, y: 1.5, anchor: .center)
+                            }
+
                             statusChip(for: poll)
                         }
                     }

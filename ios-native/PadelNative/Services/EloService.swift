@@ -82,4 +82,33 @@ enum EloService {
         let delta = playerK * marginMultiplier * matchWeight * effectiveWeight * ((didWin ? 1.0 : 0.0) - expectedScore)
         return Int(round(delta))
     }
+
+    static func getEloExplanation(
+        delta: Int,
+        playerElo: Int,
+        teamAverageElo: Double,
+        opponentAverageElo: Double,
+        matchWeight: Double,
+        didWin: Bool,
+        games: Int
+    ) -> String {
+        if delta == 0 { return "Ingen ELO-förändring." }
+
+        let expected = getExpectedScore(rating: teamAverageElo, opponentRating: opponentAverageElo)
+        let prob = Int(round((expected.isFinite ? expected : 0.5) * 100))
+        let weight = getPlayerWeight(playerElo: Double(playerElo), teamAverageElo: teamAverageElo)
+        let k = getKFactor(games: games)
+
+        var lines = [
+            "Resultat: \(didWin ? "Vinst" : "Förlust") (\(delta > 0 ? "+" : "")\(delta) ELO)",
+            "Vinstchans: \(prob)%",
+            "Matchvikt: \(String(format: "%.1f", matchWeight))x (K=\(Int(k)))",
+            "Spelarvikt: \(String(format: "%.2f", weight))x (relativt laget)"
+        ]
+
+        if didWin && prob < 40 { lines.append("💪 Bonus för vinst mot starkare motstånd!") }
+        if !didWin && prob > 60 { lines.append("⚠️ Större avdrag vid förlust som favorit.") }
+
+        return lines.joined(separator: "\n")
+    }
 }
