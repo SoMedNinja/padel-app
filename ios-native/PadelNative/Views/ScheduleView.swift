@@ -214,17 +214,26 @@ struct ScheduleView: View {
 
             let voters = voterRows(for: day)
             if !voters.isEmpty {
-                Text("Väljare och tider")
-                    .font(.caption.weight(.semibold))
-                ForEach(voters, id: \.id) { voter in
-                    HStack {
-                        Text(voter.name)
-                        Spacer()
-                        Text(voter.slots)
+                HStack(spacing: 12) {
+                    AvatarGroupView(avatars: voters.map { $0.avatarURL }, size: 28)
+
+                    Text("\(voters.count) röst\(voters.count == 1 ? "" : "er")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Menu {
+                        ForEach(voters, id: \.id) { voter in
+                            Text("\(voter.name) (\(voter.slots))")
+                        }
+                    } label: {
+                        Image(systemName: "info.circle")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
+                .padding(.top, 4)
             }
         }
         .padding(10)
@@ -420,12 +429,12 @@ struct ScheduleView: View {
         }
     }
 
-    private func voterRows(for day: AvailabilityPollDay) -> [(id: UUID, name: String, slots: String)] {
+    private func voterRows(for day: AvailabilityPollDay) -> [(id: UUID, name: String, slots: String, avatarURL: String?)] {
         let dedupedVotes = Dictionary(grouping: day.votes ?? [], by: { $0.profileId }).compactMap { $0.value.last }
         return dedupedVotes.map { vote in
-            let name = viewModel.players.first(where: { $0.id == vote.profileId })?.profileName
-            ?? viewModel.players.first(where: { $0.id == vote.profileId })?.fullName
-            ?? "Unknown"
+            let player = viewModel.players.first(where: { $0.id == vote.profileId })
+            let name = player?.profileName ?? player?.fullName ?? "Unknown"
+            let avatarURL = player?.avatarURL
 
             let slotText: String
             if let multi = vote.slotPreferences, !multi.isEmpty {
@@ -435,7 +444,7 @@ struct ScheduleView: View {
             } else {
                 slotText = "Hela dagen"
             }
-            return (vote.profileId, name, slotText)
+            return (vote.profileId, name, slotText, avatarURL)
         }
         .sorted { $0.name < $1.name }
     }

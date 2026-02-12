@@ -5,6 +5,7 @@ private enum SingleGameWizardStep: Int, CaseIterable {
     case opponentSetup
     case score
     case review
+    case matchmaker
 
     var title: String {
         switch self {
@@ -12,6 +13,7 @@ private enum SingleGameWizardStep: Int, CaseIterable {
         case .opponentSetup: return "Steg 2: Motståndare"
         case .score: return "Steg 3: Resultat"
         case .review: return "Steg 4: Granska"
+        case .matchmaker: return "Matchmaker"
         }
     }
 }
@@ -36,6 +38,7 @@ struct SingleGameView: View {
     @State private var generatedRecap: SingleGameRecap?
     @State private var fairnessLabel: String?
     @State private var showSuccessState = false
+    @State private var matchmakerPool: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
@@ -62,6 +65,8 @@ struct SingleGameView: View {
                     scoreSection
                 case .review:
                     reviewSection
+                case .matchmaker:
+                    matchmakerSection
                 }
 
                 Section {
@@ -84,16 +89,9 @@ struct SingleGameView: View {
                     }
                 }
 
-                if showSuccessState {
+                if showSuccessState, let recap = generatedRecap {
                     Section("Klart 🎉") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Match sparad", systemImage: "checkmark.seal.fill")
-                                .foregroundStyle(AppColors.success)
-                                .symbolEffect(.bounce, value: showSuccessState)
-                            Text("Note for non-coders: den här lilla celebration-rutan visar att allt gick bra innan formuläret nollställs för nästa match.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                        MatchSuccessCeremonyView(recap: recap, players: viewModel.players)
                     }
                 }
 
@@ -154,7 +152,16 @@ struct SingleGameView: View {
             if !isOneVsOne {
                 playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
             }
-            suggestionButtonSection
+            HStack {
+                Button("Föreslå matchup") {
+                    applySuggestedMatchup()
+                }
+                Spacer()
+                Button("Matchmaker") {
+                    wizardStep = .matchmaker
+                }
+                .buttonStyle(.bordered)
+            }
         }
     }
 
@@ -218,15 +225,81 @@ struct SingleGameView: View {
         }
     }
 
-    private var suggestionButtonSection: some View {
+    private var matchmakerSection: some View {
         Group {
-            Button("Föreslå matchup") {
-                applySuggestedMatchup()
+            Section("Välj spelare (4–8)") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(viewModel.players) { player in
+                            Button {
+                                if matchmakerPool.contains(player.id) {
+                                    matchmakerPool.remove(player.id)
+                                } else if matchmakerPool.count < 8 {
+                                    matchmakerPool.insert(player.id)
+                                }
+                            } label: {
+                                VStack(spacing: 6) {
+                                    playerAvatar(player)
+                                    Text(player.profileName)
+                                        .font(.caption)
+                                }
+                                .frame(width: 84, height: 92)
+                                .background(tileBackground(isSelected: matchmakerPool.contains(player.id)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Button("Skapa rotation") {
+                    viewModel.generateRotation(poolIds: Array(matchmakerPool))
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(matchmakerPool.count < 4)
             }
-            Text("Note for non-coders: förslaget försöker hitta jämna lag och samtidigt rotera vilka som spelar med/ mot varandra, ungefär som web-appens fairness-logik.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+
+            if let rotation = viewModel.currentRotation {
+                ForEach(rotation.rounds) { round in
+                    Section("Runda \(round.roundNumber)") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Lag A: \(rotationTeamText(ids: round.teamA))")
+                                Spacer()
+                                Text("VS")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("Lag B: \(rotationTeamText(ids: round.teamB))")
+                            }
+                            .font(.subheadline)
+
+                            if !round.rest.isEmpty {
+                                Text("Vilar: \(rotationTeamText(ids: round.rest))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Button("Starta denna match") {
+                                startRotationMatch(round: round)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    private func rotationTeamText(ids: [UUID]) -> String {
+        ids.compactMap { id in viewModel.players.first(where: { $0.id == id })?.profileName }.joined(separator: " & ")
+    }
+
+    private func startRotationMatch(round: RotationRound) {
+        teamAPlayer1Id = round.teamA.first
+        teamAPlayer2Id = round.teamA.dropFirst().first
+        teamBPlayer1Id = round.teamB.first
+        teamBPlayer2Id = round.teamB.dropFirst().first
+        wizardStep = .score
     }
 
     private func nextStep() {

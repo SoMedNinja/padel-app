@@ -197,29 +197,99 @@ struct ProfileView: View {
     }
 
     private func meritsTab(_ current: Player) -> some View {
-        SectionCard(title: "Meriter & milstolpar") {
-            Text("Note for non-coders: unlocked merits are your achieved badges, while progress bars track trophy-style milestones that are still in progress.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 20) {
+            SectionCard(title: "Vald merit") {
+                badgePickerContent(current)
+            }
 
-            badgePickerContent(current)
+            SectionCard(title: "Mina upplåsta meriter") {
+                let earned = viewModel.currentPlayerBadges.filter { $0.earned }
+                if earned.isEmpty {
+                    Text("Du har inga upplåsta meriter ännu.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    badgeGrid(badges: earned)
+                }
+            }
 
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(viewModel.profileMeritMilestones(filter: selectedFilter)) { merit in
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Label(merit.title, systemImage: merit.icon)
+            SectionCard(title: "Unika meriter (Ledare)") {
+                let unique = viewModel.currentPlayerBadges.filter { $0.tier == "Unique" }
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(unique) { badge in
+                        HStack(spacing: 12) {
+                            Text(badge.icon)
+                                .font(.title2)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(badge.title)
+                                    .font(.subheadline.weight(.semibold))
+                                Text(badge.description)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                if let holderValue = badge.holderValue {
+                                    Text("Ledare: \(holderValue)")
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(badge.earned ? Color.accentColor : .secondary)
+                                }
+                            }
                             Spacer()
-                            Text(merit.unlocked ? "Unlocked" : "\(merit.current)/\(merit.target)")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(merit.unlocked ? .green : .secondary)
+                            if badge.earned {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(Color.accentColor)
+                            }
                         }
-                        Text(merit.description)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        ProgressView(value: merit.progress)
+                        Divider()
                     }
-                    Divider()
+                }
+            }
+
+            SectionCard(title: "Kommande milstolpar") {
+                let locked = viewModel.currentPlayerBadges.filter { !$0.earned && $0.tier != "Unique" }
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(locked.prefix(10)) { badge in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(badge.icon)
+                                Text(badge.title)
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer()
+                                if let progress = badge.progress {
+                                    Text("\(Int(progress.current))/\(Int(progress.target))")
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if let progress = badge.progress {
+                                ProgressView(value: progress.current, total: progress.target)
+                                    .tint(Color.accentColor.opacity(0.6))
+                            }
+                            Text(badge.description)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Divider()
+                    }
+                }
+            }
+        }
+    }
+
+    private func badgeGrid(badges: [Badge]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
+            ForEach(badges) { badge in
+                VStack(spacing: 4) {
+                    Text(badge.icon)
+                        .font(.title)
+                    Text(badge.tier)
+                        .font(.system(size: 8, weight: .black))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Color.accentColor, in: Capsule())
+                        .foregroundStyle(.white)
+                    Text(badge.title)
+                        .font(.system(size: 10, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
                 }
             }
         }
@@ -341,30 +411,43 @@ struct ProfileView: View {
 
     private func badgePickerContent(_ current: Player) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Choose which unlocked badge should be highlighted beside your name.")
+            Text("Välj vilken av dina upplåsta meriter som ska visas vid ditt namn.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
-                ForEach(viewModel.availableBadgeOptions) { badge in
-                    Button {
-                        viewModel.selectedFeaturedBadgeId = viewModel.selectedFeaturedBadgeId == badge.id ? nil : badge.id
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Label(badge.title, systemImage: badge.icon)
-                                .font(.subheadline.weight(.semibold))
-                            Text(badge.hint)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            let earned = viewModel.currentPlayerBadges.filter { $0.earned }
+
+            if earned.isEmpty {
+                Text("Du har inga upplåsta meriter att välja bland.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(earned) { badge in
+                            Button {
+                                viewModel.selectedFeaturedBadgeId = viewModel.selectedFeaturedBadgeId == badge.id ? nil : badge.id
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Text(badge.icon)
+                                        .font(.title2)
+                                    Text(badge.title)
+                                        .font(.caption2.weight(.bold))
+                                        .lineLimit(1)
+                                }
+                                .frame(width: 80, height: 70)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill((viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id ? Color.accentColor.opacity(0.2) : Color(.systemGray6))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke((viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id ? Color.accentColor : Color.clear, lineWidth: 2)
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill((viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id ? Color.accentColor.opacity(0.2) : Color(.systemGray6))
-                        )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
