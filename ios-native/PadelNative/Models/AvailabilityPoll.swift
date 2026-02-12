@@ -110,6 +110,20 @@ struct PollDayVoteSummary {
     let isGreen: Bool
     let compatibleSlot: AvailabilitySlot?
 
+    struct PollProgress {
+        let readyDays: Int
+        let totalDays: Int
+        let percentage: Double
+    }
+
+    static func calculateProgress(for poll: AvailabilityPoll) -> PollProgress {
+        let days = poll.days ?? []
+        let total = days.count
+        let ready = days.filter { evaluate(day: $0).isGreen }.count
+        let percent = total > 0 ? Double(ready) / Double(total) : 0
+        return PollProgress(readyDays: ready, totalDays: total, percentage: percent)
+    }
+
     // Note for non-coders:
     // A "green" day means at least four people overlap in the same time window.
     static func evaluate(day: AvailabilityPollDay) -> PollDayVoteSummary {

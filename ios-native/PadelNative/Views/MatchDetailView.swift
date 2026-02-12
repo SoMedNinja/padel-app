@@ -63,17 +63,30 @@ struct MatchDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(breakdown) { row in
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text(row.playerName)
+                                    .font(.subheadline.weight(.semibold))
                                 Spacer()
                                 Text("\(row.delta >= 0 ? "+" : "")\(row.delta)")
+                                    .font(.subheadline.weight(.bold))
                                     .foregroundStyle(row.delta >= 0 ? .green : .red)
                             }
+
                             Text("ELO före: \(row.estimatedBefore) → efter: \(row.estimatedAfter)")
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
+
+                            if let explanation = row.explanation {
+                                Text(explanation)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .padding(8)
+                                    .background(Color.accentColor.opacity(0.05))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .padding(.vertical, 4)
                     }
                 }
                 Text("Note for non-coders: 'estimat' betyder att vi räknar ungefärlig ELO-förändring direkt i appen för att ge snabb förklaring även när äldre databasmatcher saknar komplett historik.")

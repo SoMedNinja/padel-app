@@ -27,6 +27,7 @@ struct ProfileView: View {
     @State private var selectedTab: ProfileTab = .overview
     @State private var selectedFilter: DashboardMatchFilter = .all
     @State private var compareWithIds: Set<UUID> = []
+    @State private var selectedMeritSection: String = "earned"
 
     @State private var showCropper = false
     @State private var imageToCrop: UIImage?
@@ -296,9 +297,16 @@ struct ProfileView: View {
 
     private func meritsTab(_ current: Player) -> some View {
         VStack(spacing: 20) {
-            SectionCard(title: "Vald merit") {
+            SectionCard(title: "Visa merit") {
                 badgePickerContent(current)
             }
+
+            Picker("Kategori", selection: $selectedMeritSection) {
+                Text("Upplåsta").tag("earned")
+                Text("Unika").tag("unique")
+                Text("Kommande").tag("locked")
+            }
+            .pickerStyle(.segmented)
 
             SectionCard(title: "Turneringsmeriter") {
                 HStack(spacing: 16) {
@@ -307,74 +315,80 @@ struct ProfileView: View {
                 }
             }
 
-            SectionCard(title: "Mina upplåsta meriter") {
-                let earned = viewModel.currentPlayerBadges.filter { $0.earned }
-                if earned.isEmpty {
-                    Text("Du har inga upplåsta meriter ännu.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    badgeGrid(badges: earned)
+            switch selectedMeritSection {
+            case "earned":
+                SectionCard(title: "Mina upplåsta meriter") {
+                    let earned = viewModel.currentPlayerBadges.filter { $0.earned && $0.tier != "Unique" }
+                    if earned.isEmpty {
+                        Text("Du har inga upplåsta meriter ännu.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        badgeGrid(badges: earned)
+                    }
                 }
-            }
-
-            SectionCard(title: "Unika meriter (Ledare)") {
-                let unique = viewModel.currentPlayerBadges.filter { $0.tier == "Unique" }
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(unique) { badge in
-                        HStack(spacing: 12) {
-                            Text(badge.icon)
-                                .font(.title2)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(badge.title)
-                                    .font(.subheadline.weight(.semibold))
+            case "unique":
+                SectionCard(title: "Unika meriter (Ledare)") {
+                    let unique = viewModel.currentPlayerBadges.filter { $0.tier == "Unique" }
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(unique) { badge in
+                            HStack(spacing: 12) {
+                                Text(badge.icon)
+                                    .font(.title2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(badge.title)
+                                        .font(.subheadline.weight(.semibold))
+                                    Text(badge.description)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    if let holderValue = badge.holderValue {
+                                        Text("Ledare: \(holderValue)")
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(badge.earned ? Color.accentColor : .secondary)
+                                    }
+                                }
+                                Spacer()
+                                if badge.earned {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            Divider()
+                        }
+                    }
+                }
+            case "locked":
+                SectionCard(title: "Kommande milstolpar") {
+                    let locked = viewModel.currentPlayerBadges.filter { !$0.earned && $0.tier != "Unique" }
+                    VStack(alignment: .leading, spacing: 16) {
+                        ForEach(locked) { badge in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(badge.icon)
+                                    Text(badge.title)
+                                        .font(.subheadline.weight(.semibold))
+                                    Spacer()
+                                    if let progress = badge.progress {
+                                        let percent = Int((progress.current / progress.target) * 100)
+                                        Text("\(Int(progress.current))/\(Int(progress.target)) (\(percent)%)")
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                if let progress = badge.progress {
+                                    ProgressView(value: progress.current, total: progress.target)
+                                        .tint(Color.accentColor.opacity(0.6))
+                                }
                                 Text(badge.description)
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
-                                if let holderValue = badge.holderValue {
-                                    Text("Ledare: \(holderValue)")
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(badge.earned ? Color.accentColor : .secondary)
-                                }
                             }
-                            Spacer()
-                            if badge.earned {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundStyle(Color.accentColor)
-                            }
+                            Divider()
                         }
-                        Divider()
                     }
                 }
-            }
-
-            SectionCard(title: "Kommande milstolpar") {
-                let locked = viewModel.currentPlayerBadges.filter { !$0.earned && $0.tier != "Unique" }
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(locked.prefix(10)) { badge in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(badge.icon)
-                                Text(badge.title)
-                                    .font(.subheadline.weight(.semibold))
-                                Spacer()
-                                if let progress = badge.progress {
-                                    Text("\(Int(progress.current))/\(Int(progress.target))")
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            if let progress = badge.progress {
-                                ProgressView(value: progress.current, total: progress.target)
-                                    .tint(Color.accentColor.opacity(0.6))
-                            }
-                            Text(badge.description)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        Divider()
-                    }
-                }
+            default:
+                EmptyView()
             }
         }
     }

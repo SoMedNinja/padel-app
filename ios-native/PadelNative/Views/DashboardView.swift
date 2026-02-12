@@ -424,23 +424,106 @@ struct DashboardView: View {
                 Text("Ingen data än.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(viewModel.currentRivalryAgainstStats.prefix(5)) { summary in
+                if let topRival = viewModel.currentRivalryAgainstStats.first {
+                    featuredRivalryCard(topRival)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .padding(.bottom, 8)
+                }
+
+                ForEach(viewModel.currentRivalryAgainstStats.prefix(5).dropFirst()) { summary in
                     NavigationLink(destination: RivalryView(opponentId: summary.id)) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Du vs \(summary.opponentName)")
-                                .font(.subheadline.weight(.semibold))
-                            Text("\(summary.matchesPlayed) matcher • \(summary.wins) vinster")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("Senaste: \(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")")
-                                .font(.caption2)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Du vs \(summary.opponentName)")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("\(summary.matchesPlayed) matcher • \(summary.wins) vinster")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")
+                                .font(.caption2.bold())
                                 .foregroundStyle(summary.lastMatchResult == "V" ? .green : .red)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(summary.lastMatchResult == "V" ? Color.green.opacity(0.1) : Color.red.opacity(0.1), in: Capsule())
                         }
                         .padding(.vertical, 4)
                     }
                 }
             }
         }
+    }
+
+    private func featuredRivalryCard(_ summary: RivalrySummary) -> some View {
+        NavigationLink(destination: RivalryView(opponentId: summary.id)) {
+            VStack(spacing: 16) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DIN STÖRSTA RIVAL")
+                            .font(.caption2.weight(.black))
+                            .foregroundStyle(.secondary)
+                        Text(summary.opponentName)
+                            .font(.title3.weight(.bold))
+                    }
+                    Spacer()
+                    AsyncImage(url: URL(string: summary.opponentAvatarURL ?? "")) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .frame(width: 50, height: 50)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.accentColor.opacity(0.2), lineWidth: 1))
+                }
+
+                HStack(spacing: 20) {
+                    rivalStat(label: "Matcher", value: "\(summary.matchesPlayed)")
+                    rivalStat(label: "Vinster", value: "\(summary.wins)", color: .green)
+                    rivalStat(label: "Vinstchans", value: "\(Int(round(summary.winProbability * 100)))%")
+                }
+
+                HStack {
+                    Text("Senaste: \(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")")
+                        .font(.caption.bold())
+                        .foregroundStyle(summary.lastMatchResult == "V" ? .green : .red)
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        ForEach(Array(summary.recentResults.prefix(5).enumerated()), id: \.offset) { _, res in
+                            Text(res)
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 16, height: 16)
+                                .background(res == "V" ? Color.green : Color.red)
+                                .clipShape(Circle())
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+            .padding(.horizontal)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func rivalStat(label: String, value: String, color: Color = .primary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased())
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func leaderboardRow(index: Int, player: LeaderboardPlayer) -> some View {

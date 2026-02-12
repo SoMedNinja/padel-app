@@ -128,6 +128,7 @@ struct MatchEloChangeRow: Identifiable {
     let delta: Int
     let estimatedBefore: Int
     let estimatedAfter: Int
+    let explanation: String?
 }
 
 struct DashboardMVPResult {
@@ -1082,23 +1083,61 @@ final class AppViewModel: ObservableObject {
             slots.first.map { (key, $0.1) }
         }
 
+        // Pre-calculate averages for explanation
+        let teamAIds = match.teamAPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+        let teamBIds = match.teamBPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+
+        let getPreElo = { (id: UUID) -> Int in
+            let stats = self.playerBadgeStats[id]
+            if let history = stats?.eloHistory, let entry = history.first(where: { $0.matchId == match.id }) {
+                return entry.elo - entry.delta
+            }
+            return (self.players.first(where: { $0.id == id })?.elo ?? 1000)
+        }
+
+        let avgA = teamAIds.isEmpty ? 1000.0 : Double(teamAIds.reduce(0) { $0 + getPreElo($1) }) / Double(teamAIds.count)
+        let avgB = teamBIds.isEmpty ? 1000.0 : Double(teamBIds.reduce(0) { $0 + getPreElo($1) }) / Double(teamBIds.count)
+        let isSingles = teamAIds.count == 1 && teamBIds.count == 1
+        let weight = EloService.getSinglesAdjustedMatchWeight(match: match, isSinglesMatch: isSingles)
+
         return uniqueSlots
             .map { playerId, fallbackName in
                 let uuid = playerId.flatMap { UUID(uuidString: $0) }
+                let stats = uuid.flatMap { self.playerBadgeStats[$0] }
                 let historyEntry = uuid.flatMap { pid in
-                    playerBadgeStats[pid]?.eloHistory.first(where: { $0.matchId == match.id })
+                    stats?.eloHistory.first(where: { $0.matchId == match.id })
                 }
 
                 let delta = historyEntry?.delta ?? 0
                 let estimatedAfter = historyEntry?.elo ?? (uuid.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
                 let estimatedBefore = estimatedAfter - delta
 
+                var explanation: String? = nil
+                if let pid = uuid {
+                    let teamAIds = match.teamAPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+                    let isTeamA = teamAIds.contains(pid)
+                    let didWin = isTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+                    let myTeamAvg = isTeamA ? avgA : avgB
+                    let oppTeamAvg = isTeamA ? avgB : avgA
+
+                    explanation = EloService.getEloExplanation(
+                        delta: delta,
+                        playerElo: estimatedBefore,
+                        teamAverageElo: myTeamAvg,
+                        opponentAverageElo: oppTeamAvg,
+                        matchWeight: weight,
+                        didWin: didWin,
+                        games: stats?.matchesPlayed ?? 0
+                    )
+                }
+
                 return MatchEloChangeRow(
                     id: uuid ?? UUID(),
                     playerName: resolvePlayerName(playerId: playerId, fallbackLabel: fallbackName),
                     delta: delta,
                     estimatedBefore: estimatedBefore,
-                    estimatedAfter: estimatedAfter
+                    estimatedAfter: estimatedAfter,
+                    explanation: explanation
                 )
             }
             .sorted { lhs, rhs in
@@ -2660,6 +2699,24 @@ final class AppViewModel: ObservableObject {
     func selectTournament(id: UUID?) async {
         selectedTournamentId = id
         await loadTournamentData(silently: true)
+    }
+
+    func replaceTournamentParticipants(tournamentId: UUID, participantIds: [UUID]) async {
+        guard canMutateTournament else {
+            tournamentActionErrorMessage = "Sign in is required to edit tournaments."
+            return
+        }
+
+        isTournamentActionRunning = true
+        defer { isTournamentActionRunning = false }
+
+        do {
+            try await apiClient.replaceTournamentParticipants(tournamentId: tournamentId, participantIds: participantIds)
+            tournamentStatusMessage = "Participants updated."
+            await loadTournamentData(silently: true)
+        } catch {
+            tournamentActionErrorMessage = "Could not update participants: \(error.localizedDescription)"
+        }
     }
 
     func createTournament(
