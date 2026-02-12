@@ -491,26 +491,7 @@ struct SupabaseRESTClient {
     }
 
     func submitMatch(_ match: MatchSubmission) async throws {
-        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
-        guard let url = URL(string: "\(AppConfig.supabaseURL)/rest/v1/matches") else {
-            throw APIError.badURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-        request.httpBody = try encoder.encode([match])
-
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.requestFailed(statusCode: -1)
-        }
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.requestFailed(statusCode: httpResponse.statusCode)
-        }
+        try await sendPost(path: "/rest/v1/matches", body: [match])
     }
 
     func updateMatch(
@@ -949,7 +930,8 @@ struct SupabaseRESTClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        let bearerToken = AuthService().currentAccessToken() ?? AppConfig.supabaseAnonKey
+        request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(preferHeader, forHTTPHeaderField: "Prefer")
         request.httpBody = try encoder.encode(body)
@@ -966,7 +948,8 @@ struct SupabaseRESTClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        let bearerToken = AuthService().currentAccessToken() ?? AppConfig.supabaseAnonKey
+        request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(preferHeader, forHTTPHeaderField: "Prefer")
         request.httpBody = try encoder.encode(body)
@@ -983,7 +966,8 @@ struct SupabaseRESTClient {
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        let bearerToken = AuthService().currentAccessToken() ?? AppConfig.supabaseAnonKey
+        request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
         request.httpBody = try encoder.encode(body)
@@ -1021,7 +1005,8 @@ struct SupabaseRESTClient {
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        let bearerToken = AuthService().currentAccessToken() ?? AppConfig.supabaseAnonKey
+        request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
 
         try await perform(request)
     }
@@ -1035,7 +1020,7 @@ struct SupabaseRESTClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        let bearerToken = accessToken ?? AppConfig.supabaseAnonKey
+        let bearerToken = accessToken ?? AuthService().currentAccessToken() ?? AppConfig.supabaseAnonKey
         request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
@@ -1053,7 +1038,8 @@ struct SupabaseRESTClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
+        let bearerToken = AuthService().currentAccessToken() ?? AppConfig.supabaseAnonKey
+        request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
