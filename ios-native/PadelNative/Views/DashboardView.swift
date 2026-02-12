@@ -99,253 +99,277 @@ struct DashboardView: View {
 
     private var dashboardContent: some View {
         List {
-            if let error = viewModel.lastErrorMessage {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Varning vid datahämtning", systemImage: "exclamationmark.triangle.fill")
-                            .font(.headline)
-                            .foregroundStyle(.orange)
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-            if let notice = viewModel.activeTournamentNotice {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Turnering pågår!")
-                            .font(.headline)
-                        Text("\(notice.name) är live nu.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        HStack {
-                            Button("Visa turnering") {
-                                viewModel.openTournamentTab()
-                            }
-                            .buttonStyle(.borderedProminent)
+            dashboardNoticeSections
+            filterSection
+            mvpSection
+            highlightSection
+            leaderboardSection
+            rivalrySection
+        }
+    }
 
-                            Button("Stäng") {
-                                viewModel.dismissTournamentNotice()
-                            }
-                            .buttonStyle(.bordered)
+    // Note for non-coders: splitting this into smaller chunks helps Swift compile faster and keeps each card easier to maintain.
+    @ViewBuilder
+    private var dashboardNoticeSections: some View {
+        if let error = viewModel.lastErrorMessage {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Varning vid datahämtning", systemImage: "exclamationmark.triangle.fill")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+        }
+
+        if let notice = viewModel.activeTournamentNotice {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Turnering pågår!")
+                        .font(.headline)
+                    Text("\(notice.name) är live nu.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Button("Visa turnering") {
+                            viewModel.openTournamentTab()
                         }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
+                        .buttonStyle(.borderedProminent)
 
-            if let upcoming = viewModel.nextScheduledGameNotice {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Uppkommande bokning")
-                            .font(.headline)
-                        Text("\(upcoming.description) • \(upcoming.location)")
-                            .font(.subheadline)
-                        Text(dateFormatter.string(from: upcoming.startsAt))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack {
-                            Button("Se schema") {
-                                viewModel.openScheduleTab()
-                            }
-                            .buttonStyle(.bordered)
-                            Button("Stäng") {
-                                viewModel.dismissScheduledGameNotice()
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-
-            if let recent = viewModel.latestRecentMatch {
-                Section("Senaste highlight") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Nytt resultat!")
-                            .font(.headline)
-                        Text("\(recent.teamAName) vs \(recent.teamBName)")
-                        Text("Resultat: \(recent.teamAScore)-\(recent.teamBScore)")
-                            .font(.subheadline.weight(.semibold))
                         Button("Stäng") {
-                            viewModel.dismissRecentMatchNotice()
+                            viewModel.dismissTournamentNotice()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+
+        if let upcoming = viewModel.nextScheduledGameNotice {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Uppkommande bokning")
+                        .font(.headline)
+                    Text("\(upcoming.description) • \(upcoming.location)")
+                        .font(.subheadline)
+                    Text(dateFormatter.string(from: upcoming.startsAt))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Button("Se schema") {
+                            viewModel.openScheduleTab()
+                        }
+                        .buttonStyle(.bordered)
+                        Button("Stäng") {
+                            viewModel.dismissScheduledGameNotice()
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.vertical, 4)
+                }
+                .padding(.vertical, 4)
+            }
+        }
+
+        if let recent = viewModel.latestRecentMatch {
+            Section("Senaste highlight") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Nytt resultat!")
+                        .font(.headline)
+                    Text("\(recent.teamAName) vs \(recent.teamBName)")
+                    Text("Resultat: \(recent.teamAScore)-\(recent.teamBScore)")
+                        .font(.subheadline.weight(.semibold))
+                    Button("Stäng") {
+                        viewModel.dismissRecentMatchNotice()
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private var filterSection: some View {
+        Section("Filter") {
+            Picker("Period", selection: $viewModel.dashboardFilter) {
+                ForEach(DashboardMatchFilter.allCases) { filter in
+                    Text(filter.title).tag(filter)
                 }
             }
+            .pickerStyle(.segmented)
 
-            Section("Filter") {
-                Picker("Period", selection: $viewModel.dashboardFilter) {
-                    ForEach(DashboardMatchFilter.allCases) { filter in
-                        Text(filter.title).tag(filter)
-                    }
+            if viewModel.dashboardFilter == .custom {
+                DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
+                DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+
+                Button("Återställ") {
+                    viewModel.dashboardFilter = .all
                 }
-                .pickerStyle(.segmented)
+                .buttonStyle(.bordered)
+            }
 
-                if viewModel.dashboardFilter == .custom {
-                    DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
-                    DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+            Text("Aktivt filter: \(viewModel.dashboardActiveFilterLabel)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
 
-                    Button("Återställ") {
-                        viewModel.dashboardFilter = .all
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                Text("Aktivt filter: \(viewModel.dashboardActiveFilterLabel)")
-                    .font(.caption)
+    private var mvpSection: some View {
+        Section("MVP-centret") {
+            if let evening = viewModel.currentMVP {
+                mvpRow(title: "Kvällens MVP", result: evening)
+            } else {
+                Text("Ingen kvällens MVP ännu (behöver fler matcher i kväll).")
                     .foregroundStyle(.secondary)
             }
 
-            Section("MVP-centret") {
-                if let evening = viewModel.currentMVP {
-                    mvpRow(title: "Kvällens MVP", result: evening)
-                } else {
-                    Text("Ingen kvällens MVP ännu (behöver fler matcher i kväll).")
-                        .foregroundStyle(.secondary)
-                }
-
-                if let monthly = viewModel.periodMVP {
-                    mvpRow(title: "Månadens MVP", result: monthly)
-                } else {
-                    Text("Ingen månadens MVP ännu (behöver fler matcher den här månaden).")
-                        .foregroundStyle(.secondary)
-                }
+            if let monthly = viewModel.periodMVP {
+                mvpRow(title: "Månadens MVP", result: monthly)
+            } else {
+                Text("Ingen månadens MVP ännu (behöver fler matcher den här månaden).")
+                    .foregroundStyle(.secondary)
             }
+        }
+    }
 
-            if viewModel.showHighlightCard, let highlight = viewModel.latestHighlightMatch,
-               let match = viewModel.matches.first(where: { $0.id == highlight.matchId }) {
-                Section("Match-fokus") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(highlight.title)
-                            .font(.headline)
-                        Text(highlight.description)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text("\(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)")
-                            .font(.caption)
-                        Button("Stäng") {
-                            viewModel.dismissHighlightCard()
-                        }
-                        .buttonStyle(.plain)
+    @ViewBuilder
+    private var highlightSection: some View {
+        if viewModel.showHighlightCard,
+           let highlight = viewModel.latestHighlightMatch,
+           let match = viewModel.matches.first(where: { $0.id == highlight.matchId }) {
+            Section("Match-fokus") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(highlight.title)
+                        .font(.headline)
+                    Text(highlight.description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("\(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)")
+                        .font(.caption)
+                    Button("Stäng") {
+                        viewModel.dismissHighlightCard()
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
                 }
+                .padding(.vertical, 4)
             }
+        }
+    }
 
-            Section {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Header
-                        HStack(spacing: 0) {
-                            headerCell(title: "Spelare", key: "name", width: 140, alignment: .leading)
-                            headerCell(title: "ELO", key: "elo", width: 60)
-                            headerCell(title: "Matcher", key: "games", width: 70)
-                            headerCell(title: "Vinster", key: "wins", width: 65)
-                            headerCell(title: "Streak", key: "", width: 60)
-                            headerCell(title: "Form", key: "", width: 70)
-                            headerCell(title: "Vinst %", key: "winPct", width: 70)
-                        }
-                        .padding(.vertical, 8)
-                        .background(Color(.systemGray6))
+    private var leaderboardSection: some View {
+        Section {
+            ScrollView(.horizontal, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 0) {
+                        headerCell(title: "Spelare", key: "name", width: 140, alignment: .leading)
+                        headerCell(title: "ELO", key: "elo", width: 60)
+                        headerCell(title: "Matcher", key: "games", width: 70)
+                        headerCell(title: "Vinster", key: "wins", width: 65)
+                        headerCell(title: "Streak", key: "", width: 60)
+                        headerCell(title: "Form", key: "", width: 70)
+                        headerCell(title: "Vinst %", key: "winPct", width: 70)
+                    }
+                    .padding(.vertical, 8)
+                    .background(Color(.systemGray6))
 
-                        // Rows
-                        ForEach(Array(sortedLeaderboard.enumerated()), id: \.element.id) { index, player in
-                            NavigationLink(destination: RivalryView(opponentId: player.id)) {
-                                HStack(spacing: 0) {
-                                    // Player Name with Rank & Badge
-                                    HStack(spacing: 8) {
-                                        Text("\(index + 1)")
-                                            .font(.caption2.monospacedDigit())
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 18, alignment: .leading)
-
-                                        VStack(alignment: .leading, spacing: 0) {
-                                            HStack(spacing: 4) {
-                                                Text(player.name)
-                                                    .font(.subheadline.weight(.semibold))
-                                                    .lineLimit(1)
-                                                if let badgeId = player.featuredBadgeId, let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
-                                                    Text(badgeIcon)
-                                                        .font(.caption2)
-                                                }
-                                            }
-                                        }
-                                    }
-                                    .frame(width: 140, alignment: .leading)
-
-                                    Text("\(player.elo)")
-                                        .font(.subheadline.weight(.bold))
-                                        .foregroundStyle(Color.accentColor)
-                                        .frame(width: 60)
-
-                                    Text("\(player.games)")
-                                        .font(.subheadline)
-                                        .frame(width: 70)
-
-                                    Text("\(player.wins)")
-                                        .font(.subheadline)
-                                        .frame(width: 65)
-
-                                    Text(player.streak)
-                                        .font(.subheadline)
-                                        .frame(width: 60)
-
-                                    Group {
-                                        if player.eloHistory.count >= 2 {
-                                            SparklineView(points: player.eloHistory)
-                                                .frame(width: 50, height: 20)
-                                                .opacity(0.8)
-                                        } else {
-                                            Text("—").font(.caption2).foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .frame(width: 70)
-
-                                    Text("\(player.winRate)%")
-                                        .font(.subheadline.weight(.semibold))
-                                        .frame(width: 70)
-                                }
-                                .padding(.vertical, 10)
-                                .contentShape(Rectangle())
-                                .background(player.isMe ? Color.accentColor.opacity(0.08) : Color.clear)
-                            }
-                            .buttonStyle(.plain)
-                            Divider()
-                        }
+                    ForEach(Array(sortedLeaderboard.enumerated()), id: \.element.id) { index, player in
+                        leaderboardRow(index: index, player: player)
+                        Divider()
                     }
                 }
-            } header: {
-                Text("ELO-topplista")
             }
+        } header: {
+            Text("ELO-topplista")
+        }
+    }
 
-            Section("Head-to-head") {
-                if viewModel.currentRivalryAgainstStats.isEmpty {
-                    Text("Ingen data än.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(viewModel.currentRivalryAgainstStats.prefix(5)) { summary in
-                        NavigationLink(destination: RivalryView(opponentId: summary.id)) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Du vs \(summary.opponentName)")
-                                    .font(.subheadline.weight(.semibold))
-                                Text("\(summary.matchesPlayed) matcher • \(summary.wins) vinster")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("Senaste: \(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")")
-                                    .font(.caption2)
-                                    .foregroundStyle(summary.lastMatchResult == "V" ? .green : .red)
-                            }
-                            .padding(.vertical, 4)
+    private var rivalrySection: some View {
+        Section("Head-to-head") {
+            if viewModel.currentRivalryAgainstStats.isEmpty {
+                Text("Ingen data än.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(viewModel.currentRivalryAgainstStats.prefix(5)) { summary in
+                    NavigationLink(destination: RivalryView(opponentId: summary.id)) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Du vs \(summary.opponentName)")
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(summary.matchesPlayed) matcher • \(summary.wins) vinster")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Senaste: \(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")")
+                                .font(.caption2)
+                                .foregroundStyle(summary.lastMatchResult == "V" ? .green : .red)
                         }
+                        .padding(.vertical, 4)
                     }
                 }
             }
         }
+    }
+
+    private func leaderboardRow(index: Int, player: LeaderboardPlayer) -> some View {
+        NavigationLink(destination: RivalryView(opponentId: player.id)) {
+            HStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Text("\(index + 1)")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18, alignment: .leading)
+
+                    HStack(spacing: 4) {
+                        Text(player.name)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        if let badgeId = player.featuredBadgeId,
+                           let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
+                            Text(badgeIcon)
+                                .font(.caption2)
+                        }
+                    }
+                }
+                .frame(width: 140, alignment: .leading)
+
+                Text("\(player.elo)")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 60)
+
+                Text("\(player.games)")
+                    .font(.subheadline)
+                    .frame(width: 70)
+
+                Text("\(player.wins)")
+                    .font(.subheadline)
+                    .frame(width: 65)
+
+                Text(player.streak)
+                    .font(.subheadline)
+                    .frame(width: 60)
+
+                Group {
+                    if player.eloHistory.count >= 2 {
+                        SparklineView(points: player.eloHistory)
+                            .frame(width: 50, height: 20)
+                            .opacity(0.8)
+                    } else {
+                        Text("—").font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 70)
+
+                Text("\(player.winRate)%")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 70)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .background(player.isMe ? Color.accentColor.opacity(0.08) : Color.clear)
+        }
+        .buttonStyle(.plain)
     }
 
     private func headerCell(title: String, key: String, width: CGFloat, alignment: Alignment = .center) -> some View {
