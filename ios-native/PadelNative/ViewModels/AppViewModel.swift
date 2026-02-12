@@ -95,13 +95,13 @@ enum DashboardMatchFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: return "All"
-        case .last7: return "Last 7d"
-        case .last30: return "Last 30d"
-        case .short: return "Short"
-        case .long: return "Long"
-        case .tournaments: return "Tournament"
-        case .custom: return "Custom"
+        case .all: return "Alla"
+        case .last7: return "7 dgr"
+        case .last30: return "30 dgr"
+        case .short: return "Korta"
+        case .long: return "Långa"
+        case .tournaments: return "Turnering"
+        case .custom: return "Anpassat"
         }
     }
 }
@@ -157,9 +157,45 @@ struct ProfilePerformanceWidget: Identifiable {
     let value: String
     let detail: String
     let symbol: String
+    let color: String? // "success", "error", or nil
+
+    init(id: String, title: String, value: String, detail: String, symbol: String, color: String? = nil) {
+        self.id = id
+        self.title = title
+        self.value = value
+        self.detail = detail
+        self.symbol = symbol
+        self.color = color
+    }
 }
 
+struct LeaderboardPlayer: Identifiable {
+    let id: UUID
+    let name: String
+    let elo: Int
+    let games: Int
+    let wins: Int
+    let losses: Int
+    let winRate: Int
+    let streak: String
+    let eloHistory: [Int]
+    let avatarURL: String?
+    let featuredBadgeId: String?
+    let isAdmin: Bool
+    let isMe: Bool
+}
 
+struct HeatmapCombo: Identifiable {
+    let id: String
+    let players: [String]
+    let games: Int
+    let wins: Int
+    let winPct: Int
+    let serveFirstWinPct: Int?
+    let serveSecondWinPct: Int?
+    let recentResults: [String]
+    let avgElo: Int
+}
 
 enum HistoryDatePreset: String, CaseIterable, Identifiable {
     case all
@@ -171,10 +207,10 @@ enum HistoryDatePreset: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: return "All"
-        case .last7: return "Last 7d"
-        case .last30: return "Last 30d"
-        case .custom: return "Custom"
+        case .all: return "Alla"
+        case .last7: return "Senaste 7d"
+        case .last30: return "Senaste 30d"
+        case .custom: return "Anpassat"
         }
     }
 }
@@ -290,7 +326,9 @@ final class AppViewModel: ObservableObject {
     @Published var selectedMainTab = 1
     @Published var playerBadgeStats: [UUID: PlayerBadgeStats] = [:]
     @Published var currentPlayerBadges: [Badge] = []
-    @Published var currentRivalryStats: [RivalrySummary] = []
+    @Published var currentRivalryAgainstStats: [RivalrySummary] = []
+    @Published var currentRivalryTogetherStats: [RivalrySummary] = []
+    @Published var heatmapCombos: [HeatmapCombo] = []
     @Published var historyFilters = HistoryFilterState()
     @Published var historyMatches: [Match] = []
     @Published var isHistoryLoading = false
@@ -712,19 +750,88 @@ final class AppViewModel: ObservableObject {
         let myMatches = matchesForProfile(filter: filter)
         let wins = myMatches.filter { match in
             let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamAIds.contains(currentPlayer.id) || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
+            let iAmTeamA = teamAIds.contains(currentPlayer.id)
             return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         }.count
-        let tournamentsPlayed = myMatches.filter { $0.sourceTournamentId != nil }.count
-        let closeMatches = myMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 1 }.count
+        let losses = myMatches.count - wins
         let winRate = myMatches.isEmpty ? 0 : Int((Double(wins) / Double(myMatches.count) * 100).rounded())
 
+        let serveStats = calculateServeSplitStats(matches: myMatches, playerId: currentPlayer.id)
+
+        let last30DaysDelta = playerEloDelta(playerId: currentPlayer.id, days: 30)
+        let lastSessionDelta = playerLastSessionEloDelta(playerId: currentPlayer.id)
+
+        let recentResults = myMatches.prefix(5)
+        let recentWins = recentResults.filter { match in
+            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
+            let iAmTeamA = teamAIds.contains(currentPlayer.id)
+            return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+        }.count
+        let recentLosses = recentResults.count - recentWins
+
         return [
-            ProfilePerformanceWidget(id: "elo", title: "Current ELO", value: "\(currentPlayer.elo)", detail: "Live rating used in matchup balancing", symbol: "chart.line.uptrend.xyaxis"),
-            ProfilePerformanceWidget(id: "winRate", title: "Win rate", value: "\(winRate)%", detail: "\(wins) wins in \(myMatches.count) matches", symbol: "percent"),
-            ProfilePerformanceWidget(id: "tournaments", title: "Tournament games", value: "\(tournamentsPlayed)", detail: "Matches with a tournament source", symbol: "trophy"),
-            ProfilePerformanceWidget(id: "clutch", title: "Close battles", value: "\(closeMatches)", detail: "Matches decided by one set", symbol: "bolt.heart"),
+            ProfilePerformanceWidget(id: "elo", title: "Aktuell ELO", value: "\(currentPlayer.elo)", detail: "Din nuvarande ranking", symbol: "chart.line.uptrend.xyaxis"),
+            ProfilePerformanceWidget(id: "matches", title: "Matcher", value: "\(myMatches.count)", detail: "Totalt spelade matcher", symbol: "paddles.fill"),
+            ProfilePerformanceWidget(id: "winLoss", title: "Vinst/förlust", value: "\(wins) - \(losses)", detail: "\(winRate)% vinstprocent", symbol: "trophy", color: wins >= losses ? "success" : "error"),
+            ProfilePerformanceWidget(id: "serveFirst", title: "Med start-serve", value: "\(serveStats.firstWins)V - \(serveStats.firstLosses)F", detail: "Vinstprocent: \(serveStats.firstWinRate)%", symbol: "bolt.fill"),
+            ProfilePerformanceWidget(id: "serveSecond", title: "Utan start-serve", value: "\(serveStats.secondWins)V - \(serveStats.secondLosses)F", detail: "Vinstprocent: \(serveStats.secondWinRate)%", symbol: "bolt.slash.fill"),
+            ProfilePerformanceWidget(id: "delta30", title: "ELO +/- (30d)", value: "\(last30DaysDelta >= 0 ? "+" : "")\(last30DaysDelta)", detail: "Förändring senaste 30 dagarna", symbol: "calendar", color: last30DaysDelta >= 0 ? "success" : "error"),
+            ProfilePerformanceWidget(id: "deltaSession", title: "ELO +/- (Kväll)", value: "\(lastSessionDelta >= 0 ? "+" : "")\(lastSessionDelta)", detail: "Förändring senaste passet", symbol: "moon.stars.fill", color: lastSessionDelta >= 0 ? "success" : "error"),
+            ProfilePerformanceWidget(id: "form", title: "Form (L5)", value: "\(recentWins)V - \(recentLosses)F", detail: "Resultat på senaste 5 matcherna", symbol: "waveform.path.ecg")
         ]
+    }
+
+    private func calculateServeSplitStats(matches: [Match], playerId: UUID) -> (firstWins: Int, firstLosses: Int, firstWinRate: Int, secondWins: Int, secondLosses: Int, secondWinRate: Int) {
+        var fW = 0, fL = 0, sW = 0, sL = 0
+        for match in matches {
+            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
+            let teamBIds = match.teamBPlayerIds.compactMap { $0 }
+            let isTeamA = teamAIds.contains(playerId)
+            let isTeamB = teamBIds.contains(playerId)
+            guard isTeamA || isTeamB else { continue }
+
+            let servedFirst = match.teamAServesFirst ?? true
+            let iServedFirst = (isTeamA && servedFirst) || (isTeamB && !servedFirst)
+            let iWon = isTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+
+            if iServedFirst {
+                if iWon { fW += 1 } else { fL += 1 }
+            } else {
+                if iWon { sW += 1 } else { sL += 1 }
+            }
+        }
+        let fRate = (fW + fL) > 0 ? Int(round(Double(fW) / Double(fW + fL) * 100)) : 0
+        let sRate = (sW + sL) > 0 ? Int(round(Double(sW) / Double(sW + sL) * 100)) : 0
+        return (fW, fL, fRate, sW, sL, sRate)
+    }
+
+    private func playerEloDelta(playerId: UUID, days: Int) -> Int {
+        let timeline = playerEloTimeline(playerId: playerId, filter: .all)
+        let cutoff = Date().addingTimeInterval(Double(-days * 24 * 60 * 60))
+        let filtered = timeline.filter { $0.date >= cutoff }
+        guard let first = filtered.first, let last = filtered.last else { return 0 }
+        // We need ELO BEFORE the first match in the period.
+        // Actually, playerEloTimeline returns ELO AFTER the match.
+        // So delta = last.elo - (first.elo - first_match_delta)
+        // Let's simplify: delta = sum of deltas in period.
+
+        let playerMatches = matches.filter { match in
+            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
+            return playerIds.contains(playerId)
+        }.filter { $0.playedAt >= cutoff }
+
+        return playerMatches.reduce(0) { $0 + estimatedEloDelta(for: $1, playerId: playerId) }
+    }
+
+    private func playerLastSessionEloDelta(playerId: UUID) -> Int {
+        let playerMatches = matches.filter { match in
+            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
+            return playerIds.contains(playerId)
+        }.sorted { $0.playedAt > $1.playedAt }
+
+        guard let latest = playerMatches.first else { return 0 }
+        let sessionMatches = playerMatches.filter { Calendar.current.isDate($0.playedAt, inSameDayAs: latest.playedAt) }
+        return sessionMatches.reduce(0) { $0 + estimatedEloDelta(for: $1, playerId: playerId) }
     }
 
     var profilePerformanceWidgets: [ProfilePerformanceWidget] {
@@ -959,6 +1066,42 @@ final class AppViewModel: ObservableObject {
             matchCount: matches.count,
             scheduledCount: schedule.count
         )
+    }
+
+    var leaderboardPlayers: [LeaderboardPlayer] {
+        players.compactMap { player in
+            let stats = playerBadgeStats[player.id]
+            let winRate = (stats?.matchesPlayed ?? 0) > 0 ? Int(round(Double(stats?.wins ?? 0) / Double(stats?.matchesPlayed ?? 1) * 100)) : 0
+
+            // Extract ELO history for sparkline (last 10 matches)
+            let eloHistory = playerEloTimeline(playerId: player.id, filter: .all).suffix(10).map { $0.elo }
+
+            return LeaderboardPlayer(
+                id: player.id,
+                name: player.profileName,
+                elo: player.elo,
+                games: stats?.matchesPlayed ?? 0,
+                wins: stats?.wins ?? 0,
+                losses: stats?.losses ?? 0,
+                winRate: winRate,
+                streak: getStreakLabel(stats: stats),
+                eloHistory: Array(eloHistory),
+                avatarURL: player.avatarURL,
+                featuredBadgeId: player.featuredBadgeId,
+                isAdmin: player.isAdmin,
+                isMe: player.id == currentIdentity?.profileId
+            )
+        }.sorted { $0.elo > $1.elo }
+    }
+
+    private func getStreakLabel(stats: PlayerBadgeStats?) -> String {
+        guard let stats = stats else { return "—" }
+        if stats.currentWinStreak > 0 {
+            return "\(stats.currentWinStreak)V"
+        } else if stats.currentLossStreak > 0 {
+            return "\(stats.currentLossStreak)F"
+        }
+        return "—"
     }
 
     var profileWinRate: Int {
@@ -3156,58 +3299,185 @@ final class AppViewModel: ObservableObject {
                 playerId: currentId,
                 allPlayerStats: playerBadgeStats
             )
-            self.currentRivalryStats = calculateRivalryStats(for: currentId)
+            let (against, together) = calculateRivalryStats(for: currentId)
+            self.currentRivalryAgainstStats = against
+            self.currentRivalryTogetherStats = together
+            self.heatmapCombos = calculateHeatmapStats(playerId: currentId)
         }
     }
 
-    private func calculateRivalryStats(for playerId: UUID) -> [RivalrySummary] {
-        var opponentStats: [UUID: (wins: Int, losses: Int, lastMatch: Match?)] = [:]
+    private func calculateRivalryStats(for playerId: UUID) -> (against: [RivalrySummary], together: [RivalrySummary]) {
+        struct Accumulator {
+            var wins = 0
+            var losses = 0
+            var totalSetsFor = 0
+            var totalSetsAgainst = 0
+            var serveFirstWins = 0
+            var serveFirstLosses = 0
+            var serveSecondWins = 0
+            var serveSecondLosses = 0
+            var eloExchange = 0
+            var lastMatch: Match?
+            var results: [String] = []
+        }
+
+        var againstMap: [UUID: Accumulator] = [:]
+        var togetherMap: [UUID: Accumulator] = [:]
+
+        // Process matches in reverse chronological order for lastMatch and results
+        let sorted = matches.sorted { $0.playedAt > $1.playedAt }
+
+        for match in sorted {
+            let teamA = match.teamAPlayerIds.compactMap { $0 }
+            let teamB = match.teamBPlayerIds.compactMap { $0 }
+            let iAmTeamA = teamA.contains(playerId)
+            let iAmTeamB = teamB.contains(playerId)
+            guard iAmTeamA || iAmTeamB else { continue }
+
+            let myTeam = iAmTeamA ? teamA : teamB
+            let oppTeam = iAmTeamA ? teamB : teamA
+            let mySets = iAmTeamA ? match.teamAScore : match.teamBScore
+            let oppSets = iAmTeamA ? match.teamBScore : match.teamAScore
+            let playerWon = mySets > oppSets
+
+            let servedFirst = match.teamAServesFirst ?? true
+            let playerServedFirst = (iAmTeamA && servedFirst) || (iAmTeamB && !servedFirst)
+
+            let delta = estimatedEloDelta(for: match, playerId: playerId)
+
+            func update(_ map: inout [UUID: Accumulator], targetId: UUID) {
+                var acc = map[targetId, default: Accumulator()]
+                if acc.lastMatch == nil { acc.lastMatch = match }
+                if playerWon {
+                    acc.wins += 1
+                } else {
+                    acc.losses += 1
+                }
+                acc.totalSetsFor += mySets
+                acc.totalSetsAgainst += oppSets
+                if playerServedFirst {
+                    if playerWon { acc.serveFirstWins += 1 } else { acc.serveFirstLosses += 1 }
+                } else {
+                    if playerWon { acc.serveSecondWins += 1 } else { acc.serveSecondLosses += 1 }
+                }
+                acc.eloExchange += delta
+                if acc.results.count < 5 {
+                    acc.results.append(playerWon ? "V" : "F")
+                }
+                map[targetId] = acc
+            }
+
+            for id in oppTeam { update(&againstMap, targetId: id) }
+            for id in myTeam where id != playerId { update(&togetherMap, targetId: id) }
+        }
+
+        func finalize(_ map: [UUID: Accumulator]) -> [RivalrySummary] {
+            map.compactMap { oppId, acc in
+                guard let lastMatch = acc.lastMatch,
+                      let opponent = players.first(where: { $0.id == oppId }) else { return nil }
+
+                let teamA = lastMatch.teamAPlayerIds.compactMap { $0 }
+                let iAmTeamA = teamA.contains(playerId)
+                let didWinLast = iAmTeamA ? lastMatch.teamAScore > lastMatch.teamBScore : lastMatch.teamBScore > lastMatch.teamAScore
+
+                let playerElo = players.first(where: { $0.id == playerId })?.elo ?? 1000
+                let opponentElo = opponent.elo
+                let winProb = EloService.getWinProbability(rating: Double(playerElo), opponentRating: Double(opponentElo))
+
+                return RivalrySummary(
+                    id: oppId,
+                    opponentName: opponent.profileName,
+                    opponentAvatarURL: opponent.avatarURL,
+                    matchesPlayed: acc.wins + acc.losses,
+                    wins: acc.wins,
+                    losses: acc.losses,
+                    lastMatchResult: didWinLast ? "V" : "F",
+                    lastMatchDate: lastMatch.playedAt,
+                    eloDelta: acc.eloExchange,
+                    totalSetsFor: acc.totalSetsFor,
+                    totalSetsAgainst: acc.totalSetsAgainst,
+                    serveFirstWins: acc.serveFirstWins,
+                    serveFirstLosses: acc.serveFirstLosses,
+                    serveSecondWins: acc.serveSecondWins,
+                    serveSecondLosses: acc.serveSecondLosses,
+                    winProbability: winProb,
+                    recentResults: acc.results
+                )
+            }.sorted { $0.matchesPlayed > $1.matchesPlayed }
+        }
+
+        return (finalize(againstMap), finalize(togetherMap))
+    }
+
+    private func calculateHeatmapStats(playerId: UUID) -> [HeatmapCombo] {
+        struct ComboAcc {
+            var games = 0
+            var wins = 0
+            var serveFirstGames = 0
+            var serveFirstWins = 0
+            var serveSecondGames = 0
+            var serveSecondWins = 0
+            var results: [String] = []
+            var players: [String] = []
+            var playerIds: [UUID] = []
+        }
+
+        var comboMap: [String: ComboAcc] = [:]
+        let playerNames = players.reduce(into: [UUID: String]()) { $0[$1.id] = $1.profileName }
+        let playerElos = players.reduce(into: [UUID: Int]()) { $0[$1.id] = $1.elo }
 
         for match in matches {
             let teamA = match.teamAPlayerIds.compactMap { $0 }
             let teamB = match.teamBPlayerIds.compactMap { $0 }
             let iAmTeamA = teamA.contains(playerId)
             let iAmTeamB = teamB.contains(playerId)
-
             guard iAmTeamA || iAmTeamB else { continue }
 
-            let opponents = iAmTeamA ? teamB : teamA
-            let didWin = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+            let myTeam = iAmTeamA ? teamA : teamB
+            let playerWon = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
 
-            for oppId in opponents {
-                var current = opponentStats[oppId] ?? (wins: 0, losses: 0, lastMatch: nil)
-                if didWin {
-                    current.wins += 1
-                } else {
-                    current.losses += 1
-                }
-                if current.lastMatch == nil || match.playedAt > current.lastMatch!.playedAt {
-                    current.lastMatch = match
-                }
-                opponentStats[oppId] = current
+            let servedFirst = match.teamAServesFirst ?? true
+            let playerServedFirst = (iAmTeamA && servedFirst) || (iAmTeamB && !servedFirst)
+
+            let sortedIds = myTeam.sorted { $0.uuidString < $1.uuidString }
+            let key = sortedIds.map { $0.uuidString }.joined(separator: "+")
+
+            var acc = comboMap[key, default: ComboAcc()]
+            acc.games += 1
+            if playerWon { acc.wins += 1 }
+            if playerServedFirst {
+                acc.serveFirstGames += 1
+                if playerWon { acc.serveFirstWins += 1 }
+            } else {
+                acc.serveSecondGames += 1
+                if playerWon { acc.serveSecondWins += 1 }
             }
+            if acc.results.count < 5 {
+                acc.results.append(playerWon ? "V" : "F")
+            }
+            acc.players = sortedIds.map { playerNames[$0] ?? "Okänd" }
+            acc.playerIds = sortedIds
+            comboMap[key] = acc
         }
 
-        return opponentStats.compactMap { oppId, stats in
-            guard let lastMatch = stats.lastMatch,
-                  let opponent = players.first(where: { $0.id == oppId }) else { return nil }
+        return comboMap.map { key, acc in
+            let winPct = acc.games > 0 ? Int(round(Double(acc.wins) / Double(acc.games) * 100)) : 0
+            let sfWinPct = acc.serveFirstGames > 0 ? Int(round(Double(acc.serveFirstWins) / Double(acc.serveFirstGames) * 100)) : nil
+            let ssWinPct = acc.serveSecondGames > 0 ? Int(round(Double(acc.serveSecondWins) / Double(acc.serveSecondGames) * 100)) : nil
+            let avgElo = acc.playerIds.isEmpty ? 1000 : acc.playerIds.reduce(0) { $0 + (playerElos[$1] ?? 1000) } / acc.playerIds.count
 
-            let iAmTeamA = lastMatch.teamAPlayerIds.compactMap { $0 }.contains(playerId)
-            let didWinLast = iAmTeamA ? lastMatch.teamAScore > lastMatch.teamBScore : lastMatch.teamBScore > lastMatch.teamAScore
-            let delta = estimatedEloDelta(for: lastMatch, playerId: playerId)
-
-            return RivalrySummary(
-                id: oppId,
-                opponentName: opponent.profileName,
-                opponentAvatarURL: opponent.avatarURL,
-                matchesPlayed: stats.wins + stats.losses,
-                wins: stats.wins,
-                losses: stats.losses,
-                lastMatchResult: didWinLast ? "W" : "L",
-                lastMatchDate: lastMatch.playedAt,
-                eloDelta: delta
+            return HeatmapCombo(
+                id: key,
+                players: acc.players,
+                games: acc.games,
+                wins: acc.wins,
+                winPct: winPct,
+                serveFirstWinPct: sfWinPct,
+                serveSecondWinPct: ssWinPct,
+                recentResults: acc.results,
+                avgElo: avgElo
             )
-        }.sorted { $0.matchesPlayed > $1.matchesPlayed }
+        }.sorted { $0.games > $1.games }
     }
 
     func submitSingleGame(

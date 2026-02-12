@@ -16,34 +16,34 @@ private enum PendingAdminAction: Identifiable {
     var title: String {
         switch self {
         case .toggleApproval(let profile):
-            return profile.isApproved ? "Remove approval?" : "Approve user?"
+            return profile.isApproved ? "Ta bort godkännande?" : "Godkänn användare?"
         case .toggleAdmin(let profile):
-            return profile.isAdmin ? "Remove admin role?" : "Grant admin role?"
+            return profile.isAdmin ? "Ta bort admin-roll?" : "Gör till admin?"
         case .toggleRegular(let profile):
-            return profile.isRegular ? "Remove regular access?" : "Grant regular access?"
+            return profile.isRegular ? "Ta bort ordinarie?" : "Gör till ordinarie?"
         case .deactivate:
-            return "Deactivate user?"
+            return "Inaktivera användare?"
         }
     }
 
     var message: String {
         switch self {
         case .toggleApproval(let profile):
-            return "This updates whether \(profile.name) can use member features."
+            return "Detta ändrar om \(profile.name) kan använda medlemsfunktioner."
         case .toggleAdmin(let profile):
-            return "This updates whether \(profile.name) can access admin tools."
+            return "Detta ändrar om \(profile.name) har tillgång till adminverktyg."
         case .toggleRegular(let profile):
-            return "This updates whether \(profile.name) can access schedule workflows."
+            return "Detta ändrar om \(profile.name) har tillgång till schemat."
         case .deactivate(let profile):
-            return "This will deactivate \(profile.name), remove elevated access, and hide the profile from active users."
+            return "Detta kommer att inaktivera \(profile.name), ta bort behörigheter och dölja profilen."
         }
     }
 }
 
 private enum AdminTab: String, CaseIterable, Identifiable {
-    case users = "Users"
-    case reports = "Reports"
-    case emails = "Emails"
+    case users = "Användare"
+    case reports = "Rapporter"
+    case emails = "E-post"
 
     var id: String { rawValue }
 }
@@ -65,7 +65,7 @@ struct AdminView: View {
                 if viewModel.canUseAdmin {
                     List {
                         Section {
-                            Picker("Admin area", selection: $selectedTab) {
+                            Picker("Adminområde", selection: $selectedTab) {
                                 ForEach(AdminTab.allCases) { tab in
                                     Text(tab.rawValue).tag(tab)
                                 }
@@ -88,8 +88,8 @@ struct AdminView: View {
                             emailsSection
                         }
 
-                        Section("What this does") {
-                            Text("Note for non-coders: this admin screen now mirrors web tabs (users, reports, emails). Every action keeps strict admin checks before any server change runs.")
+                        Section("Information") {
+                            Text("Här hanterar du användare, rapporter och e-postutskick. Alla åtgärder loggas och kräver adminbehörighet.")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -143,41 +143,52 @@ struct AdminView: View {
 
     private var usersSection: some View {
         Group {
-            Section("Overview") {
-                metricRow(label: "Players", value: "\(viewModel.adminSnapshot.playerCount)")
-                metricRow(label: "Matches", value: "\(viewModel.adminSnapshot.matchCount)")
-                metricRow(label: "Scheduled Games", value: "\(viewModel.adminSnapshot.scheduledCount)")
+            Section("Översikt") {
+                let pendingCount = viewModel.adminProfiles.filter { !$0.isApproved }.count
+                let adminCount = viewModel.adminProfiles.filter { $0.isAdmin }.count
+
+                HStack(spacing: 12) {
+                    metricCard(title: "Spelare", value: "\(viewModel.adminSnapshot.playerCount)", icon: "person.2.fill", color: .blue)
+                    metricCard(title: "Väntar", value: "\(pendingCount)", icon: "hourglass", color: pendingCount > 0 ? .orange : .green)
+                    metricCard(title: "Admins", value: "\(adminCount)", icon: "shield.fill", color: .purple)
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+                .padding(.vertical, 8)
+
+                metricRow(label: "Matcher totalt", value: "\(viewModel.adminSnapshot.matchCount)")
+                metricRow(label: "Schemalagda pass", value: "\(viewModel.adminSnapshot.scheduledCount)")
             }
 
-            Section("User management") {
+            Section("Användarhantering") {
                 ForEach(viewModel.adminProfiles) { profile in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Text(profile.name).font(.headline)
                             Spacer()
                             if profile.isApproved {
-                                Label("Approved", systemImage: "checkmark.seal.fill")
+                                Label("Godkänd", systemImage: "checkmark.seal.fill")
                                     .font(.caption)
                                     .foregroundStyle(AppColors.success)
                             } else {
-                                Label("Pending", systemImage: "hourglass")
+                                Label("Väntar", systemImage: "hourglass")
                                     .font(.caption)
                                     .foregroundStyle(.orange)
                             }
                         }
 
                         HStack(spacing: 8) {
-                            Button(profile.isApproved ? "Revoke" : "Approve") { pendingAction = .toggleApproval(profile) }
+                            Button(profile.isApproved ? "Dra in" : "Godkänn") { pendingAction = .toggleApproval(profile) }
                                 .buttonStyle(.bordered)
-                            Button(profile.isAdmin ? "Demote" : "Make admin") { pendingAction = .toggleAdmin(profile) }
+                            Button(profile.isAdmin ? "Ta bort admin" : "Gör till admin") { pendingAction = .toggleAdmin(profile) }
                                 .buttonStyle(.bordered)
-                            Button(profile.isRegular ? "Remove regular" : "Make regular") { pendingAction = .toggleRegular(profile) }
+                            Button(profile.isRegular ? "Ta bort ordinarie" : "Gör till ordinarie") { pendingAction = .toggleRegular(profile) }
                                 .buttonStyle(.bordered)
                         }
                         .font(.caption)
 
                         Button(role: .destructive) { pendingAction = .deactivate(profile) } label: {
-                            Label("Deactivate user", systemImage: "person.crop.circle.badge.xmark")
+                            Label("Inaktivera användare", systemImage: "person.crop.circle.badge.xmark")
                         }
                         .font(.caption)
                     }
@@ -189,31 +200,29 @@ struct AdminView: View {
 
     private var reportsSection: some View {
         Group {
-            Section("Match-evening report") {
-                // Note for non-coders:
-                // Admin picks a past play date, then the app builds a shareable text summary.
-                Picker("Play date", selection: $selectedEvening) {
+            Section("Matchkvälls-rapport") {
+                Picker("Datum", selection: $selectedEvening) {
                     ForEach(viewModel.adminMatchEveningOptions, id: \.self) { day in
                         Text(day).tag(day)
                     }
                 }
                 .disabled(viewModel.adminMatchEveningOptions.isEmpty)
 
-                Button("Generate evening report") {
+                Button("Generera rapport") {
                     viewModel.generateMatchEveningReport(for: selectedEvening)
                 }
                 .disabled(selectedEvening.isEmpty)
             }
 
-            Section("Tournament report") {
-                Picker("Completed tournament", selection: $selectedReportTournamentId) {
-                    Text("Select tournament").tag(Optional<UUID>.none)
+            Section("Turneringsrapport") {
+                Picker("Slutförd turnering", selection: $selectedReportTournamentId) {
+                    Text("Välj turnering").tag(Optional<UUID>.none)
                     ForEach(viewModel.tournaments.filter { $0.status == "completed" }) { tournament in
                         Text(tournament.name).tag(Optional(tournament.id))
                     }
                 }
 
-                Button("Generate tournament report") {
+                Button("Generera rapport") {
                     guard let id = selectedReportTournamentId else { return }
                     Task { await viewModel.generateTournamentReport(for: id) }
                 }
@@ -221,7 +230,7 @@ struct AdminView: View {
             }
 
             previewSection(
-                title: "Report preview/share",
+                title: "Förhandsgranska / Dela",
                 content: viewModel.adminReportPreviewText,
                 status: viewModel.adminReportStatusMessage
             )
@@ -230,25 +239,25 @@ struct AdminView: View {
 
     private var emailsSection: some View {
         Group {
-            Section("Weekly email") {
-                Picker("Timeframe", selection: $selectedWeeklyTimeframe) {
+            Section("Veckobrev") {
+                Picker("Tidsram", selection: $selectedWeeklyTimeframe) {
                     ForEach(AdminWeeklyTimeframe.allCases) { option in
-                        Text(option.title).tag(option)
+                        Text(option.title.replacingOccurrences(of: "Last 7 days", with: "Senaste 7 dagarna").replacingOccurrences(of: "Last 30 days", with: "Senaste 30 dagarna")).tag(option)
                     }
                 }
 
                 if selectedWeeklyTimeframe == .isoWeek {
-                    Stepper("ISO Week: \(selectedISOWeek)", value: $selectedISOWeek, in: 1...53)
-                    Stepper("ISO Year: \(selectedISOYear)", value: $selectedISOYear, in: 2020...2100)
+                    Stepper("ISO Vecka: \(selectedISOWeek)", value: $selectedISOWeek, in: 1...53)
+                    Stepper("ISO År: \(selectedISOYear)", value: $selectedISOYear, in: 2020...2100)
                 }
 
-                Button("Preview weekly email") {
+                Button("Förhandsgranska veckobrev") {
                     let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
                     let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
                     viewModel.buildWeeklyEmailPreview(timeframe: selectedWeeklyTimeframe, week: week, year: year)
                 }
 
-                Button("Run weekly email test") {
+                Button("Skicka test-veckobrev") {
                     let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
                     let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
                     Task { await viewModel.sendWeeklyEmailTest(timeframe: selectedWeeklyTimeframe, week: week, year: year) }
@@ -256,28 +265,28 @@ struct AdminView: View {
                 .buttonStyle(.borderedProminent)
             }
 
-            Section("Tournament email") {
-                Picker("Completed tournament", selection: $selectedEmailTournamentId) {
-                    Text("Select tournament").tag(Optional<UUID>.none)
+            Section("Turneringsbrev") {
+                Picker("Slutförd turnering", selection: $selectedEmailTournamentId) {
+                    Text("Välj turnering").tag(Optional<UUID>.none)
                     ForEach(viewModel.tournaments.filter { $0.status == "completed" }) { tournament in
                         Text(tournament.name).tag(Optional(tournament.id))
                     }
                 }
 
-                Button("Preview tournament email") {
+                Button("Förhandsgranska turneringsbrev") {
                     guard let id = selectedEmailTournamentId else { return }
                     Task { await viewModel.buildTournamentEmailPreview(for: id) }
                 }
                 .disabled(selectedEmailTournamentId == nil)
 
-                Button("Run tournament email test") {
+                Button("Skicka test-turneringsbrev") {
                     Task { await viewModel.sendTournamentEmailTest() }
                 }
                 .buttonStyle(.borderedProminent)
             }
 
             previewSection(
-                title: "Email preview/test output",
+                title: "E-post förhandsgranskning",
                 content: viewModel.adminEmailPreviewText,
                 status: viewModel.adminEmailStatusMessage
             )
@@ -292,6 +301,34 @@ struct AdminView: View {
         }
     }
 
+    private func metricCard(title: String, value: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.caption)
+                Spacer()
+            }
+            .foregroundStyle(color)
+
+            HStack {
+                Text(value)
+                    .font(.title2.bold())
+                Spacer()
+            }
+
+            HStack {
+                Text(title)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
     @ViewBuilder
     private func previewSection(title: String, content: String?, status: String?) -> some View {
         Section(title) {
@@ -302,19 +339,15 @@ struct AdminView: View {
 
                 if let cardURL = adminShareImageURL(content: content, title: title) {
                     ShareLink(item: cardURL) {
-                        Label("Share as image", systemImage: "photo.on.rectangle")
+                        Label("Dela som bild", systemImage: "photo.on.rectangle")
                     }
                 }
 
                 ShareLink(item: content) {
-                    Label("Share output text", systemImage: "square.and.arrow.up")
+                    Label("Dela som text", systemImage: "square.and.arrow.up")
                 }
-
-                Text("Note for non-coders: image sharing gives a cleaner card in chat apps; text sharing remains as backup.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             } else {
-                Text("No preview yet. Generate one using the actions above.")
+                Text("Ingen förhandsgranskning än.")
                     .foregroundStyle(.secondary)
             }
 

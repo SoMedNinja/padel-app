@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject private var viewModel: AppViewModel
+    @State private var leaderboardSortKey: String = "elo"
+    @State private var leaderboardSortAscending: Bool = false
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -9,6 +11,22 @@ struct DashboardView: View {
         formatter.timeStyle = .short
         return formatter
     }()
+
+    private var sortedLeaderboard: [LeaderboardPlayer] {
+        let base = viewModel.leaderboardPlayers
+        return base.sorted { a, b in
+            let result: Bool
+            switch leaderboardSortKey {
+            case "name": result = a.name.localizedCompare(b.name) == .orderedAscending
+            case "games": result = a.games < b.games
+            case "wins": result = a.wins < b.wins
+            case "winPct": result = a.winRate < b.winRate
+            case "elo": fallthrough
+            default: result = a.elo < b.elo
+            }
+            return leaderboardSortAscending ? result : !result
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,10 +43,10 @@ struct DashboardView: View {
                     dashboardContent
                 }
             }
-            .navigationTitle("Dashboard")
+            .navigationTitle("Översikt")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Sign Out") {
+                    Button("Logga ut") {
                         viewModel.signOut()
                     }
                 }
@@ -47,7 +65,7 @@ struct DashboardView: View {
     private var loadingState: some View {
         List {
             Section {
-                ProgressView("Loading dashboard…")
+                ProgressView("Laddar översikt…")
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.secondary.opacity(0.15))
                     .frame(height: 90)
@@ -60,10 +78,10 @@ struct DashboardView: View {
 
     private func errorState(message: String) -> some View {
         List {
-            Section("Could not load data") {
+            Section("Kunde inte ladda data") {
                 Text(message)
                     .foregroundStyle(.red)
-                Button("Try again") {
+                Button("Försök igen") {
                     Task { await viewModel.bootstrap() }
                 }
             }
@@ -72,8 +90,8 @@ struct DashboardView: View {
 
     private var emptyState: some View {
         List {
-            Section("No matches yet") {
-                Text("Add your first match to unlock leaderboard trends, highlights, and MVP cards.")
+            Section("Inga matcher ännu") {
+                Text("Lägg till din första match för att låsa upp trender, highlights och MVP-kort.")
                     .foregroundStyle(.secondary)
             }
         }
@@ -84,15 +102,12 @@ struct DashboardView: View {
             if let error = viewModel.lastErrorMessage {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Data refresh warning", systemImage: "exclamationmark.triangle.fill")
+                        Label("Varning vid datahämtning", systemImage: "exclamationmark.triangle.fill")
                             .font(.headline)
                             .foregroundStyle(.orange)
                         Text(error)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        // Note for non-coders:
-                        // This card tells users that some widgets may be stale because
-                        // a live refresh failed, even though existing data is still visible.
                     }
                     .padding(.vertical, 4)
                 }
@@ -100,18 +115,18 @@ struct DashboardView: View {
             if let notice = viewModel.activeTournamentNotice {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Tournament in progress")
+                        Text("Turnering pågår!")
                             .font(.headline)
-                        Text("\(notice.name) is live right now.")
+                        Text("\(notice.name) är live nu.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         HStack {
-                            Button("Open Tournament") {
+                            Button("Visa turnering") {
                                 viewModel.openTournamentTab()
                             }
                             .buttonStyle(.borderedProminent)
 
-                            Button("Dismiss") {
+                            Button("Stäng") {
                                 viewModel.dismissTournamentNotice()
                             }
                             .buttonStyle(.bordered)
@@ -124,7 +139,7 @@ struct DashboardView: View {
             if let upcoming = viewModel.nextScheduledGameNotice {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Upcoming scheduled game")
+                        Text("Uppkommande bokning")
                             .font(.headline)
                         Text("\(upcoming.description) • \(upcoming.location)")
                             .font(.subheadline)
@@ -132,11 +147,11 @@ struct DashboardView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         HStack {
-                            Button("Open Schedule") {
+                            Button("Se schema") {
                                 viewModel.openScheduleTab()
                             }
                             .buttonStyle(.bordered)
-                            Button("Dismiss") {
+                            Button("Stäng") {
                                 viewModel.dismissScheduledGameNotice()
                             }
                             .buttonStyle(.plain)
@@ -147,14 +162,14 @@ struct DashboardView: View {
             }
 
             if let recent = viewModel.latestRecentMatch {
-                Section("Recent highlight") {
+                Section("Senaste highlight") {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("New result!")
+                        Text("Nytt resultat!")
                             .font(.headline)
                         Text("\(recent.teamAName) vs \(recent.teamBName)")
-                        Text("Score: \(recent.teamAScore)-\(recent.teamBScore)")
+                        Text("Resultat: \(recent.teamAScore)-\(recent.teamBScore)")
                             .font(.subheadline.weight(.semibold))
-                        Button("Dismiss") {
+                        Button("Stäng") {
                             viewModel.dismissRecentMatchNotice()
                         }
                         .buttonStyle(.plain)
@@ -170,19 +185,18 @@ struct DashboardView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                // Note for non-coders: we use a menu here because iOS segmented controls become cramped with many options.
 
                 if viewModel.dashboardFilter == .custom {
-                    DatePicker("From", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
-                    DatePicker("To", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+                    DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
+                    DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
 
-                    Button("Reset to all") {
+                    Button("Återställ") {
                         viewModel.dashboardFilter = .all
                     }
                     .buttonStyle(.bordered)
                 }
 
-                Text("Active filter: \(viewModel.dashboardActiveFilterLabel)")
+                Text("Aktivt filter: \(viewModel.dashboardActiveFilterLabel)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -205,7 +219,7 @@ struct DashboardView: View {
 
             if viewModel.showHighlightCard, let highlight = viewModel.latestHighlightMatch,
                let match = viewModel.matches.first(where: { $0.id == highlight.matchId }) {
-                Section("Match spotlight") {
+                Section("Match-fokus") {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(highlight.title)
                             .font(.headline)
@@ -214,7 +228,7 @@ struct DashboardView: View {
                             .foregroundStyle(.secondary)
                         Text("\(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)")
                             .font(.caption)
-                        Button("Dismiss") {
+                        Button("Stäng") {
                             viewModel.dismissHighlightCard()
                         }
                         .buttonStyle(.plain)
@@ -223,64 +237,141 @@ struct DashboardView: View {
                 }
             }
 
-            Section("ELO-topplista") {
-                ForEach(Array(viewModel.players.enumerated()), id: \.element.id) { index, player in
-                    NavigationLink(destination: RivalryView(opponentId: player.id)) {
-                        HStack(spacing: 12) {
-                            Text("#\(index + 1)")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 28)
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Header
+                        HStack(spacing: 0) {
+                            headerCell(title: "Spelare", key: "name", width: 140, alignment: .leading)
+                            headerCell(title: "ELO", key: "elo", width: 60)
+                            headerCell(title: "Matcher", key: "games", width: 70)
+                            headerCell(title: "Vinster", key: "wins", width: 65)
+                            headerCell(title: "Streak", key: "", width: 60)
+                            headerCell(title: "Form", key: "", width: 70)
+                            headerCell(title: "Vinst %", key: "winPct", width: 70)
+                        }
+                        .padding(.vertical, 8)
+                        .background(Color(.systemGray6))
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(player.profileName)
-                                    .font(.subheadline.weight(.semibold))
-                                Text(player.isAdmin ? "Admin" : "Medlem")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                        // Rows
+                        ForEach(Array(sortedLeaderboard.enumerated()), id: \.element.id) { index, player in
+                            NavigationLink(destination: RivalryView(opponentId: player.id)) {
+                                HStack(spacing: 0) {
+                                    // Player Name with Rank & Badge
+                                    HStack(spacing: 8) {
+                                        Text("\(index + 1)")
+                                            .font(.caption2.monospacedDigit())
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 18, alignment: .leading)
+
+                                        VStack(alignment: .leading, spacing: 0) {
+                                            HStack(spacing: 4) {
+                                                Text(player.name)
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .lineLimit(1)
+                                                if let badgeId = player.featuredBadgeId, let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
+                                                    Text(badgeIcon)
+                                                        .font(.caption2)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .frame(width: 140, alignment: .leading)
+
+                                    Text("\(player.elo)")
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(Color.accentColor)
+                                        .frame(width: 60)
+
+                                    Text("\(player.games)")
+                                        .font(.subheadline)
+                                        .frame(width: 70)
+
+                                    Text("\(player.wins)")
+                                        .font(.subheadline)
+                                        .frame(width: 65)
+
+                                    Text(player.streak)
+                                        .font(.subheadline)
+                                        .frame(width: 60)
+
+                                    Group {
+                                        if player.eloHistory.count >= 2 {
+                                            SparklineView(points: player.eloHistory)
+                                                .frame(width: 50, height: 20)
+                                                .opacity(0.8)
+                                        } else {
+                                            Text("—").font(.caption2).foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .frame(width: 70)
+
+                                    Text("\(player.winRate)%")
+                                        .font(.subheadline.weight(.semibold))
+                                        .frame(width: 70)
+                                }
+                                .padding(.vertical, 10)
+                                .contentShape(Rectangle())
+                                .background(player.isMe ? Color.accentColor.opacity(0.08) : Color.clear)
                             }
-
-                            Spacer()
-
-                            // Sparkline for recent ELO trend
-                            let points = viewModel.playerEloTimeline(playerId: player.id, filter: .all).suffix(10).map { $0.elo }
-                            if points.count >= 2 {
-                                SparklineView(points: Array(points))
-                                    .frame(width: 50, height: 20)
-                                    .opacity(0.6)
-                            }
-
-                            VStack(alignment: .trailing) {
-                                Text("\(player.elo)")
-                                    .font(.headline)
-                                    .foregroundStyle(Color.accentColor)
-                            }
+                            .buttonStyle(.plain)
+                            Divider()
                         }
                     }
                 }
+            } header: {
+                Text("ELO-topplista")
             }
 
             Section("Head-to-head") {
-                if viewModel.headToHeadSummary.isEmpty {
-                    Text("No rivalry data yet.")
+                if viewModel.currentRivalryAgainstStats.isEmpty {
+                    Text("Ingen data än.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(viewModel.headToHeadSummary) { summary in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(summary.pairing)
-                                .font(.subheadline.weight(.semibold))
-                            Text("Matches played: \(summary.matchesPlayed)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("Close matches: \(summary.closeMatches)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    ForEach(viewModel.currentRivalryAgainstStats.prefix(5)) { summary in
+                        NavigationLink(destination: RivalryView(opponentId: summary.id)) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Du vs \(summary.opponentName)")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("\(summary.matchesPlayed) matcher • \(summary.wins) vinster")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Senaste: \(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")")
+                                    .font(.caption2)
+                                    .foregroundStyle(summary.lastMatchResult == "V" ? .green : .red)
+                            }
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
                     }
                 }
             }
         }
+    }
+
+    private func headerCell(title: String, key: String, width: CGFloat, alignment: Alignment = .center) -> some View {
+        Button {
+            if !key.isEmpty {
+                if leaderboardSortKey == key {
+                    leaderboardSortAscending.toggle()
+                } else {
+                    leaderboardSortKey = key
+                    leaderboardSortAscending = false
+                }
+            }
+        } label: {
+            HStack(spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                if leaderboardSortKey == key && !key.isEmpty {
+                    Image(systemName: leaderboardSortAscending ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .frame(width: width, alignment: alignment)
+        }
+        .disabled(key.isEmpty)
     }
 
     private func mvpRow(title: String, result: DashboardMVPResult) -> some View {

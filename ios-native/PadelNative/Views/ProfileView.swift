@@ -26,6 +26,7 @@ struct ProfileView: View {
     @State private var selectedAvatarItem: PhotosPickerItem?
     @State private var selectedTab: ProfileTab = .overview
     @State private var selectedFilter: DashboardMatchFilter = .all
+    @State private var compareWithId: UUID? = nil
 
     private var profileFilterOptions: [DashboardMatchFilter] {
         [.last7, .last30, .tournaments, .custom, .all]
@@ -51,14 +52,14 @@ struct ProfileView: View {
                             viewModel.signOut()
                         }
                     } label: {
-                        Label(viewModel.isGuestMode ? "Gå till inloggning" : "Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                        Label(viewModel.isGuestMode ? "Gå till inloggning" : "Logga ut", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
                 .padding()
             }
-            .navigationTitle("Profile")
+            .navigationTitle("Profil")
             .task {
                 viewModel.syncProfileSetupDraftFromCurrentPlayer()
             }
@@ -76,11 +77,7 @@ struct ProfileView: View {
     }
 
     private var profileFilterSelector: some View {
-        SectionCard(title: "Profile filter") {
-            Text("Note for non-coders: this filter works like web profile tabs, so every profile statistic below uses the same time/tournament context.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
+        SectionCard(title: "Profilfilter") {
             Picker("Filter", selection: $selectedFilter) {
                 ForEach(profileFilterOptions) { filter in
                     Text(filter.title).tag(filter)
@@ -89,16 +86,16 @@ struct ProfileView: View {
             .pickerStyle(.menu)
 
             if selectedFilter == .custom {
-                DatePicker("From", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
-                DatePicker("To", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+                DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
+                DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
 
-                Button("Reset to all") {
+                Button("Återställ") {
                     selectedFilter = .all
                 }
                 .buttonStyle(.bordered)
             }
 
-            Text("Active filter: \(selectedFilter == .custom ? viewModel.dashboardActiveFilterLabel : selectedFilter.title)")
+            Text("Aktivt filter: \(selectedFilter == .custom ? viewModel.dashboardActiveFilterLabel : selectedFilter.title)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -107,8 +104,8 @@ struct ProfileView: View {
 
 
     private var guestModeSection: some View {
-        SectionCard(title: "Guest mode") {
-            Text("Note for non-coders: guest mode is read-only. You can browse public stats, but profile editing and saved actions require a real account.")
+        SectionCard(title: "Gästläge") {
+            Text("Gästläge är skrivskyddat. Du kan se statistik, men för att spara matcher eller ändra profil krävs ett konto.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -145,53 +142,108 @@ struct ProfileView: View {
     }
 
     private var eloTrendTab: some View {
-        SectionCard(title: "ELO timeline") {
-            Text("Note for non-coders: this chart shows how your rating moved match by match in the selected filter window.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            let points = viewModel.profileEloTimeline(filter: selectedFilter)
-            if points.count <= 1 {
-                Text("Play more matches to see an ELO trend line.")
-                    .foregroundStyle(.secondary)
-            } else {
-                Chart(points) { point in
-                    LineMark(
-                        x: .value("Date", point.date),
-                        y: .value("ELO", point.elo)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.accentColor)
-
-                    PointMark(
-                        x: .value("Date", point.date),
-                        y: .value("ELO", point.elo)
-                    )
-                    .symbolSize(24)
+        SectionCard(title: "ELO-tidslinje") {
+            VStack(alignment: .leading, spacing: 12) {
+                Picker("Jämför med", selection: $compareWithId) {
+                    Text("Ingen").tag(Optional<UUID>.none)
+                    ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
+                        Text(player.profileName).tag(Optional(player.id))
+                    }
                 }
-                .frame(height: 220)
+                .pickerStyle(.menu)
+
+                let myPoints = viewModel.profileEloTimeline(filter: selectedFilter)
+
+                if myPoints.count <= 1 {
+                    Text("Spela fler matcher för att se din ELO-trend.")
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 40)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Chart {
+                        ForEach(myPoints) { point in
+                            LineMark(
+                                x: .value("Datum", point.date),
+                                y: .value("ELO", point.elo),
+                                series: .value("Spelare", "Du")
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(Color.accentColor)
+                        }
+
+                        if let otherId = compareWithId {
+                            let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
+                            ForEach(otherPoints) { point in
+                                LineMark(
+                                    x: .value("Datum", point.date),
+                                    y: .value("ELO", point.elo),
+                                    series: .value("Spelare", viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan")
+                                )
+                                .interpolationMethod(.catmullRom)
+                                .foregroundStyle(Color.blue)
+                            }
+                        }
+                    }
+                    .frame(height: 250)
+                    .chartLegend(.visible)
+                }
             }
         }
     }
 
     private var teammatesTab: some View {
-        SectionCard(title: "Lagkamrater & motståndare") {
-            Text("Note for non-coders: this is the profile equivalent of the web heatmap summary, focused on your strongest and most frequent combinations.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        SectionCard(title: "Lagkombinationer") {
+            ScrollView(.horizontal, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Header
+                    HStack(spacing: 0) {
+                        Text("Lagkamrat").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 120, alignment: .leading)
+                        Text("Matcher").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 60)
+                        Text("Vinster").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 60)
+                        Text("Vinst %").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 65)
+                        Text("Senaste 5").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 110)
+                    }
+                    .padding(.vertical, 8)
+                    .background(Color(.systemGray6))
 
-            ForEach(viewModel.profileComboStats(filter: selectedFilter)) { combo in
-                HStack {
-                    Label(combo.title, systemImage: combo.symbol)
-                    Spacer()
-                    Text(combo.value)
-                        .font(.subheadline.weight(.semibold))
-                        .multilineTextAlignment(.trailing)
+                    ForEach(viewModel.heatmapCombos) { combo in
+                        let otherPlayers = combo.players.filter { $0 != (viewModel.currentPlayer?.profileName ?? "") }
+                        let otherNames = otherPlayers.joined(separator: " & ")
+
+                        HStack(spacing: 0) {
+                            Text(otherNames.isEmpty ? "Singles" : otherNames)
+                                .font(.subheadline.weight(.semibold))
+                                .frame(width: 120, alignment: .leading)
+                                .lineLimit(1)
+
+                            Text("\(combo.games)")
+                                .font(.subheadline)
+                                .frame(width: 60)
+
+                            Text("\(combo.wins)")
+                                .font(.subheadline)
+                                .frame(width: 60)
+
+                            Text("\(combo.winPct)%")
+                                .font(.subheadline.weight(.bold))
+                                .frame(width: 65)
+
+                            HStack(spacing: 4) {
+                                ForEach(Array(combo.recentResults.enumerated()), id: \.offset) { _, res in
+                                    Text(res)
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 16, height: 16)
+                                        .background(res == "V" ? Color.green : Color.red)
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .frame(width: 110)
+                        }
+                        .padding(.vertical, 8)
+                        Divider()
+                    }
                 }
-                Text(combo.detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Divider()
             }
         }
     }
@@ -296,9 +348,7 @@ struct ProfileView: View {
     }
 
     private var accountSection: some View {
-        SectionCard(title: "Account") {
-            Text("Note for non-coders: this screen mirrors web profile setup so users can update identity, avatar, badges, and quick filters from one place.")
-                .foregroundStyle(.secondary)
+        SectionCard(title: "Konto") {
             if let email = viewModel.signedInEmail {
                 Label(email, systemImage: "envelope")
                     .font(.footnote)
@@ -321,15 +371,11 @@ struct ProfileView: View {
                     Task { await viewModel.setBiometricLockEnabled(enabled) }
                 }
             ))
-
-            Text("Note for non-coders: toggles above are iOS-only extras. Notifications can alert before matches, and biometric lock adds device-level privacy.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 
     private func currentPlayerSection(_ current: Player) -> some View {
-        SectionCard(title: "Current player") {
+        SectionCard(title: "Nuvarande spelare") {
             HStack {
                 profileAvatarView(urlString: current.avatarURL)
                     .frame(width: 56, height: 56)
@@ -339,7 +385,7 @@ struct ProfileView: View {
                         .font(.title3).bold()
                     Text("ELO: \(current.elo)")
                         .foregroundStyle(.secondary)
-                    Text("Featured badge: \(viewModel.highlightedBadgeTitle)")
+                    Text("Vald merit: \(viewModel.highlightedBadgeTitle)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -349,19 +395,19 @@ struct ProfileView: View {
     }
 
     private var profileSetupSection: some View {
-        SectionCard(title: "Profile setup") {
-            TextField("Display name", text: $viewModel.profileDisplayNameDraft)
+        SectionCard(title: "Profilinställningar") {
+            TextField("Visningsnamn", text: $viewModel.profileDisplayNameDraft)
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
                 .textFieldStyle(.roundedBorder)
 
-            TextField("Avatar URL (optional)", text: $viewModel.profileAvatarURLInput)
+            TextField("Avatar-URL (valfri)", text: $viewModel.profileAvatarURLInput)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .textFieldStyle(.roundedBorder)
 
             PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
-                Label("Choose photo from device", systemImage: "photo")
+                Label("Välj bild från mobilen", systemImage: "photo")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
@@ -371,15 +417,10 @@ struct ProfileView: View {
                     if let data = try? await newItem.loadTransferable(type: Data.self),
                        let resizedData = resizeAvatarImageData(data) {
                         let base64 = resizedData.base64EncodedString()
-                        // Note for non-coders: data URLs let us store a picked image as text in avatar_url when no file storage bucket is configured.
                         viewModel.profileAvatarURLInput = "data:image/jpeg;base64,\(base64)"
                     }
                 }
             }
-
-            Text("Note for non-coders: avatar strategy follows web fallback order — use saved profile avatar, else typed URL/photo, else initials icon.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
 
             if let message = viewModel.profileSetupMessage {
                 Text(message)
@@ -394,7 +435,7 @@ struct ProfileView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                 } else {
-                    Label("Save profile setup", systemImage: "square.and.arrow.down")
+                    Label("Spara inställningar", systemImage: "square.and.arrow.down")
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -454,40 +495,40 @@ struct ProfileView: View {
     }
 
     private var performanceSection: some View {
-        SectionCard(title: "Performance") {
+        SectionCard(title: "Prestation") {
             ForEach(viewModel.profilePerformanceWidgets(filter: selectedFilter)) { widget in
-                HStack {
-                    Label(widget.title, systemImage: widget.symbol)
-                    Spacer()
-                    Text(widget.value)
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Label(widget.title, systemImage: widget.symbol)
+                        Spacer()
+                        Text(widget.value)
+                            .font(.headline)
+                            .foregroundStyle(widget.color == "success" ? .green : (widget.color == "error" ? .red : .primary))
+                    }
+                    Text(widget.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Text(widget.detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .padding(.vertical, 4)
                 Divider()
             }
         }
     }
 
     private var navigationActionsSection: some View {
-        SectionCard(title: "Quick actions") {
-            Text("Note for non-coders: these shortcuts open profile-relevant filters in Dashboard/History like the web profile tabs.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
+        SectionCard(title: "Snabbval") {
             HStack {
-                Button("Last 7d") {
+                Button("Senaste 7d") {
                     viewModel.openDashboardFiltered(.last7)
                 }
                 .buttonStyle(.bordered)
 
-                Button("Tournament") {
+                Button("Turnering") {
                     viewModel.openDashboardFiltered(.tournaments)
                 }
                 .buttonStyle(.bordered)
 
-                Button("History") {
+                Button("Historik") {
                     viewModel.openHistoryTab()
                 }
                 .buttonStyle(.bordered)
@@ -496,12 +537,12 @@ struct ProfileView: View {
     }
 
     private func permissionsSection(_ current: Player) -> some View {
-        SectionCard(title: "Permissions") {
-            Label(current.isRegular ? "Schedule access enabled" : "Schedule access disabled", systemImage: current.isRegular ? "checkmark.circle" : "xmark.circle")
-            Label(current.isAdmin ? "Admin tools enabled" : "Admin tools disabled", systemImage: current.isAdmin ? "checkmark.shield" : "shield.slash")
+        SectionCard(title: "Behörigheter") {
+            Label(current.isRegular ? "Åtkomst till schema: JA" : "Åtkomst till schema: NEJ", systemImage: current.isRegular ? "checkmark.circle" : "xmark.circle")
+            Label(current.isAdmin ? "Adminverktyg: JA" : "Adminverktyg: NEJ", systemImage: current.isAdmin ? "checkmark.shield" : "shield.slash")
 
             if viewModel.isAwaitingApproval {
-                Text("Your account is waiting for admin approval. You can still review profile information while waiting.")
+                Text("Ditt konto väntar på admin-godkännande.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

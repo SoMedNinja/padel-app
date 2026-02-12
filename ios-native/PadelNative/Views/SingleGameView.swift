@@ -153,7 +153,7 @@ struct SingleGameView: View {
                 playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
             }
             HStack {
-                Button("Föreslå matchup") {
+                Button("Föreslå match") {
                     applySuggestedMatchup()
                 }
                 Spacer()
@@ -172,7 +172,7 @@ struct SingleGameView: View {
                 playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $teamBPlayer2Id)
             }
             if let fairnessLabel {
-                Text(fairnessLabel)
+                Text(fairnessLabel.replacingOccurrences(of: "Fairness", with: "Rättvisa"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -219,7 +219,7 @@ struct SingleGameView: View {
             Text("Lag B: \(teamText(primary: teamBPlayer1Id, secondary: isOneVsOne ? nil : teamBPlayer2Id))")
             Text("Resultat: \(teamAScore)-\(teamBScore)")
             Text("Poängtyp: \(scoreType == "points" ? "Poäng" : "Set")")
-            Text("Note for non-coders: review-steget är bara en sista kontroll innan sparning, så du kan undvika felklick.")
+            Text("Detta är en sista kontroll innan matchen sparas i databasen.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

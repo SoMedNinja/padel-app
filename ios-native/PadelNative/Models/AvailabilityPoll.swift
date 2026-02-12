@@ -11,9 +11,9 @@ enum AvailabilitySlot: String, Codable, CaseIterable, Identifiable {
     // These labels are what users see in the app when choosing time windows.
     var displayName: String {
         switch self {
-        case .morning: return "Morning"
-        case .day: return "Day"
-        case .evening: return "Evening"
+        case .morning: return "Morgon"
+        case .day: return "Dag"
+        case .evening: return "Kväll"
         }
     }
 }

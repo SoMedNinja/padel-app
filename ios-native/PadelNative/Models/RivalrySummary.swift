@@ -10,6 +10,14 @@ struct RivalrySummary: Identifiable {
     let lastMatchResult: String
     let lastMatchDate: Date
     let eloDelta: Int
+    let totalSetsFor: Int
+    let totalSetsAgainst: Int
+    let serveFirstWins: Int
+    let serveFirstLosses: Int
+    let serveSecondWins: Int
+    let serveSecondLosses: Int
+    let winProbability: Double
+    let recentResults: [String] // "V", "F"
 
     var winRate: Double {
         guard matchesPlayed > 0 else { return 0 }
