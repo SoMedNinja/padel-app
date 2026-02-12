@@ -27,6 +27,11 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.sports
         INFOPLIST_KEY_SUPABASE_URL: $(SUPABASE_URL)
         INFOPLIST_KEY_SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
+        # NOTE for non-coders: these optional values let the app show update prompts even
+        # when server-config lookup is unavailable.
+        INFOPLIST_KEY_MINIMUM_SUPPORTED_VERSION: 1.0.0
+        INFOPLIST_KEY_LATEST_AVAILABLE_VERSION: 1.0.0
+        INFOPLIST_KEY_APP_STORE_URL: https://apps.apple.com/app/id0000000000
         # NOTE for non-coders: this key creates a default launch screen without additional storyboard files.
         INFOPLIST_KEY_UILaunchScreen_Generation: true
     configFiles:

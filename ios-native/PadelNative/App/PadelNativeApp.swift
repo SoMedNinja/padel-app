@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 struct PadelNativeApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appViewModel = AppViewModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -101,6 +102,13 @@ struct PadelNativeApp: App {
             }
             .onOpenURL { url in
                 appViewModel.handleIncomingURL(url)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    Task {
+                        await appViewModel.checkForAppUpdate()
+                    }
+                }
             }
         }
     }
