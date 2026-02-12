@@ -118,6 +118,32 @@ struct TournamentResult: Identifiable, Codable {
         case tournamentType = "tournament_type"
     }
 
+    init(
+        id: UUID,
+        tournamentId: UUID,
+        profileId: UUID?,
+        rank: Int,
+        pointsFor: Int,
+        pointsAgainst: Int,
+        matchesPlayed: Int,
+        wins: Int,
+        losses: Int,
+        createdAt: Date?,
+        tournamentType: String? = nil
+    ) {
+        self.id = id
+        self.tournamentId = tournamentId
+        self.profileId = profileId
+        self.rank = rank
+        self.pointsFor = pointsFor
+        self.pointsAgainst = pointsAgainst
+        self.matchesPlayed = matchesPlayed
+        self.wins = wins
+        self.losses = losses
+        self.createdAt = createdAt
+        self.tournamentType = tournamentType
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
