@@ -2,10 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Note for non-coders: this fallback is intentionally empty so the app does not silently connect to the wrong Supabase project. -->
 	<key>SUPABASE_URL</key>
-	<string></string>
+	<string>https://hiasgpbuqhiwutpgugjk.supabase.co</string>
 	<key>SUPABASE_ANON_KEY</key>
-	<string></string>
+	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYXNncGJ1cWhpd3V0cGd1Z2prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMjkxNzcsImV4cCI6MjA4MzkwNTE3N30.uboLiQ0_EqgEj5cLLqazlN6V1mtRHqwiJv7JHGROo1U</string>
 </dict>
 </plist>

@@ -1,0 +1,542 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		143F86E4345075A545A87EDC /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC73C162BCB29E171DD249F /* ScheduleView.swift */; };
+		1C162AAEA0AB39F914997C8E /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C811F07115E70A90FFF13C /* DashboardView.swift */; };
+		242CA04FF5E0D4EA9608EB07 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A07D245994103B03225A3D /* AuthService.swift */; };
+		2570D8E4FD3A008C8F9D8458 /* ExportOptions-AppStore.plist in Resources */ = {isa = PBXBuildFile; fileRef = 20A2E1870B23BAC1BFFE83F8 /* ExportOptions-AppStore.plist */; };
+		28B277BECD7329505C61628D /* ShareCardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2F15B7E0EE06BA6862B900 /* ShareCardService.swift */; };
+		2A94F4F6E6B8C2023E97FEC0 /* Tournament.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3445C776AB698FE18C6438C4 /* Tournament.swift */; };
+		3148089DD1CD279A9CB9299F /* SectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB040FF2A99B13271C0B18A /* SectionCard.swift */; };
+		33646085D82EB429CF1FAFBA /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E51E3F68BE152FC429AF7B /* KeychainService.swift */; };
+		363351A2B796F6DC736856FE /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1882944433FEC6F29B5692 /* MainTabView.swift */; };
+		3F7DCB59C5615875A74406D1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1E7AF446DEAF53C593274F9C /* PrivacyInfo.xcprivacy */; };
+		40475EB78E1AB40581CD1A60 /* ScheduleEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94D9AF436387D4EB36C6CA06 /* ScheduleEntry.swift */; };
+		444034A568B0787E57D79D86 /* PadelNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6016852C579145F2194C1BC /* PadelNativeApp.swift */; };
+		47FA36339D07A694D33A038F /* SingleGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35AC4365E89CA6C8076A86EF /* SingleGameView.swift */; };
+		4CD5309658F7BB910B462C64 /* Match.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5640916877764E75BEDC8584 /* Match.swift */; };
+		5386F7F33F3D567730918CEF /* MatchDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26BB34CA1912A7B5FD0BACCC /* MatchDetailView.swift */; };
+		5BD6CCF1A7C49D969B3C4437 /* StatusChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FAA8535D3DC02F7621EC159 /* StatusChip.swift */; };
+		5FB82FDE1334229E8210D6D3 /* RuntimeSupabaseConfig.plist in Resources */ = {isa = PBXBuildFile; fileRef = 89689C24794E9844BC492FBE /* RuntimeSupabaseConfig.plist */; };
+		68541B1BD2263DAE7E6862C0 /* PrimaryButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD030E4FFC272BE79DD251E /* PrimaryButtonStyle.swift */; };
+		70D613DD6A5D8FDD2AE3A297 /* LiquidGlassStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5E0993707B09029F74C159 /* LiquidGlassStyle.swift */; };
+		807ECBCBB3BE57B1F3A434F6 /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EECA83F3E05D4EEB236502D6 /* CalendarService.swift */; };
+		9106FCE3375157834E6A014F /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32B3B43DA70B029F13D7B6D /* ProfileView.swift */; };
+		A4B6F44AE0DEE181197A8CC4 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA955EBAF61A31724EA4173E /* AppColors.swift */; };
+		A604BC3418DED48CD5E70740 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0711F5B109C0111333C977 /* NotificationService.swift */; };
+		B75BEACB5F744FF60D4BA56A /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BBC59A558D5653CFC14AEE8 /* AuthView.swift */; };
+		BAC33346DE7DAAF26D24DCD7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7F897D64C79951D0A56D9143 /* Assets.xcassets */; };
+		BB4CDCD924ACF99B4A69FB42 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B32DA0C08A483AF72407113 /* HistoryView.swift */; };
+		C36FE7332429C7CD7394F1B2 /* TournamentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCEE8B1A155EABD2CFC3E6D2 /* TournamentView.swift */; };
+		D26C1AD32F2500E79FD91026 /* BiometricAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813AEEC58D23527B3E549B73 /* BiometricAuthService.swift */; };
+		DAEFAAE62A7AF44258AC4F88 /* SupabaseRESTClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A8AFD42F57378CCD2F7BBB1 /* SupabaseRESTClient.swift */; };
+		DC870623B442D0A332079141 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E42443B4FF2FF8D34CF8342 /* AppConfig.swift */; };
+		E11FB76AE8C802D776FB60EF /* AdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08EBD0B25BE14444CA81E0BF /* AdminView.swift */; };
+		EEA4B197B201DD22560B1CFD /* Player.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18A8A9F8C7C49DC78A336F82 /* Player.swift */; };
+		F52B733EA13D85A2BC251079 /* AvailabilityPoll.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE1E280331130F719AC549E /* AvailabilityPoll.swift */; };
+		FC860ED0A6590CB9060FDAD9 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229C3398CEA4B31128AA72E1 /* AppViewModel.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		08EBD0B25BE14444CA81E0BF /* AdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminView.swift; sourceTree = "<group>"; };
+		0B5E0993707B09029F74C159 /* LiquidGlassStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassStyle.swift; sourceTree = "<group>"; };
+		0B9A9CBFBDBC313663000A09 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		18A8A9F8C7C49DC78A336F82 /* Player.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Player.swift; sourceTree = "<group>"; };
+		1BE1E280331130F719AC549E /* AvailabilityPoll.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvailabilityPoll.swift; sourceTree = "<group>"; };
+		1E7AF446DEAF53C593274F9C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		20A2E1870B23BAC1BFFE83F8 /* ExportOptions-AppStore.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ExportOptions-AppStore.plist"; sourceTree = "<group>"; };
+		229C3398CEA4B31128AA72E1 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
+		26BB34CA1912A7B5FD0BACCC /* MatchDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchDetailView.swift; sourceTree = "<group>"; };
+		3445C776AB698FE18C6438C4 /* Tournament.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tournament.swift; sourceTree = "<group>"; };
+		35AC4365E89CA6C8076A86EF /* SingleGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleGameView.swift; sourceTree = "<group>"; };
+		4BB040FF2A99B13271C0B18A /* SectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionCard.swift; sourceTree = "<group>"; };
+		4D0711F5B109C0111333C977 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		5640916877764E75BEDC8584 /* Match.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Match.swift; sourceTree = "<group>"; };
+		5A8AFD42F57378CCD2F7BBB1 /* SupabaseRESTClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseRESTClient.swift; sourceTree = "<group>"; };
+		6B32DA0C08A483AF72407113 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		7BBC59A558D5653CFC14AEE8 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		7E42443B4FF2FF8D34CF8342 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		7F897D64C79951D0A56D9143 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		813AEEC58D23527B3E549B73 /* BiometricAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuthService.swift; sourceTree = "<group>"; };
+		89689C24794E9844BC492FBE /* RuntimeSupabaseConfig.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = RuntimeSupabaseConfig.plist; sourceTree = "<group>"; };
+		8C1882944433FEC6F29B5692 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		94D9AF436387D4EB36C6CA06 /* ScheduleEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEntry.swift; sourceTree = "<group>"; };
+		9FAA8535D3DC02F7621EC159 /* StatusChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusChip.swift; sourceTree = "<group>"; };
+		A0E51E3F68BE152FC429AF7B /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		A9C811F07115E70A90FFF13C /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		AA955EBAF61A31724EA4173E /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		CCEE8B1A155EABD2CFC3E6D2 /* TournamentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TournamentView.swift; sourceTree = "<group>"; };
+		CF378331DEEF019B089D201A /* PadelNative.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PadelNative.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D6016852C579145F2194C1BC /* PadelNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PadelNativeApp.swift; sourceTree = "<group>"; };
+		EBC73C162BCB29E171DD249F /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
+		ED2F15B7E0EE06BA6862B900 /* ShareCardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardService.swift; sourceTree = "<group>"; };
+		EECA83F3E05D4EEB236502D6 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
+		F0470B10C4D249F81656E317 /* AppSecrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppSecrets.xcconfig; sourceTree = "<group>"; };
+		F32B3B43DA70B029F13D7B6D /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		F9A07D245994103B03225A3D /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		FCD030E4FFC272BE79DD251E /* PrimaryButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButtonStyle.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		18739EB3AC4821F466699376 /* Modifiers */ = {
+			isa = PBXGroup;
+			children = (
+				0B5E0993707B09029F74C159 /* LiquidGlassStyle.swift */,
+			);
+			path = Modifiers;
+			sourceTree = "<group>";
+		};
+		32895B0BEABFEDBA9AEFDA93 = {
+			isa = PBXGroup;
+			children = (
+				6A32043F0A91E77B20D1E318 /* PadelNative */,
+				71CCE1870272FB6061D1F1E2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4D7E28C54B3985B8FAA05FE1 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				FCD030E4FFC272BE79DD251E /* PrimaryButtonStyle.swift */,
+				4BB040FF2A99B13271C0B18A /* SectionCard.swift */,
+				9FAA8535D3DC02F7621EC159 /* StatusChip.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		6A32043F0A91E77B20D1E318 /* PadelNative */ = {
+			isa = PBXGroup;
+			children = (
+				0B9A9CBFBDBC313663000A09 /* Info.plist */,
+				C63ADE75EEAE50CA4815D08B /* App */,
+				6FD7D49F87CCDEC82928A8BB /* Config */,
+				80B15EB6A4521DAC7C60C13E /* Models */,
+				9B90994C2936069414BE3555 /* Resources */,
+				CB60A41976DE75103D4E6210 /* Services */,
+				91788BE1FEAE2765B76D24E9 /* Theme */,
+				E94462B945AF2876686C38DC /* ViewModels */,
+				CFEC33F56C3EC9E0B3C5D8CA /* Views */,
+			);
+			path = PadelNative;
+			sourceTree = "<group>";
+		};
+		6FD7D49F87CCDEC82928A8BB /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				F0470B10C4D249F81656E317 /* AppSecrets.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		71CCE1870272FB6061D1F1E2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CF378331DEEF019B089D201A /* PadelNative.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		80B15EB6A4521DAC7C60C13E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				1BE1E280331130F719AC549E /* AvailabilityPoll.swift */,
+				5640916877764E75BEDC8584 /* Match.swift */,
+				18A8A9F8C7C49DC78A336F82 /* Player.swift */,
+				94D9AF436387D4EB36C6CA06 /* ScheduleEntry.swift */,
+				3445C776AB698FE18C6438C4 /* Tournament.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		91788BE1FEAE2765B76D24E9 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				AA955EBAF61A31724EA4173E /* AppColors.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		9B90994C2936069414BE3555 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				7F897D64C79951D0A56D9143 /* Assets.xcassets */,
+				1E7AF446DEAF53C593274F9C /* PrivacyInfo.xcprivacy */,
+				89689C24794E9844BC492FBE /* RuntimeSupabaseConfig.plist */,
+				C9BA038600EF251F2FBEE4FE /* Release */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		C63ADE75EEAE50CA4815D08B /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D6016852C579145F2194C1BC /* PadelNativeApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		C9BA038600EF251F2FBEE4FE /* Release */ = {
+			isa = PBXGroup;
+			children = (
+				20A2E1870B23BAC1BFFE83F8 /* ExportOptions-AppStore.plist */,
+			);
+			path = Release;
+			sourceTree = "<group>";
+		};
+		CB60A41976DE75103D4E6210 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				7E42443B4FF2FF8D34CF8342 /* AppConfig.swift */,
+				F9A07D245994103B03225A3D /* AuthService.swift */,
+				813AEEC58D23527B3E549B73 /* BiometricAuthService.swift */,
+				EECA83F3E05D4EEB236502D6 /* CalendarService.swift */,
+				A0E51E3F68BE152FC429AF7B /* KeychainService.swift */,
+				4D0711F5B109C0111333C977 /* NotificationService.swift */,
+				ED2F15B7E0EE06BA6862B900 /* ShareCardService.swift */,
+				5A8AFD42F57378CCD2F7BBB1 /* SupabaseRESTClient.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		CFEC33F56C3EC9E0B3C5D8CA /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				08EBD0B25BE14444CA81E0BF /* AdminView.swift */,
+				7BBC59A558D5653CFC14AEE8 /* AuthView.swift */,
+				A9C811F07115E70A90FFF13C /* DashboardView.swift */,
+				6B32DA0C08A483AF72407113 /* HistoryView.swift */,
+				8C1882944433FEC6F29B5692 /* MainTabView.swift */,
+				26BB34CA1912A7B5FD0BACCC /* MatchDetailView.swift */,
+				F32B3B43DA70B029F13D7B6D /* ProfileView.swift */,
+				EBC73C162BCB29E171DD249F /* ScheduleView.swift */,
+				35AC4365E89CA6C8076A86EF /* SingleGameView.swift */,
+				CCEE8B1A155EABD2CFC3E6D2 /* TournamentView.swift */,
+				4D7E28C54B3985B8FAA05FE1 /* Components */,
+				18739EB3AC4821F466699376 /* Modifiers */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		E94462B945AF2876686C38DC /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				229C3398CEA4B31128AA72E1 /* AppViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4BC72867D428148900E640EE /* PadelNative */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 49F49BF0B3F7E9D59C1F9821 /* Build configuration list for PBXNativeTarget "PadelNative" */;
+			buildPhases = (
+				66ECFEAEBE9962D2EDF0A4D1 /* Sources */,
+				745A9024EA96EB31A19B5D75 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PadelNative;
+			packageProductDependencies = (
+			);
+			productName = PadelNative;
+			productReference = CF378331DEEF019B089D201A /* PadelNative.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7655C51A57E38A9A8709CAA9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = E39AB7E6089C0F1239F6027A /* Build configuration list for PBXProject "PadelNative" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 32895B0BEABFEDBA9AEFDA93;
+			minimizedProjectReferenceProxies = 1;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				4BC72867D428148900E640EE /* PadelNative */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		745A9024EA96EB31A19B5D75 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BAC33346DE7DAAF26D24DCD7 /* Assets.xcassets in Resources */,
+				2570D8E4FD3A008C8F9D8458 /* ExportOptions-AppStore.plist in Resources */,
+				3F7DCB59C5615875A74406D1 /* PrivacyInfo.xcprivacy in Resources */,
+				5FB82FDE1334229E8210D6D3 /* RuntimeSupabaseConfig.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		66ECFEAEBE9962D2EDF0A4D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E11FB76AE8C802D776FB60EF /* AdminView.swift in Sources */,
+				A4B6F44AE0DEE181197A8CC4 /* AppColors.swift in Sources */,
+				DC870623B442D0A332079141 /* AppConfig.swift in Sources */,
+				FC860ED0A6590CB9060FDAD9 /* AppViewModel.swift in Sources */,
+				242CA04FF5E0D4EA9608EB07 /* AuthService.swift in Sources */,
+				B75BEACB5F744FF60D4BA56A /* AuthView.swift in Sources */,
+				F52B733EA13D85A2BC251079 /* AvailabilityPoll.swift in Sources */,
+				D26C1AD32F2500E79FD91026 /* BiometricAuthService.swift in Sources */,
+				807ECBCBB3BE57B1F3A434F6 /* CalendarService.swift in Sources */,
+				1C162AAEA0AB39F914997C8E /* DashboardView.swift in Sources */,
+				BB4CDCD924ACF99B4A69FB42 /* HistoryView.swift in Sources */,
+				33646085D82EB429CF1FAFBA /* KeychainService.swift in Sources */,
+				70D613DD6A5D8FDD2AE3A297 /* LiquidGlassStyle.swift in Sources */,
+				363351A2B796F6DC736856FE /* MainTabView.swift in Sources */,
+				4CD5309658F7BB910B462C64 /* Match.swift in Sources */,
+				5386F7F33F3D567730918CEF /* MatchDetailView.swift in Sources */,
+				A604BC3418DED48CD5E70740 /* NotificationService.swift in Sources */,
+				444034A568B0787E57D79D86 /* PadelNativeApp.swift in Sources */,
+				EEA4B197B201DD22560B1CFD /* Player.swift in Sources */,
+				68541B1BD2263DAE7E6862C0 /* PrimaryButtonStyle.swift in Sources */,
+				9106FCE3375157834E6A014F /* ProfileView.swift in Sources */,
+				40475EB78E1AB40581CD1A60 /* ScheduleEntry.swift in Sources */,
+				143F86E4345075A545A87EDC /* ScheduleView.swift in Sources */,
+				3148089DD1CD279A9CB9299F /* SectionCard.swift in Sources */,
+				28B277BECD7329505C61628D /* ShareCardService.swift in Sources */,
+				47FA36339D07A694D33A038F /* SingleGameView.swift in Sources */,
+				5BD6CCF1A7C49D969B3C4437 /* StatusChip.swift in Sources */,
+				DAEFAAE62A7AF44258AC4F88 /* SupabaseRESTClient.swift in Sources */,
+				2A94F4F6E6B8C2023E97FEC0 /* Tournament.swift in Sources */,
+				C36FE7332429C7CD7394F1B2 /* TournamentView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6D6F78992054562C3E809FB9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0470B10C4D249F81656E317 /* AppSecrets.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PadelNative/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Padel Native";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				INFOPLIST_KEY_SUPABASE_ANON_KEY = "$(SUPABASE_ANON_KEY)";
+				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.padelnative;
+				PRODUCT_NAME = PadelNative;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		976814E52B20702737389088 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0470B10C4D249F81656E317 /* AppSecrets.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PadelNative/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Padel Native";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				INFOPLIST_KEY_SUPABASE_ANON_KEY = "$(SUPABASE_ANON_KEY)";
+				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.padelnative;
+				PRODUCT_NAME = PadelNative;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DCD755CD865581E96FA66F40 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0470B10C4D249F81656E317 /* AppSecrets.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_SUPABASE_URL = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E09EA2FB42FFF82804F6C4A7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0470B10C4D249F81656E317 /* AppSecrets.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_SUPABASE_URL = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		49F49BF0B3F7E9D59C1F9821 /* Build configuration list for PBXNativeTarget "PadelNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				976814E52B20702737389088 /* Debug */,
+				6D6F78992054562C3E809FB9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E39AB7E6089C0F1239F6027A /* Build configuration list for PBXProject "PadelNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E09EA2FB42FFF82804F6C4A7 /* Debug */,
+				DCD755CD865581E96FA66F40 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 7655C51A57E38A9A8709CAA9 /* Project object */;
+}
