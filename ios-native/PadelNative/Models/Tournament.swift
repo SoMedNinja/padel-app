@@ -102,6 +102,7 @@ struct TournamentResult: Identifiable, Codable {
     let wins: Int
     let losses: Int
     let createdAt: Date?
+    let tournamentType: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -114,6 +115,35 @@ struct TournamentResult: Identifiable, Codable {
         case wins
         case losses
         case createdAt = "created_at"
+        case tournamentType = "tournament_type"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        tournamentId = try container.decode(UUID.self, forKey: .tournamentId)
+        profileId = try container.decodeIfPresent(UUID.self, forKey: .profileId)
+        rank = try container.decode(Int.self, forKey: .rank)
+        pointsFor = try container.decode(Int.self, forKey: .pointsFor)
+        pointsAgainst = try container.decode(Int.self, forKey: .pointsAgainst)
+        matchesPlayed = try container.decode(Int.self, forKey: .matchesPlayed)
+        wins = try container.decode(Int.self, forKey: .wins)
+        losses = try container.decode(Int.self, forKey: .losses)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+
+        // Handle potential nested tournament type from join
+        if let type = try? container.decodeIfPresent(String.self, forKey: .tournamentType) {
+            tournamentType = type
+        } else {
+            struct TournamentJoin: Decodable {
+                let tournamentType: String?
+                enum CodingKeys: String, CodingKey {
+                    case tournamentType = "tournament_type"
+                }
+            }
+            let join = try? container.decodeIfPresent(TournamentJoin.self, forKey: .tournamentType)
+            tournamentType = join?.tournamentType
+        }
     }
 }
 

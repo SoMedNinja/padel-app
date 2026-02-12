@@ -288,6 +288,9 @@ final class AppViewModel: ObservableObject {
     @Published var dashboardCustomEndDate: Date = .now
     @Published var isDashboardLoading = false
     @Published var selectedMainTab = 1
+    @Published var playerBadgeStats: [UUID: PlayerBadgeStats] = [:]
+    @Published var currentPlayerBadges: [Badge] = []
+    @Published var currentRivalryStats: [RivalrySummary] = []
     @Published var historyFilters = HistoryFilterState()
     @Published var historyMatches: [Match] = []
     @Published var isHistoryLoading = false
@@ -296,6 +299,7 @@ final class AppViewModel: ObservableObject {
     @Published var deepLinkedPollId: UUID?
     @Published var deepLinkedPollDayId: UUID?
     @Published var deepLinkedSingleGameMode: String?
+    @Published var currentRotation: RotationSchedule?
     @Published var areScheduleNotificationsEnabled = false
     @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
     @Published var isBiometricLockEnabled = false
@@ -727,26 +731,43 @@ final class AppViewModel: ObservableObject {
         profilePerformanceWidgets(filter: .all)
     }
 
-    func profileEloTimeline(filter: DashboardMatchFilter) -> [ProfileEloPoint] {
-        guard let currentPlayer else { return [] }
-        let filtered = matchesForProfile(filter: filter).sorted { $0.playedAt < $1.playedAt }
-        guard !filtered.isEmpty else {
-            return [ProfileEloPoint(id: UUID(), matchId: UUID(), date: Date(), elo: currentPlayer.elo)]
+    func playerEloTimeline(playerId: UUID, filter: DashboardMatchFilter) -> [ProfileEloPoint] {
+        guard let player = players.first(where: { $0.id == playerId }) else { return [] }
+
+        let playerMatches = matches.filter { match in
+            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
+            if playerIds.contains(playerId) {
+                return true
+            }
+            return match.teamAName.localizedCaseInsensitiveContains(player.fullName)
+                || match.teamBName.localizedCaseInsensitiveContains(player.fullName)
+                || match.teamAName.localizedCaseInsensitiveContains(player.profileName)
+                || match.teamBName.localizedCaseInsensitiveContains(player.profileName)
         }
 
-        var estimatedCurrent = currentPlayer.elo
+        let filtered = filteredMatches(playerMatches, filter: filter).sorted { $0.playedAt < $1.playedAt }
+        guard !filtered.isEmpty else {
+            return [ProfileEloPoint(id: UUID(), matchId: UUID(), date: Date(), elo: player.elo)]
+        }
+
+        var estimatedCurrent = player.elo
         var beforeMatchRating: [UUID: Int] = [:]
         for match in filtered.reversed() {
-            let delta = estimatedEloDelta(for: match, playerId: currentPlayer.id)
+            let delta = estimatedEloDelta(for: match, playerId: playerId)
             beforeMatchRating[match.id] = estimatedCurrent - delta
             estimatedCurrent -= delta
         }
 
         return filtered.map { match in
-            let baseline = beforeMatchRating[match.id] ?? currentPlayer.elo
-            let delta = estimatedEloDelta(for: match, playerId: currentPlayer.id)
+            let baseline = beforeMatchRating[match.id] ?? player.elo
+            let delta = estimatedEloDelta(for: match, playerId: playerId)
             return ProfileEloPoint(id: match.id, matchId: match.id, date: match.playedAt, elo: baseline + delta)
         }
+    }
+
+    func profileEloTimeline(filter: DashboardMatchFilter) -> [ProfileEloPoint] {
+        guard let currentId = currentPlayer?.id else { return [] }
+        return playerEloTimeline(playerId: currentId, filter: filter)
     }
 
     func profileComboStats(filter: DashboardMatchFilter) -> [ProfileComboStat] {
@@ -1194,6 +1215,7 @@ final class AppViewModel: ObservableObject {
             async let tournamentTask: Void = loadTournamentData(silently: true)
             _ = await tournamentTask
             await refreshAdminProfiles(silently: true)
+            recalculateDerivedStats()
             if areScheduleNotificationsEnabled {
                 await notificationService.scheduleUpcomingGameReminders(schedule)
             }
@@ -1477,12 +1499,15 @@ final class AppViewModel: ObservableObject {
         var changedCollections: [String] = []
 
         do {
+            var playersOrMatchesChanged = false
+
             if domains.contains(.players) {
                 let latestPlayers = try await apiClient.fetchLeaderboard()
                 if playerSignature(latestPlayers) != playerSignature(players) {
                     players = latestPlayers
                     syncProfileSetupDraftFromCurrentPlayer()
                     changedCollections.append("players")
+                    playersOrMatchesChanged = true
                     if canUseAdmin {
                         await refreshAdminProfiles(silently: true)
                     }
@@ -1500,7 +1525,12 @@ final class AppViewModel: ObservableObject {
                     let olderAlreadyLoaded = historyMatches.filter { !latestIds.contains($0.id) }
                     historyMatches = latestMatches + olderAlreadyLoaded
                     changedCollections.append("matches")
+                    playersOrMatchesChanged = true
                 }
+            }
+
+            if playersOrMatchesChanged {
+                recalculateDerivedStats()
             }
 
             if domains.contains(.schedule) {
@@ -1553,11 +1583,13 @@ final class AppViewModel: ObservableObject {
             let latestTournamentMarker = try await tournamentMarkerTask
 
             var changedCollections: [String] = []
+            var playersOrMatchesChanged = false
 
             if playerSignature(latestPlayers) != playerSignature(players) {
                 players = latestPlayers
                 syncProfileSetupDraftFromCurrentPlayer()
                 changedCollections.append("players")
+                playersOrMatchesChanged = true
                 if canUseAdmin {
                     await refreshAdminProfiles(silently: true)
                 }
@@ -1574,6 +1606,11 @@ final class AppViewModel: ObservableObject {
                 historyMatches = latestMatches + olderAlreadyLoaded
 
                 changedCollections.append("matches")
+                playersOrMatchesChanged = true
+            }
+
+            if playersOrMatchesChanged {
+                recalculateDerivedStats()
             }
 
             if scheduleSignature(latestSchedule) != scheduleSignature(schedule) {
@@ -2727,8 +2764,7 @@ final class AppViewModel: ObservableObject {
 
 
     // Note for non-coders:
-    // We store up to two player names per team to match the web schema exactly.
-    // If someone enters only one name, we pad with an empty second slot instead of failing the save.
+    // This mirrors the findMatchHighlight logic in src/utils/highlights.ts.
     private func findMatchHighlight(matches: [Match], players: [Player]) -> DashboardMatchHighlight? {
         guard !matches.isEmpty, !players.isEmpty else { return nil }
 
@@ -2760,29 +2796,29 @@ final class AppViewModel: ObservableObject {
                 candidates.append(Candidate(
                     match: match,
                     reason: .upset,
-                    score: (0.5 - winnerExpected) * 100,
+                    score: (0.35 - winnerExpected) * 100 + 50,
                     title: "Kvällens Skräll",
-                    description: "Underdog-seger! \(teamAWon ? "Lag 1" : "Lag 2") vann trots låg vinstchans."
+                    description: "Underdog-seger! \(teamAWon ? "Lag 1" : "Lag 2") vann trots endast \(Int(round(winnerExpected * 100)))% vinstchans."
                 ))
             }
 
-            if margin <= 1 {
+            if margin <= 1 && match.scoreType == "sets" {
                 candidates.append(Candidate(
                     match: match,
                     reason: .thriller,
-                    score: 50 - abs(winnerExpected - 0.5) * 20,
+                    score: 50 - abs(winnerExpected - 0.5) * 40,
                     title: "Kvällens Rysare",
-                    description: "En jämn match som slutade \(match.teamAScore)-\(match.teamBScore)."
+                    description: "En extremt jämn match som avgjordes med minsta möjliga marginal (\(match.teamAScore)-\(match.teamBScore))."
                 ))
             }
 
-            if margin >= 3 {
+            if margin >= 3 && match.scoreType == "sets" {
                 candidates.append(Candidate(
                     match: match,
                     reason: .crush,
                     score: Double(margin * 10),
                     title: "Kvällens Kross",
-                    description: "Klar seger med \(match.teamAScore)-\(match.teamBScore)."
+                    description: "Total dominans! En övertygande seger med \(match.teamAScore)-\(match.teamBScore)."
                 ))
             }
 
@@ -2790,16 +2826,16 @@ final class AppViewModel: ObservableObject {
                 candidates.append(Candidate(
                     match: match,
                     reason: .titans,
-                    score: (totalElo - 2000) / 10,
+                    score: (totalElo - 2200) / 5,
                     title: "Giganternas Kamp",
-                    description: "Match med kvällens högsta samlade ELO (\(Int(totalElo.rounded())))."
+                    description: "Kvällens tyngsta möte med en samlad ELO på \(Int(totalElo.rounded()))."
                 ))
             }
         }
 
         guard !candidates.isEmpty else { return nil }
 
-        let priority: [DashboardMatchHighlight.Reason: Int] = [.upset: 4, .thriller: 3, .crush: 2, .titans: 1]
+        let priority: [DashboardMatchHighlight.Reason: Int] = [.upset: 4, .thriller: 3, .titans: 2, .crush: 1]
         let best = candidates.sorted { lhs, rhs in
             let lp = priority[lhs.reason, default: 0]
             let rp = priority[rhs.reason, default: 0]
@@ -2924,6 +2960,11 @@ final class AppViewModel: ObservableObject {
         }
         return names
     }
+    func generateRotation(poolIds: [UUID]) {
+        let eloMap = players.reduce(into: [UUID: Int]()) { $0[$1.id] = $1.elo }
+        self.currentRotation = RotationService.buildRotationSchedule(pool: poolIds, eloMap: eloMap)
+    }
+
     func suggestSingleGameMatchup(isOneVsOne: Bool) -> SingleGameSuggestion? {
         let requiredPlayers = isOneVsOne ? 2 : 4
         let availablePlayers = players
@@ -3101,6 +3142,72 @@ final class AppViewModel: ObservableObject {
         ]).joined(separator: "\n")
 
         return SingleGameRecap(matchSummary: matchSummary, eveningSummary: eveningSummary)
+    }
+
+    private func recalculateDerivedStats() {
+        self.playerBadgeStats = BadgeService.buildAllPlayersBadgeStats(
+            matches: matches,
+            players: players,
+            tournamentResults: tournamentHistoryResults
+        )
+
+        if let currentId = currentPlayer?.id {
+            self.currentPlayerBadges = BadgeService.buildPlayerBadges(
+                playerId: currentId,
+                allPlayerStats: playerBadgeStats
+            )
+            self.currentRivalryStats = calculateRivalryStats(for: currentId)
+        }
+    }
+
+    private func calculateRivalryStats(for playerId: UUID) -> [RivalrySummary] {
+        var opponentStats: [UUID: (wins: Int, losses: Int, lastMatch: Match?)] = [:]
+
+        for match in matches {
+            let teamA = match.teamAPlayerIds.compactMap { $0 }
+            let teamB = match.teamBPlayerIds.compactMap { $0 }
+            let iAmTeamA = teamA.contains(playerId)
+            let iAmTeamB = teamB.contains(playerId)
+
+            guard iAmTeamA || iAmTeamB else { continue }
+
+            let opponents = iAmTeamA ? teamB : teamA
+            let didWin = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+
+            for oppId in opponents {
+                var current = opponentStats[oppId] ?? (wins: 0, losses: 0, lastMatch: nil)
+                if didWin {
+                    current.wins += 1
+                } else {
+                    current.losses += 1
+                }
+                if current.lastMatch == nil || match.playedAt > current.lastMatch!.playedAt {
+                    current.lastMatch = match
+                }
+                opponentStats[oppId] = current
+            }
+        }
+
+        return opponentStats.compactMap { oppId, stats in
+            guard let lastMatch = stats.lastMatch,
+                  let opponent = players.first(where: { $0.id == oppId }) else { return nil }
+
+            let iAmTeamA = lastMatch.teamAPlayerIds.compactMap { $0 }.contains(playerId)
+            let didWinLast = iAmTeamA ? lastMatch.teamAScore > lastMatch.teamBScore : lastMatch.teamBScore > lastMatch.teamAScore
+            let delta = estimatedEloDelta(for: lastMatch, playerId: playerId)
+
+            return RivalrySummary(
+                id: oppId,
+                opponentName: opponent.profileName,
+                opponentAvatarURL: opponent.avatarURL,
+                matchesPlayed: stats.wins + stats.losses,
+                wins: stats.wins,
+                losses: stats.losses,
+                lastMatchResult: didWinLast ? "W" : "L",
+                lastMatchDate: lastMatch.playedAt,
+                eloDelta: delta
+            )
+        }.sorted { $0.matchesPlayed > $1.matchesPlayed }
     }
 
     func submitSingleGame(

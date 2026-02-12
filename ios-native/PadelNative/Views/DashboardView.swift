@@ -163,13 +163,13 @@ struct DashboardView: View {
                 }
             }
 
-            Section("Filters") {
-                Picker("Match filter", selection: $viewModel.dashboardFilter) {
+            Section("Filter") {
+                Picker("Period", selection: $viewModel.dashboardFilter) {
                     ForEach(DashboardMatchFilter.allCases) { filter in
                         Text(filter.title).tag(filter)
                     }
                 }
-                .pickerStyle(.menu)
+                .pickerStyle(.segmented)
                 // Note for non-coders: we use a menu here because iOS segmented controls become cramped with many options.
 
                 if viewModel.dashboardFilter == .custom {
@@ -225,21 +225,37 @@ struct DashboardView: View {
 
             Section("ELO-topplista") {
                 ForEach(Array(viewModel.players.enumerated()), id: \.element.id) { index, player in
-                    HStack {
-                        Text("#\(index + 1)")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 28)
-
-                        VStack(alignment: .leading) {
-                            Text(player.fullName)
-                            Text(player.isAdmin ? "Admin" : "Member")
-                                .font(.caption)
+                    NavigationLink(destination: RivalryView(opponentId: player.id)) {
+                        HStack(spacing: 12) {
+                            Text("#\(index + 1)")
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(player.profileName)
+                                    .font(.subheadline.weight(.semibold))
+                                Text(player.isAdmin ? "Admin" : "Medlem")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            // Sparkline for recent ELO trend
+                            let points = viewModel.playerEloTimeline(playerId: player.id, filter: .all).suffix(10).map { $0.elo }
+                            if points.count >= 2 {
+                                SparklineView(points: Array(points))
+                                    .frame(width: 50, height: 20)
+                                    .opacity(0.6)
+                            }
+
+                            VStack(alignment: .trailing) {
+                                Text("\(player.elo)")
+                                    .font(.headline)
+                                    .foregroundStyle(Color.accentColor)
+                            }
                         }
-                        Spacer()
-                        Text("\(player.elo)")
-                            .font(.headline)
                     }
                 }
             }
@@ -268,15 +284,34 @@ struct DashboardView: View {
     }
 
     private func mvpRow(title: String, result: DashboardMVPResult) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(result.player.fullName)
-                .font(.headline)
-            Text("Wins \(result.wins)/\(result.games) • ELO delta \(result.periodEloGain >= 0 ? "+" : "")\(result.periodEloGain)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            AsyncImage(url: URL(string: result.player.avatarURL ?? "")) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
+            }
+            .frame(width: 44, height: 44)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(Color.accentColor.opacity(0.1), lineWidth: 1))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(AppColors.success)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(AppColors.success.opacity(0.1), in: Capsule())
+
+                Text(result.player.profileName)
+                    .font(.headline)
+
+                Text("\(result.wins) vinster på \(result.games) matcher • \(result.periodEloGain >= 0 ? "+" : "")\(result.periodEloGain) ELO")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
         }
         .padding(.vertical, 4)
     }
