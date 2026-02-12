@@ -196,7 +196,6 @@ export default function App() {
   const resolvedName = [
     profileName,
     user?.name,
-    user?.full_name,
     user?.user_metadata?.full_name,
     user?.user_metadata?.name,
   ].reduce((firstValidName, candidate) => {
