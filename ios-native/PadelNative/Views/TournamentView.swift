@@ -278,12 +278,11 @@ struct TournamentView: View {
                         .font(.headline)
                     Text("\(suggestion.team1) vs \(suggestion.team2)")
                     if !suggestion.resting.isEmpty {
+                        // NOTE (for non-coders): this line only appears when one or more players must rest this round.
                         Text("Vilar: \(suggestion.resting)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             } else {
                 Text("Alla rundor har redan score, eller så finns inga rundor än.")
