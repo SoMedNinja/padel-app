@@ -32,3 +32,16 @@ targets:
     configFiles:
       Debug: PadelNative/Config/AppSecrets.xcconfig
       Release: PadelNative/Config/AppSecrets.xcconfig
+
+  PadelNativeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - PadelNativeTests
+    dependencies:
+      - target: PadelNative
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.padelnative.tests
+        PRODUCT_NAME: PadelNativeTests
+        SWIFT_VERSION: 5.0
