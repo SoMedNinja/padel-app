@@ -26,7 +26,10 @@ struct ProfileView: View {
     @State private var selectedAvatarItem: PhotosPickerItem?
     @State private var selectedTab: ProfileTab = .overview
     @State private var selectedFilter: DashboardMatchFilter = .all
-    @State private var compareWithId: UUID? = nil
+    @State private var compareWithIds: Set<UUID> = []
+
+    @State private var showCropper = false
+    @State private var imageToCrop: UIImage?
 
     private var profileFilterOptions: [DashboardMatchFilter] {
         [.last7, .last30, .tournaments, .custom, .all]
@@ -152,17 +155,39 @@ struct ProfileView: View {
     private var eloTrendTab: some View {
         SectionCard(title: "ELO-tidslinje") {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Jämför med", selection: $compareWithId) {
-                    Text("Ingen").tag(Optional<UUID>.none)
-                    ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
-                        Text(player.profileName).tag(Optional(player.id))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Jämför med (max 3):")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
+                                Button {
+                                    if compareWithIds.contains(player.id) {
+                                        compareWithIds.remove(player.id)
+                                    } else if compareWithIds.count < 3 {
+                                        compareWithIds.insert(player.id)
+                                    }
+                                } label: {
+                                    Text(player.profileName)
+                                        .font(.caption2)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(compareWithIds.contains(player.id) ? Color.accentColor : Color(.systemGray5))
+                                        .foregroundStyle(compareWithIds.contains(player.id) ? .white : .primary)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 2)
                     }
                 }
-                .pickerStyle(.menu)
 
                 let myPoints = viewModel.profileEloTimeline(filter: selectedFilter)
 
-                if myPoints.count <= 1 {
+                if myPoints.count <= 1 && compareWithIds.isEmpty {
                     Text("Spela fler matcher för att se din ELO-trend.")
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 40)
@@ -177,23 +202,31 @@ struct ProfileView: View {
                             )
                             .interpolationMethod(.catmullRom)
                             .foregroundStyle(Color.accentColor)
+                            .symbol(by: .value("Spelare", "Du"))
                         }
 
-                        if let otherId = compareWithId {
+                        ForEach(Array(compareWithIds), id: \.self) { otherId in
                             let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
+                            let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
                             ForEach(otherPoints) { point in
                                 LineMark(
                                     x: .value("Datum", point.date),
                                     y: .value("ELO", point.elo),
-                                    series: .value("Spelare", viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan")
+                                    series: .value("Spelare", name)
                                 )
                                 .interpolationMethod(.catmullRom)
-                                .foregroundStyle(Color.blue)
+                                .symbol(by: .value("Spelare", name))
                             }
                         }
                     }
-                    .frame(height: 250)
+                    .frame(height: 280)
                     .chartLegend(.visible)
+                    .chartXAxis {
+                        AxisMarks(values: .stride(by: .day, count: 7)) { value in
+                            AxisGridLine()
+                            AxisValueLabel(format: .dateTime.day().month())
+                        }
+                    }
                 }
             }
         }
@@ -207,8 +240,9 @@ struct ProfileView: View {
                     HStack(spacing: 0) {
                         Text("Lagkamrat").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 120, alignment: .leading)
                         Text("Matcher").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 60)
-                        Text("Vinster").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 60)
-                        Text("Vinst %").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 65)
+                        Text("Vinst %").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 70)
+                        Text("S/M %").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 80)
+                        Text("Snitt-ELO").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 80)
                         Text("Senaste 5").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 110)
                     }
                     .padding(.vertical, 8)
@@ -228,13 +262,17 @@ struct ProfileView: View {
                                 .font(.subheadline)
                                 .frame(width: 60)
 
-                            Text("\(combo.wins)")
-                                .font(.subheadline)
-                                .frame(width: 60)
-
                             Text("\(combo.winPct)%")
                                 .font(.subheadline.weight(.bold))
-                                .frame(width: 65)
+                                .frame(width: 70)
+
+                            Text("\(combo.serveFirstWinPct ?? 0)%/\(combo.serveSecondWinPct ?? 0)%")
+                                .font(.caption.monospacedDigit())
+                                .frame(width: 80)
+
+                            Text("\(combo.avgElo)")
+                                .font(.subheadline)
+                                .frame(width: 80)
 
                             HStack(spacing: 4) {
                                 ForEach(Array(combo.recentResults.enumerated()), id: \.offset) { _, res in
@@ -444,9 +482,19 @@ struct ProfileView: View {
                 guard let newItem else { return }
                 Task {
                     if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let resizedData = resizeAvatarImageData(data) {
-                        let base64 = resizedData.base64EncodedString()
-                        viewModel.profileAvatarURLInput = "data:image/jpeg;base64,\(base64)"
+                       let image = UIImage(data: data) {
+                        imageToCrop = image
+                        showCropper = true
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showCropper) {
+                if let image = imageToCrop {
+                    CircularAvatarCropperView(image: image, isPresented: $showCropper) { croppedImage in
+                        if let resizedData = croppedImage.jpegData(compressionQuality: 0.7) {
+                            let base64 = resizedData.base64EncodedString()
+                            viewModel.profileAvatarURLInput = "data:image/jpeg;base64,\(base64)"
+                        }
                     }
                 }
             }

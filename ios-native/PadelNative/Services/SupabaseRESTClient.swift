@@ -23,8 +23,8 @@ enum APIError: LocalizedError {
 struct MatchSubmission: Encodable {
     let teamAName: [String]
     let teamBName: [String]
-    let teamAPlayerIds: [UUID?]
-    let teamBPlayerIds: [UUID?]
+    let teamAPlayerIds: [String?]
+    let teamBPlayerIds: [String?]
     let teamAScore: Int
     let teamBScore: Int
     let scoreType: String
@@ -56,6 +56,10 @@ struct MatchUpdatePatch: Encodable {
     let teamBScore: Int
     let scoreType: String?
     let scoreTarget: Int?
+    let team1: [String]?
+    let team2: [String]?
+    let team1_ids: [String?]?
+    let team2_ids: [String?]?
 
     enum CodingKeys: String, CodingKey {
         case playedAt = "created_at"
@@ -63,6 +67,10 @@ struct MatchUpdatePatch: Encodable {
         case teamBScore = "team2_sets"
         case scoreType = "score_type"
         case scoreTarget = "score_target"
+        case team1
+        case team2
+        case team1_ids
+        case team2_ids
     }
 }
 
@@ -528,7 +536,11 @@ struct SupabaseRESTClient {
         teamAScore: Int,
         teamBScore: Int,
         scoreType: String? = nil,
-        scoreTarget: Int? = nil
+        scoreTarget: Int? = nil,
+        team1: [String]? = nil,
+        team2: [String]? = nil,
+        team1_ids: [String?]? = nil,
+        team2_ids: [String?]? = nil
     ) async throws {
         try await sendPatch(
             path: "/rest/v1/matches",
@@ -538,7 +550,11 @@ struct SupabaseRESTClient {
                 teamAScore: teamAScore,
                 teamBScore: teamBScore,
                 scoreType: scoreType,
-                scoreTarget: scoreTarget
+                scoreTarget: scoreTarget,
+                team1: team1,
+                team2: team2,
+                team1_ids: team1_ids,
+                team2_ids: team2_ids
             )
         )
     }

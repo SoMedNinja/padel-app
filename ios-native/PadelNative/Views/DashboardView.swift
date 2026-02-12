@@ -4,6 +4,7 @@ struct DashboardView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var leaderboardSortKey: String = "elo"
     @State private var leaderboardSortAscending: Bool = false
+    @State private var leaderboardSearchText: String = ""
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -13,7 +14,9 @@ struct DashboardView: View {
     }()
 
     private var sortedLeaderboard: [LeaderboardPlayer] {
-        let base = viewModel.leaderboardPlayers
+        let base = viewModel.leaderboardPlayers.filter {
+            leaderboardSearchText.isEmpty || $0.name.localizedCaseInsensitiveContains(leaderboardSearchText)
+        }
         return base.sorted { a, b in
             let result: Bool
             switch leaderboardSortKey {
@@ -219,10 +222,21 @@ struct DashboardView: View {
                     Text("\(recent.teamAName) vs \(recent.teamBName)")
                     Text("Resultat: \(recent.teamAScore)-\(recent.teamBScore)")
                         .font(.subheadline.weight(.semibold))
-                    Button("Stäng") {
-                        viewModel.dismissRecentMatchNotice()
+
+                    HStack(spacing: 16) {
+                        Button("Se alla") {
+                            viewModel.openHistoryTab()
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("Stäng") {
+                            viewModel.dismissRecentMatchNotice()
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.top, 4)
                 }
                 .padding(.vertical, 4)
             }
@@ -278,26 +292,107 @@ struct DashboardView: View {
            let highlight = viewModel.latestHighlightMatch,
            let match = viewModel.matches.first(where: { $0.id == highlight.matchId }) {
             Section("Match-fokus") {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(highlight.title)
-                        .font(.headline)
-                    Text(highlight.description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text("\(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)")
-                        .font(.caption)
-                    Button("Stäng") {
-                        viewModel.dismissHighlightCard()
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        Image(systemName: highlightIcon(for: highlight.reason))
+                            .font(.title2)
+                            .foregroundStyle(Color.accentColor)
+                            .frame(width: 44, height: 44)
+                            .background(Color.accentColor.opacity(0.1), in: Circle())
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(highlight.title)
+                                .font(.headline)
+                            Text(highlight.description)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    .buttonStyle(.plain)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)")
+                            .font(.subheadline.weight(.bold))
+                        Text(dateFormatter.string(from: match.playedAt))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.leading, 56)
+
+                    HStack {
+                        Button {
+                            shareHighlight(highlight, match: match)
+                        } label: {
+                            Label("Dela recap", systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        Spacer()
+
+                        Button("Stäng") {
+                            viewModel.dismissHighlightCard()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.leading, 56)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 8)
             }
+        }
+    }
+
+    private func highlightIcon(for reason: DashboardMatchHighlight.Reason) -> String {
+        switch reason {
+        case .upset: return "bolt.fill"
+        case .thriller: return "flame.fill"
+        case .crush: return "hammer.fill"
+        case .titans: return "crown.fill"
+        }
+    }
+
+    private func shareHighlight(_ highlight: DashboardMatchHighlight, match: Match) {
+        let lines = [
+            highlight.description,
+            "",
+            "\(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)",
+            "",
+            "Spelad: \(dateFormatter.string(from: match.playedAt))"
+        ]
+
+        let fileURL = try? ShareCardService.createShareImageFile(
+            title: highlight.title,
+            bodyLines: lines,
+            fileNamePrefix: "highlight"
+        )
+
+        let text = """
+        🎾 Match Highlight: \(highlight.title)
+
+        \(highlight.description)
+
+        \(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)
+        """
+
+        var items: [Any] = [text]
+        if let fileURL = fileURL {
+            items.insert(fileURL, at: 0)
+        }
+
+        let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(av, animated: true)
         }
     }
 
     private var leaderboardSection: some View {
         Section {
+            TextField("Sök spelare...", text: $leaderboardSearchText)
+                .textFieldStyle(.roundedBorder)
+                .padding(.vertical, 4)
+
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 0) {

@@ -333,6 +333,35 @@ struct ScheduleView: View {
 
                 Text("Mottagare")
                     .font(.subheadline.weight(.semibold))
+
+                HStack {
+                    Button("Välj alla") {
+                        let allIds = viewModel.players.filter { $0.isRegular }.map(\.id)
+                        selectedInvitees = Set(allIds)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    if let pollId = selectedInvitePollId,
+                       let dayId = selectedInviteDayId,
+                       let poll = viewModel.polls.first(where: { $0.id == pollId }),
+                       let day = poll.days?.first(where: { $0.id == dayId }) {
+                        Button("Välj röstade") {
+                            let votedIds = day.votes?.map(\.profileId) ?? []
+                            selectedInvitees = Set(votedIds)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+
+                    Button("Rensa") {
+                        selectedInvitees.removeAll()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.vertical, 4)
+
                 ForEach(viewModel.players.filter { $0.isRegular }) { player in
                     Toggle(player.profileName, isOn: Binding(
                         get: { selectedInvitees.contains(player.id) },
