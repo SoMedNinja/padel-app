@@ -6,10 +6,12 @@ struct Match: Identifiable, Codable {
     let playedAt: Date
     let teamAName: String
     let teamBName: String
+    let teamANames: [String]
+    let teamBNames: [String]
     let teamAScore: Int
     let teamBScore: Int
-    let teamAPlayerIds: [UUID?]
-    let teamBPlayerIds: [UUID?]
+    let teamAPlayerIds: [String?]
+    let teamBPlayerIds: [String?]
     let scoreType: String?
     let scoreTarget: Int?
     let sourceTournamentId: UUID?
@@ -36,26 +38,23 @@ struct Match: Identifiable, Codable {
     // Note for non-coders:
     // The web app stores team names as arrays (for doubles) while old iOS code used one string.
     // This helper keeps iOS screens readable by turning either format into "Name 1 & Name 2".
-    private static func decodeTeamName(from container: KeyedDecodingContainer<CodingKeys>, key: CodingKeys) throws -> String {
+    private static func decodeTeamNames(from container: KeyedDecodingContainer<CodingKeys>, key: CodingKeys) throws -> [String] {
         if let names = try container.decodeIfPresent([String].self, forKey: key) {
-            return names.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: " & ")
+            return names.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         }
         if let name = try container.decodeIfPresent(String.self, forKey: key) {
-            return name
+            return [name.trimmingCharacters(in: .whitespacesAndNewlines)]
         }
-        return ""
+        return []
     }
 
-    private static func decodePlayerIds(from container: KeyedDecodingContainer<CodingKeys>, key: CodingKeys) throws -> [UUID?] {
-        // Note for non-coders:
-        // The PWA uses a "guest" string for non-logged-in players. We turn those into nil
-        // so Swift code can use its standard optional type for "maybe a player ID".
+    private static func decodePlayerIds(from container: KeyedDecodingContainer<CodingKeys>, key: CodingKeys) throws -> [String?] {
         guard let rawValues = try container.decodeIfPresent([String?].self, forKey: key) else {
             return []
         }
         return rawValues.map { val in
-            guard let val = val, val != "guest", !val.isEmpty else { return nil }
-            return UUID(uuidString: val)
+            guard let val = val, !val.isEmpty else { return nil }
+            return val
         }
     }
 
@@ -64,8 +63,14 @@ struct Match: Identifiable, Codable {
         id = try container.decode(UUID.self, forKey: .id)
         createdBy = try container.decodeIfPresent(UUID.self, forKey: .createdBy)
         playedAt = try container.decodeIfPresent(Date.self, forKey: .playedAt) ?? .distantPast
-        teamAName = try Self.decodeTeamName(from: container, key: .teamAName)
-        teamBName = try Self.decodeTeamName(from: container, key: .teamBName)
+
+        let tANames = try Self.decodeTeamNames(from: container, key: .teamAName)
+        let tBNames = try Self.decodeTeamNames(from: container, key: .teamBName)
+        teamANames = tANames
+        teamBNames = tBNames
+        teamAName = tANames.filter { !$0.isEmpty }.joined(separator: " & ")
+        teamBName = tBNames.filter { !$0.isEmpty }.joined(separator: " & ")
+
         teamAScore = try container.decodeIfPresent(Int.self, forKey: .teamAScore) ?? 0
         teamBScore = try container.decodeIfPresent(Int.self, forKey: .teamBScore) ?? 0
         teamAPlayerIds = try Self.decodePlayerIds(from: container, key: .teamAPlayerIds)
@@ -85,8 +90,8 @@ struct Match: Identifiable, Codable {
         teamBName: String,
         teamAScore: Int,
         teamBScore: Int,
-        teamAPlayerIds: [UUID?] = [],
-        teamBPlayerIds: [UUID?] = [],
+        teamAPlayerIds: [String?] = [],
+        teamBPlayerIds: [String?] = [],
         scoreType: String? = "sets",
         scoreTarget: Int? = nil,
         sourceTournamentId: UUID? = nil,
@@ -98,6 +103,8 @@ struct Match: Identifiable, Codable {
         self.playedAt = playedAt
         self.teamAName = teamAName
         self.teamBName = teamBName
+        self.teamANames = teamAName.split(separator: "&").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        self.teamBNames = teamBName.split(separator: "&").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         self.teamAScore = teamAScore
         self.teamBScore = teamBScore
         self.teamAPlayerIds = teamAPlayerIds
@@ -114,8 +121,8 @@ struct Match: Identifiable, Codable {
         try container.encode(id, forKey: .id)
         try container.encodeIfPresent(createdBy, forKey: .createdBy)
         try container.encode(playedAt, forKey: .playedAt)
-        try container.encode(teamAName.split(separator: "&").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, forKey: .teamAName)
-        try container.encode(teamBName.split(separator: "&").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, forKey: .teamBName)
+        try container.encode(teamANames, forKey: .teamAName)
+        try container.encode(teamBNames, forKey: .teamBName)
         try container.encode(teamAScore, forKey: .teamAScore)
         try container.encode(teamBScore, forKey: .teamBScore)
         try container.encode(teamAPlayerIds, forKey: .teamAPlayerIds)

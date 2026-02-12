@@ -59,6 +59,9 @@ struct AdminView: View {
     @State private var selectedISOWeek = Calendar(identifier: .iso8601).component(.weekOfYear, from: .now)
     @State private var selectedISOYear = Calendar(identifier: .iso8601).component(.yearForWeekOfYear, from: .now)
 
+    @State private var renamingProfile: AdminProfile?
+    @State private var newPlayerName: String = ""
+
     var body: some View {
         NavigationStack {
             Group {
@@ -132,11 +135,26 @@ struct AdminView: View {
                 Alert(
                     title: Text(action.title),
                     message: Text(action.message),
-                    primaryButton: .destructive(Text("Confirm")) {
+                    primaryButton: .destructive(Text("Bekräfta")) {
                         Task { await run(action) }
                     },
                     secondaryButton: .cancel()
                 )
+            }
+            .alert("Byt namn", isPresented: Binding(
+                get: { renamingProfile != nil },
+                set: { if !$0 { renamingProfile = nil } }
+            )) {
+                TextField("Nytt namn", text: $newPlayerName)
+                Button("Avbryt", role: .cancel) { renamingProfile = nil }
+                Button("Spara") {
+                    if let profile = renamingProfile {
+                        Task { await viewModel.renamePlayer(profileId: profile.id, newName: newPlayerName) }
+                    }
+                    renamingProfile = nil
+                }
+            } message: {
+                Text("Ange ett nytt visningsnamn för spelaren.")
             }
         }
     }
@@ -184,6 +202,11 @@ struct AdminView: View {
                                 .buttonStyle(.bordered)
                             Button(profile.isRegular ? "Ta bort ordinarie" : "Gör till ordinarie") { pendingAction = .toggleRegular(profile) }
                                 .buttonStyle(.bordered)
+                            Button("Ändra namn") {
+                                renamingProfile = profile
+                                newPlayerName = profile.name
+                            }
+                            .buttonStyle(.bordered)
                         }
                         .font(.caption)
 

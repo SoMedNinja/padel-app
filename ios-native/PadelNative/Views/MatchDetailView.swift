@@ -9,7 +9,18 @@ struct MatchDetailView: View {
     @State private var editScoreType = "sets"
     @State private var editScoreTargetText = ""
     @State private var editPlayedAt = Date()
+
+    @State private var editTeamAPlayer1Id: String?
+    @State private var editTeamAPlayer2Id: String?
+    @State private var editTeamBPlayer1Id: String?
+    @State private var editTeamBPlayer2Id: String?
+
     @State private var showDeleteConfirm = false
+
+    @State private var playerSearchText = ""
+    @State private var showGuestDialog = false
+    @State private var newGuestName = ""
+    @State private var activeSelectionBinding: Binding<String?>?
 
     private let formatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -71,9 +82,17 @@ struct MatchDetailView: View {
             }
 
             if viewModel.canUseAdmin {
-                Section("Adminverktyg") {
-                    Stepper("Lag A: \(editTeamAScore)", value: $editTeamAScore, in: 0...99)
-                    Stepper("Lag B: \(editTeamBScore)", value: $editTeamBScore, in: 0...99)
+                Section("Adminverktyg - Redigera match") {
+                    Group {
+                        playerSelectorRow(title: "Lag A – spelare 1", selection: $editTeamAPlayer1Id)
+                        playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $editTeamAPlayer2Id)
+                        Divider()
+                        playerSelectorRow(title: "Lag B – spelare 1", selection: $editTeamBPlayer1Id)
+                        playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $editTeamBPlayer2Id)
+                    }
+
+                    Stepper("Lag A poäng: \(editTeamAScore)", value: $editTeamAScore, in: 0...99)
+                    Stepper("Lag B poäng: \(editTeamBScore)", value: $editTeamBScore, in: 0...99)
 
                     Picker("Poängtyp", selection: $editScoreType) {
                         Text("Set").tag("sets")
@@ -95,7 +114,9 @@ struct MatchDetailView: View {
                                 teamAScore: editTeamAScore,
                                 teamBScore: editTeamBScore,
                                 scoreType: editScoreType,
-                                scoreTarget: Int(editScoreTargetText)
+                                scoreTarget: Int(editScoreTargetText),
+                                teamAPlayerIds: [editTeamAPlayer1Id, editTeamAPlayer2Id],
+                                teamBPlayerIds: [editTeamBPlayer1Id, editTeamBPlayer2Id]
                             )
                         }
                     }
@@ -125,6 +146,11 @@ struct MatchDetailView: View {
             editScoreType = match.scoreType ?? "sets"
             editScoreTargetText = match.scoreTarget.map(String.init) ?? ""
             editPlayedAt = match.playedAt
+
+            editTeamAPlayer1Id = match.teamAPlayerIds.indices.contains(0) ? match.teamAPlayerIds[0] : nil
+            editTeamAPlayer2Id = match.teamAPlayerIds.indices.contains(1) ? match.teamAPlayerIds[1] : nil
+            editTeamBPlayer1Id = match.teamBPlayerIds.indices.contains(0) ? match.teamBPlayerIds[0] : nil
+            editTeamBPlayer2Id = match.teamBPlayerIds.indices.contains(1) ? match.teamBPlayerIds[1] : nil
         }
         .alert("Radera match?", isPresented: $showDeleteConfirm) {
             Button("Radera", role: .destructive) {
@@ -136,5 +162,59 @@ struct MatchDetailView: View {
         }
         .navigationTitle("Matchdetaljer")
         .padelLiquidGlassChrome()
+    }
+
+    private func playerSelectorRow(title: String, selection: Binding<String?>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        selection.wrappedValue = nil
+                    } label: {
+                        Text("Ingen")
+                            .font(.caption2)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(selection.wrappedValue == nil ? Color.accentColor : Color(.systemGray5))
+                            .foregroundStyle(selection.wrappedValue == nil ? .white : .primary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        selection.wrappedValue = "guest"
+                    } label: {
+                        Text("Gäst")
+                            .font(.caption2)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(selection.wrappedValue == "guest" ? Color.accentColor : Color(.systemGray5))
+                            .foregroundStyle(selection.wrappedValue == "guest" ? .white : .primary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    ForEach(viewModel.players) { player in
+                        Button {
+                            selection.wrappedValue = player.id.uuidString
+                        } label: {
+                            Text(player.profileName)
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(selection.wrappedValue == player.id.uuidString ? Color.accentColor : Color(.systemGray5))
+                                .foregroundStyle(selection.wrappedValue == player.id.uuidString ? .white : .primary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }

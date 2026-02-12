@@ -22,10 +22,10 @@ struct SingleGameView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
     @State private var isOneVsOne = false
-    @State private var teamAPlayer1Id: UUID?
-    @State private var teamAPlayer2Id: UUID?
-    @State private var teamBPlayer1Id: UUID?
-    @State private var teamBPlayer2Id: UUID?
+    @State private var teamAPlayer1Id: String?
+    @State private var teamAPlayer2Id: String?
+    @State private var teamBPlayer1Id: String?
+    @State private var teamBPlayer2Id: String?
     @State private var teamAScore = 6
     @State private var teamBScore = 4
     @State private var scoreType = "sets"
@@ -33,12 +33,18 @@ struct SingleGameView: View {
     @State private var selectedSourceTournamentId: UUID?
     @State private var sourceTournamentType = ""
     @State private var teamAServesFirst = true
+    @State private var playedAt = Date()
     @State private var isSubmitting = false
     @State private var wizardStep: SingleGameWizardStep = .teamSetup
     @State private var generatedRecap: SingleGameRecap?
     @State private var fairnessLabel: String?
     @State private var showSuccessState = false
     @State private var matchmakerPool: Set<UUID> = []
+
+    @State private var playerSearchText = ""
+    @State private var showGuestDialog = false
+    @State private var newGuestName = ""
+    @State private var activeSelectionBinding: Binding<String?>?
 
     var body: some View {
         NavigationStack {
@@ -152,6 +158,10 @@ struct SingleGameView: View {
             if !isOneVsOne {
                 playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
             }
+
+            DatePicker("Datum & tid", selection: $playedAt)
+                .font(.subheadline)
+
             HStack {
                 Button("Föreslå match") {
                     applySuggestedMatchup()
@@ -181,8 +191,38 @@ struct SingleGameView: View {
 
     private var scoreSection: some View {
         Section("Resultat") {
-            Stepper("Lag A: \(teamAScore)", value: $teamAScore, in: 0...99)
-            Stepper("Lag B: \(teamBScore)", value: $teamBScore, in: 0...99)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Lag A").font(.caption.bold()).foregroundStyle(.secondary)
+                        Stepper("\(teamAScore)", value: $teamAScore, in: 0...99)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing) {
+                        Text("Lag B").font(.caption.bold()).foregroundStyle(.secondary)
+                        Stepper("\(teamBScore)", value: $teamBScore, in: 0...99)
+                    }
+                }
+
+                if let (fairness, prob) = currentMatchFairnessAndProb {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Rättvisa: \(fairness)%")
+                            ProgressView(value: Double(fairness), total: 100)
+                                .tint(fairness > 70 ? .green : (fairness > 40 ? .orange : .red))
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("Vinstchans Lag A: \(Int(round(prob * 100)))%")
+                            ProgressView(value: prob, total: 1.0)
+                        }
+                    }
+                    .font(.caption2.bold())
+                    .padding(10)
+                    .background(Color.accentColor.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
 
             Picker("Poängtyp", selection: $scoreType) {
                 Text("Set").tag("sets")
@@ -318,12 +358,25 @@ struct SingleGameView: View {
         }
     }
 
+    private var currentMatchFairnessAndProb: (fairness: Int, prob: Double)? {
+        let aIds = [teamAPlayer1Id, teamAPlayer2Id].compactMap { $0.flatMap { UUID(uuidString: $0) } }
+        let bIds = [teamBPlayer1Id, teamBPlayer2Id].compactMap { $0.flatMap { UUID(uuidString: $0) } }
+        guard !aIds.isEmpty, !bIds.isEmpty else { return nil }
+
+        let aElo = aIds.reduce(0.0) { $0 + Double(viewModel.playerBadgeStats[$1]?.currentElo ?? 1000) } / Double(aIds.count)
+        let bElo = bIds.reduce(0.0) { $0 + Double(viewModel.playerBadgeStats[$1]?.currentElo ?? 1000) } / Double(bIds.count)
+
+        let prob = EloService.getWinProbability(rating: aElo, opponentRating: bElo)
+        let fairness = Int(round((1 - abs(0.5 - prob) * 2) * 100))
+        return (fairness, prob)
+    }
+
     private func applySuggestedMatchup() {
         guard let suggestion = viewModel.suggestSingleGameMatchup(isOneVsOne: isOneVsOne) else { return }
-        teamAPlayer1Id = suggestion.teamAPlayerIds.first ?? nil
-        teamAPlayer2Id = suggestion.teamAPlayerIds.dropFirst().first ?? nil
-        teamBPlayer1Id = suggestion.teamBPlayerIds.first ?? nil
-        teamBPlayer2Id = suggestion.teamBPlayerIds.dropFirst().first ?? nil
+        teamAPlayer1Id = suggestion.teamAPlayerIds.first??.uuidString
+        teamAPlayer2Id = suggestion.teamAPlayerIds.dropFirst().first??.uuidString
+        teamBPlayer1Id = suggestion.teamBPlayerIds.first??.uuidString
+        teamBPlayer2Id = suggestion.teamBPlayerIds.dropFirst().first??.uuidString
         fairnessLabel = "Fairness \(suggestion.fairness)% • Vinstchans Lag A \(Int(round(suggestion.winProbability * 100)))%. \(suggestion.explanation)"
     }
 
@@ -332,8 +385,8 @@ struct SingleGameView: View {
             isSubmitting = true
             defer { isSubmitting = false }
 
-            let teamAIds: [UUID?] = [teamAPlayer1Id, isOneVsOne ? nil : teamAPlayer2Id]
-            let teamBIds: [UUID?] = [teamBPlayer1Id, isOneVsOne ? nil : teamBPlayer2Id]
+            let teamAIds: [String?] = [teamAPlayer1Id, isOneVsOne ? nil : teamAPlayer2Id]
+            let teamBIds: [String?] = [teamBPlayer1Id, isOneVsOne ? nil : teamBPlayer2Id]
 
             let recap = await viewModel.submitSingleGame(
                 teamAPlayerIds: teamAIds,
@@ -369,6 +422,7 @@ struct SingleGameView: View {
         teamBPlayer2Id = nil
         teamAScore = 6
         teamBScore = 4
+        playedAt = Date()
         scoreType = "sets"
         scoreTargetText = ""
         selectedSourceTournamentId = nil
@@ -381,19 +435,28 @@ struct SingleGameView: View {
         }
     }
 
-    private func teamText(primary: UUID?, secondary: UUID?) -> String {
+    private func teamText(primary: String?, secondary: String?) -> String {
         let ids = [primary, secondary].compactMap { $0 }
         guard ids.isEmpty == false else { return "Ej valt" }
-        let names = ids.compactMap { id in
-            viewModel.players.first(where: { $0.id == id })?.profileName
+        let names = ids.map { id in
+            if let uuid = UUID(uuidString: id), let p = viewModel.players.first(where: { $0.id == uuid }) {
+                return p.profileName
+            }
+            if id.hasPrefix("name:") { return String(id.dropFirst(5)) }
+            if id == "guest" { return "Gäst" }
+            return "Okänd"
         }
         return names.joined(separator: " & ")
     }
 
-    private func playerSelectorRow(title: String, selection: Binding<UUID?>) -> some View {
+    private func playerSelectorRow(title: String, selection: Binding<String?>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
+
+            TextField("Sök spelare...", text: $playerSearchText)
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -411,9 +474,43 @@ struct SingleGameView: View {
                     }
                     .buttonStyle(.plain)
 
-                    ForEach(viewModel.players) { player in
+                    Button {
+                        selection.wrappedValue = "guest"
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "person.badge.plus")
+                                .font(.title2)
+                            Text("Gäst")
+                                .font(.caption)
+                        }
+                        .frame(width: 76, height: 84)
+                        .background(tileBackground(isSelected: selection.wrappedValue == "guest"))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        activeSelectionBinding = selection
+                        newGuestName = ""
+                        showGuestDialog = true
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "character.cursor.ibeam")
+                                .font(.title2)
+                            Text("Namngiven")
+                                .font(.caption)
+                        }
+                        .frame(width: 76, height: 84)
+                        .background(tileBackground(isSelected: selection.wrappedValue?.hasPrefix("name:") == true))
+                    }
+                    .buttonStyle(.plain)
+
+                    let filteredPlayers = viewModel.players.filter {
+                        playerSearchText.isEmpty || $0.profileName.localizedCaseInsensitiveContains(playerSearchText) || $0.fullName.localizedCaseInsensitiveContains(playerSearchText)
+                    }
+
+                    ForEach(filteredPlayers) { player in
                         Button {
-                            selection.wrappedValue = player.id
+                            selection.wrappedValue = player.id.uuidString
                         } label: {
                             VStack(spacing: 6) {
                                 playerAvatar(player)
@@ -423,15 +520,23 @@ struct SingleGameView: View {
                                     .multilineTextAlignment(.center)
                             }
                             .frame(width: 84, height: 92)
-                            .background(tileBackground(isSelected: selection.wrappedValue == player.id))
+                            .background(tileBackground(isSelected: selection.wrappedValue == player.id.uuidString))
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
-            Text("Note for non-coders: här väljer du spelare via profilbilder istället för en lång dropdown, precis som i webbens matchflöde.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        }
+        .alert("Namngiven gäst", isPresented: $showGuestDialog) {
+            TextField("Namn", text: $newGuestName)
+            Button("Avbryt", role: .cancel) { }
+            Button("Lägg till") {
+                if !newGuestName.isEmpty {
+                    activeSelectionBinding?.wrappedValue = "name:\(newGuestName)"
+                }
+            }
+        } message: {
+            Text("Ange namn på gästspelaren.")
         }
     }
 

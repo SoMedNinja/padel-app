@@ -264,9 +264,34 @@ struct SingleGameSuggestion {
     let explanation: String
 }
 
+struct MatchRecapPlayer: Identifiable {
+    let id: UUID?
+    let name: String
+    let elo: Int
+    let delta: Int
+    let avatarURL: String?
+}
+
+struct MatchRecapTeam {
+    let players: [MatchRecapPlayer]
+    let averageElo: Int
+}
+
 struct SingleGameRecap {
-    let matchSummary: String
+    let playedAt: Date
+    let teamAScore: Int
+    let teamBScore: Int
+    let teamA: MatchRecapTeam
+    let teamB: MatchRecapTeam
+    let fairness: Int
+    let winProbability: Double
     let eveningSummary: String
+
+    var matchSummary: String {
+        let teamANames = teamA.players.map { $0.name }.joined(separator: " & ")
+        let teamBNames = teamB.players.map { $0.name }.joined(separator: " & ")
+        return "\(teamANames) \(teamAScore)-\(teamBScore) \(teamBNames)"
+    }
 
     var sharePayload: String {
         [
@@ -764,9 +789,10 @@ final class AppViewModel: ObservableObject {
 
     private var currentPlayerMatches: [Match] {
         guard let currentPlayer else { return [] }
+        let currentIdString = currentPlayer.id.uuidString
         return allMatches.filter { match in
-            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
-            if playerIds.contains(currentPlayer.id) {
+            let playerIds = (match.teamAPlayerIds + match.teamBPlayerIds).compactMap { $0 }
+            if playerIds.contains(currentIdString) {
                 return true
             }
             return match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
@@ -820,12 +846,13 @@ final class AppViewModel: ObservableObject {
     }
 
     private func calculateServeSplitStats(matches: [Match], playerId: UUID) -> (firstWins: Int, firstLosses: Int, firstWinRate: Int, secondWins: Int, secondLosses: Int, secondWinRate: Int) {
+        let pIdString = playerId.uuidString
         var fW = 0, fL = 0, sW = 0, sL = 0
         for match in matches {
             let teamAIds = match.teamAPlayerIds.compactMap { $0 }
             let teamBIds = match.teamBPlayerIds.compactMap { $0 }
-            let isTeamA = teamAIds.contains(playerId)
-            let isTeamB = teamBIds.contains(playerId)
+            let isTeamA = teamAIds.contains(pIdString)
+            let isTeamB = teamBIds.contains(pIdString)
             guard isTeamA || isTeamB else { continue }
 
             let servedFirst = match.teamAServesFirst ?? true
@@ -1013,17 +1040,30 @@ final class AppViewModel: ObservableObject {
         return names[index]
     }
 
-    private func resolvePlayerName(playerId: UUID?, fallbackLabel: String? = nil) -> String {
-        if let playerId {
-            if let player = players.first(where: { $0.id == playerId }) {
+    private func resolvePlayerName(playerId: String?, fallbackLabel: String? = nil) -> String {
+        guard let playerId = playerId, !playerId.isEmpty else {
+            return fallbackLabel ?? "Gästspelare"
+        }
+
+        if playerId == "guest" {
+            return fallbackLabel ?? "Gästspelare"
+        }
+
+        if playerId.hasPrefix("name:") {
+            return String(playerId.dropFirst(5))
+        }
+
+        if let uuid = UUID(uuidString: playerId) {
+            if let player = players.first(where: { $0.id == uuid }) {
                 return player.fullName
             }
-            if let participant = tournamentParticipants.first(where: { $0.profileId == playerId }) {
+            if let participant = tournamentParticipants.first(where: { $0.profileId == uuid }) {
                 return participant.profileName
             }
-            return fallbackLabel ?? "Spelare \(playerId.uuidString.prefix(6))"
+            return fallbackLabel ?? "Spelare \(uuid.uuidString.prefix(6))"
         }
-        return fallbackLabel ?? "Gästspelare"
+
+        return fallbackLabel ?? playerId
     }
 
     // Note for non-coders:
@@ -1044,16 +1084,17 @@ final class AppViewModel: ObservableObject {
 
         return uniqueSlots
             .map { playerId, fallbackName in
-                let historyEntry = playerId.flatMap { pid in
+                let uuid = playerId.flatMap { UUID(uuidString: $0) }
+                let historyEntry = uuid.flatMap { pid in
                     playerBadgeStats[pid]?.eloHistory.first(where: { $0.matchId == match.id })
                 }
 
                 let delta = historyEntry?.delta ?? 0
-                let estimatedAfter = historyEntry?.elo ?? (playerId.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
+                let estimatedAfter = historyEntry?.elo ?? (uuid.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
                 let estimatedBefore = estimatedAfter - delta
 
                 return MatchEloChangeRow(
-                    id: playerId ?? UUID(),
+                    id: uuid ?? UUID(),
                     playerName: resolvePlayerName(playerId: playerId, fallbackLabel: fallbackName),
                     delta: delta,
                     estimatedBefore: estimatedBefore,
@@ -1218,7 +1259,7 @@ final class AppViewModel: ObservableObject {
 
     private func didCurrentPlayerWin(_ match: Match, player: Player) -> Bool {
         let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-        let iAmTeamA = teamAIds.contains(player.id) || match.teamAName.localizedCaseInsensitiveContains(player.fullName)
+        let iAmTeamA = teamAIds.contains(player.id.uuidString) || match.teamAName.localizedCaseInsensitiveContains(player.fullName)
         return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
     }
 
@@ -2199,12 +2240,18 @@ final class AppViewModel: ObservableObject {
         teamAScore: Int,
         teamBScore: Int,
         scoreType: String,
-        scoreTarget: Int?
+        scoreTarget: Int?,
+        teamAPlayerIds: [String?]? = nil,
+        teamBPlayerIds: [String?]? = nil
     ) async {
         guard canUseAdmin else {
             statusMessage = "Endast admin kan ändra matcher i iOS-appen just nu."
             return
         }
+
+        let team1 = teamAPlayerIds?.map { resolvePlayerName(playerId: $0) }
+        let team2 = teamBPlayerIds?.map { resolvePlayerName(playerId: $0) }
+
         do {
             try await apiClient.updateMatch(
                 matchId: match.id,
@@ -2212,10 +2259,14 @@ final class AppViewModel: ObservableObject {
                 teamAScore: teamAScore,
                 teamBScore: teamBScore,
                 scoreType: scoreType,
-                scoreTarget: scoreTarget
+                scoreTarget: scoreTarget,
+                team1: team1,
+                team2: team2,
+                team1_ids: teamAPlayerIds,
+                team2_ids: teamBPlayerIds
             )
             await bootstrap()
-            statusMessage = "Matchresultat uppdaterat."
+            statusMessage = "Match uppdaterad."
         } catch {
             statusMessage = "Kunde inte uppdatera matchen: \(error.localizedDescription)"
         }
@@ -2951,8 +3002,8 @@ final class AppViewModel: ObservableObject {
 
         for match in latestMatches {
             // Get pre-match ELO by looking up the ELO before this match in history
-            let getPreElo = { (id: UUID?) -> Double in
-                guard let id = id else { return 1000 }
+            let getPreElo = { (idString: String?) -> Double in
+                guard let idString = idString, let id = UUID(uuidString: idString) else { return 1000 }
                 if let history = statsMap[id]?.eloHistory,
                    let matchEntry = history.first(where: { $0.matchId == match.id }) {
                     return Double(matchEntry.elo - matchEntry.delta)
@@ -3052,7 +3103,10 @@ final class AppViewModel: ObservableObject {
             let margin = abs(match.teamAScore - match.teamBScore)
             let gain = max(4, margin * 2)
 
-            for id in match.teamAPlayerIds.compactMap({ $0 }) {
+            let teamAIds = match.teamAPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+            let teamBIds = match.teamBPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+
+            for id in teamAIds {
                 var current = stats[id, default: MvpStat()]
                 current.games += 1
                 current.periodEloGain += teamAWon ? gain : -gain
@@ -3060,7 +3114,7 @@ final class AppViewModel: ObservableObject {
                 stats[id] = current
             }
 
-            for id in match.teamBPlayerIds.compactMap({ $0 }) {
+            for id in teamBIds {
                 var current = stats[id, default: MvpStat()]
                 current.games += 1
                 current.periodEloGain += teamAWon ? -gain : gain
@@ -3161,8 +3215,8 @@ final class AppViewModel: ObservableObject {
         }
 
         for match in allMatches {
-            let teamA = match.teamAPlayerIds.compactMap { $0 }
-            let teamB = match.teamBPlayerIds.compactMap { $0 }
+            let teamA = match.teamAPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+            let teamB = match.teamBPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
 
             for id in teamA + teamB {
                 gamesByPlayer[id, default: 0] += 1
@@ -3279,18 +3333,17 @@ final class AppViewModel: ObservableObject {
     func buildSingleGameRecap(for match: Match) -> SingleGameRecap {
         let dateKey = Self.dayKey(for: match.playedAt)
         let dayMatches = allMatches.filter { Self.dayKey(for: $0.playedAt) == dateKey }
-        let winner = match.teamAScore > match.teamBScore ? match.teamAName : (match.teamBScore > match.teamAScore ? match.teamBName : "Oavgjort")
 
         var winsByPlayer: [UUID: Int] = [:]
         for dayMatch in dayMatches {
-            let winners = dayMatch.teamAScore > dayMatch.teamBScore ? dayMatch.teamAPlayerIds : dayMatch.teamBPlayerIds
+            let winnersString = dayMatch.teamAScore > dayMatch.teamBScore ? dayMatch.teamAPlayerIds : dayMatch.teamBPlayerIds
+            let winners = winnersString.compactMap { $0.flatMap { UUID(uuidString: $0) } }
             for id in winners {
-                guard let id else { continue }
                 winsByPlayer[id, default: 0] += 1
             }
         }
 
-        let leaderboard = winsByPlayer
+        let leaders = winsByPlayer
             .sorted { lhs, rhs in
                 if lhs.value != rhs.value { return lhs.value > rhs.value }
                 let left = players.first(where: { $0.id == lhs.key })?.profileName ?? "Spelare"
@@ -3306,20 +3359,51 @@ final class AppViewModel: ObservableObject {
         let totalPoints = dayMatches.reduce(0) { $0 + $1.teamAScore + $1.teamBScore }
         let closeGameCount = dayMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 2 }.count
 
-        let matchSummary = [
-            "Match: \(match.teamAName) \(match.teamAScore)-\(match.teamBScore) \(match.teamBName)",
-            "Vinnare: \(winner)",
-            "Poängtyp: \(match.scoreType == "points" ? "Poäng" : "Set")",
-        ].joined(separator: "\n")
-
         let eveningSummary = ([
             "Kväll \(dateKey): \(dayMatches.count) matcher, totalt \(totalPoints) registrerade game.",
             "Jämna matcher (skillnad ≤ 2): \(closeGameCount)",
             "Topplista:",
-            leaderboard.isEmpty ? "• Ingen topplista ännu." : leaderboard.joined(separator: "\n"),
+            leaders.isEmpty ? "• Ingen topplista ännu." : leaders.joined(separator: "\n"),
         ]).joined(separator: "\n")
 
-        return SingleGameRecap(matchSummary: matchSummary, eveningSummary: eveningSummary)
+        let teamAPlayers = match.teamAPlayerIds.enumerated().map { index, idString in
+            let name = resolvePlayerName(playerId: idString, fallbackLabel: match.teamANames.indices.contains(index) ? match.teamANames[index] : "Spelare")
+            let uuid = idString.flatMap { UUID(uuidString: $0) }
+            let stats = uuid.flatMap { playerBadgeStats[$0] }
+            let history = uuid.flatMap { pid in stats?.eloHistory.first(where: { $0.matchId == match.id }) }
+            let delta = history?.delta ?? 0
+            let elo = history?.elo ?? (uuid.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
+            let player = players.first(where: { $0.id == uuid })
+            return MatchRecapPlayer(id: uuid, name: name, elo: elo, delta: delta, avatarURL: player?.avatarURL)
+        }
+
+        let teamBPlayers = match.teamBPlayerIds.enumerated().map { index, idString in
+            let name = resolvePlayerName(playerId: idString, fallbackLabel: match.teamBNames.indices.contains(index) ? match.teamBNames[index] : "Spelare")
+            let uuid = idString.flatMap { UUID(uuidString: $0) }
+            let stats = uuid.flatMap { playerBadgeStats[$0] }
+            let history = uuid.flatMap { pid in stats?.eloHistory.first(where: { $0.matchId == match.id }) }
+            let delta = history?.delta ?? 0
+            let elo = history?.elo ?? (uuid.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
+            let player = players.first(where: { $0.id == uuid })
+            return MatchRecapPlayer(id: uuid, name: name, elo: elo, delta: delta, avatarURL: player?.avatarURL)
+        }
+
+        let teamAAvg = teamAPlayers.isEmpty ? 1000 : teamAPlayers.reduce(0) { $0 + $1.elo } / teamAPlayers.count
+        let teamBAvg = teamBPlayers.isEmpty ? 1000 : teamBPlayers.reduce(0) { $0 + $1.elo } / teamBPlayers.count
+
+        let winProb = EloService.getWinProbability(rating: Double(teamAAvg), opponentRating: Double(teamBAvg))
+        let fairness = Int(round((1 - abs(0.5 - winProb) * 2) * 100))
+
+        return SingleGameRecap(
+            playedAt: match.playedAt,
+            teamAScore: match.teamAScore,
+            teamBScore: match.teamBScore,
+            teamA: MatchRecapTeam(players: teamAPlayers, averageElo: teamAAvg),
+            teamB: MatchRecapTeam(players: teamBPlayers, averageElo: teamBAvg),
+            fairness: fairness,
+            winProbability: winProb,
+            eveningSummary: eveningSummary
+        )
     }
 
     private func recalculateDerivedStats() {
@@ -3470,15 +3554,16 @@ final class AppViewModel: ObservableObject {
         var partnerStats: [UUID: (games: Int, wins: Int)] = [:]
         var rivalStats: [UUID: (games: Int, losses: Int)] = [:]
 
+        let pIdString = playerId.uuidString
         for m in recentMatches {
             let teamA = m.teamAPlayerIds.compactMap { $0 }
             let teamB = m.teamBPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamA.contains(playerId)
-            let iAmTeamB = teamB.contains(playerId)
+            let iAmTeamA = teamA.contains(pIdString)
+            let iAmTeamB = teamB.contains(pIdString)
             guard iAmTeamA || iAmTeamB else { continue }
 
-            let myTeam = iAmTeamA ? teamA : teamB
-            let oppTeam = iAmTeamA ? teamB : teamA
+            let myTeam = (iAmTeamA ? teamA : teamB).compactMap { UUID(uuidString: $0) }
+            let oppTeam = (iAmTeamA ? teamB : teamA).compactMap { UUID(uuidString: $0) }
             let won = iAmTeamA ? m.teamAScore > m.teamBScore : m.teamBScore > m.teamAScore
 
             for pId in myTeam where pId != playerId {
@@ -3543,16 +3628,17 @@ final class AppViewModel: ObservableObject {
 
         // Process matches in reverse chronological order for lastMatch and results
         let sorted = allMatches.sorted { $0.playedAt > $1.playedAt }
+        let pIdString = playerId.uuidString
 
         for match in sorted {
             let teamA = match.teamAPlayerIds.compactMap { $0 }
             let teamB = match.teamBPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamA.contains(playerId)
-            let iAmTeamB = teamB.contains(playerId)
+            let iAmTeamA = teamA.contains(pIdString)
+            let iAmTeamB = teamB.contains(pIdString)
             guard iAmTeamA || iAmTeamB else { continue }
 
-            let myTeam = iAmTeamA ? teamA : teamB
-            let oppTeam = iAmTeamA ? teamB : teamA
+            let myTeam = (iAmTeamA ? teamA : teamB).compactMap { UUID(uuidString: $0) }
+            let oppTeam = (iAmTeamA ? teamB : teamA).compactMap { UUID(uuidString: $0) }
             let mySets = iAmTeamA ? match.teamAScore : match.teamBScore
             let oppSets = iAmTeamA ? match.teamBScore : match.teamAScore
             let playerWon = mySets > oppSets
@@ -3657,14 +3743,15 @@ final class AppViewModel: ObservableObject {
         let playerNames = players.reduce(into: [UUID: String]()) { $0[$1.id] = $1.profileName }
         let playerElos = playerBadgeStats.mapValues { $0.currentElo }
 
+        let pIdString = playerId.uuidString
         for match in allMatches {
             let teamA = match.teamAPlayerIds.compactMap { $0 }
             let teamB = match.teamBPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamA.contains(playerId)
-            let iAmTeamB = teamB.contains(playerId)
+            let iAmTeamA = teamA.contains(pIdString)
+            let iAmTeamB = teamB.contains(pIdString)
             guard iAmTeamA || iAmTeamB else { continue }
 
-            let myTeam = iAmTeamA ? teamA : teamB
+            let myTeam = (iAmTeamA ? teamA : teamB).compactMap { UUID(uuidString: $0) }
             let playerWon = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
 
             let servedFirst = match.teamAServesFirst ?? true
@@ -3711,16 +3798,42 @@ final class AppViewModel: ObservableObject {
         }.sorted { $0.games > $1.games }
     }
 
+    func renamePlayer(profileId: UUID, newName: String) async {
+        guard canUseAdmin else {
+            adminBanner = AdminActionBanner(message: "Admin-behörighet krävs för att byta namn.", style: .failure)
+            return
+        }
+
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else {
+            adminBanner = AdminActionBanner(message: "Namnet måste vara minst 2 tecken.", style: .failure)
+            return
+        }
+
+        isAdminActionRunning = true
+        defer { isAdminActionRunning = false }
+
+        do {
+            try await apiClient.updateOwnProfile(profileId: profileId, fullName: trimmed, profileName: trimmed)
+            adminBanner = AdminActionBanner(message: "Spelaren har bytt namn till \(trimmed).", style: .success)
+            await bootstrap()
+            await refreshAdminProfiles(silently: true)
+        } catch {
+            adminBanner = AdminActionBanner(message: "Kunde inte byta namn: \(error.localizedDescription)", style: .failure)
+        }
+    }
+
     func submitSingleGame(
-        teamAPlayerIds: [UUID?],
-        teamBPlayerIds: [UUID?],
+        teamAPlayerIds: [String?],
+        teamBPlayerIds: [String?],
         teamAScore: Int,
         teamBScore: Int,
         scoreType: String = "sets",
         scoreTarget: Int? = nil,
         sourceTournamentId: UUID? = nil,
         sourceTournamentType: String = "standalone",
-        teamAServesFirst: Bool = true
+        teamAServesFirst: Bool = true,
+        playedAt: Date = .now
     ) async -> SingleGameRecap? {
         let normalizedAIds = Array(teamAPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamAPlayerIds.count))
         let normalizedBIds = Array(teamBPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamBPlayerIds.count))
@@ -3751,14 +3864,12 @@ final class AppViewModel: ObservableObject {
             : sourceTournamentType.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Note for non-coders:
-        // We derive readable team names from selected profiles so match history looks human-friendly.
-        let teamANames = normalizedAIds.map { playerId in
-            guard let playerId else { return "" }
-            return players.first(where: { $0.id == playerId })?.profileName ?? "Okänd spelare"
+        // We derive readable team names from selected profiles or guest tags.
+        let teamANames = normalizedAIds.map { idString in
+            resolvePlayerName(playerId: idString)
         }
-        let teamBNames = normalizedBIds.map { playerId in
-            guard let playerId else { return "" }
-            return players.first(where: { $0.id == playerId })?.profileName ?? "Okänd spelare"
+        let teamBNames = normalizedBIds.map { idString in
+            resolvePlayerName(playerId: idString)
         }
 
         do {
@@ -3774,17 +3885,16 @@ final class AppViewModel: ObservableObject {
                 sourceTournamentId: sourceTournamentId,
                 sourceTournamentType: normalizedTournamentType,
                 teamAServesFirst: teamAServesFirst,
-                playedAt: .now
+                playedAt: playedAt
             )
 
             try await apiClient.submitMatch(submission)
 
             // Note for non-coders:
-            // We add the new row locally so the user sees it immediately,
-            // then we also refresh from the server to stay fully accurate.
+            // We add the new row locally so the user sees it immediately.
             let localMatch = Match(
                 id: UUID(),
-                playedAt: .now,
+                playedAt: playedAt,
                 teamAName: teamANames.filter { !$0.isEmpty }.joined(separator: " & "),
                 teamBName: teamBNames.filter { !$0.isEmpty }.joined(separator: " & "),
                 teamAScore: teamAScore,
@@ -3799,6 +3909,10 @@ final class AppViewModel: ObservableObject {
             )
             matches.insert(localMatch, at: 0)
             statusMessage = "Match sparad."
+
+            // Note: recalculate stats so the recap gets correct ELO deltas
+            recalculateDerivedStats()
+
             let recap = buildSingleGameRecap(for: localMatch)
             await bootstrap()
             return recap
@@ -3817,9 +3931,9 @@ enum SampleData {
     ]
 
     static let matches: [Match] = [
-        Match(id: UUID(), playedAt: .now.addingTimeInterval(-86_400), teamAName: "Alex & Sam", teamBName: "Robin & Kim", teamAScore: 6, teamBScore: 4),
-        Match(id: UUID(), playedAt: .now.addingTimeInterval(-172_800), teamAName: "Alex & Kim", teamBName: "Sam & Robin", teamAScore: 7, teamBScore: 5),
-        Match(id: UUID(), playedAt: .now.addingTimeInterval(-250_000), teamAName: "Alex & Sam", teamBName: "Robin & Kim", teamAScore: 6, teamBScore: 5)
+        Match(id: UUID(), playedAt: .now.addingTimeInterval(-86_400), teamAName: "Alex & Sam", teamBName: "Robin & Kim", teamAScore: 6, teamBScore: 4, teamAPlayerIds: [players[0].id.uuidString, players[1].id.uuidString], teamBPlayerIds: [players[2].id.uuidString]),
+        Match(id: UUID(), playedAt: .now.addingTimeInterval(-172_800), teamAName: "Alex & Kim", teamBName: "Sam & Robin", teamAScore: 7, teamBScore: 5, teamAPlayerIds: [players[0].id.uuidString, players[2].id.uuidString], teamBPlayerIds: [players[1].id.uuidString]),
+        Match(id: UUID(), playedAt: .now.addingTimeInterval(-250_000), teamAName: "Alex & Sam", teamBName: "Robin & Kim", teamAScore: 6, teamBScore: 5, teamAPlayerIds: [players[0].id.uuidString, players[1].id.uuidString], teamBPlayerIds: [players[2].id.uuidString])
     ]
 
     static let schedule: [ScheduleEntry] = [

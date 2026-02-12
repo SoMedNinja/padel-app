@@ -176,8 +176,8 @@ enum BadgeService {
         let calendar = Calendar.current
 
         for match in sortedMatches {
-            let teamA = match.teamAPlayerIds.compactMap { $0 }
-            let teamB = match.teamBPlayerIds.compactMap { $0 }
+            let teamA = match.teamAPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+            let teamB = match.teamBPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
 
             if teamA.isEmpty || teamB.isEmpty { continue }
 
@@ -233,9 +233,11 @@ enum BadgeService {
                 stats.totalSetsLost += isTeamA ? match.teamBScore : match.teamAScore
 
                 let myTeamIdsWithGuests = isTeamA ? match.teamAPlayerIds : match.teamBPlayerIds
-                // Note: assuming guest ID handling is implicit in compactMap or we use a specific constant
-                // In iOS native, we don't have GUEST_ID yet, but match service handles nulls.
-                stats.guestPartners += myTeamIdsWithGuests.filter { $0 == nil }.count
+                // Note: Guest handling in PWA uses "guest" or "name:..."
+                stats.guestPartners += myTeamIdsWithGuests.filter { id in
+                    guard let id = id else { return true }
+                    return id == "guest" || id.hasPrefix("name:") || UUID(uuidString: id) == nil
+                }.count
 
                 if playerWon {
                     stats.wins += 1
