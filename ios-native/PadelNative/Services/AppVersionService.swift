@@ -44,6 +44,7 @@ struct AppVersionService {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(AppConfig.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 

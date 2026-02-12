@@ -26,11 +26,10 @@ enum AppConfig {
             return plistFlag
         }
 
-        #if DEBUG
-        return true
-        #else
+        // Note for non-coders:
+        // We disabled the automatic debug fallback to sample data because users prefer
+        // seeing real errors from the production database instead of "fake" data (Alex, Sam, Robin).
         return false
-        #endif
     }
 
     // Note for non-coders:
