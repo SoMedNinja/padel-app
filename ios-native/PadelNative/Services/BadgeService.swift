@@ -124,6 +124,21 @@ enum BadgeService {
         UniqueBadgeDefinition(id: "cold-streak-pro", icon: "❄️", title: "Isvind", description: "Längst förluststreak", group: "Unika Meriter", groupOrder: 0)
     ]
 
+    static func getBadgeIconById(_ badgeId: String?) -> String? {
+        guard let badgeId, !badgeId.isEmpty else { return nil }
+
+        if let uniqueIcon = uniqueDefinitions.first(where: { $0.id == badgeId })?.icon {
+            return uniqueIcon
+        }
+
+        if let lastDashIndex = badgeId.lastIndex(of: "-") {
+            let prefix = String(badgeId[..<lastDashIndex])
+            return definitions.first(where: { $0.idPrefix == prefix })?.icon
+        }
+
+        return definitions.first(where: { $0.idPrefix == badgeId })?.icon
+    }
+
     static func buildAllPlayersBadgeStats(
         matches: [Match],
         players: [Player],
