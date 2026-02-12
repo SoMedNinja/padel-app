@@ -16,6 +16,24 @@ enum AppConfig {
     }
 
     // Note for non-coders:
+    // This switch decides if the app is allowed to show built-in sample content when
+    // the backend cannot be reached. We keep that behavior in Debug builds for developer
+    // convenience, but we disable it by default for Release so published users only see
+    // real server data (or a clear error message).
+    static var allowsSampleDataFallback: Bool {
+        let plistFlag = Bundle.main.object(forInfoDictionaryKey: "ALLOW_SAMPLE_DATA_FALLBACK") as? Bool
+        if let plistFlag {
+            return plistFlag
+        }
+
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    // Note for non-coders:
     // We intentionally keep built-in fallback values empty so the app cannot silently connect
     // to the wrong Supabase project. If configuration is missing, login fails fast with a clear
     // setup message instead of pretending the password was wrong.

@@ -37,8 +37,8 @@ struct PadelNativeApp: App {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                } else if appViewModel.isAuthenticated {
-                    if appViewModel.isAwaitingApproval {
+                } else if appViewModel.isAuthenticated || appViewModel.isGuestMode {
+                    if appViewModel.isAuthenticated && appViewModel.isAwaitingApproval {
                         VStack(spacing: 14) {
                             Text("Väntar på godkännande")
                                 .font(.title3.bold())
@@ -95,8 +95,8 @@ struct PadelNativeApp: App {
             .task {
                 await appViewModel.prepareNativeCapabilities()
             }
-            .task(id: appViewModel.isAuthenticated) {
-                if appViewModel.isAuthenticated {
+            .task(id: appViewModel.isAuthenticated || appViewModel.isGuestMode) {
+                if appViewModel.isAuthenticated || appViewModel.isGuestMode {
                     await appViewModel.bootstrap()
                 }
             }
