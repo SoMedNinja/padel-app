@@ -291,11 +291,9 @@ export const useAuthProfile = () => {
             return;
           }
 
-          const persistedProfile = profile as Profile & { full_name?: string };
-          const resolvedProfileName =
-            persistedProfile?.name?.trim() ||
-            persistedProfile?.full_name?.trim() ||
-            "";
+          const persistedProfile = profile as Profile;
+          // Note for non-coders: we store only one player name field ("name") in profiles.
+          const resolvedProfileName = persistedProfile?.name?.trim() || "";
           const cleanedProfileName = stripBadgeLabelFromName(
             resolvedProfileName,
             persistedProfile?.featured_badge_id
