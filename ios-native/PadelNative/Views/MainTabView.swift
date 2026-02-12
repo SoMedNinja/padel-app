@@ -16,7 +16,7 @@ struct MainTabView: View {
 
             DashboardView()
                 .tabItem {
-                    Label("Dashboard", systemImage: "chart.xyaxis.line")
+                    Label("Översikt", systemImage: "chart.xyaxis.line")
                 }
                 .tag(1)
 

@@ -277,7 +277,7 @@ struct ScheduleView: View {
             } else {
                 Picker("Kommande vecka", selection: $viewModel.selectedScheduleWeekKey) {
                     ForEach(viewModel.scheduleWeekOptions) { option in
-                        Text(option.label).tag(option.key)
+                        Text(option.label.replacingOccurrences(of: "Week", with: "Vecka")).tag(option.key)
                     }
                 }
 

@@ -7,7 +7,11 @@ struct RivalryView: View {
     @State private var mode: String = "against"
 
     private var summary: RivalrySummary? {
-        viewModel.currentRivalryStats.first(where: { $0.id == opponentId })
+        if mode == "against" {
+            return viewModel.currentRivalryAgainstStats.first(where: { $0.id == opponentId })
+        } else {
+            return viewModel.currentRivalryTogetherStats.first(where: { $0.id == opponentId })
+        }
     }
 
     private var opponent: Player? {
@@ -17,6 +21,12 @@ struct RivalryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                Picker("Läge", selection: $mode) {
+                    Text("Möten").tag("against")
+                    Text("Tillsammans").tag("together")
+                }
+                .pickerStyle(.segmented)
+
                 headerSection
                 statsGrid
                 recentResultsSection
@@ -63,12 +73,34 @@ struct RivalryView: View {
     }
 
     private var statsGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            statCard(title: "Matcher", value: "\(summary?.matchesPlayed ?? 0)")
-            statCard(title: "Vinst/förlust", value: "\(summary?.wins ?? 0) - \(summary?.losses ?? 0)")
-            statCard(title: "Vinst %", value: "\(Int((summary?.winRate ?? 0) * 100))%")
-            if mode == "against" {
-                statCard(title: "ELO-utbyte", value: "\(summary?.eloDelta ?? 0 >= 0 ? "+" : "")\(summary?.eloDelta ?? 0)", color: (summary?.eloDelta ?? 0) >= 0 ? .green : .red)
+        VStack(spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                statCard(title: "Matcher", value: "\(summary?.matchesPlayed ?? 0)")
+                statCard(title: "Vinst/förlust", value: "\(summary?.wins ?? 0) - \(summary?.losses ?? 0)")
+                statCard(title: "Vinst %", value: "\(Int((summary?.winRate ?? 0) * 100))%")
+                statCard(title: "Totala set", value: "\(summary?.totalSetsFor ?? 0) - \(summary?.totalSetsAgainst ?? 0)")
+
+                statCard(title: "Vinst (start-serve)", value: "\(summary?.serveFirstWins ?? 0) - \(summary?.serveFirstLosses ?? 0)")
+                statCard(title: "Vinst (mottagning)", value: "\(summary?.serveSecondWins ?? 0) - \(summary?.serveSecondLosses ?? 0)")
+
+                if mode == "against" {
+                    statCard(title: "Vinstchans", value: "\(Int(round((summary?.winProbability ?? 0.5) * 100)))%")
+                    statCard(title: "ELO-utbyte", value: "\(summary?.eloDelta ?? 0 >= 0 ? "+" : "")\(summary?.eloDelta ?? 0)", color: (summary?.eloDelta ?? 0) >= 0 ? .green : .red)
+                }
+            }
+
+            if let last = summary?.lastMatchDate {
+                VStack(spacing: 4) {
+                    Text("SENASTE MÖTET")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Text("\(last, style: .date): \(summary?.lastMatchResult == "V" ? "Vinst" : "Förlust")")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
     }
@@ -89,27 +121,30 @@ struct RivalryView: View {
     }
 
     private var recentResultsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("SENASTE MATCHER")
+        VStack(alignment: .center, spacing: 10) {
+            Text("FORM (SENASTE 5)")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
 
-            if let summary = summary {
-                HStack {
-                    Text(summary.lastMatchDate, style: .date)
-                        .font(.subheadline)
-                    Spacer()
-                    Text(summary.lastMatchResult)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(summary.lastMatchResult == "W" ? .green : .red)
+            if let summary = summary, !summary.recentResults.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(Array(summary.recentResults.enumerated()), id: \.offset) { _, res in
+                        Text(res)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(res == "V" ? Color.green : Color.red)
+                            .clipShape(Circle())
+                    }
                 }
-                .padding()
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
             } else {
                 Text("Inga matcher hittades.")
                     .foregroundStyle(.secondary)
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
