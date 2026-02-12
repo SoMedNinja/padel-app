@@ -43,6 +43,7 @@ private struct SupabaseAuthUser: Decodable {
 private struct ProfileAuthRow: Decodable {
     let id: UUID
     let fullName: String?
+    let profileName: String?
     let isAdmin: Bool?
     let isRegular: Bool?
     let isApproved: Bool?
@@ -50,6 +51,7 @@ private struct ProfileAuthRow: Decodable {
     enum CodingKeys: String, CodingKey {
         case id
         case fullName = "full_name"
+        case profileName = "name"
         case isAdmin = "is_admin"
         case isRegular = "is_regular"
         case isApproved = "is_approved"
@@ -104,13 +106,14 @@ struct AuthService {
     }
 
     func signUp(email: String, password: String, name: String) async throws -> AuthIdentity {
+        // Note for non-coders:
+        // We intentionally mirror the web app sign-up payload (email + password only)
+        // so iOS and web hit Supabase with the same baseline parameters.
+        // Profile name is then read from the profiles table instead of being required
+        // inside auth metadata at account-creation time.
         let response = try await requestAuthToken(
             endpoint: "/auth/v1/signup",
-            body: [
-                "email": email,
-                "password": password,
-                "data": ["full_name": name, "name": name]
-            ]
+            body: ["email": email, "password": password]
         )
 
         try persist(session: AuthSession(accessToken: response.accessToken, refreshToken: response.refreshToken, expiresAt: response.expiresAt))
@@ -174,7 +177,7 @@ struct AuthService {
         return AuthIdentity(
             profileId: profile.id,
             email: user.email ?? "",
-            fullName: profile.fullName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? profile.fullName! : "Player",
+            fullName: resolvedProfileName(profile: profile, fallbackName: user.email ?? "Player"),
             isAdmin: profile.isAdmin ?? false,
             isRegular: profile.isRegular ?? true,
             isApproved: profile.isApproved ?? false
@@ -184,7 +187,11 @@ struct AuthService {
     private func fetchProfile(profileId: UUID, accessToken: String) async throws -> ProfileAuthRow {
         guard AppConfig.isConfigured else { throw AuthServiceError.missingConfiguration }
 
-        let query = "select=id,full_name,is_admin,is_regular,is_approved&id=eq.\(profileId.uuidString)"
+        // Note for non-coders:
+        // We read both profile naming fields used across environments and rely on
+        // whichever one is populated. This keeps iOS compatible with the same DB
+        // shape used by the web app.
+        let query = "select=id,name,full_name,is_admin,is_regular,is_approved&id=eq.\(profileId.uuidString)"
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "\(AppConfig.supabaseURL)/rest/v1/profiles?\(encodedQuery)") else {
             throw APIError.badURL
@@ -204,6 +211,23 @@ struct AuthService {
         }
 
         return row
+    }
+
+    private func resolvedProfileName(profile: ProfileAuthRow, fallbackName: String) -> String {
+        let candidates: [String?] = [
+            profile.fullName,
+            profile.profileName,
+            fallbackName
+        ]
+
+        for candidate in candidates {
+            let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !trimmed.isEmpty {
+                return trimmed
+            }
+        }
+
+        return "Player"
     }
 
     private func requestAuthToken(endpoint: String, body: Any) async throws -> SupabaseAuthResponse {
