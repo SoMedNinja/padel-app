@@ -10,6 +10,8 @@ This folder contains a **native iOS SwiftUI app** that mirrors the current web a
 - Supabase REST integration via `URLSession`.
 - Runtime config fallback via `PadelNative/Resources/RuntimeSupabaseConfig.plist` plus built-in defaults in `AppConfig.swift`, so auth still works if Info.plist key mapping or resource bundling is missing in a local Xcode setup.
 - Feature-oriented models and view models.
+- Bootstrap data loading extracted into `Services/AppBootstrapService.swift` so startup fetching is modular and easier to test.
+- Optional app-version policy checks (server + Info.plist fallback) so native releases can prompt/require updates similar to PWA deploy freshness expectations.
 - Offline-friendly fallback sample data if API config is missing.
 - Route parity with key web routes (Profile, Dashboard, History + Match Details, Schedule, Tournament, Single Game, Admin).
 - Release-oriented project metadata for iOS distribution (`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, launch screen generation, app category, app icon catalog linkage).
@@ -68,6 +70,7 @@ do this:
 > Note for non-coders: these are the pieces Apple checks during submission. If one is missing, upload can fail.
 
 1. Replace the placeholder app icon entries in `PadelNative/Resources/Assets.xcassets/AppIcon.appiconset` with real PNG files, including a **1024x1024** marketing icon.
+   - Note for non-coders: image files can be large binary assets. Some code-review tools cannot render binary diffs, so you may add final icon PNGs directly in Xcode before release if needed.
 2. Confirm your app's legal/privacy behavior and update `PadelNative/Resources/PrivacyInfo.xcprivacy` so it matches real data handling.
 3. Set a production bundle identifier and Apple Team in Xcode Signing settings.
 4. Ensure `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` are bumped correctly before each release.

@@ -298,6 +298,9 @@ final class AppViewModel: ObservableObject {
     @Published var areScheduleNotificationsEnabled = false
     @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
     @Published var isBiometricLockEnabled = false
+    @Published var appVersionMessage: String?
+    @Published var appStoreUpdateURL: URL?
+    @Published var isUpdateRequired = false
 
     // Note for non-coders:
     // These values mirror the web app's "dismiss this notice on this device" behavior.
@@ -312,6 +315,8 @@ final class AppViewModel: ObservableObject {
 
     private let authService = AuthService()
     private let apiClient = SupabaseRESTClient()
+    private lazy var bootstrapService = AppBootstrapService(apiClient: apiClient)
+    private let appVersionService = AppVersionService()
     private let notificationService = NotificationService()
     private let biometricAuthService = BiometricAuthService()
     private var liveSyncTask: Task<Void, Never>?
@@ -370,6 +375,40 @@ final class AppViewModel: ObservableObject {
         if areScheduleNotificationsEnabled && (notificationPermissionStatus == .authorized || notificationPermissionStatus == .provisional) {
             notificationService.registerForRemoteNotifications()
             await notificationService.scheduleUpcomingGameReminders(schedule)
+        }
+
+        await checkForAppUpdate()
+    }
+
+    // Note for non-coders:
+    // This compares your current app version against policy values from the backend
+    // (or bundled fallback values) and shows a friendly upgrade message when needed.
+    func checkForAppUpdate() async {
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+
+        let policy = (try? await appVersionService.fetchPolicyFromServer())
+            ?? appVersionService.bundledPolicyFallback()
+
+        guard let policy else {
+            appVersionMessage = nil
+            appStoreUpdateURL = nil
+            isUpdateRequired = false
+            return
+        }
+
+        switch appVersionService.evaluate(currentVersion: currentVersion, policy: policy) {
+        case .upToDate:
+            appVersionMessage = nil
+            appStoreUpdateURL = nil
+            isUpdateRequired = false
+        case .updateRecommended(let policy):
+            appStoreUpdateURL = policy.appStoreURL
+            isUpdateRequired = false
+            appVersionMessage = "En ny appversion finns tillgänglig. Uppdatera gärna för senaste förbättringar."
+        case .updateRequired(let policy):
+            appStoreUpdateURL = policy.appStoreURL
+            isUpdateRequired = true
+            appVersionMessage = "Din appversion är för gammal för den här miljön. Uppdatera appen för att fortsätta säkert."
         }
     }
 
@@ -1107,48 +1146,53 @@ final class AppViewModel: ObservableObject {
         }
 
         do {
-            async let playersTask = apiClient.fetchLeaderboard()
-            async let matchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
-            async let scheduleTask = apiClient.fetchSchedule()
-            async let pollsTask = apiClient.fetchAvailabilityPolls()
+            // Note for non-coders:
+            // We delegated initial data fetching to AppBootstrapService so this view-model
+            // coordinates state, while the service handles backend loading details.
+            let snapshot = try await bootstrapService.fetchInitialSnapshot(historyPageSize: historyPageSize)
+
             // Note for non-coders:
             // `Void` means this background task updates app state but doesn't return a value.
             async let tournamentTask: Void = loadTournamentData(silently: true)
 
-            self.players = try await playersTask
+            self.players = snapshot.players
             syncProfileSetupDraftFromCurrentPlayer()
-            let initialMatches = try await matchesTask
-            self.matches = initialMatches
-            self.historyMatches = initialMatches
-            self.hasMoreHistoryMatches = initialMatches.count == historyPageSize
-            self.schedule = try await scheduleTask
-            self.polls = sortPolls(try await pollsTask)
+            self.matches = snapshot.matches
+            self.historyMatches = snapshot.matches
+            self.hasMoreHistoryMatches = snapshot.matches.count == historyPageSize
+            self.schedule = snapshot.schedule
+            self.polls = sortPolls(snapshot.polls)
             syncVoteDraftsFromPolls()
             _ = await tournamentTask
             await refreshAdminProfiles(silently: true)
             if areScheduleNotificationsEnabled {
                 await notificationService.scheduleUpcomingGameReminders(schedule)
             }
+            await checkForAppUpdate()
             self.lastErrorMessage = nil
             startLiveSyncIfNeeded()
         } catch {
             // Note for non-coders:
             // If backend values are missing or internet is unavailable,
             // we still show sample data so the app stays usable.
-            self.players = SampleData.players
+            let fallback = AppBootstrapSnapshot.sampleFallback
+            self.players = fallback.players
             syncProfileSetupDraftFromCurrentPlayer()
-            self.matches = SampleData.matches
-            self.schedule = SampleData.schedule
+            self.matches = fallback.matches
+            self.schedule = fallback.schedule
+            self.historyMatches = fallback.matches
+            self.hasMoreHistoryMatches = false
             self.activeTournament = SampleData.tournament
             self.tournamentRounds = SampleData.tournamentRounds
             self.tournamentStandings = SampleData.tournamentStandings
             self.tournamentHistoryResults = SampleData.tournamentResultsHistory
             self.adminProfiles = []
-            self.polls = []
+            self.polls = fallback.polls
             self.voteDraftsByDay = [:]
             if areScheduleNotificationsEnabled {
                 await notificationService.scheduleUpcomingGameReminders(schedule)
             }
+            await checkForAppUpdate()
             self.lastErrorMessage = error.localizedDescription
         }
     }

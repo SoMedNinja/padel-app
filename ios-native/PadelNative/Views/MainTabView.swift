@@ -1,8 +1,10 @@
 import SwiftUI
 
+
 struct MainTabView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var showQuickAdd = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         TabView(selection: $viewModel.selectedMainTab) {
@@ -58,17 +60,42 @@ struct MainTabView: View {
             }
         }
         .overlay(alignment: .top) {
-            // Note for non-coders:
-            // This small banner confirms background sync changed visible data.
-            if let updateBanner = viewModel.liveUpdateBanner {
-                Text(updateBanner)
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+            VStack(spacing: 8) {
+                // Note for non-coders:
+                // This small banner confirms background sync changed visible data.
+                if let updateBanner = viewModel.liveUpdateBanner {
+                    Text(updateBanner)
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                if let versionMessage = viewModel.appVersionMessage {
+                    HStack(spacing: 10) {
+                        Image(systemName: viewModel.isUpdateRequired ? "exclamationmark.triangle.fill" : "arrow.down.circle.fill")
+                            .foregroundStyle(viewModel.isUpdateRequired ? Color.orange : AppColors.brandPrimary)
+                        Text(versionMessage)
+                            .font(.footnote.weight(.semibold))
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
+                        if let updateURL = viewModel.appStoreUpdateURL {
+                            Button("Uppdatera") {
+                                openURL(updateURL)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
+                    }
+                    .padding(10)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
             }
+            .padding(.top, 8)
+            .padding(.horizontal, 12)
+            .animation(.easeInOut(duration: 0.2), value: viewModel.liveUpdateBanner)
+            .animation(.easeInOut(duration: 0.2), value: viewModel.appVersionMessage)
         }
         .safeAreaInset(edge: .bottom) {
             // Note for non-coders:
@@ -88,7 +115,7 @@ struct MainTabView: View {
                             .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
                     }
                     .accessibilityLabel("Snabblägg till match")
-                    .disabled(!viewModel.canCreateMatches)
+                     .disabled(!viewModel.canCreateMatches || viewModel.isUpdateRequired)
                     .opacity(viewModel.canCreateMatches ? 1 : 0.45)
                     .padding(.trailing, 16)
                     .padding(.bottom, 6)

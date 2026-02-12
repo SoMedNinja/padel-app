@@ -8,12 +8,6 @@
     <array/>
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
-        <!--
-         NOTE for non-coders:
-         This section declares what user data your app collects.
-         Keep this in sync with what your backend and legal/privacy policy state.
-         Replace placeholder entries below with your real data usage declarations.
-        -->
         <dict>
             <key>NSPrivacyCollectedDataType</key>
             <string>NSPrivacyCollectedDataTypeEmailAddress</string>
