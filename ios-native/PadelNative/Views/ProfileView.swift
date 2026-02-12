@@ -132,6 +132,13 @@ struct ProfileView: View {
 
     private func overviewTab(_ current: Player) -> some View {
         Group {
+            if viewModel.profileMatchesPlayed == 0 {
+                SectionCard(title: "Välkommen!") {
+                    Text("Du har inte registrerat några matcher ännu. Spela din första match för att få en placering på ledartavlan och låsa upp mer statistik!")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
             accountSection
             currentPlayerSection(current)
             profileSetupSection
