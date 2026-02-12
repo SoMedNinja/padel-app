@@ -20,6 +20,15 @@ struct Badge: Identifiable, Hashable {
     }
 }
 
+struct EloHistoryEntry: Codable {
+    let result: String // "W" or "L"
+    let timestamp: Double
+    let date: Date
+    let delta: Int
+    let elo: Int
+    let matchId: UUID
+}
+
 struct PlayerBadgeStats {
     var matchesPlayed: Int = 0
     var wins: Int = 0
@@ -49,6 +58,8 @@ struct PlayerBadgeStats {
     var currentLossStreak: Int = 0
     var bestLossStreak: Int = 0
     var guestPartners: Int = 0
+    var eloHistory: [EloHistoryEntry] = []
+    var recentResults: [String] = [] // Last results
 }
 
 enum BadgeService {
@@ -127,6 +138,10 @@ enum BadgeService {
     static func getBadgeIconById(_ badgeId: String?) -> String? {
         guard let badgeId, !badgeId.isEmpty else { return nil }
 
+        if badgeId == "giant-slayer" || badgeId == "giant-slayer-pro" {
+            return "⚔️"
+        }
+
         if let uniqueIcon = uniqueDefinitions.first(where: { $0.id == badgeId })?.icon {
             return uniqueIcon
         }
@@ -172,7 +187,8 @@ enum BadgeService {
             let expectedA = EloService.getExpectedScore(rating: teamAAvgElo, opponentRating: teamBAvgElo)
             let teamAWon = match.teamAScore > match.teamBScore
             let marginMultiplier = EloService.getMarginMultiplier(team1Sets: match.teamAScore, team2Sets: match.teamBScore)
-            let matchWeight = EloService.getMatchWeight(match: match)
+            let isSinglesMatch = teamA.count == 1 && teamB.count == 1
+            let matchWeight = EloService.getSinglesAdjustedMatchWeight(match: match, isSinglesMatch: isSinglesMatch)
 
             let matchHour = calendar.component(.hour, from: match.playedAt)
 
@@ -248,7 +264,20 @@ enum BadgeService {
                     stats.biggestEloLoss = max(stats.biggestEloLoss, abs(roundedDelta))
                 }
 
-                eloMap[id] = (playerPreElo + Double(roundedDelta), (eloMap[id]?.games ?? 0) + 1)
+                let newElo = Int(round(playerPreElo + Double(roundedDelta)))
+                eloMap[id] = (Double(newElo), (eloMap[id]?.games ?? 0) + 1)
+
+                let result = playerWon ? "W" : "L"
+                stats.recentResults.append(result)
+                stats.eloHistory.append(EloHistoryEntry(
+                    result: result,
+                    timestamp: match.playedAt.timeIntervalSince1970 * 1000,
+                    date: match.playedAt,
+                    delta: roundedDelta,
+                    elo: newElo,
+                    matchId: match.id
+                ))
+
                 statsMap[id] = stats
             }
 
@@ -333,6 +362,37 @@ enum BadgeService {
                 ))
             }
         }
+
+        // Giant Slayer
+        badges.append(Badge(
+            id: "giant-slayer",
+            icon: "⚔️",
+            tier: "I",
+            title: "Jättedödare",
+            description: "Vinn mot ett lag med högre genomsnittlig ELO",
+            earned: stats.firstWinVsHigherEloAt != nil,
+            group: "Jättedödare",
+            groupOrder: 25,
+            progress: nil,
+            meta: stats.firstWinVsHigherEloAt != nil ? "Upplåst!" : "Sikta på en seger mot högre ELO.",
+            holderId: nil,
+            holderValue: nil
+        ))
+
+        badges.append(Badge(
+            id: "giant-slayer-pro",
+            icon: "⚔️",
+            tier: "II",
+            title: "Stora Jättedödaren",
+            description: "Vinn mot ett lag med 200+ högre genomsnittlig ELO",
+            earned: stats.biggestUpsetEloGap >= 200,
+            group: "Jättedödare",
+            groupOrder: 26,
+            progress: Badge.BadgeProgress(current: min(Double(stats.biggestUpsetEloGap), 200), target: 200),
+            meta: "Största skräll: +\(stats.biggestUpsetEloGap) ELO",
+            holderId: nil,
+            holderValue: nil
+        ))
 
         // Unique Merits
         for def in uniqueDefinitions {

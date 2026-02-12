@@ -274,6 +274,7 @@ final class AppViewModel: ObservableObject {
 
     @Published var players: [Player] = []
     @Published var matches: [Match] = []
+    @Published var allMatches: [Match] = []
     @Published var schedule: [ScheduleEntry] = []
     @Published var polls: [AvailabilityPoll] = []
     @Published var scheduleWeekOptions: [ScheduleWeekOption] = []
@@ -743,7 +744,7 @@ final class AppViewModel: ObservableObject {
 
     private var currentPlayerMatches: [Match] {
         guard let currentPlayer else { return [] }
-        return matches.filter { match in
+        return allMatches.filter { match in
             let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
             if playerIds.contains(currentPlayer.id) {
                 return true
@@ -823,33 +824,21 @@ final class AppViewModel: ObservableObject {
     }
 
     private func playerEloDelta(playerId: UUID, days: Int) -> Int {
-        let timeline = playerEloTimeline(playerId: playerId, filter: .all)
+        guard let stats = playerBadgeStats[playerId] else { return 0 }
         let cutoff = Date().addingTimeInterval(Double(-days * 24 * 60 * 60))
-        let filtered = timeline.filter { $0.date >= cutoff }
-        // Note for non-coders: this check means "if there are no timeline entries in this date range, the change is zero".
-        guard !filtered.isEmpty else { return 0 }
-        // We need ELO BEFORE the first match in the period.
-        // Actually, playerEloTimeline returns ELO AFTER the match.
-        // So delta = last.elo - (first.elo - first_match_delta)
-        // Let's simplify: delta = sum of deltas in period.
-
-        let playerMatches = matches.filter { match in
-            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
-            return playerIds.contains(playerId)
-        }.filter { $0.playedAt >= cutoff }
-
-        return playerMatches.reduce(0) { $0 + estimatedEloDelta(for: $1, playerId: playerId) }
+        return stats.eloHistory
+            .filter { $0.date >= cutoff }
+            .reduce(0) { $0 + $1.delta }
     }
 
     private func playerLastSessionEloDelta(playerId: UUID) -> Int {
-        let playerMatches = matches.filter { match in
-            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
-            return playerIds.contains(playerId)
-        }.sorted { $0.playedAt > $1.playedAt }
+        guard let stats = playerBadgeStats[playerId],
+              let latestMatch = stats.eloHistory.last else { return 0 }
 
-        guard let latest = playerMatches.first else { return 0 }
-        let sessionMatches = playerMatches.filter { Calendar.current.isDate($0.playedAt, inSameDayAs: latest.playedAt) }
-        return sessionMatches.reduce(0) { $0 + estimatedEloDelta(for: $1, playerId: playerId) }
+        let calendar = Calendar.current
+        return stats.eloHistory
+            .filter { calendar.isDate($0.date, inSameDayAs: latestMatch.date) }
+            .reduce(0) { $0 + $1.delta }
     }
 
     var profilePerformanceWidgets: [ProfilePerformanceWidget] {
@@ -857,37 +846,28 @@ final class AppViewModel: ObservableObject {
     }
 
     func playerEloTimeline(playerId: UUID, filter: DashboardMatchFilter) -> [ProfileEloPoint] {
-        guard let player = players.first(where: { $0.id == playerId }) else { return [] }
+        guard let stats = playerBadgeStats[playerId] else {
+            let pElo = players.first(where: { $0.id == playerId })?.elo ?? 1000
+            return [ProfileEloPoint(id: UUID(), matchId: UUID(), date: Date(), elo: pElo)]
+        }
 
-        let playerMatches = matches.filter { match in
-            let playerIds = match.teamAPlayerIds.compactMap { $0 } + match.teamBPlayerIds.compactMap { $0 }
-            if playerIds.contains(playerId) {
-                return true
+        if filter == .all {
+            return stats.eloHistory.map { entry in
+                ProfileEloPoint(id: entry.matchId, matchId: entry.matchId, date: entry.date, elo: entry.elo)
             }
-            return match.teamAName.localizedCaseInsensitiveContains(player.fullName)
-                || match.teamBName.localizedCaseInsensitiveContains(player.fullName)
-                || match.teamAName.localizedCaseInsensitiveContains(player.profileName)
-                || match.teamBName.localizedCaseInsensitiveContains(player.profileName)
         }
 
-        let filtered = filteredMatches(playerMatches, filter: filter).sorted { $0.playedAt < $1.playedAt }
-        guard !filtered.isEmpty else {
-            return [ProfileEloPoint(id: UUID(), matchId: UUID(), date: Date(), elo: player.elo)]
+        let filteredMatchIds = Set(filteredMatches(allMatches, filter: filter).map { $0.id })
+        let timeline = stats.eloHistory.compactMap { entry -> ProfileEloPoint? in
+            guard filteredMatchIds.contains(entry.matchId) else { return nil }
+            return ProfileEloPoint(id: entry.matchId, matchId: entry.matchId, date: entry.date, elo: entry.elo)
         }
 
-        var estimatedCurrent = player.elo
-        var beforeMatchRating: [UUID: Int] = [:]
-        for match in filtered.reversed() {
-            let delta = estimatedEloDelta(for: match, playerId: playerId)
-            beforeMatchRating[match.id] = estimatedCurrent - delta
-            estimatedCurrent -= delta
+        if timeline.isEmpty {
+            return [ProfileEloPoint(id: UUID(), matchId: UUID(), date: Date(), elo: stats.currentElo)]
         }
 
-        return filtered.map { match in
-            let baseline = beforeMatchRating[match.id] ?? player.elo
-            let delta = estimatedEloDelta(for: match, playerId: playerId)
-            return ProfileEloPoint(id: match.id, matchId: match.id, date: match.playedAt, elo: baseline + delta)
-        }
+        return timeline
     }
 
     func profileEloTimeline(filter: DashboardMatchFilter) -> [ProfileEloPoint] {
@@ -1044,17 +1024,20 @@ final class AppViewModel: ObservableObject {
 
         return uniqueSlots
             .map { playerId, fallbackName in
-                let delta = playerId.map { estimatedEloDelta(for: match, playerId: $0) } ?? 0
-                let currentElo = playerId.flatMap { id in
-                    players.first(where: { $0.id == id })?.elo
-                } ?? 1400
-                let estimatedBefore = currentElo - delta
+                let historyEntry = playerId.flatMap { pid in
+                    playerBadgeStats[pid]?.eloHistory.first(where: { $0.matchId == match.id })
+                }
+
+                let delta = historyEntry?.delta ?? 0
+                let estimatedAfter = historyEntry?.elo ?? (playerId.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
+                let estimatedBefore = estimatedAfter - delta
+
                 return MatchEloChangeRow(
                     id: playerId ?? UUID(),
                     playerName: resolvePlayerName(playerId: playerId, fallbackLabel: fallbackName),
                     delta: delta,
                     estimatedBefore: estimatedBefore,
-                    estimatedAfter: currentElo
+                    estimatedAfter: estimatedAfter
                 )
             }
             .sorted { lhs, rhs in
@@ -1092,12 +1075,13 @@ final class AppViewModel: ObservableObject {
             let winRate = (stats?.matchesPlayed ?? 0) > 0 ? Int(round(Double(stats?.wins ?? 0) / Double(stats?.matchesPlayed ?? 1) * 100)) : 0
 
             // Extract ELO history for sparkline (last 10 matches)
-            let eloHistory = playerEloTimeline(playerId: player.id, filter: .all).suffix(10).map { $0.elo }
+            // Note for non-coders: we now use the pre-calculated sequential ELO history for full parity with PWA.
+            let eloHistory = (stats?.eloHistory.suffix(10).map { $0.elo }) ?? []
 
             return LeaderboardPlayer(
                 id: player.id,
                 name: player.profileName,
-                elo: player.elo,
+                elo: stats?.currentElo ?? player.elo,
                 games: stats?.matchesPlayed ?? 0,
                 wins: stats?.wins ?? 0,
                 losses: stats?.losses ?? 0,
@@ -1224,21 +1208,9 @@ final class AppViewModel: ObservableObject {
         ?? "Unknown"
     }
 
-    private func estimatedEloDelta(for match: Match, playerId: UUID) -> Int {
-        let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-        // Note for non-coders:
-        // We only need to know whether the player belongs to Team A.
-        // Team B is inferred automatically when they are not in Team A.
-        let iAmTeamA = teamAIds.contains(playerId)
-        let didWin = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
-        let margin = abs(match.teamAScore - match.teamBScore)
-        let base = match.sourceTournamentId != nil ? 22 : 16
-        let marginBonus = min(4, margin)
-        return didWin ? base + marginBonus : -(base + marginBonus)
-    }
 
     var latestHighlightMatch: DashboardMatchHighlight? {
-        findMatchHighlight(matches: matches, players: players)
+        findMatchHighlight(matches: allMatches, players: players, statsMap: playerBadgeStats)
     }
 
     var showHighlightCard: Bool {
@@ -1280,7 +1252,7 @@ final class AppViewModel: ObservableObject {
 
     var periodMVP: DashboardMVPResult? {
         let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? .distantPast
-        let periodMatches = matches.filter { $0.playedAt >= cutoff }
+        let periodMatches = allMatches.filter { $0.playedAt >= cutoff }
         return mvp(for: periodMatches, minimumGames: 6)
     }
 
@@ -1364,6 +1336,9 @@ final class AppViewModel: ObservableObject {
             self.historyMatches = matches
             self.hasMoreHistoryMatches = matches.count == historyPageSize
         }
+        if let allMatches = partial.allMatches {
+            self.allMatches = allMatches
+        }
         if let schedule = partial.schedule {
             self.schedule = schedule
         }
@@ -1402,6 +1377,7 @@ final class AppViewModel: ObservableObject {
             self.players = fallback.players
             syncProfileSetupDraftFromCurrentPlayer()
             self.matches = fallback.matches
+            self.allMatches = fallback.allMatches
             self.schedule = fallback.schedule
             self.historyMatches = fallback.matches
             self.hasMoreHistoryMatches = false
@@ -1676,9 +1652,14 @@ final class AppViewModel: ObservableObject {
             }
 
             if domains.contains(.matches) {
-                let latestMatches = try await apiClient.fetchRecentMatches(limit: historyPageSize)
+                async let latestMatchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
+                async let latestAllMatchesTask = apiClient.fetchAllMatches()
+                let latestMatches = try await latestMatchesTask
+                let latestAllMatches = try await latestAllMatchesTask
+
                 if matchSignature(latestMatches) != matchSignature(matches) {
                     matches = latestMatches
+                    allMatches = latestAllMatches
 
                     // Note for non-coders:
                     // Keep already-loaded older history pages while replacing the newest chunk.
@@ -1733,12 +1714,14 @@ final class AppViewModel: ObservableObject {
         do {
             async let playersTask = apiClient.fetchLeaderboard()
             async let matchesTask = apiClient.fetchRecentMatches(limit: historyPageSize)
+            async let allMatchesTask = apiClient.fetchAllMatches()
             async let scheduleTask = apiClient.fetchSchedule()
             async let pollsTask = apiClient.fetchAvailabilityPolls()
             async let tournamentMarkerTask = apiClient.fetchTournamentLiveMarker()
 
             let latestPlayers = try await playersTask
             let latestMatches = try await matchesTask
+            let latestAllMatches = try await allMatchesTask
             let latestSchedule = try await scheduleTask
             let latestPolls = sortPolls(try await pollsTask)
             let latestTournamentMarker = try await tournamentMarkerTask
@@ -1758,6 +1741,7 @@ final class AppViewModel: ObservableObject {
 
             if matchSignature(latestMatches) != matchSignature(matches) {
                 matches = latestMatches
+                allMatches = latestAllMatches
 
                 // Note for non-coders:
                 // Live sync refreshes the newest chunk; we keep any already-loaded older
@@ -2322,7 +2306,7 @@ final class AppViewModel: ObservableObject {
 
     var adminMatchEveningOptions: [String] {
         let formatter = Self.adminDayFormatter
-        let keys = Set(matches.map { formatter.string(from: $0.playedAt) })
+        let keys = Set(allMatches.map { formatter.string(from: $0.playedAt) })
         return keys.sorted(by: >)
     }
 
@@ -2335,7 +2319,7 @@ final class AppViewModel: ObservableObject {
         }
 
         let formatter = Self.adminDayFormatter
-        let selectedMatches = matches.filter { formatter.string(from: $0.playedAt) == dayKey }
+        let selectedMatches = allMatches.filter { formatter.string(from: $0.playedAt) == dayKey }
 
         guard selectedMatches.isEmpty == false else {
             adminReportPreviewText = nil
@@ -2446,7 +2430,7 @@ final class AppViewModel: ObservableObject {
             }
         }
 
-        let filtered = matches.filter { $0.playedAt >= startDate && $0.playedAt <= now }
+        let filtered = allMatches.filter { $0.playedAt >= startDate && $0.playedAt <= now }
         let uniquePlayers = Set(filtered.flatMap { $0.teamAPlayerIds + $0.teamBPlayerIds }.compactMap { $0 })
 
         adminEmailPreviewText = ([
@@ -2926,7 +2910,7 @@ final class AppViewModel: ObservableObject {
 
     // Note for non-coders:
     // This mirrors the findMatchHighlight logic in src/utils/highlights.ts.
-    private func findMatchHighlight(matches: [Match], players: [Player]) -> DashboardMatchHighlight? {
+    private func findMatchHighlight(matches: [Match], players: [Player], statsMap: [UUID: PlayerBadgeStats]) -> DashboardMatchHighlight? {
         guard !matches.isEmpty, !players.isEmpty else { return nil }
 
         let latestDate = Calendar.current.startOfDay(for: matches[0].playedAt)
@@ -2941,13 +2925,26 @@ final class AppViewModel: ObservableObject {
             let description: String
         }
 
-        let eloByPlayer = Dictionary(uniqueKeysWithValues: players.map { ($0.id, Double($0.elo)) })
+        // Use calculated ELO for highlights instead of database ELO
+        let eloByPlayer = statsMap.mapValues { Double($0.currentElo) }
         var candidates: [Candidate] = []
 
         for match in latestMatches {
-            let teamAElo = averagePreMatchElo(for: match.teamAPlayerIds, eloByPlayer: eloByPlayer)
-            let teamBElo = averagePreMatchElo(for: match.teamBPlayerIds, eloByPlayer: eloByPlayer)
-            let expectedAWin = expectedScore(teamAElo, teamBElo)
+            // Get pre-match ELO by looking up the ELO before this match in history
+            let getPreElo = { (id: UUID?) -> Double in
+                guard let id = id else { return 1000 }
+                if let history = statsMap[id]?.eloHistory,
+                   let matchEntry = history.first(where: { $0.matchId == match.id }) {
+                    return Double(matchEntry.elo - matchEntry.delta)
+                }
+                return eloByPlayer[id] ?? 1000
+            }
+
+            let teamAEloValues = match.teamAPlayerIds.map(getPreElo)
+            let teamBEloValues = match.teamBPlayerIds.map(getPreElo)
+            let teamAElo = teamAEloValues.reduce(0, +) / Double(max(1, teamAEloValues.count))
+            let teamBElo = teamBEloValues.reduce(0, +) / Double(max(1, teamBEloValues.count))
+            let expectedAWin = EloService.getWinProbability(rating: teamAElo, opponentRating: teamBElo)
             let teamAWon = match.teamAScore > match.teamBScore
             let winnerExpected = teamAWon ? expectedAWin : (1 - expectedAWin)
             let margin = abs(match.teamAScore - match.teamBScore)
@@ -3015,8 +3012,8 @@ final class AppViewModel: ObservableObject {
     }
 
     private var matchesForSameEvening: [Match] {
-        guard let latest = matches.first else { return [] }
-        return matches.filter { Calendar.current.isDate($0.playedAt, inSameDayAs: latest.playedAt) }
+        guard let latest = allMatches.first else { return [] }
+        return allMatches.filter { Calendar.current.isDate($0.playedAt, inSameDayAs: latest.playedAt) }
     }
 
     private func mvp(for periodMatches: [Match], minimumGames: Int) -> DashboardMVPResult? {
@@ -3143,7 +3140,7 @@ final class AppViewModel: ObservableObject {
             [a.uuidString, b.uuidString].sorted().joined(separator: "|")
         }
 
-        for match in matches {
+        for match in allMatches {
             let teamA = match.teamAPlayerIds.compactMap { $0 }
             let teamB = match.teamBPlayerIds.compactMap { $0 }
 
@@ -3166,9 +3163,9 @@ final class AppViewModel: ObservableObject {
         }
 
         func averageElo(_ ids: [UUID]) -> Double {
-            guard ids.isEmpty == false else { return 1400 }
+            guard ids.isEmpty == false else { return 1000 }
             let total = ids.reduce(0.0) { partial, id in
-                partial + Double(availablePlayers.first(where: { $0.id == id })?.elo ?? 1400)
+                partial + Double(playerBadgeStats[id]?.currentElo ?? 1000)
             }
             return total / Double(ids.count)
         }
@@ -3200,7 +3197,7 @@ final class AppViewModel: ObservableObject {
             for pair in choose(playerIds, count: 2) {
                 let teamA = [pair[0]]
                 let teamB = [pair[1]]
-                let winProbability = expectedScore(averageElo(teamA), averageElo(teamB))
+                let winProbability = EloService.getWinProbability(rating: averageElo(teamA), opponentRating: averageElo(teamB))
                 let fairness = max(0, min(100, Int(round((1 - abs(0.5 - winProbability) * 2) * 100))))
                 let opponentPenalty = Double(opponentCounts[pairKey(teamA[0], teamB[0]), default: 0])
                 let gamePenalty = Double(gamesByPlayer[teamA[0], default: 0] + gamesByPlayer[teamB[0], default: 0])
@@ -3226,7 +3223,7 @@ final class AppViewModel: ObservableObject {
                 for split in splits {
                     let teamA = split.0
                     let teamB = split.1
-                    let winProbability = expectedScore(averageElo(teamA), averageElo(teamB))
+                    let winProbability = EloService.getWinProbability(rating: averageElo(teamA), opponentRating: averageElo(teamB))
                     let fairness = max(0, min(100, Int(round((1 - abs(0.5 - winProbability) * 2) * 100))))
 
                     let teammatePenalty = Double(teammateCounts[pairKey(teamA[0], teamA[1]), default: 0] + teammateCounts[pairKey(teamB[0], teamB[1]), default: 0])
@@ -3261,7 +3258,7 @@ final class AppViewModel: ObservableObject {
 
     func buildSingleGameRecap(for match: Match) -> SingleGameRecap {
         let dateKey = Self.dayKey(for: match.playedAt)
-        let dayMatches = matches.filter { Self.dayKey(for: $0.playedAt) == dateKey }
+        let dayMatches = allMatches.filter { Self.dayKey(for: $0.playedAt) == dateKey }
         let winner = match.teamAScore > match.teamBScore ? match.teamAName : (match.teamBScore > match.teamAScore ? match.teamBName : "Oavgjort")
 
         var winsByPlayer: [UUID: Int] = [:]
@@ -3307,7 +3304,7 @@ final class AppViewModel: ObservableObject {
 
     private func recalculateDerivedStats() {
         self.playerBadgeStats = BadgeService.buildAllPlayersBadgeStats(
-            matches: matches,
+            matches: allMatches,
             players: players,
             tournamentResults: tournamentHistoryResults
         )
@@ -3343,7 +3340,7 @@ final class AppViewModel: ObservableObject {
         var togetherMap: [UUID: Accumulator] = [:]
 
         // Process matches in reverse chronological order for lastMatch and results
-        let sorted = matches.sorted { $0.playedAt > $1.playedAt }
+        let sorted = allMatches.sorted { $0.playedAt > $1.playedAt }
 
         for match in sorted {
             let teamA = match.teamAPlayerIds.compactMap { $0 }
@@ -3361,7 +3358,7 @@ final class AppViewModel: ObservableObject {
             let servedFirst = match.teamAServesFirst ?? true
             let playerServedFirst = (iAmTeamA && servedFirst) || (iAmTeamB && !servedFirst)
 
-            let delta = estimatedEloDelta(for: match, playerId: playerId)
+            let delta = playerBadgeStats[playerId]?.eloHistory.first(where: { $0.matchId == match.id })?.delta ?? 0
 
             func update(_ map: inout [UUID: Accumulator], targetId: UUID) {
                 var acc = map[targetId, default: Accumulator()]
@@ -3398,8 +3395,8 @@ final class AppViewModel: ObservableObject {
                 let iAmTeamA = teamA.contains(playerId)
                 let didWinLast = iAmTeamA ? lastMatch.teamAScore > lastMatch.teamBScore : lastMatch.teamBScore > lastMatch.teamAScore
 
-                let playerElo = players.first(where: { $0.id == playerId })?.elo ?? 1000
-                let opponentElo = opponent.elo
+                let playerElo = playerBadgeStats[playerId]?.currentElo ?? 1000
+                let opponentElo = playerBadgeStats[oppId]?.currentElo ?? opponent.elo
                 let winProb = EloService.getWinProbability(rating: Double(playerElo), opponentRating: Double(opponentElo))
 
                 return RivalrySummary(
@@ -3442,9 +3439,9 @@ final class AppViewModel: ObservableObject {
 
         var comboMap: [String: ComboAcc] = [:]
         let playerNames = players.reduce(into: [UUID: String]()) { $0[$1.id] = $1.profileName }
-        let playerElos = players.reduce(into: [UUID: Int]()) { $0[$1.id] = $1.elo }
+        let playerElos = playerBadgeStats.mapValues { $0.currentElo }
 
-        for match in matches {
+        for match in allMatches {
             let teamA = match.teamAPlayerIds.compactMap { $0 }
             let teamB = match.teamBPlayerIds.compactMap { $0 }
             let iAmTeamA = teamA.contains(playerId)

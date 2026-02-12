@@ -46,6 +46,19 @@ struct Match: Identifiable, Codable {
         return ""
     }
 
+    private static func decodePlayerIds(from container: KeyedDecodingContainer<CodingKeys>, key: CodingKeys) throws -> [UUID?] {
+        // Note for non-coders:
+        // The PWA uses a "guest" string for non-logged-in players. We turn those into nil
+        // so Swift code can use its standard optional type for "maybe a player ID".
+        guard let rawValues = try container.decodeIfPresent([String?].self, forKey: key) else {
+            return []
+        }
+        return rawValues.map { val in
+            guard let val = val, val != "guest", !val.isEmpty else { return nil }
+            return UUID(uuidString: val)
+        }
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
@@ -55,8 +68,8 @@ struct Match: Identifiable, Codable {
         teamBName = try Self.decodeTeamName(from: container, key: .teamBName)
         teamAScore = try container.decodeIfPresent(Int.self, forKey: .teamAScore) ?? 0
         teamBScore = try container.decodeIfPresent(Int.self, forKey: .teamBScore) ?? 0
-        teamAPlayerIds = try container.decodeIfPresent([UUID?].self, forKey: .teamAPlayerIds) ?? []
-        teamBPlayerIds = try container.decodeIfPresent([UUID?].self, forKey: .teamBPlayerIds) ?? []
+        teamAPlayerIds = try Self.decodePlayerIds(from: container, key: .teamAPlayerIds)
+        teamBPlayerIds = try Self.decodePlayerIds(from: container, key: .teamBPlayerIds)
         scoreType = try container.decodeIfPresent(String.self, forKey: .scoreType)
         scoreTarget = try container.decodeIfPresent(Int.self, forKey: .scoreTarget)
         sourceTournamentId = try container.decodeIfPresent(UUID.self, forKey: .sourceTournamentId)
