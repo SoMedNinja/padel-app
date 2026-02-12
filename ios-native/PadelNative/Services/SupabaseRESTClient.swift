@@ -203,7 +203,25 @@ private struct ProfileUpdatePatch: Encodable {
 struct SupabaseRESTClient {
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        // Note for non-coders: Supabase dates often include fractional seconds (e.g. .123456).
+        // The default .iso8601 strategy fails on those, so we use a custom one that tries both.
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateStr = try container.decode(String.self)
+
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: dateStr) {
+                return date
+            }
+
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: dateStr) {
+                return date
+            }
+
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date format: \(dateStr)")
+        }
         return decoder
     }()
 

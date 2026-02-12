@@ -703,7 +703,24 @@ final class AppViewModel: ObservableObject {
         guard let profileId = currentIdentity?.profileId else {
             return nil
         }
-        return players.first(where: { $0.id == profileId })
+
+        if let found = players.first(where: { $0.id == profileId }) {
+            return found
+        }
+
+        // Note for non-coders:
+        // If the current player exists in Auth but is not (yet) in the leaderboard fetch,
+        // we create a synthetic player so the profile screen still works.
+        return Player(
+            id: profileId,
+            fullName: currentIdentity?.fullName ?? "Spelare",
+            elo: 1000,
+            isAdmin: currentIdentity?.isAdmin ?? false,
+            isRegular: currentIdentity?.isRegular ?? false,
+            avatarURL: nil,
+            featuredBadgeId: nil,
+            profileName: currentIdentity?.fullName ?? "Spelare"
+        )
     }
 
     var currentPlayer: Player? { authenticatedProfile }

@@ -30,7 +30,7 @@ struct Player: Identifiable, Codable {
         let fallbackName = try container.decodeIfPresent(String.self, forKey: .profileName) ?? "Player"
         fullName = try container.decodeIfPresent(String.self, forKey: .fullName) ?? fallbackName
         profileName = fallbackName
-        elo = try container.decode(Int.self, forKey: .elo)
+        elo = try container.decodeIfPresent(Int.self, forKey: .elo) ?? 1000
         isAdmin = try container.decodeIfPresent(Bool.self, forKey: .isAdmin) ?? false
         isRegular = try container.decodeIfPresent(Bool.self, forKey: .isRegular) ?? false
         avatarURL = try container.decodeIfPresent(String.self, forKey: .avatarURL)
