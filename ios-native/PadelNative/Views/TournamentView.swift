@@ -62,6 +62,7 @@ struct TournamentView: View {
                         runHelperCard
                         activeRoundEditor
                     case .results:
+                        bracketOverview
                         liveStandings
                         shareCard
                     case .history:
@@ -336,6 +337,19 @@ struct TournamentView: View {
                         RoundEditorRow(round: round, canEdit: viewModel.canMutateTournament) { team1Score, team2Score in
                             await viewModel.saveTournamentRound(round: round, team1Score: team1Score, team2Score: team2Score)
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    private var bracketOverview: some View {
+        Group {
+            if let tournament = viewModel.activeTournament,
+               (tournament.status == "in_progress" || tournament.status == "completed") {
+                SectionCard(title: "Live view") {
+                    TournamentBracketView(rounds: viewModel.tournamentRounds) { id in
+                        viewModel.tournamentPlayerName(for: id)
                     }
                 }
             }

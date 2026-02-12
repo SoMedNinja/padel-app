@@ -143,6 +143,7 @@ struct ProfileView: View {
             currentPlayerSection(current)
             profileSetupSection
             performanceSection
+            synergyRivalrySection
             navigationActionsSection
             permissionsSection(current)
         }
@@ -261,6 +262,13 @@ struct ProfileView: View {
                 badgePickerContent(current)
             }
 
+            SectionCard(title: "Turneringsmeriter") {
+                HStack(spacing: 16) {
+                    meritStatCard(title: "Americano", value: "\(viewModel.americanoWins)")
+                    meritStatCard(title: "Mexicano", value: "\(viewModel.mexicanoWins)")
+                }
+            }
+
             SectionCard(title: "Mina upplåsta meriter") {
                 let earned = viewModel.currentPlayerBadges.filter { $0.earned }
                 if earned.isEmpty {
@@ -331,6 +339,20 @@ struct ProfileView: View {
                 }
             }
         }
+    }
+
+    private func meritStatCard(title: String, value: String) -> some View {
+        VStack(spacing: 4) {
+            Text(title.uppercased())
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.weight(.bold))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func badgeGrid(badges: [Badge]) -> some View {
@@ -518,6 +540,54 @@ struct ProfileView: View {
                 }
                 .padding(.vertical, 4)
                 Divider()
+            }
+        }
+    }
+
+    private var synergyRivalrySection: some View {
+        SectionCard(title: "Synergi & Rivalitet (30d)") {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("BÄSTA PARTNER")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    if let partner = viewModel.bestPartner {
+                        Text(partner.name)
+                            .font(.headline)
+                        Text("\(partner.wins) vinster på \(partner.games) matcher")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("—")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color.green.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("TUFFASTE MOTSTÅND")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    if let rival = viewModel.toughestOpponent {
+                        Text(rival.name)
+                            .font(.headline)
+                        Text("\(rival.losses) förluster på \(rival.games) matcher")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("—")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color.red.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
     }
