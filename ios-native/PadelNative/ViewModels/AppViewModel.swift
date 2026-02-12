@@ -751,6 +751,11 @@ final class AppViewModel: ObservableObject {
         ]
     }
 
+
+    private var accessPolicy: AccessPolicy {
+        AccessPolicy(isAuthenticated: isAuthenticated, profile: authenticatedProfile)
+    }
+
     var highlightedBadgeTitle: String {
         guard let currentPlayer else { return "No badge selected" }
         let selectedId = selectedFeaturedBadgeId ?? currentPlayer.featuredBadgeId
@@ -761,11 +766,7 @@ final class AppViewModel: ObservableObject {
     // Note for non-coders:
     // This mirrors web route guards. Signed-in users can see schedule only when
     // their profile is marked as a regular member.
-    var canSeeSchedule: Bool {
-        guard isAuthenticated else { return false }
-        guard let profile = authenticatedProfile else { return false }
-        return profile.isRegular
-    }
+    var canSeeSchedule: Bool { accessPolicy.canSeeSchedule }
 
     var canManageSchedulePolls: Bool {
         canUseAdmin
@@ -777,26 +778,19 @@ final class AppViewModel: ObservableObject {
 
     // Note for non-coders:
     // Missing profile/role data is treated as "not admin" so we never grant admin by accident.
-    var canUseAdmin: Bool {
-        guard isAuthenticated else { return false }
-        guard let profile = authenticatedProfile else { return false }
-        return profile.isAdmin
-    }
+    var canUseAdmin: Bool { accessPolicy.canUseAdmin }
 
-    var canSeeTournament: Bool { isAuthenticated }
-    var canUseSingleGame: Bool { isAuthenticated }
+    var canSeeTournament: Bool { accessPolicy.canSeeTournament }
+    var canUseSingleGame: Bool { accessPolicy.canUseSingleGame }
 
-    var canMutateTournament: Bool { isAuthenticated }
-    var canCreateMatches: Bool { isAuthenticated && canUseSingleGame }
+    var canMutateTournament: Bool { accessPolicy.canMutateTournament }
+    var canCreateMatches: Bool { accessPolicy.canCreateMatches }
 
     // Note for non-coders:
     // Match deletion follows web rules: admins can delete any match, and match creators
     // can delete their own entries even without admin rights.
     func canDeleteMatch(_ match: Match) -> Bool {
-        guard isAuthenticated else { return false }
-        if canUseAdmin { return true }
-        guard let myProfileId = currentPlayer?.id else { return false }
-        return match.createdBy == myProfileId
+        accessPolicy.canDeleteMatch(createdBy: match.createdBy, currentPlayerId: currentPlayer?.id)
     }
 
     private func fallbackName(from teamLabel: String, at index: Int) -> String {
@@ -1349,26 +1343,32 @@ final class AppViewModel: ObservableObject {
 
         do {
             // Note for non-coders:
-            // "Global live marker" is a tiny fingerprint of the newest rows in each section.
-            // If marker did not change, we skip heavy full downloads and keep sync lightweight.
+            // "Global live marker" is a tiny fingerprint of latest backend rows.
+            // We compare old vs new marker values, then refresh only the sections that changed.
             let globalMarker = try await apiClient.fetchGlobalLiveMarker()
-            let needsFallbackRefresh: Bool
-            if let lastFullLiveSyncAt {
-                needsFallbackRefresh = Date().timeIntervalSince(lastFullLiveSyncAt) >= Double(liveSyncFallbackRefreshNanoseconds) / 1_000_000_000
-            } else {
-                needsFallbackRefresh = true
-            }
-
-            let markerChanged = (lastGlobalLiveMarker != nil && lastGlobalLiveMarker != globalMarker)
+            let fallbackInterval = Double(liveSyncFallbackRefreshNanoseconds) / 1_000_000_000
+            let plan = LiveSyncChangeDetector.plan(
+                previous: lastGlobalLiveMarker,
+                current: globalMarker,
+                lastFullSyncAt: lastFullLiveSyncAt,
+                now: Date(),
+                fallbackInterval: fallbackInterval
+            )
             lastGlobalLiveMarker = globalMarker
 
-            guard markerChanged || needsFallbackRefresh else { return }
+            guard !plan.changedDomains.isEmpty || plan.shouldForceFallbackRefresh else { return }
 
-            if markerChanged {
-                liveUpdateBanner = "Live updates detected. Syncing latest data…"
+            if !plan.changedDomains.isEmpty {
+                let channels = plan.changedDomains
+                    .map(\.webRealtimeChannelName)
+                    .sorted()
+                    .joined(separator: ", ")
+                liveUpdateBanner = "Live updates detected (\(channels)). Syncing latest data…"
+                await performScopedLiveRefresh(domains: plan.changedDomains)
+            } else {
+                await performFullLiveRefresh()
             }
 
-            await performFullLiveRefresh()
             lastFullLiveSyncAt = Date()
             consecutiveLiveProbeFailures = 0
         } catch {
@@ -1376,6 +1376,72 @@ final class AppViewModel: ObservableObject {
             // Note for non-coders:
             // We silently continue after transient failures so normal usage is not interrupted.
             // Next cycles keep trying automatically.
+        }
+    }
+
+
+    private func performScopedLiveRefresh(domains: Set<LiveDataDomain>) async {
+        var changedCollections: [String] = []
+
+        do {
+            if domains.contains(.players) {
+                let latestPlayers = try await apiClient.fetchLeaderboard()
+                if playerSignature(latestPlayers) != playerSignature(players) {
+                    players = latestPlayers
+                    syncProfileSetupDraftFromCurrentPlayer()
+                    changedCollections.append("players")
+                    if canUseAdmin {
+                        await refreshAdminProfiles(silently: true)
+                    }
+                }
+            }
+
+            if domains.contains(.matches) {
+                let latestMatches = try await apiClient.fetchRecentMatches(limit: historyPageSize)
+                if matchSignature(latestMatches) != matchSignature(matches) {
+                    matches = latestMatches
+
+                    // Note for non-coders:
+                    // Keep already-loaded older history pages while replacing the newest chunk.
+                    let latestIds = Set(latestMatches.map { $0.id })
+                    let olderAlreadyLoaded = historyMatches.filter { !latestIds.contains($0.id) }
+                    historyMatches = latestMatches + olderAlreadyLoaded
+                    changedCollections.append("matches")
+                }
+            }
+
+            if domains.contains(.schedule) {
+                let latestSchedule = try await apiClient.fetchSchedule()
+                if scheduleSignature(latestSchedule) != scheduleSignature(schedule) {
+                    schedule = latestSchedule
+                    if areScheduleNotificationsEnabled {
+                        await notificationService.scheduleUpcomingGameReminders(schedule)
+                    }
+                    changedCollections.append("schedule")
+                }
+            }
+
+            if domains.contains(.polls) {
+                let latestPolls = sortPolls(try await apiClient.fetchAvailabilityPolls())
+                if pollSignature(latestPolls) != pollSignature(polls) {
+                    polls = latestPolls
+                    syncVoteDraftsFromPolls()
+                    changedCollections.append("polls")
+                }
+            }
+
+            if domains.contains(.tournaments) {
+                await loadTournamentData(silently: true)
+                changedCollections.append("tournament")
+            }
+
+            if !changedCollections.isEmpty {
+                showLiveUpdateBanner(for: changedCollections)
+            }
+        } catch {
+            // Note for non-coders:
+            // If selective refresh fails, we do a full refresh as a safety net so data stays correct.
+            await performFullLiveRefresh()
         }
     }
 
