@@ -429,7 +429,8 @@ struct AdminView: View {
             previewSection(
                 title: "E-post förhandsgranskning",
                 content: viewModel.adminEmailPreviewText,
-                status: viewModel.adminEmailStatusMessage
+                status: viewModel.adminEmailStatusMessage,
+                renderAsEmail: true
             )
         }
     }
@@ -475,15 +476,20 @@ struct AdminView: View {
     }
 
     @ViewBuilder
-    private func previewSection(title: String, content: String?, status: String?) -> some View {
+    private func previewSection(title: String, content: String?, status: String?, renderAsEmail: Bool = false) -> some View {
         SectionCard(title: title) {
             VStack(alignment: .leading, spacing: 12) {
                 if let content, content.isEmpty == false {
                     ScrollView {
-                        Text(content)
-                            .font(.system(.caption, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
+                        if renderAsEmail {
+                            emailPreviewCard(content: content)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Text(content)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
                     }
                     .frame(maxHeight: 280)
                     .padding(10)
@@ -515,6 +521,43 @@ struct AdminView: View {
                 }
             }
         }
+    }
+
+
+    @ViewBuilder
+    private func emailPreviewCard(content: String) -> some View {
+        let lines = content.split(separator: "\n").map(String.init)
+        let subject = lines.first ?? "E-post"
+        let bodyLines = Array(lines.dropFirst())
+
+        VStack(alignment: .leading, spacing: 10) {
+            // Note for non-coders: this card styles plain preview text as a visual email
+            // so admins can review hierarchy and spacing similar to the PWA preview.
+            Text(subject)
+                .font(.inter(.headline, weight: .bold))
+                .foregroundStyle(AppColors.textPrimary)
+
+            Divider().background(AppColors.borderSubtle)
+
+            ForEach(Array(bodyLines.enumerated()), id: \.offset) { _, line in
+                if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Spacer().frame(height: 4)
+                } else if line.hasSuffix(":") {
+                    Text(line)
+                        .font(.inter(.caption, weight: .black))
+                        .foregroundStyle(AppColors.textSecondary)
+                        .textCase(.uppercase)
+                } else {
+                    Text(line)
+                        .font(.inter(.subheadline))
+                        .foregroundStyle(AppColors.textPrimary)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
 

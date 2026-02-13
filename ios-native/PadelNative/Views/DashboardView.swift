@@ -100,6 +100,7 @@ struct DashboardView: View {
 
     private var loadingState: some View {
         VStack(spacing: 16) {
+            BallRefreshIndicator()
             ProgressView("Laddar översikt…")
                 .font(.inter(.body))
 
