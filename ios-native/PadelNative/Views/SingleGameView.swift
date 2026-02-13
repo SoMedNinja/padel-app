@@ -353,10 +353,12 @@ struct SingleGameView: View {
     }
 
     private func startRotationMatch(round: RotationRound) {
-        teamAPlayer1Id = round.teamA.first
-        teamAPlayer2Id = round.teamA.dropFirst().first
-        teamBPlayer1Id = round.teamB.first
-        teamBPlayer2Id = round.teamB.dropFirst().first
+        // Note for non-coders: player ids are stored as text in this screen,
+        // so we convert each UUID value to a string before saving it.
+        teamAPlayer1Id = round.teamA.first?.uuidString
+        teamAPlayer2Id = round.teamA.dropFirst().first?.uuidString
+        teamBPlayer1Id = round.teamB.first?.uuidString
+        teamBPlayer2Id = round.teamB.dropFirst().first?.uuidString
         wizardStep = .score
     }
 
