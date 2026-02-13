@@ -140,7 +140,7 @@ struct ProfileView: View {
                             Label("Ta bort bild", systemImage: "trash")
                         }
                     } label: {
-                        Image(systemImage: "camera.fill")
+                        Image(systemName: "camera.fill")
                             .font(.system(size: 14))
                             .foregroundStyle(.white)
                             .padding(8)
