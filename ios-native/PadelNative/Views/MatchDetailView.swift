@@ -24,6 +24,7 @@ struct MatchDetailView: View {
 
     private let formatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = AppConfig.swedishLocale
         formatter.dateStyle = .full
         formatter.timeStyle = .short
         return formatter
@@ -37,7 +38,7 @@ struct MatchDetailView: View {
             }
 
             Section("Resultat") {
-                LabeledContent("Poäng", value: "\(match.teamAScore) - \(match.teamBScore)")
+                LabeledContent("Poäng", value: "\(match.teamAScore) – \(match.teamBScore)")
                 LabeledContent("Typ", value: match.scoreType == "points" ? "Poäng" : "Set")
                 if let target = match.scoreTarget {
                     LabeledContent("Mål", value: "\(target)")

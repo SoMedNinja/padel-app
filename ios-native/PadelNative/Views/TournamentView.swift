@@ -30,6 +30,7 @@ struct TournamentView: View {
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = AppConfig.swedishLocale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter

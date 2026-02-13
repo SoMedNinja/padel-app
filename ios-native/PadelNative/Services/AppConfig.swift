@@ -11,6 +11,8 @@ enum AppConfig {
     static let supabaseURL: String = value(for: "SUPABASE_URL")
     static let supabaseAnonKey: String = value(for: "SUPABASE_ANON_KEY")
 
+    static let swedishLocale = Locale(identifier: "sv_SE")
+
     static var isConfigured: Bool {
         configurationWarning == nil
     }

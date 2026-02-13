@@ -437,6 +437,7 @@ final class AppViewModel: ObservableObject {
 
     private static let uiDateTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = AppConfig.swedishLocale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter
@@ -3776,8 +3777,26 @@ final class AppViewModel: ObservableObject {
                 } else {
                     acc.losses += 1
                 }
-                acc.totalSetsFor += mySets
-                acc.totalSetsAgainst += oppSets
+
+                var setsFor = mySets
+                var setsAgainst = oppSets
+
+                if match.scoreType == "points" {
+                    if setsFor > setsAgainst {
+                        setsFor = 1
+                        setsAgainst = 0
+                    } else if setsAgainst > setsFor {
+                        setsFor = 0
+                        setsAgainst = 1
+                    } else {
+                        setsFor = 0
+                        setsAgainst = 0
+                    }
+                }
+
+                acc.totalSetsFor += setsFor
+                acc.totalSetsAgainst += setsAgainst
+
                 if playerServedFirst {
                     if playerWon { acc.serveFirstWins += 1 } else { acc.serveFirstLosses += 1 }
                 } else {

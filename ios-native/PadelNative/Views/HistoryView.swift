@@ -8,6 +8,7 @@ struct HistoryView: View {
 
     private let formatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = AppConfig.swedishLocale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter
@@ -148,11 +149,12 @@ struct HistoryView: View {
 
     private func scoreLabel(_ match: Match) -> String {
         let scoreType = match.scoreType ?? "sets"
+        let score = "\(match.teamAScore) – \(match.teamBScore)"
         if scoreType == "points" {
             let target = match.scoreTarget.map { " (till \($0))" } ?? ""
-            return "Poäng: \(match.teamAScore)-\(match.teamBScore)\(target)"
+            return "\(score) poäng\(target)"
         }
-        return "Set: \(match.teamAScore)-\(match.teamBScore)"
+        return "\(score) set"
     }
 
     private func shareMatch(_ match: Match) {

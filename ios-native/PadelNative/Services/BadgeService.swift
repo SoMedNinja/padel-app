@@ -65,6 +65,14 @@ struct PlayerBadgeStats {
 enum BadgeService {
     private static let romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 
+    private static let metaDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = AppConfig.swedishLocale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
+
     static func toRoman(_ index: Int) -> String {
         guard index >= 0 && index < romanNumerals.count else { return "\(index + 1)" }
         return romanNumerals[index]
