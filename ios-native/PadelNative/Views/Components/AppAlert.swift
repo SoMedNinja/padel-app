@@ -28,22 +28,32 @@ struct AppAlert<Content: View>: View {
 
     let severity: Severity
     let icon: String?
+    let isAnimated: Bool
     let onClose: (() -> Void)?
     let content: Content
 
-    init(severity: Severity, icon: String? = nil, onClose: (() -> Void)? = nil, @ViewBuilder content: () -> Content) {
+    init(severity: Severity, icon: String? = nil, isAnimated: Bool = false, onClose: (() -> Void)? = nil, @ViewBuilder content: () -> Content) {
         self.severity = severity
         self.icon = icon
+        self.isAnimated = isAnimated
         self.onClose = onClose
         self.content = content()
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon ?? severity.icon)
+            let image = Image(systemName: icon ?? severity.icon)
                 .foregroundStyle(severity.color)
                 .font(.inter(.headline))
-                .padding(.top, 2)
+
+            if isAnimated {
+                image
+                    .symbolEffect(.pulse, options: .repeating)
+                    .padding(.top, 2)
+            } else {
+                image
+                    .padding(.top, 2)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 content
@@ -51,7 +61,10 @@ struct AppAlert<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if let onClose = onClose {
-                Button(action: onClose) {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onClose()
+                } label: {
                     Image(systemName: "xmark")
                         .font(.caption2.bold())
                         .foregroundStyle(AppColors.textSecondary)

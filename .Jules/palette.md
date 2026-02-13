@@ -41,3 +41,7 @@
 ## 2025-05-25 - [iOS UX: Tactile Feedback & Async Clarity]
 **Learning:** Native iOS users expect tactile feedback for primary actions and discrete selections. Adding haptics to custom buttons and pickers significantly enhances the "premium" feel. For long-running async operations like match submission, changing the button label to "Sparar..." and adding a ProgressView prevents redundant clicks and uncertainty.
 **Action:** Use UIImpactFeedbackGenerator in custom ButtonStyles and sensoryFeedback on pickers. Always implement a "Sparar..." state for primary submission buttons.
+
+## 2025-05-28 - [iOS UX: Pulse Animations & Haptic Hierarchy]
+**Learning:** Pulse animations on icons (Symbol Effects) provide a non-intrusive way to signal live events (like tournaments). Using a hierarchy of haptics (Light for navigation, Medium for primary creation/submission) makes the app feel tactile and responsive. Sorting headers in dense tables require both an accessibilityLabel and an accessibilityHint to explain state changes to VoiceOver users.
+**Action:** Use `.symbolEffect(.pulse)` for live status indicators. Apply Light/Medium haptic feedback consistently based on action importance. Always add hints to sortable table headers.
