@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HistoryView: View {
     @EnvironmentObject private var viewModel: AppViewModel
@@ -155,6 +156,7 @@ struct HistoryView: View {
     }
 
     private func shareMatch(_ match: Match) {
+        // Note for non-coders: this function opens iOS' built-in share sheet so users can send match results in apps like Messages.
         let score = scoreLabel(match)
         let lines = [
             "Matchresultat",
