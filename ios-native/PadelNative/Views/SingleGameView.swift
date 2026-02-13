@@ -123,11 +123,21 @@ struct SingleGameView: View {
                                 }
 
                                 if wizardStep != .matchmaker {
-                                    Button(wizardStep == .review ? "Spara match" : "Nästa") {
+                                    Button {
                                         if wizardStep == .review {
                                             submitMatch()
                                         } else {
                                             nextStep()
+                                        }
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            if isSubmitting && wizardStep == .review {
+                                                ProgressView()
+                                                    .tint(.white)
+                                                Text("Sparar...")
+                                            } else {
+                                                Text(wizardStep == .review ? "Spara match" : "Nästa")
+                                            }
                                         }
                                     }
                                     .buttonStyle(PrimaryButtonStyle())
@@ -324,6 +334,7 @@ struct SingleGameView: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(AppColors.textSecondary)
                 }
+                .accessibilityLabel("Ta bort spelare")
             } else {
                 Text(placeholder)
                     .font(.inter(.subheadline))
@@ -377,6 +388,7 @@ struct SingleGameView: View {
     private func playerTileButton(id: String, name: String, icon: String? = nil, avatarURL: String? = nil, selection: Binding<String>) -> some View {
         Button {
             selection.wrappedValue = id
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             VStack(spacing: 8) {
                 if let icon = icon {
@@ -746,6 +758,7 @@ struct SingleGameView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(showExtraScores ? "Göm extra resultat" : "Visa fler resultat")
             }
         }
     }
@@ -753,6 +766,7 @@ struct SingleGameView: View {
     private func scoreButton(score: Int, selection: Binding<Int>) -> some View {
         Button {
             selection.wrappedValue = score
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Text("\(score)")
                 .font(.inter(.headline, weight: .bold))
@@ -763,5 +777,7 @@ struct SingleGameView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Resultat \(score)")
+        .accessibilityAddTraits(selection.wrappedValue == score ? .isSelected : [])
     }
 }

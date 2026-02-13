@@ -17,5 +17,10 @@ struct PrimaryButtonStyle: ButtonStyle {
                     .opacity(configuration.isPressed ? 0.9 : 1.0)
             )
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .onChange(of: configuration.isPressed) { _, newValue in
+                if newValue {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
+            }
     }
 }

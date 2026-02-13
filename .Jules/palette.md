@@ -37,3 +37,7 @@
 ## 2026-02-15 - [A11y: Tournament Bracket & Region Landmarks]
 **Learning:** Densely packed tournament brackets are notoriously difficult for screen reader users to navigate without landmarks. Providing a `role="region"` with a descriptive `aria-label` for the scrollable container, combined with summary `aria-label` attributes for each match card (e.g., "Rond 1: Lag A mot Lag B, resultat 2-1"), significantly improves the experience for non-visual users.
 **Action:** Always wrap complex horizontal scroll areas in a region landmark and provide semantic summary labels for repeated data cards.
+
+## 2025-05-25 - [iOS UX: Tactile Feedback & Async Clarity]
+**Learning:** Native iOS users expect tactile feedback for primary actions and discrete selections. Adding haptics to custom buttons and pickers significantly enhances the "premium" feel. For long-running async operations like match submission, changing the button label to "Sparar..." and adding a ProgressView prevents redundant clicks and uncertainty.
+**Action:** Use UIImpactFeedbackGenerator in custom ButtonStyles and sensoryFeedback on pickers. Always implement a "Sparar..." state for primary submission buttons.
