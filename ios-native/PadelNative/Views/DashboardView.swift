@@ -160,7 +160,7 @@ struct DashboardView: View {
             }
 
             if let notice = viewModel.activeTournamentNotice {
-                AppAlert(severity: .info, icon: "play.fill", onClose: {
+                AppAlert(severity: .info, icon: "trophy.fill", isAnimated: true, onClose: {
                     viewModel.dismissTournamentNotice()
                 }) {
                     Text("Turnering pågår!")
@@ -671,6 +671,8 @@ struct DashboardView: View {
             }
             .disabled(key.isEmpty)
             .buttonStyle(.plain)
+            .accessibilityLabel(title)
+            .accessibilityHint(key.isEmpty ? "" : "Sortera efter \(title.lowercased())")
 
             if let help = help {
                 Menu {

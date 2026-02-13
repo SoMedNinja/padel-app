@@ -115,6 +115,7 @@ struct SingleGameView: View {
                             HStack(spacing: 16) {
                                 if wizardStep != .teamSetup && wizardStep != .matchmaker {
                                     Button("Tillbaka") {
+                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                         previousStep()
                                     }
                                     .buttonStyle(.bordered)
@@ -124,6 +125,7 @@ struct SingleGameView: View {
 
                                 if wizardStep != .matchmaker {
                                     Button {
+                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                         if wizardStep == .review {
                                             submitMatch()
                                         } else {
@@ -268,6 +270,7 @@ struct SingleGameView: View {
 
                     HStack {
                         Button("Föreslå match") {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             applySuggestedMatchup()
                         }
                         .font(.inter(.caption, weight: .bold))
@@ -275,6 +278,7 @@ struct SingleGameView: View {
                         Spacer()
 
                         Button("Matchmaker") {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             wizardStep = .matchmaker
                         }
                         .buttonStyle(.bordered)
@@ -551,6 +555,7 @@ struct SingleGameView: View {
 
                     HStack(spacing: 12) {
                         Button("Balansera lag") {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             viewModel.generateBalancedMatch(poolIds: Array(matchmakerPool))
                         }
                         .buttonStyle(.borderedProminent)
@@ -558,6 +563,7 @@ struct SingleGameView: View {
                         .disabled(matchmakerPool.count != 4)
 
                         Button("Skapa rotation") {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             viewModel.generateRotation(poolIds: Array(matchmakerPool))
                         }
                         .buttonStyle(.bordered)
@@ -596,6 +602,7 @@ struct SingleGameView: View {
                                         .foregroundStyle(AppColors.textSecondary)
                                     Spacer()
                                     Button("Starta match") {
+                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                         startRotationMatch(round: round)
                                     }
                                     .buttonStyle(.bordered)
