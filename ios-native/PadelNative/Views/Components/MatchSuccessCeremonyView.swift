@@ -17,19 +17,19 @@ struct MatchSuccessCeremonyView: View {
                         .symbolEffect(.bounce, value: step)
 
                     Text("MATCH SPARAD")
-                        .font(.title.weight(.black))
+                        .font(.inter(.title, weight: .black))
                         .kerning(2)
                 }
                 .transition(.scale.combined(with: .opacity))
             } else if step == 1 {
                 VStack(spacing: 16) {
-                    Text("\(recap.teamAScore) - \(recap.teamBScore)")
+                    Text("\(recap.teamAScore) – \(recap.teamBScore)")
                         .font(.system(size: 72, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(AppColors.brandPrimary)
 
                     let aWon = recap.teamAScore > recap.teamBScore
                     Text(aWon ? "Lag A Vann!" : "Lag B Vann!")
-                        .font(.headline.bold())
+                        .font(.inter(.headline, weight: .bold))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         .background(AppColors.success.opacity(0.15), in: Capsule())
@@ -39,9 +39,9 @@ struct MatchSuccessCeremonyView: View {
             } else {
                 VStack(spacing: 24) {
                     Text("ELO UPPDATERING")
-                        .font(.caption.bold())
+                        .font(.inter(.caption, weight: .black))
                         .kerning(1.5)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.textSecondary)
 
                     HStack(alignment: .top, spacing: 32) {
                         recapTeamColumn(team: recap.teamA, title: "Lag A")
@@ -54,17 +54,18 @@ struct MatchSuccessCeremonyView: View {
                             Spacer()
                             Text("\(recap.fairness)%")
                         }
+                        .font(.inter(.caption, weight: .bold))
+
                         ProgressView(value: Double(recap.fairness), total: 100)
-                            .tint(Color.accentColor)
+                            .tint(AppColors.brandPrimary)
                     }
-                    .font(.caption.bold())
                     .padding(.horizontal)
 
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .foregroundStyle(.yellow)
                         Text("Topplistan har uppdaterats!")
-                            .font(.caption.bold())
+                            .font(.inter(.caption, weight: .bold))
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -75,9 +76,9 @@ struct MatchSuccessCeremonyView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 380)
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(AppColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.1), radius: 20)
+        .shadow(color: AppColors.shadowColor, radius: 20)
         .onAppear {
             withAnimation(.spring(duration: 0.6)) {
                 step = 0
@@ -101,25 +102,27 @@ struct MatchSuccessCeremonyView: View {
     private func recapTeamColumn(team: MatchRecapTeam, title: String) -> some View {
         VStack(spacing: 16) {
             Text(title)
-                .font(.caption2.bold())
-                .foregroundStyle(.secondary)
+                .font(.inter(.caption2, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
 
             ForEach(team.players) { player in
                 VStack(spacing: 4) {
                     PlayerAvatarView(urlString: player.avatarURL, size: 44)
 
                     Text(player.name)
-                        .font(.caption.bold())
+                        .font(.inter(.caption, weight: .bold))
                         .lineLimit(1)
 
                     if showDeltas {
                         HStack(spacing: 4) {
                             Text("\(player.delta >= 0 ? "+" : "")\(player.delta)")
-                                .font(.caption2.monospacedDigit().bold())
-                                .foregroundStyle(player.delta >= 0 ? .green : .red)
+                                .font(.inter(.caption2, weight: .bold))
+                                .monospacedDigit()
+                                .foregroundStyle(player.delta >= 0 ? AppColors.success : AppColors.error)
 
                             AnimatedNumberView(value: player.elo)
-                                .font(.caption.monospacedDigit().bold())
+                                .font(.inter(.caption, weight: .bold))
+                                .monospacedDigit()
                         }
                         .transition(.scale.combined(with: .opacity))
                     }

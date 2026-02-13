@@ -9,10 +9,10 @@ struct AppAlert<Content: View>: View {
 
         var color: Color {
             switch self {
-            case .info: return .blue
-            case .success: return Color.green
-            case .warning: return .orange
-            case .error: return .red
+            case .info: return AppColors.info
+            case .success: return AppColors.success
+            case .warning: return AppColors.warning
+            case .error: return AppColors.error
             }
         }
 
@@ -42,7 +42,7 @@ struct AppAlert<Content: View>: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon ?? severity.icon)
                 .foregroundStyle(severity.color)
-                .font(.headline)
+                .font(.inter(.headline))
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -54,7 +54,7 @@ struct AppAlert<Content: View>: View {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.caption2.bold())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.textSecondary)
                         .padding(4)
                 }
                 .buttonStyle(.plain)

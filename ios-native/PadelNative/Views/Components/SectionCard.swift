@@ -7,12 +7,12 @@ struct SectionCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.headline)
+                .font(.inter(.headline, weight: .bold))
+                .foregroundStyle(AppColors.textPrimary)
             content
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppColors.surfaceMuted)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padelSurfaceCard()
     }
 }

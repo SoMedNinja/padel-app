@@ -31,129 +31,162 @@ struct MatchDetailView: View {
     }()
 
     var body: some View {
-        List {
-            Section("Lag") {
-                LabeledContent("Lag A", value: match.teamAName)
-                LabeledContent("Lag B", value: match.teamBName)
-            }
-
-            Section("Resultat") {
-                LabeledContent("Poäng", value: "\(match.teamAScore) – \(match.teamBScore)")
-                LabeledContent("Typ", value: match.scoreType == "points" ? "Poäng" : "Set")
-                if let target = match.scoreTarget {
-                    LabeledContent("Mål", value: "\(target)")
+        ScrollView {
+            VStack(spacing: 20) {
+                SectionCard(title: "Lag") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        detailRow(label: "Lag A", value: match.teamAName)
+                        Divider().background(AppColors.borderSubtle)
+                        detailRow(label: "Lag B", value: match.teamBName)
+                    }
                 }
-                LabeledContent("Spelad", value: formatter.string(from: match.playedAt))
-            }
 
-            Section("Matchmetadata") {
-                LabeledContent("Källa", value: match.sourceTournamentId == nil ? "Fristående match" : "Turneringsmatch")
-                if let sourceType = match.sourceTournamentType, !sourceType.isEmpty {
-                    LabeledContent("Källtyp", value: sourceType)
+                SectionCard(title: "Resultat") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        detailRow(label: "Poäng", value: "\(match.teamAScore) – \(match.teamBScore)")
+                        Divider().background(AppColors.borderSubtle)
+                        detailRow(label: "Typ", value: match.scoreType == "points" ? "Poäng" : "Set")
+                        if let target = match.scoreTarget {
+                            Divider().background(AppColors.borderSubtle)
+                            detailRow(label: "Mål", value: "\(target)")
+                        }
+                        Divider().background(AppColors.borderSubtle)
+                        detailRow(label: "Spelad", value: formatter.string(from: match.playedAt))
+                    }
                 }
-                if let sourceId = match.sourceTournamentId {
-                    LabeledContent("Turnering", value: viewModel.tournamentName(for: sourceId))
-                    LabeledContent("Turnerings-ID", value: sourceId.uuidString)
+
+                SectionCard(title: "Matchmetadata") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        detailRow(label: "Källa", value: match.sourceTournamentId == nil ? "Fristående match" : "Turneringsmatch")
+                        if let sourceType = match.sourceTournamentType, !sourceType.isEmpty {
+                            Divider().background(AppColors.borderSubtle)
+                            detailRow(label: "Källtyp", value: sourceType)
+                        }
+                        if let sourceId = match.sourceTournamentId {
+                            Divider().background(AppColors.borderSubtle)
+                            detailRow(label: "Turnering", value: viewModel.tournamentName(for: sourceId))
+                        }
+                    }
                 }
-            }
 
-            Section("ELO-förändring (estimat)") {
-                let breakdown = viewModel.eloBreakdown(for: match)
-                if breakdown.isEmpty {
-                    Text("Ingen ELO-detalj finns för den här äldre matchen ännu.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(breakdown) { row in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(row.playerName)
-                                    .font(.subheadline.weight(.semibold))
-                                Spacer()
-                                Text("\(row.delta >= 0 ? "+" : "")\(row.delta)")
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(row.delta >= 0 ? .green : .red)
-                            }
+                SectionCard(title: "ELO-förändring (estimat)") {
+                    let breakdown = viewModel.eloBreakdown(for: match)
+                    if breakdown.isEmpty {
+                        Text("Ingen ELO-detalj finns för den här äldre matchen ännu.")
+                            .font(.inter(.body))
+                            .foregroundStyle(AppColors.textSecondary)
+                    } else {
+                        VStack(spacing: 16) {
+                            ForEach(breakdown) { row in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text(row.playerName)
+                                            .font(.inter(.subheadline, weight: .bold))
+                                            .foregroundStyle(AppColors.textPrimary)
+                                        Spacer()
+                                        Text("\(row.delta >= 0 ? "+" : "")\(row.delta)")
+                                            .font(.inter(.subheadline, weight: .black))
+                                            .foregroundStyle(row.delta >= 0 ? AppColors.success : AppColors.error)
+                                    }
 
-                            Text("ELO före: \(row.estimatedBefore) → efter: \(row.estimatedAfter)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                    Text("ELO före: \(row.estimatedBefore) → efter: \(row.estimatedAfter)")
+                                        .font(.inter(.caption2))
+                                        .foregroundStyle(AppColors.textSecondary)
 
-                            if let explanation = row.explanation {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Label("Analys", systemImage: "magnifyingglass")
-                                        .font(.caption2.bold())
-                                        .foregroundStyle(Color.accentColor)
+                                    if let explanation = row.explanation {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Label("Analys", systemImage: "magnifyingglass")
+                                                .font(.inter(size: 8, weight: .bold))
+                                                .foregroundStyle(AppColors.brandPrimary)
 
-                                    Text(explanation)
-                                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                        .lineSpacing(2)
+                                            Text(explanation)
+                                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                                .foregroundStyle(AppColors.textPrimary)
+                                                .lineSpacing(2)
+                                        }
+                                        .padding(12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(AppColors.brandPrimary.opacity(0.05))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(AppColors.brandPrimary.opacity(0.1), lineWidth: 1)
+                                        )
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    }
                                 }
-                                .padding(10)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.accentColor.opacity(0.06))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.accentColor.opacity(0.1), lineWidth: 1)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                if row.id != breakdown.last?.id {
+                                    Divider().background(AppColors.borderSubtle)
+                                }
                             }
                         }
-                        .padding(.vertical, 4)
                     }
                 }
-            }
 
-            if viewModel.canUseAdmin {
-                Section("Adminverktyg - Redigera match") {
-                    Group {
-                        playerSelectorRow(title: "Lag A – spelare 1", selection: $editTeamAPlayer1Id)
-                        playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $editTeamAPlayer2Id)
-                        Divider()
-                        playerSelectorRow(title: "Lag B – spelare 1", selection: $editTeamBPlayer1Id)
-                        playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $editTeamBPlayer2Id)
-                    }
+                if viewModel.canUseAdmin {
+                    SectionCard(title: "Redigera match") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Group {
+                                playerSelectorRow(title: "Lag A – spelare 1", selection: $editTeamAPlayer1Id)
+                                playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $editTeamAPlayer2Id)
+                                Divider().background(AppColors.borderSubtle)
+                                playerSelectorRow(title: "Lag B – spelare 1", selection: $editTeamBPlayer1Id)
+                                playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $editTeamBPlayer2Id)
+                            }
 
-                    Stepper("Lag A poäng: \(editTeamAScore)", value: $editTeamAScore, in: 0...99)
-                    Stepper("Lag B poäng: \(editTeamBScore)", value: $editTeamBScore, in: 0...99)
+                            Divider().background(AppColors.borderSubtle)
 
-                    Picker("Poängtyp", selection: $editScoreType) {
-                        Text("Set").tag("sets")
-                        Text("Poäng").tag("points")
-                    }
+                            VStack(spacing: 12) {
+                                Stepper("Lag A poäng: \(editTeamAScore)", value: $editTeamAScore, in: 0...99)
+                                Stepper("Lag B poäng: \(editTeamBScore)", value: $editTeamBScore, in: 0...99)
 
-                    if editScoreType == "points" {
-                        TextField("Poängmål (valfritt)", text: $editScoreTargetText)
-                            .keyboardType(.numberPad)
-                    }
+                                Picker("Poängtyp", selection: $editScoreType) {
+                                    Text("Set").tag("sets")
+                                    Text("Poäng").tag("points")
+                                }
+                                .pickerStyle(.segmented)
 
-                    DatePicker("Spelad", selection: $editPlayedAt)
+                                if editScoreType == "points" {
+                                    TextField("Poängmål (valfritt)", text: $editScoreTargetText)
+                                        .textFieldStyle(.roundedBorder)
+                                        .keyboardType(.numberPad)
+                                }
 
-                    Button("Spara ändring") {
-                        Task {
-                            await viewModel.updateMatch(
-                                match,
-                                playedAt: editPlayedAt,
-                                teamAScore: editTeamAScore,
-                                teamBScore: editTeamBScore,
-                                scoreType: editScoreType,
-                                scoreTarget: Int(editScoreTargetText),
-                                teamAPlayerIds: [editTeamAPlayer1Id, editTeamAPlayer2Id],
-                                teamBPlayerIds: [editTeamBPlayer1Id, editTeamBPlayer2Id]
-                            )
+                                DatePicker("Spelad", selection: $editPlayedAt)
+                            }
+                            .font(.inter(.subheadline))
+
+                            Button("Spara ändringar") {
+                                Task {
+                                    await viewModel.updateMatch(
+                                        match,
+                                        playedAt: editPlayedAt,
+                                        teamAScore: editTeamAScore,
+                                        teamBScore: editTeamBScore,
+                                        scoreType: editScoreType,
+                                        scoreTarget: Int(editScoreTargetText),
+                                        teamAPlayerIds: [editTeamAPlayer1Id, editTeamAPlayer2Id],
+                                        teamBPlayerIds: [editTeamBPlayer1Id, editTeamBPlayer2Id]
+                                    )
+                                }
+                            }
+                            .buttonStyle(PrimaryButtonStyle())
                         }
                     }
-                    .buttonStyle(.borderedProminent)
                 }
-            }
 
-            if viewModel.canDeleteMatch(match) {
-                Section("Ta bort match") {
-                    Button("Radera match", role: .destructive) {
+                if viewModel.canDeleteMatch(match) {
+                    Button("Radera match permanent") {
                         showDeleteConfirm = true
                     }
+                    .font(.inter(.subheadline, weight: .bold))
+                    .foregroundStyle(AppColors.error)
+                    .padding()
                 }
             }
+            .padding()
         }
+        .background(AppColors.background)
         .onAppear {
             editTeamAScore = match.teamAScore
             editTeamBScore = match.teamBScore
@@ -178,57 +211,55 @@ struct MatchDetailView: View {
         .padelLiquidGlassChrome()
     }
 
+    private func detailRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.inter(.subheadline))
+                .foregroundStyle(AppColors.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.textPrimary)
+        }
+        .padding(.vertical, 4)
+    }
+
     private func playerSelectorRow(title: String, selection: Binding<String?>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
+                .font(.inter(.caption, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    Button {
+                    selectorChip(title: "Ingen", isSelected: selection.wrappedValue == nil) {
                         selection.wrappedValue = nil
-                    } label: {
-                        Text("Ingen")
-                            .font(.caption2)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(selection.wrappedValue == nil ? Color.accentColor : Color(.systemGray5))
-                            .foregroundStyle(selection.wrappedValue == nil ? .white : .primary)
-                            .clipShape(Capsule())
                     }
-                    .buttonStyle(.plain)
 
-                    Button {
+                    selectorChip(title: "Gäst", isSelected: selection.wrappedValue == "guest") {
                         selection.wrappedValue = "guest"
-                    } label: {
-                        Text("Gäst")
-                            .font(.caption2)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(selection.wrappedValue == "guest" ? Color.accentColor : Color(.systemGray5))
-                            .foregroundStyle(selection.wrappedValue == "guest" ? .white : .primary)
-                            .clipShape(Capsule())
                     }
-                    .buttonStyle(.plain)
 
                     ForEach(viewModel.players) { player in
-                        Button {
+                        selectorChip(title: player.profileName, isSelected: selection.wrappedValue == player.id.uuidString) {
                             selection.wrappedValue = player.id.uuidString
-                        } label: {
-                            Text(player.profileName)
-                                .font(.caption2)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(selection.wrappedValue == player.id.uuidString ? Color.accentColor : Color(.systemGray5))
-                                .foregroundStyle(selection.wrappedValue == player.id.uuidString ? .white : .primary)
-                                .clipShape(Capsule())
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
         }
-        .padding(.vertical, 4)
+    }
+
+    private func selectorChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.inter(.caption2, weight: .bold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(isSelected ? AppColors.brandPrimary : AppColors.textSecondary.opacity(0.1))
+                .foregroundStyle(isSelected ? .white : AppColors.textPrimary)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
