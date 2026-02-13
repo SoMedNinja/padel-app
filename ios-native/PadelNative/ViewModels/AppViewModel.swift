@@ -3200,29 +3200,21 @@ final class AppViewModel: ObservableObject {
         }
 
         var stats: [UUID: MvpStat] = [:]
+        let matchIds = Set(periodMatches.map { $0.id })
 
-        for match in periodMatches {
-            let teamAWon = match.teamAScore > match.teamBScore
-            let margin = abs(match.teamAScore - match.teamBScore)
-            let gain = max(4, margin * 2)
-
-            let teamAIds = match.teamAPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
-            let teamBIds = match.teamBPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
-
-            for id in teamAIds {
-                var current = stats[id, default: MvpStat()]
-                current.games += 1
-                current.periodEloGain += teamAWon ? gain : -gain
-                if teamAWon { current.wins += 1 }
-                stats[id] = current
+        for (pid, playerBadgeStats) in playerBadgeStats {
+            var current = MvpStat()
+            for entry in playerBadgeStats.eloHistory {
+                if matchIds.contains(entry.matchId) {
+                    current.games += 1
+                    current.periodEloGain += entry.delta
+                    if entry.result == "W" {
+                        current.wins += 1
+                    }
+                }
             }
-
-            for id in teamBIds {
-                var current = stats[id, default: MvpStat()]
-                current.games += 1
-                current.periodEloGain += teamAWon ? -gain : gain
-                if !teamAWon { current.wins += 1 }
-                stats[id] = current
+            if current.games > 0 {
+                stats[pid] = current
             }
         }
 
@@ -3239,7 +3231,11 @@ final class AppViewModel: ObservableObject {
         return scored.sorted { lhs, rhs in
             if abs(lhs.score - rhs.score) > 0.001 { return lhs.score > rhs.score }
             if lhs.periodEloGain != rhs.periodEloGain { return lhs.periodEloGain > rhs.periodEloGain }
-            if lhs.player.elo != rhs.player.elo { return lhs.player.elo > rhs.player.elo }
+
+            let lhsElo = playerBadgeStats[lhs.player.id]?.currentElo ?? lhs.player.elo
+            let rhsElo = playerBadgeStats[rhs.player.id]?.currentElo ?? rhs.player.elo
+            if lhsElo != rhsElo { return lhsElo > rhsElo }
+
             if lhs.wins != rhs.wins { return lhs.wins > rhs.wins }
             return lhs.player.fullName.localizedCaseInsensitiveCompare(rhs.player.fullName) == .orderedAscending
         }.first
@@ -3622,17 +3618,17 @@ final class AppViewModel: ObservableObject {
             while windowEndIdx < sortedMatches.count && sortedMatches[windowEndIdx].playedAt <= dayEnd {
                 let m = sortedMatches[windowEndIdx]
                 let teamAWon = m.teamAScore > m.teamBScore
-                let margin = abs(m.teamAScore - m.teamBScore)
-                let gain = max(4, margin * 2)
 
                 for id in m.teamAPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
+                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
                     rollingStats[id]?.games += 1
-                    rollingStats[id]?.eloGain += teamAWon ? gain : -gain
+                    rollingStats[id]?.eloGain += delta
                     if teamAWon { rollingStats[id]?.wins += 1 }
                 }
                 for id in m.teamBPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
+                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
                     rollingStats[id]?.games += 1
-                    rollingStats[id]?.eloGain += teamAWon ? -gain : gain
+                    rollingStats[id]?.eloGain += delta
                     if !teamAWon { rollingStats[id]?.wins += 1 }
                 }
                 windowEndIdx += 1
@@ -3642,17 +3638,17 @@ final class AppViewModel: ObservableObject {
             while windowStartIdx < windowEndIdx && sortedMatches[windowStartIdx].playedAt <= cutoff {
                 let m = sortedMatches[windowStartIdx]
                 let teamAWon = m.teamAScore > m.teamBScore
-                let margin = abs(m.teamAScore - m.teamBScore)
-                let gain = max(4, margin * 2)
 
                 for id in m.teamAPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
+                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
                     rollingStats[id]?.games -= 1
-                    rollingStats[id]?.eloGain -= teamAWon ? gain : -gain
+                    rollingStats[id]?.eloGain -= delta
                     if teamAWon { rollingStats[id]?.wins -= 1 }
                 }
                 for id in m.teamBPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
+                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
                     rollingStats[id]?.games -= 1
-                    rollingStats[id]?.eloGain -= teamAWon ? -gain : gain
+                    rollingStats[id]?.eloGain -= delta
                     if !teamAWon { rollingStats[id]?.wins -= 1 }
                 }
                 windowStartIdx += 1

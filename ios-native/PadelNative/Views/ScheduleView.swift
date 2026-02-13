@@ -85,9 +85,6 @@ struct ScheduleView: View {
 
     private var statusSection: some View {
         Section {
-            Text("Note for non-coders: den här sidan visar samma kärnflöde som webben: öppna/stänga omröstningar, rösta med tidsluckor och skicka kalenderinbjudan.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
 
             if let deepDay = viewModel.deepLinkedPollDayId {
                 Label("Öppnad via direktlänk till dag: \(deepDay.uuidString.prefix(8))…", systemImage: "link")
@@ -336,9 +333,6 @@ struct ScheduleView: View {
                 TextField("Titel", text: $inviteTitle)
 
                 Toggle("Lägg också till i min iPhone-kalender", isOn: $addToLocalCalendar)
-                Text("Note for non-coders: DatePicker använder iOS egen datum/tidsväljare så admin slipper skriva format manuellt.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
 
                 Picker("Åtgärd", selection: $inviteAction) {
                     Text("Skapa").tag("create")
@@ -425,9 +419,6 @@ struct ScheduleView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Text("Note for non-coders: dagväljaren minskar fel genom att återanvända datum direkt från omröstningen istället för fri inmatning.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -440,9 +431,9 @@ struct ScheduleView: View {
             } else {
                 ForEach(viewModel.schedule) { game in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(game.description)
+                        Text(game.description ?? "Bokning")
                             .font(.headline)
-                        Text(game.location)
+                        Text(game.location ?? "Okänd bana")
                         Text(gameFormatter.string(from: game.startsAt))
                             .font(.caption)
                             .foregroundStyle(.secondary)

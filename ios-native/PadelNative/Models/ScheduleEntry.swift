@@ -4,8 +4,8 @@ struct ScheduleEntry: Identifiable, Codable {
     let id: UUID
     let date: String
     let startTime: String
-    let location: String
-    let description: String
+    let location: String?
+    let description: String?
 
     enum CodingKeys: String, CodingKey {
         case id

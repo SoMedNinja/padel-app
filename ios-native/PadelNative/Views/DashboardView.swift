@@ -4,7 +4,6 @@ struct DashboardView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var leaderboardSortKey: String = "elo"
     @State private var leaderboardSortAscending: Bool = false
-    @State private var leaderboardSearchText: String = ""
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -15,9 +14,7 @@ struct DashboardView: View {
     }()
 
     private var sortedLeaderboard: [LeaderboardPlayer] {
-        let base = viewModel.leaderboardPlayers.filter {
-            leaderboardSearchText.isEmpty || $0.name.localizedCaseInsensitiveContains(leaderboardSearchText)
-        }
+        let base = viewModel.leaderboardPlayers
         return base.sorted { a, b in
             let result: Bool
             switch leaderboardSortKey {
@@ -138,7 +135,6 @@ struct DashboardView: View {
             mvpSection
             highlightSection
             leaderboardSection
-            rivalrySection
         }
     }
 
@@ -188,7 +184,7 @@ struct DashboardView: View {
                 }) {
                     Text("Uppkommande bokning")
                         .font(.headline)
-                    Text("\(upcoming.description) • \(upcoming.location)")
+                    Text("\(upcoming.description ?? "Bokning") • \(upcoming.location ?? "Okänd bana")")
                         .font(.subheadline)
                     Text(dateFormatter.string(from: upcoming.startsAt))
                         .font(.caption)
@@ -375,10 +371,6 @@ struct DashboardView: View {
 
     private var leaderboardSection: some View {
         Section {
-            TextField("Sök spelare...", text: $leaderboardSearchText)
-                .textFieldStyle(.roundedBorder)
-                .padding(.vertical, 4)
-
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 0) {

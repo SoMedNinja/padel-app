@@ -50,9 +50,6 @@ struct TournamentView: View {
                         }
                         .pickerStyle(.segmented)
 
-                        Text("Note for non-coders: delarna Setup/Run/Results/History följer samma mentala steg som webbens turneringsflöde.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
                     }
 
                     switch selectedPanel {
@@ -157,9 +154,6 @@ struct TournamentView: View {
                         }
                     }
 
-                    Text("Note for non-coders: listan blandar pågående och historiska turneringar så arrangören snabbt kan växla kontext.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -196,9 +190,6 @@ struct TournamentView: View {
                     Text("Deltagare (\(selectedParticipantIds.count))")
                         .font(.subheadline.weight(.semibold))
 
-                    Text("Note for non-coders: välj vilka spelare som faktiskt deltar så turneringens rundor och tabell blir korrekta direkt från start.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
 
                     ForEach(viewModel.players) { player in
                         Button {
@@ -458,9 +449,6 @@ struct TournamentView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Text("Note for non-coders: den visuella delningsbilden är mer iOS-native och lättare att posta i chat/sociala appar.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             } else {
                 Text("Complete tournament to enable rich summary export.")
                     .foregroundStyle(.secondary)

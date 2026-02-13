@@ -27,11 +27,6 @@ struct AuthView: View {
                 Text("Padel Club")
                     .font(.largeTitle.bold())
 
-                Text("Note for non-coders: this is the same auth gateway as web (login, sign up, and password reset).")
-                    .font(.footnote)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
 
                 Picker("Auth Mode", selection: $mode) {
                     ForEach(AuthMode.allCases) { authMode in
@@ -84,8 +79,6 @@ struct AuthView: View {
                         .disabled(viewModel.isAuthenticating)
 
                         Button("Fortsätt som gäst") {
-                            // Note for non-coders:
-                            // Guest mode lets you explore read-only stats before deciding to create an account.
                             viewModel.continueAsGuest()
                         }
                         .frame(maxWidth: .infinity)
