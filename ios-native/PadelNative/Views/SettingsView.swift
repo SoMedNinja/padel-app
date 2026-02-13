@@ -1,13 +1,20 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var viewModel: AppViewModel
+    @State private var selectedAvatarItem: PhotosPickerItem?
+    @State private var isEditingName = false
+    @State private var showCropper = false
+    @State private var imageToCrop: UIImage?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     if let current = viewModel.currentPlayer {
+                        profileSection(current)
                         accountSection
                         permissionsSection(current)
                     } else if viewModel.isGuestMode {
@@ -42,7 +49,84 @@ struct SettingsView: View {
             .background(AppColors.background)
             .navigationTitle("Inställningar")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: selectedAvatarItem) { _, newItem in
+                guard let newItem else { return }
+                Task {
+                    if let data = try? await newItem.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        imageToCrop = image
+                        showCropper = true
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showCropper) {
+                if let image = imageToCrop {
+                    CircularAvatarCropperView(image: image, isPresented: $showCropper) { croppedImage in
+                        if let resizedData = croppedImage.jpegData(compressionQuality: 0.7) {
+                            let base64 = resizedData.base64EncodedString()
+                            viewModel.profileAvatarURLInput = "data:image/jpeg;base64,\(base64)"
+                            Task { await viewModel.saveProfileSetup() }
+                        }
+                    }
+                }
+            }
             .padelLiquidGlassChrome()
+        }
+    }
+
+    private func profileSection(_ current: Player) -> some View {
+        SectionCard(title: "Profil") {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 16) {
+                    PlayerAvatarView(urlString: current.avatarURL, size: 64)
+
+                    Menu {
+                        PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
+                            Label("Välj ny bild", systemImage: "photo")
+                        }
+                        Button(role: .destructive) {
+                            viewModel.profileAvatarURLInput = ""
+                            Task { await viewModel.saveProfileSetup() }
+                        } label: {
+                            Label("Ta bort bild", systemImage: "trash")
+                        }
+                    } label: {
+                        Label("Redigera profilbild", systemImage: "camera")
+                            .font(.inter(.caption, weight: .bold))
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                // Note for non-coders: we save the name directly to your profile so it updates app-wide.
+                if isEditingName {
+                    HStack(spacing: 10) {
+                        TextField("Namn", text: $viewModel.profileDisplayNameDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit {
+                                Task { await viewModel.saveProfileSetup() }
+                                isEditingName = false
+                            }
+
+                        Button("Spara") {
+                            Task { await viewModel.saveProfileSetup() }
+                            isEditingName = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                } else {
+                    HStack {
+                        Text(current.profileName)
+                            .font(.inter(.headline, weight: .bold))
+                        Spacer()
+                        Button("Redigera namn") {
+                            viewModel.profileDisplayNameDraft = current.profileName
+                            isEditingName = true
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.inter(.caption, weight: .bold))
+                    }
+                }
+            }
         }
     }
 
