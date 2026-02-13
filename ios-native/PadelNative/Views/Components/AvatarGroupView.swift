@@ -8,9 +8,7 @@ struct AvatarGroupView: View {
     var body: some View {
         HStack(spacing: -size * 0.4) {
             ForEach(0..<min(avatars.count, limit), id: \.self) { index in
-                avatarView(urlString: avatars[index])
-                    .frame(width: size, height: size)
-                    .clipShape(Circle())
+                PlayerAvatarView(urlString: avatars[index], size: size)
                     .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
                     .zIndex(Double(limit - index))
             }
@@ -27,23 +25,4 @@ struct AvatarGroupView: View {
         }
     }
 
-    @ViewBuilder
-    private func avatarView(urlString: String?) -> some View {
-        if let urlString, let url = URL(string: urlString) {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                defaultAvatar
-            }
-        } else {
-            defaultAvatar
-        }
-    }
-
-    private var defaultAvatar: some View {
-        Image(systemName: "person.crop.circle.fill")
-            .resizable()
-            .foregroundStyle(Color.accentColor.opacity(0.5))
-            .background(Color.accentColor.opacity(0.1))
-    }
 }

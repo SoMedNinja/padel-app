@@ -755,23 +755,42 @@ final class AppViewModel: ObservableObject {
             return nil
         }
 
+        let player: Player
         if let found = players.first(where: { $0.id == profileId }) {
-            return found
+            player = found
+        } else {
+            // Note for non-coders:
+            // If the current player exists in Auth but is not (yet) in the leaderboard fetch,
+            // we create a synthetic player so the profile screen still works.
+            player = Player(
+                id: profileId,
+                fullName: currentIdentity?.fullName ?? "Spelare",
+                elo: 1000,
+                isAdmin: currentIdentity?.isAdmin ?? false,
+                isRegular: currentIdentity?.isRegular ?? false,
+                avatarURL: nil,
+                featuredBadgeId: nil,
+                profileName: currentIdentity?.fullName ?? "Spelare"
+            )
         }
 
         // Note for non-coders:
-        // If the current player exists in Auth but is not (yet) in the leaderboard fetch,
-        // we create a synthetic player so the profile screen still works.
-        return Player(
-            id: profileId,
-            fullName: currentIdentity?.fullName ?? "Spelare",
-            elo: 1000,
-            isAdmin: currentIdentity?.isAdmin ?? false,
-            isRegular: currentIdentity?.isRegular ?? false,
-            avatarURL: nil,
-            featuredBadgeId: nil,
-            profileName: currentIdentity?.fullName ?? "Spelare"
-        )
+        // We override the static database ELO with our freshly calculated history-based ELO
+        // so the profile page shows the same accurate number as the leaderboard.
+        if let stats = playerBadgeStats[player.id] {
+            return Player(
+                id: player.id,
+                fullName: player.fullName,
+                elo: stats.currentElo,
+                isAdmin: player.isAdmin,
+                isRegular: player.isRegular,
+                avatarURL: player.avatarURL,
+                featuredBadgeId: player.featuredBadgeId,
+                profileName: player.profileName
+            )
+        }
+
+        return player
     }
 
     var currentPlayer: Player? { authenticatedProfile }
@@ -794,9 +813,9 @@ final class AppViewModel: ObservableObject {
 
     private var currentPlayerMatches: [Match] {
         guard let currentPlayer else { return [] }
-        let currentIdString = currentPlayer.id.uuidString
+        let currentIdString = currentPlayer.id.uuidString.lowercased()
         return allMatches.filter { match in
-            let playerIds = (match.teamAPlayerIds + match.teamBPlayerIds).compactMap { $0 }
+            let playerIds = (match.teamAPlayerIds + match.teamBPlayerIds).compactMap { $0?.lowercased() }
             if playerIds.contains(currentIdString) {
                 return true
             }
@@ -817,9 +836,10 @@ final class AppViewModel: ObservableObject {
     func profilePerformanceWidgets(filter: DashboardMatchFilter) -> [ProfilePerformanceWidget] {
         guard let currentPlayer else { return [] }
         let myMatches = matchesForProfile(filter: filter)
+        let currentIdString = currentPlayer.id.uuidString.lowercased()
         let wins = myMatches.filter { match in
-            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamAIds.contains(currentPlayer.id.uuidString)
+            let teamAIds = match.teamAPlayerIds.compactMap { $0?.lowercased() }
+            let iAmTeamA = teamAIds.contains(currentIdString)
             return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         }.count
         let losses = myMatches.count - wins
@@ -832,8 +852,8 @@ final class AppViewModel: ObservableObject {
 
         let recentResults = myMatches.prefix(5)
         let recentWins = recentResults.filter { match in
-            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamAIds.contains(currentPlayer.id.uuidString)
+            let teamAIds = match.teamAPlayerIds.compactMap { $0?.lowercased() }
+            let iAmTeamA = teamAIds.contains(currentIdString)
             return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         }.count
         let recentLosses = recentResults.count - recentWins
@@ -851,11 +871,11 @@ final class AppViewModel: ObservableObject {
     }
 
     private func calculateServeSplitStats(matches: [Match], playerId: UUID) -> (firstWins: Int, firstLosses: Int, firstWinRate: Int, secondWins: Int, secondLosses: Int, secondWinRate: Int) {
-        let pIdString = playerId.uuidString
+        let pIdString = playerId.uuidString.lowercased()
         var fW = 0, fL = 0, sW = 0, sL = 0
         for match in matches {
-            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-            let teamBIds = match.teamBPlayerIds.compactMap { $0 }
+            let teamAIds = match.teamAPlayerIds.compactMap { $0?.lowercased() }
+            let teamBIds = match.teamBPlayerIds.compactMap { $0?.lowercased() }
             let isTeamA = teamAIds.contains(pIdString)
             let isTeamB = teamBIds.contains(pIdString)
             guard isTeamA || isTeamB else { continue }
@@ -1301,8 +1321,8 @@ final class AppViewModel: ObservableObject {
     }
 
     private func didCurrentPlayerWin(_ match: Match, player: Player) -> Bool {
-        let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-        let iAmTeamA = teamAIds.contains(player.id.uuidString) || match.teamAName.localizedCaseInsensitiveContains(player.fullName)
+        let teamAIds = match.teamAPlayerIds.compactMap { $0?.lowercased() }
+        let iAmTeamA = teamAIds.contains(player.id.uuidString.lowercased()) || match.teamAName.localizedCaseInsensitiveContains(player.fullName)
         return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
     }
 
@@ -3675,10 +3695,10 @@ final class AppViewModel: ObservableObject {
         var partnerStats: [UUID: (games: Int, wins: Int)] = [:]
         var rivalStats: [UUID: (games: Int, losses: Int)] = [:]
 
-        let pIdString = playerId.uuidString
+        let pIdString = playerId.uuidString.lowercased()
         for m in recentMatches {
-            let teamA = m.teamAPlayerIds.compactMap { $0 }
-            let teamB = m.teamBPlayerIds.compactMap { $0 }
+            let teamA = m.teamAPlayerIds.compactMap { $0?.lowercased() }
+            let teamB = m.teamBPlayerIds.compactMap { $0?.lowercased() }
             let iAmTeamA = teamA.contains(pIdString)
             let iAmTeamB = teamB.contains(pIdString)
             guard iAmTeamA || iAmTeamB else { continue }
@@ -3749,11 +3769,11 @@ final class AppViewModel: ObservableObject {
 
         // Process matches in reverse chronological order for lastMatch and results
         let sorted = allMatches.sorted { $0.playedAt > $1.playedAt }
-        let pIdString = playerId.uuidString
+        let pIdString = playerId.uuidString.lowercased()
 
         for match in sorted {
-            let teamA = match.teamAPlayerIds.compactMap { $0 }
-            let teamB = match.teamBPlayerIds.compactMap { $0 }
+            let teamA = match.teamAPlayerIds.compactMap { $0?.lowercased() }
+            let teamB = match.teamBPlayerIds.compactMap { $0?.lowercased() }
             let iAmTeamA = teamA.contains(pIdString)
             let iAmTeamB = teamB.contains(pIdString)
             guard iAmTeamA || iAmTeamB else { continue }
@@ -3882,10 +3902,10 @@ final class AppViewModel: ObservableObject {
         let playerNames = players.reduce(into: [UUID: String]()) { $0[$1.id] = $1.profileName }
         let playerElos = playerBadgeStats.mapValues { $0.currentElo }
 
-        let pIdString = playerId.uuidString
+        let pIdString = playerId.uuidString.lowercased()
         for match in allMatches {
-            let teamA = match.teamAPlayerIds.compactMap { $0 }
-            let teamB = match.teamBPlayerIds.compactMap { $0 }
+            let teamA = match.teamAPlayerIds.compactMap { $0?.lowercased() }
+            let teamB = match.teamBPlayerIds.compactMap { $0?.lowercased() }
             let iAmTeamA = teamA.contains(pIdString)
             let iAmTeamB = teamB.contains(pIdString)
             guard iAmTeamA || iAmTeamB else { continue }

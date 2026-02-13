@@ -106,20 +106,7 @@ struct MatchSuccessCeremonyView: View {
 
             ForEach(team.players) { player in
                 VStack(spacing: 4) {
-                    if let urlString = player.avatarURL, let url = URL(string: urlString) {
-                        AsyncImage(url: url) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Image(systemName: "person.crop.circle.fill")
-                                .foregroundStyle(.gray)
-                        }
-                        .frame(width: 44, height: 44)
-                        .clipShape(Circle())
-                    } else {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(Color.accentColor.opacity(0.3))
-                    }
+                    PlayerAvatarView(urlString: player.avatarURL, size: 44)
 
                     Text(player.name)
                         .font(.caption.bold())
