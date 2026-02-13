@@ -33,6 +33,7 @@ struct MatchSubmission: Encodable {
     let sourceTournamentType: String
     let teamAServesFirst: Bool
     let playedAt: Date
+    let createdBy: UUID
 
     enum CodingKeys: String, CodingKey {
         case teamAName = "team1"
@@ -47,6 +48,7 @@ struct MatchSubmission: Encodable {
         case sourceTournamentType = "source_tournament_type"
         case teamAServesFirst = "team1_serves_first"
         case playedAt = "created_at"
+        case createdBy = "created_by"
     }
 }
 
@@ -122,6 +124,7 @@ struct TournamentCreationRequest: Encodable {
     let scheduledAt: Date?
     let location: String?
     let scoreTarget: Int?
+    let createdBy: UUID
 
     enum CodingKeys: String, CodingKey {
         case name
@@ -130,6 +133,7 @@ struct TournamentCreationRequest: Encodable {
         case scheduledAt = "scheduled_at"
         case location
         case scoreTarget = "score_target"
+        case createdBy = "created_by"
     }
 }
 
