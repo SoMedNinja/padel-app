@@ -417,7 +417,7 @@ struct SingleGameView: View {
         SectionCard(title: "Resultat") {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Lag A")
+                    Text(scoreTeamLabel(base: "Lag A", primary: teamAPlayer1Id, secondary: isOneVsOne ? nil : teamAPlayer2Id))
                         .font(.inter(.caption, weight: .black))
                         .foregroundStyle(AppColors.textSecondary)
                     scoreButtonGrid(selection: $teamAScore)
@@ -426,7 +426,7 @@ struct SingleGameView: View {
                 Divider().background(AppColors.borderSubtle)
 
                 VStack(alignment: .trailing, spacing: 10) {
-                    Text("Lag B")
+                    Text(scoreTeamLabel(base: "Lag B", primary: teamBPlayer1Id, secondary: isOneVsOne ? nil : teamBPlayer2Id))
                         .font(.inter(.caption, weight: .black))
                         .foregroundStyle(AppColors.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -463,7 +463,6 @@ struct SingleGameView: View {
                 reviewRow(label: "Lag A", value: teamText(primary: teamAPlayer1Id, secondary: isOneVsOne ? nil : teamAPlayer2Id))
                 reviewRow(label: "Lag B", value: teamText(primary: teamBPlayer1Id, secondary: isOneVsOne ? nil : teamBPlayer2Id))
                 reviewRow(label: "Resultat", value: "\(teamAScore)–\(teamBScore)")
-                reviewRow(label: "Format", value: "Set")
 
                 Text("Detta är en sista kontroll innan matchen sparas.")
                     .font(.inter(.footnote))
@@ -693,6 +692,14 @@ struct SingleGameView: View {
             return "Okänd"
         }
         return names.joined(separator: " & ")
+    }
+
+    // Note for non-coders: this adds player names directly in score step headers
+    // so you can confirm who belongs to each team before saving points.
+    private func scoreTeamLabel(base: String, primary: String?, secondary: String?) -> String {
+        let names = teamText(primary: primary, secondary: secondary)
+        guard names != "Ej valt" else { return base }
+        return "\(base) · \(names)"
     }
 
 

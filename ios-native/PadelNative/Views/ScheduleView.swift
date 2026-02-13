@@ -62,10 +62,10 @@ struct ScheduleView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     statusSection
+                    scheduledGamesSection
+                    calendarInviteSection
                     pollCardsSection
                     adminSection
-                    calendarInviteSection
-                    scheduledGamesSection
                 }
                 .padding(.horizontal)
                 .padding(.top, 4)
@@ -100,8 +100,11 @@ struct ScheduleView: View {
                     }
 
                     if viewModel.isScheduleLoading {
-                        ProgressView("Laddar schemadata…")
-                            .font(.inter(.body))
+                        VStack(alignment: .leading, spacing: 8) {
+                            BallRefreshIndicator()
+                            ProgressView("Laddar schemadata…")
+                                .font(.inter(.body))
+                        }
                     }
 
                     if let error = viewModel.scheduleErrorMessage {

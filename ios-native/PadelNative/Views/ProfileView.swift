@@ -731,7 +731,9 @@ struct ProfileView: View {
                         if index % max(1, timeline.count / 5) == 0 {
                             AxisGridLine()
                             AxisValueLabel {
-                                Text(timeline[index].date, format: .dateTime.day().month())
+                                // Note for non-coders: we only show month names on the x-axis
+                                // to keep long timelines readable at a glance.
+                                Text(timeline[index].date, format: .dateTime.month(.wide))
                             }
                         }
                     }
@@ -773,7 +775,7 @@ struct ProfileView: View {
                     if index % max(1, timeline.count / 5) == 0 {
                         AxisGridLine()
                         AxisValueLabel {
-                            Text(timeline[index].date, format: .dateTime.day().month())
+                            Text(timeline[index].date, format: .dateTime.month(.wide))
                         }
                     }
                 }
