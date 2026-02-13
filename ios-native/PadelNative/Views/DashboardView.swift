@@ -416,18 +416,44 @@ struct DashboardView: View {
                 Text("Ingen data än.")
                     .foregroundStyle(.secondary)
             } else {
-                if let topRival = viewModel.currentRivalryAgainstStats.first {
-                    featuredRivalryCard(topRival)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .padding(.bottom, 8)
-                }
+                VStack(spacing: 12) {
+                    Picker("Läge", selection: $viewModel.dashboardRivalryMode) {
+                        Text("Mot").tag("against")
+                        Text("Med").tag("together")
+                    }
+                    .pickerStyle(.segmented)
 
-                ForEach(viewModel.currentRivalryAgainstStats.prefix(5).dropFirst()) { summary in
+                    let stats = viewModel.dashboardRivalryMode == "against" ? viewModel.currentRivalryAgainstStats : viewModel.currentRivalryTogetherStats
+                    let currentOpponentId = viewModel.dashboardRivalryOpponentId ?? stats.first?.id
+
+                    Picker("Spelare", selection: $viewModel.dashboardRivalryOpponentId) {
+                        Text("Välj spelare").tag(UUID?.none)
+                        ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
+                            Text(player.profileName).tag(UUID?.init(player.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    if let featured = stats.first(where: { $0.id == currentOpponentId }) {
+                        featuredRivalryCard(featured)
+                            .padding(.bottom, 8)
+                    } else {
+                        Text("Ingen data för vald kombination.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
+                .listRowBackground(Color.clear)
+
+                let listStats = (viewModel.dashboardRivalryMode == "against" ? viewModel.currentRivalryAgainstStats : viewModel.currentRivalryTogetherStats)
+                let currentFeaturedId = viewModel.dashboardRivalryOpponentId ?? listStats.first?.id
+
+                ForEach(listStats.prefix(6).filter { $0.id != currentFeaturedId }) { summary in
                     NavigationLink(destination: RivalryView(opponentId: summary.id)) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Du vs \(summary.opponentName)")
+                                Text(viewModel.dashboardRivalryMode == "against" ? "Du vs \(summary.opponentName)" : "Du & \(summary.opponentName)")
                                     .font(.subheadline.weight(.semibold))
                                 Text("\(summary.matchesPlayed) matcher • \(summary.wins) vinster")
                                     .font(.caption)

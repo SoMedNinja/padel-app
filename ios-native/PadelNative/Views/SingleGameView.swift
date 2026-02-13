@@ -293,16 +293,24 @@ struct SingleGameView: View {
                     }
                 }
 
-                Button("Skapa rotation") {
-                    viewModel.generateRotation(poolIds: Array(matchmakerPool))
+                HStack(spacing: 12) {
+                    Button("Balansera lag") {
+                        viewModel.generateBalancedMatch(poolIds: Array(matchmakerPool))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(matchmakerPool.count != 4)
+
+                    Button("Skapa rotation") {
+                        viewModel.generateRotation(poolIds: Array(matchmakerPool))
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(matchmakerPool.count < 4)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(matchmakerPool.count < 4)
             }
 
             if let rotation = viewModel.currentRotation {
                 ForEach(rotation.rounds) { round in
-                    Section("Runda \(round.roundNumber)") {
+                    Section {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Lag A: \(rotationTeamText(ids: round.teamA))")
@@ -325,6 +333,14 @@ struct SingleGameView: View {
                                 startRotationMatch(round: round)
                             }
                             .buttonStyle(.bordered)
+                        }
+                    } header: {
+                        HStack {
+                            Text("Runda \(round.roundNumber)")
+                            Spacer()
+                            Text("Rättvisa: \(round.fairness)%")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }

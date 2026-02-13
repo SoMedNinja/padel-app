@@ -48,10 +48,22 @@ private enum AdminTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+private enum AdminUserFilter: String, CaseIterable, Identifiable {
+    case all = "Alla"
+    case pending = "Väntar"
+    case regular = "Ordinarie"
+    case admin = "Admin"
+    case deleted = "Raderade"
+
+    var id: String { rawValue }
+}
+
 struct AdminView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var pendingAction: PendingAdminAction?
     @State private var selectedTab: AdminTab = .users
+    @State private var userFilter: AdminUserFilter = .all
+    @State private var userSearchText: String = ""
     @State private var selectedEvening: String = ""
     @State private var selectedReportTournamentId: UUID?
     @State private var selectedEmailTournamentId: UUID?
@@ -159,11 +171,26 @@ struct AdminView: View {
         }
     }
 
+    private var filteredAdminProfiles: [AdminProfile] {
+        viewModel.adminProfiles.filter { profile in
+            let matchesSearch = userSearchText.isEmpty || profile.name.localizedCaseInsensitiveContains(userSearchText)
+            let matchesFilter: Bool
+            switch userFilter {
+            case .all: matchesFilter = !profile.isDeleted
+            case .pending: matchesFilter = !profile.isApproved && !profile.isDeleted
+            case .regular: matchesFilter = profile.isRegular && !profile.isDeleted
+            case .admin: matchesFilter = profile.isAdmin && !profile.isDeleted
+            case .deleted: matchesFilter = profile.isDeleted
+            }
+            return matchesSearch && matchesFilter
+        }
+    }
+
     private var usersSection: some View {
         Group {
             Section("Översikt") {
-                let pendingCount = viewModel.adminProfiles.filter { !$0.isApproved }.count
-                let adminCount = viewModel.adminProfiles.filter { $0.isAdmin }.count
+                let pendingCount = viewModel.adminProfiles.filter { !$0.isApproved && !$0.isDeleted }.count
+                let adminCount = viewModel.adminProfiles.filter { $0.isAdmin && !$0.isDeleted }.count
 
                 HStack(spacing: 12) {
                     metricCard(title: "Spelare", value: "\(viewModel.adminSnapshot.playerCount)", icon: "person.2.fill", color: .blue)
@@ -179,43 +206,73 @@ struct AdminView: View {
             }
 
             Section("Användarhantering") {
-                ForEach(viewModel.adminProfiles) { profile in
+                VStack(spacing: 12) {
+                    TextField("Sök spelare...", text: $userSearchText)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.vertical, 4)
+
+                    Picker("Filtrera", selection: $userFilter) {
+                        ForEach(AdminUserFilter.allCases) { filter in
+                            Text(filter.rawValue).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+
+                ForEach(filteredAdminProfiles) { profile in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text(profile.name).font(.headline)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(profile.name).font(.headline)
+                                if profile.isDeleted {
+                                    Text("RADERAD ANVÄNDARE")
+                                        .font(.caption2.bold())
+                                        .foregroundStyle(.red)
+                                }
+                            }
                             Spacer()
-                            if profile.isApproved {
-                                Label("Godkänd", systemImage: "checkmark.seal.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(AppColors.success)
-                            } else {
-                                Label("Väntar", systemImage: "hourglass")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
+                            if !profile.isDeleted {
+                                if profile.isApproved {
+                                    Label("Godkänd", systemImage: "checkmark.seal.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(AppColors.success)
+                                } else {
+                                    Label("Väntar", systemImage: "hourglass")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
                             }
                         }
 
-                        HStack(spacing: 8) {
-                            Button(profile.isApproved ? "Dra in" : "Godkänn") { pendingAction = .toggleApproval(profile) }
+                        if !profile.isDeleted {
+                            HStack(spacing: 8) {
+                                Button(profile.isApproved ? "Dra in" : "Godkänn") { pendingAction = .toggleApproval(profile) }
+                                    .buttonStyle(.bordered)
+                                Button(profile.isAdmin ? "Ta bort admin" : "Gör till admin") { pendingAction = .toggleAdmin(profile) }
+                                    .buttonStyle(.bordered)
+                                Button(profile.isRegular ? "Ta bort ordinarie" : "Gör till ordinarie") { pendingAction = .toggleRegular(profile) }
+                                    .buttonStyle(.bordered)
+                                Button("Ändra namn") {
+                                    renamingProfile = profile
+                                    newPlayerName = profile.name
+                                }
                                 .buttonStyle(.bordered)
-                            Button(profile.isAdmin ? "Ta bort admin" : "Gör till admin") { pendingAction = .toggleAdmin(profile) }
-                                .buttonStyle(.bordered)
-                            Button(profile.isRegular ? "Ta bort ordinarie" : "Gör till ordinarie") { pendingAction = .toggleRegular(profile) }
-                                .buttonStyle(.bordered)
-                            Button("Ändra namn") {
-                                renamingProfile = profile
-                                newPlayerName = profile.name
                             }
-                            .buttonStyle(.bordered)
-                        }
-                        .font(.caption)
+                            .font(.caption)
 
-                        Button(role: .destructive) { pendingAction = .deactivate(profile) } label: {
-                            Label("Inaktivera användare", systemImage: "person.crop.circle.badge.xmark")
+                            Button(role: .destructive) { pendingAction = .deactivate(profile) } label: {
+                                Label("Inaktivera användare", systemImage: "person.crop.circle.badge.xmark")
+                            }
+                            .font(.caption)
+                        } else {
+                            Text("Inga åtgärder tillgängliga för raderad användare.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
-                        .font(.caption)
                     }
                     .padding(.vertical, 6)
+                    .opacity(profile.isDeleted ? 0.6 : 1.0)
                 }
             }
         }
