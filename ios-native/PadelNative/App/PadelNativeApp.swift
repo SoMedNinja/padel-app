@@ -35,53 +35,54 @@ struct PadelNativeApp: App {
                     if appViewModel.isCheckingSession {
                         Color(AppColors.background)
                     } else if appViewModel.isAuthenticated || appViewModel.isGuestMode {
-                    if appViewModel.isAuthenticated && appViewModel.isAwaitingApproval {
-                        VStack(spacing: 14) {
-                            Text("Väntar på godkännande")
-                                .font(.title3.bold())
-                            Text("Note for non-coders: this matches web behavior where non-admin users must be approved before full access.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                            Button("Uppdatera status") {
-                                Task {
-                                    await appViewModel.bootstrap()
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-
-                            Button("Logga ut", role: .destructive) {
-                                appViewModel.signOut()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                        .padding()
-                    } else {
-                        MainTabView()
-                    }
-                } else {
-                    VStack(spacing: 16) {
-                        if appViewModel.hasRecoveryFailed {
-                            Text("We could not restore your session")
-                                .font(.headline)
-                            if let recoveryError = appViewModel.sessionRecoveryError {
-                                Text(recoveryError)
+                        if appViewModel.isAuthenticated && appViewModel.isAwaitingApproval {
+                            VStack(spacing: 14) {
+                                Text("Väntar på godkännande")
+                                    .font(.title3.bold())
+                                Text("Note for non-coders: this matches web behavior where non-admin users must be approved before full access.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal)
-                            }
-
-                            Button("Try again") {
-                                Task {
-                                    await appViewModel.retrySessionRecovery()
+                                Button("Uppdatera status") {
+                                    Task {
+                                        await appViewModel.bootstrap()
+                                    }
                                 }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
+                                .buttonStyle(.borderedProminent)
 
-                        AuthView()
+                                Button("Logga ut", role: .destructive) {
+                                    appViewModel.signOut()
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .padding()
+                        } else {
+                            MainTabView()
+                        }
+                    } else {
+                        VStack(spacing: 16) {
+                            if appViewModel.hasRecoveryFailed {
+                                Text("We could not restore your session")
+                                    .font(.headline)
+                                if let recoveryError = appViewModel.sessionRecoveryError {
+                                    Text(recoveryError)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
+
+                                Button("Try again") {
+                                    Task {
+                                        await appViewModel.retrySessionRecovery()
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+
+                            AuthView()
+                        }
                     }
                 }
 
