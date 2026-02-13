@@ -818,7 +818,7 @@ final class AppViewModel: ObservableObject {
         let myMatches = matchesForProfile(filter: filter)
         let wins = myMatches.filter { match in
             let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamAIds.contains(currentPlayer.id)
+            let iAmTeamA = teamAIds.contains(currentPlayer.id.uuidString)
             return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         }.count
         let losses = myMatches.count - wins
@@ -832,7 +832,7 @@ final class AppViewModel: ObservableObject {
         let recentResults = myMatches.prefix(5)
         let recentWins = recentResults.filter { match in
             let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-            let iAmTeamA = teamAIds.contains(currentPlayer.id)
+            let iAmTeamA = teamAIds.contains(currentPlayer.id.uuidString)
             return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         }.count
         let recentLosses = recentResults.count - recentWins
@@ -934,8 +934,8 @@ final class AppViewModel: ObservableObject {
         var opponentGames: [UUID: Int] = [:]
 
         for match in myMatches {
-            let teamAIds = match.teamAPlayerIds.compactMap { $0 }
-            let teamBIds = match.teamBPlayerIds.compactMap { $0 }
+            let teamAIds = match.teamAPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) }
+            let teamBIds = match.teamBPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) }
             let iAmTeamA = teamAIds.contains(currentPlayer.id)
             let myTeam = iAmTeamA ? teamAIds : teamBIds
             let opponentTeam = iAmTeamA ? teamBIds : teamAIds
@@ -1150,7 +1150,7 @@ final class AppViewModel: ObservableObject {
     }
 
     func tournamentPlayerName(for profileId: UUID) -> String {
-        resolvePlayerName(playerId: profileId)
+        resolvePlayerName(playerId: profileId.uuidString)
     }
 
 
@@ -1214,7 +1214,7 @@ final class AppViewModel: ObservableObject {
         let involvingCurrent = currentPlayerMatches
         guard !involvingCurrent.isEmpty else { return 0 }
         let wins = involvingCurrent.filter { match in
-            let iAmTeamA = match.teamAPlayerIds.compactMap { $0 }.contains(currentPlayer.id)
+            let iAmTeamA = match.teamAPlayerIds.compactMap { $0 }.contains(currentPlayer.id.uuidString)
                 || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.fullName)
                 || match.teamAName.localizedCaseInsensitiveContains(currentPlayer.profileName)
             return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
@@ -2470,8 +2470,7 @@ final class AppViewModel: ObservableObject {
         for match in selectedMatches {
             let teamAWon = match.teamAScore > match.teamBScore
             let winners = teamAWon ? match.teamAPlayerIds : match.teamBPlayerIds
-            for id in winners {
-                guard let id else { continue }
+            for id in winners.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
                 winsByPlayer[id, default: 0] += 1
             }
         }
@@ -3605,12 +3604,12 @@ final class AppViewModel: ObservableObject {
                 let margin = abs(m.teamAScore - m.teamBScore)
                 let gain = max(4, margin * 2)
 
-                for id in m.teamAPlayerIds.compactMap({$0}) {
+                for id in m.teamAPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
                     rollingStats[id]?.games += 1
                     rollingStats[id]?.eloGain += teamAWon ? gain : -gain
                     if teamAWon { rollingStats[id]?.wins += 1 }
                 }
-                for id in m.teamBPlayerIds.compactMap({$0}) {
+                for id in m.teamBPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
                     rollingStats[id]?.games += 1
                     rollingStats[id]?.eloGain += teamAWon ? -gain : gain
                     if !teamAWon { rollingStats[id]?.wins += 1 }
@@ -3625,12 +3624,12 @@ final class AppViewModel: ObservableObject {
                 let margin = abs(m.teamAScore - m.teamBScore)
                 let gain = max(4, margin * 2)
 
-                for id in m.teamAPlayerIds.compactMap({$0}) {
+                for id in m.teamAPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
                     rollingStats[id]?.games -= 1
                     rollingStats[id]?.eloGain -= teamAWon ? gain : -gain
                     if teamAWon { rollingStats[id]?.wins -= 1 }
                 }
-                for id in m.teamBPlayerIds.compactMap({$0}) {
+                for id in m.teamBPlayerIds.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
                     rollingStats[id]?.games -= 1
                     rollingStats[id]?.eloGain -= teamAWon ? -gain : gain
                     if !teamAWon { rollingStats[id]?.wins -= 1 }
@@ -3800,7 +3799,7 @@ final class AppViewModel: ObservableObject {
                 guard let lastMatch = acc.lastMatch,
                       let opponent = players.first(where: { $0.id == oppId }) else { return nil }
 
-                let teamA = lastMatch.teamAPlayerIds.compactMap { $0 }
+                let teamA = lastMatch.teamAPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) }
                 let iAmTeamA = teamA.contains(playerId)
                 let didWinLast = iAmTeamA ? lastMatch.teamAScore > lastMatch.teamBScore : lastMatch.teamBScore > lastMatch.teamAScore
 

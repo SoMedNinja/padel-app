@@ -2,12 +2,14 @@ import WidgetKit
 import SwiftUI
 import ActivityKit
 
+#if APP_EXTENSION
 @main
 struct PadelWidgetBundle: WidgetBundle {
     var body: some Widget {
         LiveMatchWidgetExtension()
     }
 }
+#endif
 
 struct LiveMatchWidgetExtension: Widget {
     var body: some WidgetConfiguration {
