@@ -204,7 +204,8 @@ struct HistoryView: View {
             label = type.capitalized
         }
 
-        Text(label)
+        // Note for non-coders: SwiftUI views inside helper functions still need an explicit `return` when the function also does other setup work.
+        return Text(label)
             .font(.system(size: 8, weight: .bold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

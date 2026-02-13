@@ -52,7 +52,15 @@ class LiveMatchActivityService {
 
     func endMatchActivity() {
         Task {
-            await currentActivity?.end(dismissalPolicy: .immediate)
+            // Note for non-coders: iOS 16.2 changed how a Live Activity is closed, so we pass a final snapshot (`content`) before dismissing.
+            let finalState = LiveMatchAttributes.ContentState(teamAScore: 0, teamBScore: 0, status: "Slut")
+            let finalContent = ActivityContent(state: finalState, staleDate: nil)
+
+            if #available(iOS 16.2, *) {
+                await currentActivity?.end(finalContent, dismissalPolicy: .immediate)
+            } else {
+                await currentActivity?.end(dismissalPolicy: .immediate)
+            }
             currentActivity = nil
         }
     }
