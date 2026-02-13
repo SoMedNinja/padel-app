@@ -60,13 +60,6 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("Översikt")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Logga ut") {
-                        viewModel.signOut()
-                    }
-                }
-            }
             .padelLiquidGlassChrome()
             .task {
                 // Note for non-coders: this keeps "dismissed" cards synced with the newest match date, like the web app.
@@ -487,16 +480,8 @@ struct DashboardView: View {
                             .font(.title3.weight(.bold))
                     }
                     Spacer()
-                    AsyncImage(url: URL(string: summary.opponentAvatarURL ?? "")) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .frame(width: 50, height: 50)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.accentColor.opacity(0.2), lineWidth: 1))
+                    PlayerAvatarView(urlString: summary.opponentAvatarURL, size: 50)
+                        .overlay(Circle().stroke(Color.accentColor.opacity(0.2), lineWidth: 1))
                 }
 
                 HStack(spacing: 20) {
@@ -647,16 +632,8 @@ struct DashboardView: View {
 
     private func mvpRow(title: String, result: DashboardMVPResult) -> some View {
         HStack(spacing: 12) {
-            AsyncImage(url: URL(string: result.player.avatarURL ?? "")) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color.accentColor)
-            }
-            .frame(width: 44, height: 44)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(Color.accentColor.opacity(0.1), lineWidth: 1))
+            PlayerAvatarView(urlString: result.player.avatarURL, size: 44)
+                .overlay(Circle().stroke(Color.accentColor.opacity(0.1), lineWidth: 1))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

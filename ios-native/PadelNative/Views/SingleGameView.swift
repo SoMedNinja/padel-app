@@ -561,25 +561,7 @@ struct SingleGameView: View {
     }
 
     private func playerAvatar(_ player: Player) -> some View {
-        Group {
-            if let avatarURL = player.avatarURL,
-               let url = URL(string: avatarURL),
-               url.scheme?.hasPrefix("http") == true {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Image(systemName: "person.crop.circle")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color.accentColor)
-            }
-        }
-        .frame(width: 42, height: 42)
-        .clipShape(Circle())
+        PlayerAvatarView(urlString: player.avatarURL, size: 42)
     }
 
     private func tileBackground(isSelected: Bool) -> some View {

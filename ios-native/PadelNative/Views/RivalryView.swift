@@ -50,16 +50,8 @@ struct RivalryView: View {
 
     private func playerCard(player: Player?, label: String) -> some View {
         VStack(spacing: 8) {
-            AsyncImage(url: URL(string: player?.avatarURL ?? "")) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .frame(width: 64, height: 64)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(Color.accentColor.opacity(0.2), lineWidth: 1))
+            PlayerAvatarView(urlString: player?.avatarURL, size: 64)
+                .overlay(Circle().stroke(Color.accentColor.opacity(0.2), lineWidth: 1))
 
             Text(player?.profileName ?? "Okänd")
                 .font(.subheadline.weight(.bold))

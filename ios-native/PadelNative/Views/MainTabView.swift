@@ -63,10 +63,16 @@ struct MainTabView: View {
             if viewModel.canUseAdmin {
                 AdminView()
                     .tabItem {
-                        Label("Admin", systemImage: "gearshape.2")
+                        Label("Admin", systemImage: "person.badge.key")
                     }
                     .tag(6)
             }
+
+            SettingsView()
+                .tabItem {
+                    Label("Inställningar", systemImage: "gearshape")
+                }
+                .tag(7)
         }
         .overlay(alignment: .top) {
             VStack(spacing: 8) {

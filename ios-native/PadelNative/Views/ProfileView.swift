@@ -8,7 +8,6 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
     case eloTrend
     case teammates
     case merits
-    case more
 
     var id: String { rawValue }
 
@@ -18,7 +17,6 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
         case .eloTrend: return "ELO trend"
         case .teammates: return "Lagkamrater"
         case .merits: return "Meriter"
-        case .more: return "Mer"
         }
     }
 }
@@ -37,6 +35,7 @@ struct ProfileView: View {
     @State private var selectedFilter: DashboardMatchFilter = .all
     @State private var compareWithIds: Set<UUID> = []
     @State private var selectedMeritSection: String = "earned"
+    @State private var isEditingName = false
 
     @State private var chartSelection: Date?
     @State private var showCropper = false
@@ -50,17 +49,13 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    tabSelector
-                    profileFilterSelector
-
                     if let current = viewModel.currentPlayer {
+                        headerSection(current)
+                        tabSelector
                         selectedTabContent(for: current)
                     } else if viewModel.isGuestMode {
-                        if selectedTab == .more {
-                            moreTabGuest
-                        } else {
-                            guestModeSection
-                        }
+                        tabSelector
+                        guestModeSection
                     }
                 }
                 .padding()
@@ -80,31 +75,6 @@ struct ProfileView: View {
             }
         }
         .pickerStyle(.segmented)
-    }
-
-    private var profileFilterSelector: some View {
-        SectionCard(title: "Profilfilter") {
-            Picker("Filter", selection: $selectedFilter) {
-                ForEach(profileFilterOptions) { filter in
-                    Text(filter.title).tag(filter)
-                }
-            }
-            .pickerStyle(.menu)
-
-            if selectedFilter == .custom {
-                DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
-                DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
-
-                Button("Återställ") {
-                    selectedFilter = .all
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Text("Aktivt filter: \(selectedFilter == .custom ? viewModel.dashboardActiveFilterLabel : selectedFilter.title)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
     }
 
 
@@ -133,42 +103,6 @@ struct ProfileView: View {
             teammatesTab
         case .merits:
             meritsTab(current)
-        case .more:
-            moreTab(current)
-        }
-    }
-
-    private func moreTab(_ current: Player) -> some View {
-        VStack(spacing: 20) {
-            accountSection
-
-            SectionCard(title: "Hantering") {
-                Button(role: .destructive) {
-                    viewModel.signOut()
-                } label: {
-                    Label("Logga ut", systemImage: "rectangle.portrait.and.arrow.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-    }
-
-    private var moreTabGuest: some View {
-        VStack(spacing: 20) {
-            SectionCard(title: "Inloggning") {
-                Text("Du är i gästläge. Logga in för att spara matcher och hantera din profil.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                Button {
-                    viewModel.exitGuestMode()
-                } label: {
-                    Label("Gå till inloggning", systemImage: "person.badge.key")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-            }
         }
     }
 
@@ -181,11 +115,153 @@ struct ProfileView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            currentPlayerSection(current)
-            profileSetupSection
             performanceSection
             synergyRivalrySection
-            navigationActionsSection
+        }
+    }
+
+    private func headerSection(_ current: Player) -> some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 20) {
+                ZStack(alignment: .bottomTrailing) {
+                    PlayerAvatarView(urlString: current.avatarURL, size: 100)
+                        .shadow(radius: 4)
+
+                    Menu {
+                        PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
+                            Label("Välj ny bild", systemImage: "photo")
+                        }
+                        Button(role: .destructive) {
+                            viewModel.profileAvatarURLInput = ""
+                            Task { await viewModel.saveProfileSetup() }
+                        } label: {
+                            Label("Ta bort bild", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemImage: "camera.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white)
+                            .padding(8)
+                            .background(Color.accentColor)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        if isEditingName {
+                            TextField("Namn", text: $viewModel.profileDisplayNameDraft)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.title3.bold())
+                                .onSubmit {
+                                    Task { await viewModel.saveProfileSetup() }
+                                    isEditingName = false
+                                }
+                            Button {
+                                Task { await viewModel.saveProfileSetup() }
+                                isEditingName = false
+                            } label: {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            }
+                        } else {
+                            Text(current.profileName)
+                                .font(.title2.bold())
+
+                            Button {
+                                viewModel.profileDisplayNameDraft = current.profileName
+                                isEditingName = true
+                            } label: {
+                                Image(systemName: "pencil.circle")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    HStack(spacing: 4) {
+                        Text("ELO: \(current.elo)")
+                            .font(.headline)
+                            .foregroundStyle(Color.accentColor)
+
+                        if let badgeId = current.featuredBadgeId,
+                           let badgeLabel = BadgeService.getBadgeIconById(badgeId) {
+                            Text("•")
+                                .foregroundStyle(.secondary)
+                            Text(badgeLabel)
+                                .font(.subheadline)
+                        }
+                    }
+
+                    let earned = viewModel.currentPlayerBadges.filter { $0.earned }
+                    if earned.isEmpty {
+                        Text(viewModel.highlightedBadgeTitle)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.secondary.opacity(0.1), in: Capsule())
+                    } else {
+                        Menu {
+                            ForEach(earned) { badge in
+                                Button {
+                                    viewModel.selectedFeaturedBadgeId = badge.id
+                                    Task { await viewModel.saveProfileSetup() }
+                                } label: {
+                                    Label(badge.title, systemImage: (viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id ? "checkmark.circle.fill" : "circle")
+                                }
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                viewModel.selectedFeaturedBadgeId = nil
+                                Task { await viewModel.saveProfileSetup() }
+                            } label: {
+                                Label("Ingen merit", systemImage: "xmark.circle")
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(viewModel.highlightedBadgeTitle)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8))
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.accentColor.opacity(0.1), in: Capsule())
+                        }
+                    }
+                }
+                Spacer()
+            }
+
+            if let message = viewModel.profileSetupMessage {
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .onChange(of: selectedAvatarItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                if let data = try? await newItem.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    imageToCrop = image
+                    showCropper = true
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showCropper) {
+            if let image = imageToCrop {
+                CircularAvatarCropperView(image: image, isPresented: $showCropper) { croppedImage in
+                    if let resizedData = croppedImage.jpegData(compressionQuality: 0.7) {
+                        let base64 = resizedData.base64EncodedString()
+                        viewModel.profileAvatarURLInput = "data:image/jpeg;base64,\(base64)"
+                        Task { await viewModel.saveProfileSetup() }
+                    }
+                }
+            }
         }
     }
 
@@ -193,17 +269,34 @@ struct ProfileView: View {
         SectionCard(title: "ELO-tidslinje") {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Jämför med (max 3):")
+                    Text("Jämför med:")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
+                            Button {
+                                if compareWithIds.count == viewModel.players.count - 1 {
+                                    compareWithIds = []
+                                } else {
+                                    compareWithIds = Set(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }.map { $0.id })
+                                }
+                            } label: {
+                                Text("Alla")
+                                    .font(.caption2)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(compareWithIds.count == viewModel.players.count - 1 && !compareWithIds.isEmpty ? Color.accentColor : Color(.systemGray5))
+                                    .foregroundStyle(compareWithIds.count == viewModel.players.count - 1 && !compareWithIds.isEmpty ? .white : .primary)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+
                             ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
                                 Button {
                                     if compareWithIds.contains(player.id) {
                                         compareWithIds.remove(player.id)
-                                    } else if compareWithIds.count < 3 {
+                                    } else {
                                         compareWithIds.insert(player.id)
                                     }
                                 } label: {
@@ -222,7 +315,7 @@ struct ProfileView: View {
                     }
                 }
 
-                let myPoints = viewModel.profileEloTimeline(filter: selectedFilter)
+                let myPoints = viewModel.profileEloTimeline(filter: .all)
 
                 if myPoints.count <= 1 && compareWithIds.isEmpty {
                     Text("Spela fler matcher för att se din ELO-trend.")
@@ -538,112 +631,7 @@ struct ProfileView: View {
         }
     }
 
-    private var accountSection: some View {
-        SectionCard(title: "Konto") {
-            if let email = viewModel.signedInEmail {
-                Label(email, systemImage: "envelope")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Text(viewModel.profileSetupPrompt)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
 
-            Toggle("Påminn mig om kommande matcher (notiser)", isOn: Binding(
-                get: { viewModel.areScheduleNotificationsEnabled },
-                set: { enabled in
-                    Task { await viewModel.setScheduleNotificationsEnabled(enabled) }
-                }
-            ))
-
-            Toggle("Lås upp appen med Face ID / Touch ID", isOn: Binding(
-                get: { viewModel.isBiometricLockEnabled },
-                set: { enabled in
-                    Task { await viewModel.setBiometricLockEnabled(enabled) }
-                }
-            ))
-        }
-    }
-
-    private func currentPlayerSection(_ current: Player) -> some View {
-        SectionCard(title: "Nuvarande spelare") {
-            HStack {
-                profileAvatarView(urlString: current.avatarURL)
-                    .frame(width: 56, height: 56)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(current.profileName)
-                        .font(.title3).bold()
-                    Text("ELO: \(current.elo)")
-                        .foregroundStyle(.secondary)
-                    Text("Vald merit: \(viewModel.highlightedBadgeTitle)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-        }
-    }
-
-    private var profileSetupSection: some View {
-        SectionCard(title: "Profilinställningar") {
-            TextField("Visningsnamn", text: $viewModel.profileDisplayNameDraft)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
-                .textFieldStyle(.roundedBorder)
-
-            TextField("Avatar-URL (valfri)", text: $viewModel.profileAvatarURLInput)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .textFieldStyle(.roundedBorder)
-
-            PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
-                Label("Välj bild från mobilen", systemImage: "photo")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .onChange(of: selectedAvatarItem) { _, newItem in
-                guard let newItem else { return }
-                Task {
-                    if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        imageToCrop = image
-                        showCropper = true
-                    }
-                }
-            }
-            .fullScreenCover(isPresented: $showCropper) {
-                if let image = imageToCrop {
-                    CircularAvatarCropperView(image: image, isPresented: $showCropper) { croppedImage in
-                        if let resizedData = croppedImage.jpegData(compressionQuality: 0.7) {
-                            let base64 = resizedData.base64EncodedString()
-                            viewModel.profileAvatarURLInput = "data:image/jpeg;base64,\(base64)"
-                        }
-                    }
-                }
-            }
-
-            if let message = viewModel.profileSetupMessage {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button {
-                Task { await viewModel.saveProfileSetup() }
-            } label: {
-                if viewModel.isSavingProfileSetup {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Label("Spara inställningar", systemImage: "square.and.arrow.down")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(viewModel.isSavingProfileSetup)
-        }
-    }
 
     private func badgesSection(_ current: Player) -> some View {
         SectionCard(title: "Merits & badges") {
@@ -764,39 +752,7 @@ struct ProfileView: View {
         }
     }
 
-    private var navigationActionsSection: some View {
-        SectionCard(title: "Snabbval") {
-            HStack {
-                Button("Senaste 7d") {
-                    viewModel.openDashboardFiltered(.last7)
-                }
-                .buttonStyle(.bordered)
 
-                Button("Turnering") {
-                    viewModel.openDashboardFiltered(.tournaments)
-                }
-                .buttonStyle(.bordered)
-
-                Button("Historik") {
-                    viewModel.openHistoryTab()
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-    }
-
-    private func permissionsSection(_ current: Player) -> some View {
-        SectionCard(title: "Behörigheter") {
-            Label(current.isRegular ? "Åtkomst till schema: JA" : "Åtkomst till schema: NEJ", systemImage: current.isRegular ? "checkmark.circle" : "xmark.circle")
-            Label(current.isAdmin ? "Adminverktyg: JA" : "Adminverktyg: NEJ", systemImage: current.isAdmin ? "checkmark.shield" : "shield.slash")
-
-            if viewModel.isAwaitingApproval {
-                Text("Ditt konto väntar på admin-godkännande.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
 
     @available(iOS 17.0, *)
     @ViewBuilder
@@ -907,27 +863,6 @@ struct ProfileView: View {
         }
     }
 
-    @ViewBuilder
-    private func profileAvatarView(urlString: String?) -> some View {
-        if let urlString, let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                avatarFallback
-            }
-            .clipShape(Circle())
-        } else {
-            avatarFallback
-        }
-    }
-
-    private var avatarFallback: some View {
-        Image(systemName: "person.crop.circle.fill")
-            .font(.system(size: 42))
-            .foregroundStyle(Color.accentColor)
-            .frame(width: 56, height: 56)
-            .background(Circle().fill(Color.accentColor.opacity(0.15)))
-    }
 
     private func resizeAvatarImageData(_ data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
