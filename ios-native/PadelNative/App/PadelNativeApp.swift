@@ -26,18 +26,15 @@ struct PadelNativeApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appViewModel = AppViewModel()
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if appViewModel.isCheckingSession {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                        Text("Kontrollerar din session…")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                } else if appViewModel.isAuthenticated || appViewModel.isGuestMode {
+            ZStack {
+                Group {
+                    if appViewModel.isCheckingSession {
+                        Color(AppColors.background)
+                    } else if appViewModel.isAuthenticated || appViewModel.isGuestMode {
                     if appViewModel.isAuthenticated && appViewModel.isAwaitingApproval {
                         VStack(spacing: 14) {
                             Text("Väntar på godkännande")
@@ -87,8 +84,21 @@ struct PadelNativeApp: App {
                         AuthView()
                     }
                 }
+
+                if showSplash {
+                    SplashScreenView()
+                        .transition(.opacity)
+                        .zIndex(10)
+                }
             }
             .environmentObject(appViewModel)
+            .task {
+                // Minimum splash duration to ensure animation finishes
+                try? await Task.sleep(nanoseconds: 2_800_000_000)
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    showSplash = false
+                }
+            }
             .task {
                 await appViewModel.restoreSession()
             }

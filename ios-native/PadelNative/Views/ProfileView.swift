@@ -52,7 +52,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     if let current = viewModel.currentPlayer {
                         headerSection(current)
                         tabSelector
@@ -62,7 +62,9 @@ struct ProfileView: View {
                         guestModeSection
                     }
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 4)
+                .padding(.bottom, 40)
             }
             .background(AppColors.background)
             .navigationTitle("Profil")
@@ -75,12 +77,32 @@ struct ProfileView: View {
     }
 
     private var tabSelector: some View {
-        Picker("Profile tab", selection: $selectedTab) {
-            ForEach(ProfileTab.allCases) { tab in
-                Text(tab.title).tag(tab)
+        VStack(spacing: 12) {
+            Picker("Profile tab", selection: $selectedTab) {
+                ForEach(ProfileTab.allCases) { tab in
+                    Text(tab.title).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if selectedTab == .overview || selectedTab == .eloTrend {
+                SectionCard(title: "Filter") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Picker("Period", selection: $selectedFilter) {
+                            ForEach(profileFilterOptions) { filter in
+                                Text(filter.title).tag(filter)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        if selectedFilter == .custom {
+                            DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
+                            DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+                        }
+                    }
+                }
             }
         }
-        .pickerStyle(.segmented)
     }
 
 
@@ -193,20 +215,13 @@ struct ProfileView: View {
                             .foregroundStyle(AppColors.brandPrimary)
 
                         if let badgeId = current.featuredBadgeId,
-                           let badgeLabel = BadgeService.getBadgeIconById(badgeId) {
+                           let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
                             Text("•")
                                 .foregroundStyle(AppColors.textSecondary)
-                            Text(badgeLabel)
+                            Text(badgeIcon)
                                 .font(.inter(.subheadline))
                         }
                     }
-
-                    Text(viewModel.highlightedBadgeTitle)
-                        .font(.inter(.caption, weight: .bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(AppColors.textSecondary.opacity(0.1), in: Capsule())
-                        .foregroundStyle(AppColors.textSecondary)
                 }
                 Spacer()
             }
@@ -292,18 +307,19 @@ struct ProfileView: View {
                     }
                 }
 
-                let myPoints = viewModel.profileEloTimeline(filter: .all)
+                let playerIds = (viewModel.currentPlayer?.id).map { [$0] + Array(compareWithIds) } ?? Array(compareWithIds)
+                let timeline = viewModel.buildComparisonTimeline(playerIds: playerIds, filter: selectedFilter)
 
-                if myPoints.count <= 1 && compareWithIds.isEmpty {
+                if timeline.count <= 1 {
                     Text("Spela fler matcher för att se din ELO-trend.")
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 40)
                         .frame(maxWidth: .infinity)
                 } else {
                     if #available(iOS 17.0, *) {
-                        chartWithScrubbing(myPoints: myPoints)
+                        chartWithScrubbing(timeline: timeline, playerIds: playerIds)
                     } else {
-                        chartStatic(myPoints: myPoints)
+                        chartStatic(timeline: timeline, playerIds: playerIds)
                     }
                 }
             }
@@ -724,17 +740,19 @@ struct ProfileView: View {
 
 
 
+    @State private var chartSelectionIndex: Int?
+
     @available(iOS 17.0, *)
     @ViewBuilder
-    private func chartWithScrubbing(myPoints: [ProfileEloPoint]) -> some View {
+    private func chartWithScrubbing(timeline: [ComparisonTimelinePoint], playerIds: [UUID]) -> some View {
         VStack(alignment: .leading) {
-            if let selection = chartSelection {
-                let selectedPoint = myPoints.min(by: { abs($0.date.timeIntervalSince(selection)) < abs($1.date.timeIntervalSince(selection)) })
-                if let point = selectedPoint {
-                    Text("\(point.date, format: .dateTime.day().month().year())")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(point.elo) ELO")
+            if let index = chartSelectionIndex, index < timeline.count {
+                let point = timeline[index]
+                Text("\(point.date, format: .dateTime.day().month().year().hour().minute())")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let currentId = viewModel.currentPlayer?.id, let elo = point.elos[currentId] {
+                    Text("\(elo) ELO")
                         .font(.headline)
                         .foregroundStyle(Color.accentColor)
                 }
@@ -746,38 +764,29 @@ struct ProfileView: View {
                     .font(.headline)
             }
 
-            let chartData = chartSeries(myPoints: myPoints)
-            let domain = chartYDomain(series: chartData)
+            let domain = chartYDomain(timeline: timeline)
 
             Chart {
-                ForEach(myPoints) { point in
-                    LineMark(
-                        x: .value("Datum", point.date),
-                        y: .value("ELO", point.elo),
-                        series: .value("Spelare", "Du")
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(colorForSeries(name: "Du", index: 0))
-                    .symbol(by: .value("Spelare", "Du"))
-                }
+                ForEach(playerIds, id: \.self) { pid in
+                    let name = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
+                    let color = colorForSeries(name: name, index: playerIds.firstIndex(of: pid) ?? 0)
 
-                ForEach(Array(compareWithIds), id: \.self) { otherId in
-                    let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
-                    let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
-                    ForEach(otherPoints) { point in
-                        LineMark(
-                            x: .value("Datum", point.date),
-                            y: .value("ELO", point.elo),
-                            series: .value("Spelare", name)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(colorForSeries(name: name, index: chartData.firstIndex(where: { $0.name == name }) ?? 1))
-                        .symbol(by: .value("Spelare", name))
+                    ForEach(timeline) { point in
+                        if let elo = point.elos[pid] {
+                            LineMark(
+                                x: .value("Match", point.id),
+                                y: .value("ELO", elo),
+                                series: .value("Spelare", name)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(color)
+                            .symbol(by: .value("Spelare", name))
+                        }
                     }
                 }
 
-                if let selection = chartSelection {
-                    RuleMark(x: .value("Vald", selection))
+                if let index = chartSelectionIndex {
+                    RuleMark(x: .value("Vald", index))
                         .foregroundStyle(Color.secondary.opacity(0.3))
                         .offset(y: -10)
                         .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .disabled)) {
@@ -791,44 +800,41 @@ struct ProfileView: View {
             .chartYScale(domain: domain)
             .chartLegend(.visible)
             .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { value in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.day().month())
+                AxisMarks(values: .stride(by: 1)) { value in
+                    if let index = value.as(Int.self), index < timeline.count {
+                        if index % max(1, timeline.count / 5) == 0 {
+                            AxisGridLine()
+                            AxisValueLabel {
+                                Text(timeline[index].date, format: .dateTime.day().month())
+                            }
+                        }
+                    }
                 }
             }
-            .chartXSelection(value: $chartSelection)
+            .chartXSelection(value: $chartSelectionIndex)
         }
     }
 
     @ViewBuilder
-    private func chartStatic(myPoints: [ProfileEloPoint]) -> some View {
-        let chartData = chartSeries(myPoints: myPoints)
-        let domain = chartYDomain(series: chartData)
+    private func chartStatic(timeline: [ComparisonTimelinePoint], playerIds: [UUID]) -> some View {
+        let domain = chartYDomain(timeline: timeline)
 
         Chart {
-            ForEach(myPoints) { point in
-                LineMark(
-                    x: .value("Datum", point.date),
-                    y: .value("ELO", point.elo),
-                    series: .value("Spelare", "Du")
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(colorForSeries(name: "Du", index: 0))
-                .symbol(by: .value("Spelare", "Du"))
-            }
+            ForEach(playerIds, id: \.self) { pid in
+                let name = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
+                let color = colorForSeries(name: name, index: playerIds.firstIndex(of: pid) ?? 0)
 
-            ForEach(Array(compareWithIds), id: \.self) { otherId in
-                let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
-                let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
-                ForEach(otherPoints) { point in
-                    LineMark(
-                        x: .value("Datum", point.date),
-                        y: .value("ELO", point.elo),
-                        series: .value("Spelare", name)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(colorForSeries(name: name, index: chartData.firstIndex(where: { $0.name == name }) ?? 1))
-                    .symbol(by: .value("Spelare", name))
+                ForEach(timeline) { point in
+                    if let elo = point.elos[pid] {
+                        LineMark(
+                            x: .value("Match", point.id),
+                            y: .value("ELO", elo),
+                            series: .value("Spelare", name)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(color)
+                        .symbol(by: .value("Spelare", name))
+                    }
                 }
             }
         }
@@ -836,9 +842,15 @@ struct ProfileView: View {
         .chartYScale(domain: domain)
         .chartLegend(.visible)
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day, count: 7)) { value in
-                AxisGridLine()
-                AxisValueLabel(format: .dateTime.day().month())
+            AxisMarks(values: .stride(by: 1)) { value in
+                if let index = value.as(Int.self), index < timeline.count {
+                    if index % max(1, timeline.count / 5) == 0 {
+                        AxisGridLine()
+                        AxisValueLabel {
+                            Text(timeline[index].date, format: .dateTime.day().month())
+                        }
+                    }
+                }
             }
         }
     }
@@ -854,18 +866,8 @@ struct ProfileView: View {
         return rendered.jpegData(compressionQuality: 0.72)
     }
 
-    private func chartSeries(myPoints: [ProfileEloPoint]) -> [(name: String, points: [ProfileEloPoint])] {
-        var series: [(name: String, points: [ProfileEloPoint])] = [("Du", myPoints)]
-        for otherId in compareWithIds {
-            let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
-            let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
-            series.append((name, otherPoints))
-        }
-        return series
-    }
-
-    private func chartYDomain(series: [(name: String, points: [ProfileEloPoint])]) -> ClosedRange<Double> {
-        let values = series.flatMap { $0.points.map { Double($0.elo) } }
+    private func chartYDomain(timeline: [ComparisonTimelinePoint]) -> ClosedRange<Double> {
+        let values = timeline.flatMap { $0.elos.values.map { Double($0) } }
         guard let minValue = values.min(), let maxValue = values.max() else {
             return 900...1100
         }

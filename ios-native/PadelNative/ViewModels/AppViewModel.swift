@@ -8,6 +8,13 @@ struct ProfileEloPoint: Identifiable {
     let elo: Int
 }
 
+struct ComparisonTimelinePoint: Identifiable {
+    let id: Int // Sequential index for X-axis
+    let date: Date
+    let matchId: UUID
+    let elos: [UUID: Int] // PlayerID -> Elo
+}
+
 struct ProfileComboStat: Identifiable {
     let id: String
     let title: String
@@ -945,6 +952,82 @@ final class AppViewModel: ObservableObject {
     func profileEloTimeline(filter: DashboardMatchFilter) -> [ProfileEloPoint] {
         guard let currentId = currentPlayer?.id else { return [] }
         return playerEloTimeline(playerId: currentId, filter: filter)
+    }
+
+    func buildComparisonTimeline(playerIds: [UUID], filter: DashboardMatchFilter) -> [ComparisonTimelinePoint] {
+        guard !playerIds.isEmpty else { return [] }
+
+        // 1. Collect all match entries for all requested players within the filtered set
+        var timelineEntries: [Match] = []
+        let filteredMatches = Set(filteredMatches(allMatches, filter: filter).map { $0.id })
+
+        for pid in playerIds {
+            if let stats = playerBadgeStats[pid] {
+                for entry in stats.eloHistory {
+                    if filteredMatches.contains(entry.matchId) {
+                        if !timelineEntries.contains(where: { $0.id == entry.matchId }) {
+                            if let match = allMatches.first(where: { $0.id == entry.matchId }) {
+                                timelineEntries.append(match)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Sort timeline entries chronologically
+        // Align with PWA: if same date, sort by ID to ensure stable order
+        let sortedTimeline = timelineEntries.sorted { lhs, rhs in
+            if lhs.playedAt != rhs.playedAt {
+                return lhs.playedAt < rhs.playedAt
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+
+        if sortedTimeline.isEmpty { return [] }
+
+        // 3. Build the timeline rows by tracking each player's ELO at each match point
+        var result: [ComparisonTimelinePoint] = []
+        var lastKnownElos: [UUID: Int] = [:]
+
+        // Initialize lastKnownElos with the ELO before their first match in the visible timeline
+        for pid in playerIds {
+            lastKnownElos[pid] = 1000 // Default fallback
+
+            if let stats = playerBadgeStats[pid], let firstVisibleMatch = sortedTimeline.first {
+                // Find the latest history entry before the first match in our timeline
+                if let matchIndex = stats.eloHistory.firstIndex(where: { $0.matchId == firstVisibleMatch.id }) {
+                    if matchIndex > 0 {
+                        // Use ELO from the previous match
+                        lastKnownElos[pid] = stats.eloHistory[matchIndex - 1].elo
+                    } else {
+                        // First visible match IS the first match ever
+                        lastKnownElos[pid] = stats.eloHistory[0].elo - stats.eloHistory[0].delta
+                    }
+                } else {
+                    // Player has no matches in the visible timeline, use their current ELO or 1000
+                    lastKnownElos[pid] = stats.currentElo
+                }
+            }
+        }
+
+        for (index, match) in sortedTimeline.enumerated() {
+            for pid in playerIds {
+                if let stats = playerBadgeStats[pid],
+                   let entry = stats.eloHistory.first(where: { $0.matchId == match.id }) {
+                    lastKnownElos[pid] = entry.elo
+                }
+            }
+
+            result.append(ComparisonTimelinePoint(
+                id: index,
+                date: match.playedAt,
+                matchId: match.id,
+                elos: lastKnownElos
+            ))
+        }
+
+        return result
     }
 
     func profileComboStats(filter: DashboardMatchFilter) -> [ProfileComboStat] {

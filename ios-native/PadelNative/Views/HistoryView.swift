@@ -17,11 +17,13 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     filterSection
                     matchesSection
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 4)
+                .padding(.bottom, 40)
             }
             .background(AppColors.background)
             .navigationTitle("Historik")
@@ -96,7 +98,12 @@ struct HistoryView: View {
     }
 
     private var matchesSection: some View {
-        SectionCard(title: "Matcher") {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Matcher")
+                .font(.inter(.headline, weight: .bold))
+                .foregroundStyle(AppColors.textPrimary)
+                .padding(.horizontal, 4)
+
             if viewModel.isHistoryLoading {
                 HStack {
                     Spacer()
@@ -106,75 +113,124 @@ struct HistoryView: View {
                 }
                 .padding(.vertical, 20)
             } else if viewModel.historyFilteredMatches.isEmpty {
-                Text("Inga matcher hittades för valt filter.")
-                    .font(.inter(.body))
-                    .foregroundStyle(AppColors.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 20)
+                SectionCard(title: "") {
+                    Text("Inga matcher hittades för valt filter.")
+                        .font(.inter(.body))
+                        .foregroundStyle(AppColors.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 20)
+                }
             } else {
-                VStack(spacing: 0) {
-                    ForEach(viewModel.historyFilteredMatches) { match in
-                        NavigationLink {
-                            MatchDetailView(match: match)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("\(match.teamAName) vs \(match.teamBName)")
-                                        .font(.inter(.headline, weight: .bold))
-                                        .foregroundStyle(AppColors.textPrimary)
-                                    Spacer()
-                                    typeLabelChip(for: match)
-                                }
-
-                                Text(scoreLabel(match))
-                                    .font(.inter(.subheadline, weight: .semibold))
-                                    .foregroundStyle(AppColors.textPrimary)
-
-                                Text(formatter.string(from: match.playedAt))
-                                    .font(.inter(.caption))
-                                    .foregroundStyle(AppColors.textSecondary)
-                            }
-                            .padding(.vertical, 12)
-                        }
-                        .overlay(alignment: .trailing) {
-                            Menu {
-                                if viewModel.canDeleteMatch(match) {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.deleteMatch(match) }
-                                    } label: {
-                                        Label("Radera", systemImage: "trash")
-                                    }
-                                }
-
-                                Button {
-                                    shareMatch(match)
-                                } label: {
-                                    Label("Dela", systemImage: "square.and.arrow.up")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                                    .font(.title3)
-                                    .foregroundStyle(AppColors.brandPrimary)
-                                    .padding(8)
-                            }
-                        }
+                ForEach(viewModel.historyFilteredMatches) { match in
+                    matchCard(match)
                         .onAppear {
                             Task { await viewModel.loadMoreHistoryMatchesIfNeeded(currentMatch: match) }
                         }
+                }
 
-                        if match.id != viewModel.historyFilteredMatches.last?.id {
-                            Divider()
-                                .background(AppColors.borderSubtle)
-                        }
+                if viewModel.isHistoryLoadingMore {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
                     }
+                    .padding(.top, 10)
+                }
+            }
+        }
+    }
 
-                    if viewModel.isHistoryLoadingMore {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
+    private func matchCard(_ match: Match) -> some View {
+        NavigationLink {
+            MatchDetailView(match: match)
+        } label: {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    typeLabelChip(for: match)
+                    Text(formatter.string(from: match.playedAt))
+                        .font(.inter(.caption))
+                        .foregroundStyle(AppColors.textSecondary)
+                    Spacer()
+
+                    Menu {
+                        if viewModel.canDeleteMatch(match) {
+                            Button(role: .destructive) {
+                                Task { await viewModel.deleteMatch(match) }
+                            } label: {
+                                Label("Radera", systemImage: "trash")
+                            }
                         }
-                        .padding(.top, 10)
+
+                        Button {
+                            shareMatch(match)
+                        } label: {
+                            Label("Dela", systemImage: "square.and.arrow.up")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(AppColors.textSecondary)
+                            .padding(4)
+                    }
+                }
+
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .center, spacing: 4) {
+                        Text(scoreLabel(match))
+                            .font(.inter(.title3, weight: .black))
+                            .foregroundStyle(AppColors.textPrimary)
+                        Text(match.scoreType == "points" ? "poäng" : "set")
+                            .font(.inter(.caption2, weight: .bold))
+                            .foregroundStyle(AppColors.textSecondary)
+                            .textCase(.uppercase)
+                    }
+                    .frame(width: 80)
+
+                    Rectangle()
+                        .fill(AppColors.borderSubtle)
+                        .frame(width: 1)
+                        .frame(maxHeight: .infinity)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        teamDisplay(names: match.teamANames, ids: match.teamAPlayerIds, match: match, isTeamA: true)
+                        Divider().background(AppColors.borderSubtle.opacity(0.5))
+                        teamDisplay(names: match.teamBNames, ids: match.teamBPlayerIds, match: match, isTeamA: false)
+                    }
+                }
+            }
+            .padding()
+            .padelSurfaceCard()
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func teamDisplay(names: [String], ids: [String?], match: Match, isTeamA: Bool) -> some View {
+        let isWinner = isTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+        let breakdown = viewModel.eloBreakdown(for: match)
+
+        return VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(ids.enumerated()), id: \.offset) { idx, idString in
+                let name = idx < names.count ? names[idx] : "Spelare"
+                if !name.isEmpty {
+                    HStack(spacing: 8) {
+                        if isWinner {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(AppColors.success)
+                        }
+
+                        Text(name)
+                            .font(.inter(.subheadline, weight: isWinner ? .bold : .medium))
+                            .foregroundStyle(isWinner ? AppColors.textPrimary : AppColors.textSecondary)
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        if let row = breakdown.first(where: { $0.playerName == name || ($0.id.uuidString.lowercased() == idString?.lowercased()) }) {
+                            Text("\(row.delta >= 0 ? "+" : "")\(row.delta)")
+                                .font(.inter(.caption2, weight: .bold))
+                                .foregroundStyle(row.delta >= 0 ? AppColors.success : AppColors.error)
+                        }
                     }
                 }
             }
@@ -182,13 +238,7 @@ struct HistoryView: View {
     }
 
     private func scoreLabel(_ match: Match) -> String {
-        let scoreType = match.scoreType ?? "sets"
-        let score = "\(match.teamAScore) – \(match.teamBScore)"
-        if scoreType == "points" {
-            let target = match.scoreTarget.map { " (till \($0))" } ?? ""
-            return "\(score) poäng\(target)"
-        }
-        return "\(score) set"
+        "\(match.teamAScore) – \(match.teamBScore)"
     }
 
     private func shareMatch(_ match: Match) {

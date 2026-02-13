@@ -21,16 +21,14 @@ struct ScheduleView: View {
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = AppConfig.swedishLocale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
+        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMM yyyy")
         return formatter
     }()
 
     private let gameFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = AppConfig.swedishLocale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMM yyyy HH:mm")
         return formatter
     }()
 
@@ -62,14 +60,16 @@ struct ScheduleView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     statusSection
                     pollCardsSection
                     adminSection
                     calendarInviteSection
                     scheduledGamesSection
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 4)
+                .padding(.bottom, 40)
             }
             .background(AppColors.background)
             .navigationTitle("Schema")
