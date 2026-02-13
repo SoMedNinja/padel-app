@@ -363,6 +363,8 @@ final class AppViewModel: ObservableObject {
     @Published var dashboardFilter: DashboardMatchFilter = .all
     @Published var dashboardCustomStartDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
     @Published var dashboardCustomEndDate: Date = .now
+    @Published var dashboardRivalryOpponentId: UUID?
+    @Published var dashboardRivalryMode: String = "against"
     @Published var isDashboardLoading = false
     @Published var selectedMainTab = 1
     @Published var playerBadgeStats: [UUID: PlayerBadgeStats] = [:]
@@ -375,6 +377,7 @@ final class AppViewModel: ObservableObject {
     @Published var mexicanoWins: Int = 0
     @Published var currentMonthlyMvpDays: Int = 0
     @Published var currentEveningMvps: Int = 0
+    @Published var teammateFilterPlayerId: UUID?
     @Published var heatmapCombos: [HeatmapCombo] = []
     @Published var historyFilters = HistoryFilterState()
     @Published var historyMatches: [Match] = []
@@ -3250,8 +3253,44 @@ final class AppViewModel: ObservableObject {
         return names
     }
     func generateRotation(poolIds: [UUID]) {
-        let eloMap = players.reduce(into: [UUID: Int]()) { $0[$1.id] = $1.elo }
+        let eloMap = playerBadgeStats.reduce(into: [UUID: Int]()) { $0[$1.key] = $1.value.currentElo }
         self.currentRotation = RotationService.buildRotationSchedule(pool: poolIds, eloMap: eloMap)
+    }
+
+    func generateBalancedMatch(poolIds: [UUID]) {
+        guard poolIds.count == 4 else { return }
+        let eloMap = playerBadgeStats.reduce(into: [UUID: Int]()) { $0[$1.key] = $1.value.currentElo }
+
+        let p1 = poolIds[0]
+        let p2 = poolIds[1]
+        let p3 = poolIds[2]
+        let p4 = poolIds[3]
+
+        let options: [(teamA: [UUID], teamB: [UUID])] = [
+            ([p1, p2], [p3, p4]),
+            ([p1, p3], [p2, p4]),
+            ([p1, p4], [p2, p3])
+        ]
+
+        let scored = options.map { option in
+            let teamAElo = RotationService.getTeamAverageElo(team: option.teamA, eloMap: eloMap)
+            let teamBElo = RotationService.getTeamAverageElo(team: option.teamB, eloMap: eloMap)
+            let winProb = EloService.getWinProbability(rating: teamAElo, opponentRating: teamBElo)
+            let fairness = RotationService.getFairnessScore(winProbability: winProb)
+            return (option: option, fairness: fairness, winProb: winProb)
+        }.sorted { $0.fairness > $1.fairness }
+
+        if let best = scored.first {
+            let round = RotationRound(
+                roundNumber: 1,
+                teamA: best.option.teamA,
+                teamB: best.option.teamB,
+                rest: [],
+                fairness: best.fairness,
+                winProbability: best.winProb
+            )
+            self.currentRotation = RotationSchedule(rounds: [round], averageFairness: best.fairness, targetGames: 1.0)
+        }
     }
 
     func suggestSingleGameMatchup(isOneVsOne: Bool) -> SingleGameSuggestion? {
@@ -3463,7 +3502,7 @@ final class AppViewModel: ObservableObject {
         )
     }
 
-    private func recalculateDerivedStats() {
+    func recalculateDerivedStats() {
         self.playerBadgeStats = BadgeService.buildAllPlayersBadgeStats(
             matches: allMatches,
             players: players,
@@ -3481,7 +3520,9 @@ final class AppViewModel: ObservableObject {
             let (against, together) = calculateRivalryStats(for: currentId, mvpStats: mvpStats)
             self.currentRivalryAgainstStats = against
             self.currentRivalryTogetherStats = together
-            self.heatmapCombos = calculateHeatmapStats(playerId: currentId)
+
+            let heatmapTargetId = teammateFilterPlayerId ?? currentId
+            self.heatmapCombos = calculateHeatmapStats(playerId: heatmapTargetId)
 
             calculateBestPartnerAndRival(playerId: currentId)
 

@@ -21,6 +21,13 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
     }
 }
 
+struct BadgeGroup: Identifiable {
+    let id: String
+    let label: String
+    let order: Int
+    var items: [Badge]
+}
+
 struct ProfileView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var selectedAvatarItem: PhotosPickerItem?
@@ -251,6 +258,17 @@ struct ProfileView: View {
 
     private var teammatesTab: some View {
         SectionCard(title: "Lagkombinationer") {
+            Picker("Visa stats för", selection: $viewModel.teammateFilterPlayerId) {
+                Text("Mig själv").tag(UUID?.none)
+                ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
+                    Text(player.profileName).tag(UUID?.init(player.id))
+                }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: viewModel.teammateFilterPlayerId) { _, _ in
+                viewModel.recalculateDerivedStats()
+            }
+
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     // Header
@@ -342,6 +360,23 @@ struct ProfileView: View {
         .frame(width: width)
     }
 
+    private func groupBadges(_ badges: [Badge]) -> [BadgeGroup] {
+        var groupMap: [String: BadgeGroup] = [:]
+        for badge in badges {
+            let groupName = badge.group
+            if var existing = groupMap[groupName] {
+                existing.items.append(badge)
+                groupMap[groupName] = existing
+            } else {
+                groupMap[groupName] = BadgeGroup(id: groupName, label: groupName, order: badge.groupOrder, items: [badge])
+            }
+        }
+        return Array(groupMap.values).sorted { lhs, rhs in
+            if lhs.order != rhs.order { return lhs.order < rhs.order }
+            return lhs.label < rhs.label
+        }
+    }
+
     private func meritsTab(_ current: Player) -> some View {
         VStack(spacing: 20) {
             SectionCard(title: "Visa merit") {
@@ -364,14 +399,18 @@ struct ProfileView: View {
 
             switch selectedMeritSection {
             case "earned":
-                SectionCard(title: "Mina upplåsta meriter") {
-                    let earned = viewModel.currentPlayerBadges.filter { $0.earned && $0.tier != "Unique" }
-                    if earned.isEmpty {
+                let earned = viewModel.currentPlayerBadges.filter { $0.earned && $0.tier != "Unique" }
+                if earned.isEmpty {
+                    SectionCard(title: "Mina upplåsta meriter") {
                         Text("Du har inga upplåsta meriter ännu.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } else {
-                        badgeGrid(badges: earned)
+                    }
+                } else {
+                    ForEach(groupBadges(earned)) { group in
+                        SectionCard(title: group.label) {
+                            badgeGrid(badges: group.items)
+                        }
                     }
                 }
             case "unique":
@@ -388,10 +427,24 @@ struct ProfileView: View {
                                     Text(badge.description)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
-                                    if let holderValue = badge.holderValue {
-                                        Text("Ledare: \(holderValue)")
-                                            .font(.caption2.weight(.bold))
-                                            .foregroundStyle(badge.earned ? Color.accentColor : .secondary)
+
+                                    HStack(spacing: 4) {
+                                        if badge.earned {
+                                            Text("Du innehar denna!")
+                                                .font(.caption2.weight(.bold))
+                                                .foregroundStyle(Color.accentColor)
+                                        } else if let holderId = badge.holderId,
+                                                  let holder = viewModel.players.first(where: { $0.id == holderId }) {
+                                            Text("Innehas av: \(holder.profileName)")
+                                                .font(.caption2.weight(.bold))
+                                                .foregroundStyle(.secondary)
+
+                                            if let val = badge.holderValue {
+                                                Text("(\(val))")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
                                     }
                                 }
                                 Spacer()
@@ -405,32 +458,42 @@ struct ProfileView: View {
                     }
                 }
             case "locked":
-                SectionCard(title: "Kommande milstolpar") {
-                    let locked = viewModel.currentPlayerBadges.filter { !$0.earned && $0.tier != "Unique" }
-                    VStack(alignment: .leading, spacing: 16) {
-                        ForEach(locked) { badge in
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text(badge.icon)
-                                    Text(badge.title)
-                                        .font(.subheadline.weight(.semibold))
-                                    Spacer()
-                                    if let progress = badge.progress {
-                                        let percent = Int((progress.current / progress.target) * 100)
-                                        Text("\(Int(progress.current))/\(Int(progress.target)) (\(percent)%)")
-                                            .font(.caption2.weight(.bold))
+                let locked = viewModel.currentPlayerBadges.filter { !$0.earned && $0.tier != "Unique" }
+                if locked.isEmpty {
+                    SectionCard(title: "Kommande milstolpar") {
+                        Text("Du har låst upp allt! Snyggt jobbat.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    ForEach(groupBadges(locked)) { group in
+                        SectionCard(title: group.label) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                ForEach(group.items) { badge in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack {
+                                            Text(badge.icon)
+                                            Text(badge.title)
+                                                .font(.subheadline.weight(.semibold))
+                                            Spacer()
+                                            if let progress = badge.progress {
+                                                let percent = Int((progress.current / progress.target) * 100)
+                                                Text("\(Int(progress.current))/\(Int(progress.target)) (\(percent)%)")
+                                                    .font(.caption2.weight(.bold))
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        if let progress = badge.progress {
+                                            ProgressView(value: progress.current, total: progress.target)
+                                                .tint(Color.accentColor.opacity(0.6))
+                                        }
+                                        Text(badge.description)
+                                            .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
+                                    Divider()
                                 }
-                                if let progress = badge.progress {
-                                    ProgressView(value: progress.current, total: progress.target)
-                                        .tint(Color.accentColor.opacity(0.6))
-                                }
-                                Text(badge.description)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
                             }
-                            Divider()
                         }
                     }
                 }

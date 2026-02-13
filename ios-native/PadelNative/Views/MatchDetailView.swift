@@ -78,12 +78,23 @@ struct MatchDetailView: View {
                                 .foregroundStyle(.secondary)
 
                             if let explanation = row.explanation {
-                                Text(explanation)
-                                    .font(.system(size: 10, design: .monospaced))
-                                    .padding(8)
-                                    .background(Color.accentColor.opacity(0.05))
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Label("Analys", systemImage: "magnifyingglass")
+                                        .font(.caption2.bold())
+                                        .foregroundStyle(Color.accentColor)
+
+                                    Text(explanation)
+                                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                        .lineSpacing(2)
+                                }
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.accentColor.opacity(0.06))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.accentColor.opacity(0.1), lineWidth: 1)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                         }
                         .padding(.vertical, 4)

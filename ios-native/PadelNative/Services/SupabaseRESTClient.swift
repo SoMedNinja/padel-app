@@ -246,7 +246,7 @@ struct SupabaseRESTClient {
     func fetchAdminProfiles() async throws -> [AdminProfile] {
         try await request(
             path: "/rest/v1/profiles",
-            query: "select=id,name,is_admin,is_approved,is_regular,is_deleted&is_deleted=is.false&order=name.asc"
+            query: "select=id,name,is_admin,is_approved,is_regular,is_deleted&order=name.asc"
         )
     }
 
