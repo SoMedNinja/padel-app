@@ -240,7 +240,9 @@ struct SupabaseRESTClient {
     }()
 
     func fetchLeaderboard() async throws -> [Player] {
-        try await request(path: "/rest/v1/profiles", query: "select=id,full_name,name,elo,is_admin,is_regular,avatar_url,featured_badge_id&order=elo.desc")
+        // Note: we removed 'elo' from select because it is calculated client-side for parity.
+        // We filter is_deleted=false to hide inactive players from the main list.
+        try await request(path: "/rest/v1/profiles", query: "select=id,full_name,name,is_admin,is_regular,avatar_url,featured_badge_id&is_deleted=eq.false&order=name.asc")
     }
 
     func fetchAdminProfiles() async throws -> [AdminProfile] {
@@ -256,11 +258,11 @@ struct SupabaseRESTClient {
 
     func fetchAllMatches() async throws -> [Match] {
         // Note for non-coders:
-        // For ELO parity we need every match ever played. We use a high limit (4000)
+        // For ELO parity we need every match ever played. We use a high limit (10000)
         // to ensure we get the full history in one call for this friend group.
         try await request(
             path: "/rest/v1/matches",
-            query: "select=id,created_by,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=4000"
+            query: "select=id,created_by,created_at,team1,team2,team1_sets,team2_sets,team1_ids,team2_ids,score_type,score_target,source_tournament_id,source_tournament_type,team1_serves_first&order=created_at.desc&limit=10000"
         )
     }
 
@@ -304,9 +306,11 @@ struct SupabaseRESTClient {
     }
 
     func fetchSchedule() async throws -> [ScheduleEntry] {
+        // Note: 'starts_at' and 'description' columns do not exist in DB.
+        // We fetch raw columns 'date', 'start_time', 'title' instead.
         try await request(
             path: "/rest/v1/availability_scheduled_games",
-            query: "select=id,starts_at,location,description&order=starts_at.asc"
+            query: "select=id,date,start_time,location,title&status=eq.scheduled&order=date.asc,start_time.asc"
         )
     }
 
@@ -769,19 +773,19 @@ struct SupabaseRESTClient {
 
         async let latestProfileTask: [ProbeRow] = request(
             path: "/rest/v1/profiles",
-            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+            query: "select=id,created_at&order=created_at.desc&limit=1"
         )
         async let latestMatchTask: [ProbeRow] = request(
             path: "/rest/v1/matches",
-            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+            query: "select=id,created_at&order=created_at.desc&limit=1"
         )
         async let latestScheduleTask: [ProbeRow] = request(
             path: "/rest/v1/availability_scheduled_games",
-            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+            query: "select=id,created_at&order=created_at.desc&limit=1"
         )
         async let latestPollTask: [ProbeRow] = request(
             path: "/rest/v1/availability_polls",
-            query: "select=id,created_at,updated_at&order=updated_at.desc.nullslast,created_at.desc&limit=1"
+            query: "select=id,created_at&order=created_at.desc&limit=1"
         )
         async let tournamentMarkerTask = fetchTournamentLiveMarker()
 
@@ -1075,7 +1079,8 @@ struct SupabaseRESTClient {
 
     private func request<T: Decodable>(path: String, query: String) async throws -> [T] {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
-        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(query)") else {
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(encodedQuery)") else {
             throw APIError.badURL
         }
 
