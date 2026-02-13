@@ -17,7 +17,7 @@ struct MatchSuccessCeremonyView: View {
                         .symbolEffect(.bounce, value: step)
 
                     Text("MATCH SPARAD")
-                        .font(.title.black())
+                        .font(.title.weight(.black))
                         .kerning(2)
                 }
                 .transition(.scale.combined(with: .opacity))
