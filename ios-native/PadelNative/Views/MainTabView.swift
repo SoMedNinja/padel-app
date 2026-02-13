@@ -75,68 +75,65 @@ struct MainTabView: View {
                 .tag(7)
         }
         .overlay(alignment: .top) {
-            VStack(spacing: 8) {
-                // Note for non-coders:
-                // This small banner confirms background sync changed visible data.
-                if let updateBanner = viewModel.liveUpdateBanner {
-                    Text(updateBanner)
-                        .font(.footnote.weight(.semibold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-
-
-                if viewModel.isGuestMode {
-                    HStack(spacing: 10) {
-                        Image(systemName: "person.crop.circle.badge.exclamationmark")
-                            .foregroundStyle(.orange)
-                        Text("Gästläge: du kan visa statistik, men inte spara ändringar.")
+            if (viewModel.liveUpdateBanner != nil && viewModel.liveUpdateBanner?.isEmpty == false) ||
+                viewModel.isGuestMode ||
+                viewModel.appVersionMessage != nil {
+                VStack(spacing: 8) {
+                    if let updateBanner = viewModel.liveUpdateBanner, !updateBanner.isEmpty {
+                        Text(updateBanner)
                             .font(.footnote.weight(.semibold))
-                            .multilineTextAlignment(.leading)
-                        Spacer(minLength: 0)
-                        Button("Logga in") {
-                            // Note for non-coders:
-                            // This exits guest mode and returns to the normal login screen.
-                            viewModel.exitGuestMode()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
-                    .padding(10)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
 
-                if let versionMessage = viewModel.appVersionMessage {
-                    HStack(spacing: 10) {
-                        Image(systemName: viewModel.isUpdateRequired ? "exclamationmark.triangle.fill" : "arrow.down.circle.fill")
-                            .foregroundStyle(viewModel.isUpdateRequired ? Color.orange : AppColors.brandPrimary)
-                        Text(versionMessage)
-                            .font(.footnote.weight(.semibold))
-                            .multilineTextAlignment(.leading)
-                        Spacer(minLength: 0)
-                        if let updateURL = viewModel.appStoreUpdateURL {
-                            Button("Uppdatera") {
-                                openURL(updateURL)
+
+                    if viewModel.isGuestMode {
+                        HStack(spacing: 10) {
+                            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                                .foregroundStyle(.orange)
+                            Text("Gästläge: du kan visa statistik, men inte spara ändringar.")
+                                .font(.footnote.weight(.semibold))
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                            Button("Logga in") {
+                                viewModel.exitGuestMode()
                             }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
                         }
+                        .padding(10)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
-                    .padding(10)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    if let versionMessage = viewModel.appVersionMessage {
+                        HStack(spacing: 10) {
+                            Image(systemName: viewModel.isUpdateRequired ? "exclamationmark.triangle.fill" : "arrow.down.circle.fill")
+                                .foregroundStyle(viewModel.isUpdateRequired ? Color.orange : AppColors.brandPrimary)
+                            Text(versionMessage)
+                                .font(.footnote.weight(.semibold))
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                            if let updateURL = viewModel.appStoreUpdateURL {
+                                Button("Uppdatera") {
+                                    openURL(updateURL)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                        }
+                        .padding(10)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
                 }
+                .padding(.top, 8)
+                .padding(.horizontal, 12)
+                .animation(.easeInOut(duration: 0.2), value: viewModel.liveUpdateBanner)
+                .animation(.easeInOut(duration: 0.2), value: viewModel.appVersionMessage)
             }
-            .padding(.top, 8)
-            .padding(.horizontal, 12)
-            .animation(.easeInOut(duration: 0.2), value: viewModel.liveUpdateBanner)
-            .animation(.easeInOut(duration: 0.2), value: viewModel.appVersionMessage)
         }
         .safeAreaInset(edge: .bottom) {
-            // Note for non-coders:
-            // We place quick-add inside iOS safe area so it avoids clashing with the
-            // tab bar/home indicator, which feels more native on different iPhones.
             if viewModel.selectedMainTab != 5 {
                 HStack {
                     Spacer()
@@ -163,6 +160,5 @@ struct MainTabView: View {
                 .environmentObject(viewModel)
                 .presentationDetents([.medium, .large])
         }
-        .padelLiquidGlassChrome()
     }
 }

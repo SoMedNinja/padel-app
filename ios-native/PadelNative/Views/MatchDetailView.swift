@@ -101,9 +101,6 @@ struct MatchDetailView: View {
                         .padding(.vertical, 4)
                     }
                 }
-                Text("Note for non-coders: 'estimat' betyder att vi räknar ungefärlig ELO-förändring direkt i appen för att ge snabb förklaring även när äldre databasmatcher saknar komplett historik.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             if viewModel.canUseAdmin {
@@ -154,15 +151,7 @@ struct MatchDetailView: View {
                     Button("Radera match", role: .destructive) {
                         showDeleteConfirm = true
                     }
-                    Text("Note for non-coders: precis som i webbappen kan skaparen ta bort sin egen match, medan admin kan ta bort alla.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
-            }
-
-            Section("Vad detta gör") {
-                Text("Note for non-coders: admins kan ändra poäng, och både skapare/admin kan radera — samma behörighetslogik som i webbappen.")
-                    .foregroundStyle(.secondary)
             }
         }
         .onAppear {

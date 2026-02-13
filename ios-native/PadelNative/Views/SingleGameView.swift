@@ -52,9 +52,6 @@ struct SingleGameView: View {
             Form {
                 Section("Matchtyp") {
                     Toggle("1 mot 1", isOn: $isOneVsOne)
-                    Text("Note for non-coders: guiden ändrar steg automatiskt, men djup-länkar med mode=1v1 eller mode=2v2 fungerar fortfarande och väljer rätt matchtyp direkt.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section("Wizard") {
@@ -119,9 +116,6 @@ struct SingleGameView: View {
                         ShareLink(item: recap.sharePayload) {
                             Label("Dela recap som text", systemImage: "square.and.arrow.up")
                         }
-                        Text("Note for non-coders: bilddelning känns mer native i iOS, medan textdelen är fallback om någon app bara tar emot text.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -246,10 +240,6 @@ struct SingleGameView: View {
             TextField("Turneringstyp (t.ex. mexicano)", text: $sourceTournamentType)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-
-            Text("Note for non-coders: turneringsväljaren hämtar riktiga turneringar från databasen så matchen länkas korrekt utan att skriva UUID manuellt.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
 
             Toggle("Lag A servar först", isOn: $teamAServesFirst)
         }

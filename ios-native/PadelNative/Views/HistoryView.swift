@@ -82,9 +82,6 @@ struct HistoryView: View {
                 }
             }
 
-            Text("Note for non-coders: de här filtren fungerar som ett sökverktyg så du kan smalna av historiken till rätt period och matchtyp.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 

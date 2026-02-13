@@ -120,7 +120,7 @@ struct AdminView: View {
                     ContentUnavailableView(
                         "Admin Access Required",
                         systemImage: "lock.shield",
-                        description: Text("Note for non-coders: this area is hidden for non-admin users to match web permission gating.")
+                        description: Text("Verktyg för att hantera spelare, matcher och rapporter.")
                     )
                 }
             }
