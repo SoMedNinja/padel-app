@@ -25,6 +25,7 @@ struct HistoryView: View {
             }
             .background(AppColors.background)
             .navigationTitle("Historik")
+            .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
             .refreshable {
                 await viewModel.reloadHistoryMatches()

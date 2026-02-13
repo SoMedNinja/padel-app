@@ -73,6 +73,7 @@ struct ScheduleView: View {
             }
             .background(AppColors.background)
             .navigationTitle("Schema")
+            .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
             .task {
                 await viewModel.refreshScheduleData()

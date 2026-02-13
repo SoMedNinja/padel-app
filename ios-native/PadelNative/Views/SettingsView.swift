@@ -41,6 +41,7 @@ struct SettingsView: View {
             }
             .background(AppColors.background)
             .navigationTitle("Inställningar")
+            .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
         }
     }

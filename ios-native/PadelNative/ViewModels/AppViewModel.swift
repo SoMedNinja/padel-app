@@ -366,7 +366,7 @@ final class AppViewModel: ObservableObject {
     @Published var dashboardRivalryOpponentId: UUID?
     @Published var dashboardRivalryMode: String = "against"
     @Published var isDashboardLoading = false
-    @Published var selectedMainTab = 1
+    @Published var selectedMainTab = 0
     @Published var playerBadgeStats: [UUID: PlayerBadgeStats] = [:]
     @Published var currentPlayerBadges: [Badge] = []
     @Published var currentRivalryAgainstStats: [RivalrySummary] = []
@@ -1610,7 +1610,7 @@ final class AppViewModel: ObservableObject {
                 return
             }
 
-            selectedMainTab = 5
+            selectedMainTab = 1
             if let mode = items.first(where: { $0.name == "mode" })?.value {
                 deepLinkedSingleGameMode = mode.lowercased()
             }
@@ -1626,11 +1626,11 @@ final class AppViewModel: ObservableObject {
 
     func openDashboardFiltered(_ filter: DashboardMatchFilter) {
         dashboardFilter = filter
-        selectedMainTab = 1
+        selectedMainTab = 0
     }
 
     func openHistoryTab() {
-        selectedMainTab = 2
+        selectedMainTab = 4
     }
 
     // Note for non-coders:

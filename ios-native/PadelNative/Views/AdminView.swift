@@ -129,6 +129,7 @@ struct AdminView: View {
                 }
             }
             .navigationTitle("Admin")
+            .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
             .task {
                 guard viewModel.canUseAdmin else { return }
@@ -478,9 +479,16 @@ struct AdminView: View {
         SectionCard(title: title) {
             VStack(alignment: .leading, spacing: 12) {
                 if let content, content.isEmpty == false {
-                    Text(content)
-                        .font(.inter(.caption))
-                        .textSelection(.enabled)
+                    ScrollView {
+                        Text(content)
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxHeight: 280)
+                    .padding(10)
+                    .background(AppColors.background)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                     HStack {
                         if let cardURL = adminShareImageURL(content: content, title: title) {
