@@ -494,6 +494,13 @@ struct DashboardView: View {
                     rivalStat(label: "Vinst/förlust", value: "\(summary.wins) - \(summary.losses)")
                     rivalStat(label: "Vinst %", value: "\(Int((summary.winRate) * 100))%")
                     rivalStat(label: "Totala set", value: "\(summary.totalSetsFor) - \(summary.totalSetsAgainst)")
+                    rivalStat(label: "Start-serve", value: "\(summary.serveFirstWins) - \(summary.serveFirstLosses)")
+                    rivalStat(label: "Mottagning", value: "\(summary.serveSecondWins) - \(summary.serveSecondLosses)")
+                    rivalStat(label: "Högsta ELO", value: "\(summary.highestElo)")
+                    rivalStat(label: "Månadens MVP-dagar", value: "\(summary.monthlyMvpDays)")
+                    rivalStat(label: "Kvällens MVP", value: "\(summary.eveningMvps)")
+                    rivalStat(label: "Gemensamma turneringar", value: "\(summary.commonTournaments)")
+                    rivalStat(label: "Dina turneringsvinster", value: "\(summary.commonTournamentWins)")
 
                     if viewModel.dashboardRivalryMode == "against" {
                         rivalStat(label: "Vinstchans", value: "\(Int(round(summary.winProbability * 100)))%")
@@ -517,12 +524,6 @@ struct DashboardView: View {
                             }
                         }
                     }
-                }
-
-                NavigationLink(destination: RivalryView(opponentId: opponentId)) {
-                    Text("Se fullständig analys")
-                        .font(.inter(.caption, weight: .bold))
-                        .foregroundStyle(AppColors.brandPrimary)
                 }
             }
             .padding(.top, 10)
@@ -579,70 +580,67 @@ struct DashboardView: View {
     }
 
     private func leaderboardRow(index: Int, player: LeaderboardPlayer) -> some View {
-        NavigationLink(destination: RivalryView(opponentId: player.id)) {
-            HStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    Text("\(index + 1)")
-                        .font(.inter(.caption2, weight: .medium))
-                        .monospacedDigit()
-                        .foregroundStyle(AppColors.textSecondary)
-                        .frame(width: 18, alignment: .leading)
+        HStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text("\(index + 1)")
+                    .font(.inter(.caption2, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(AppColors.textSecondary)
+                    .frame(width: 18, alignment: .leading)
 
-                    HStack(spacing: 4) {
-                        Text(player.name)
-                            .font(.inter(.subheadline, weight: .semibold))
-                            .foregroundStyle(AppColors.textPrimary)
-                            .lineLimit(1)
-                        if let badgeId = player.featuredBadgeId,
-                           let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
-                            Text(badgeIcon)
-                                .font(.caption2)
-                        }
+                HStack(spacing: 4) {
+                    Text(player.name)
+                        .font(.inter(.subheadline, weight: .semibold))
+                        .foregroundStyle(AppColors.textPrimary)
+                        .lineLimit(1)
+                    if let badgeId = player.featuredBadgeId,
+                       let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
+                        Text(badgeIcon)
+                            .font(.caption2)
                     }
                 }
-                .frame(width: 140, alignment: .leading)
+            }
+            .frame(width: 140, alignment: .leading)
 
-                Text("\(player.elo)")
-                    .font(.inter(.subheadline, weight: .bold))
-                    .foregroundStyle(AppColors.brandPrimary)
-                    .frame(width: 60)
+            Text("\(player.elo)")
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.brandPrimary)
+                .frame(width: 60)
 
-                Text("\(player.games)")
-                    .font(.inter(.subheadline))
-                    .foregroundStyle(AppColors.textPrimary)
-                    .frame(width: 70)
-
-                Text("\(player.wins)")
-                    .font(.inter(.subheadline))
-                    .foregroundStyle(AppColors.textPrimary)
-                    .frame(width: 65)
-
-                Text(player.streak)
-                    .font(.inter(.subheadline))
-                    .foregroundStyle(AppColors.textPrimary)
-                    .frame(width: 60)
-
-                Group {
-                    if player.eloHistory.count >= 2 {
-                        SparklineView(points: player.eloHistory)
-                            .frame(width: 50, height: 20)
-                            .opacity(0.8)
-                    } else {
-                        Text("—").font(.inter(.caption2)).foregroundStyle(AppColors.textSecondary)
-                    }
-                }
+            Text("\(player.games)")
+                .font(.inter(.subheadline))
+                .foregroundStyle(AppColors.textPrimary)
                 .frame(width: 70)
 
-                Text("\(player.winRate)%")
-                    .font(.inter(.subheadline, weight: .semibold))
-                    .foregroundStyle(AppColors.textPrimary)
-                    .frame(width: 70)
+            Text("\(player.wins)")
+                .font(.inter(.subheadline))
+                .foregroundStyle(AppColors.textPrimary)
+                .frame(width: 65)
+
+            Text(player.streak)
+                .font(.inter(.subheadline))
+                .foregroundStyle(AppColors.textPrimary)
+                .frame(width: 60)
+
+            Group {
+                if player.eloHistory.count >= 2 {
+                    SparklineView(points: player.eloHistory)
+                        .frame(width: 50, height: 20)
+                        .opacity(0.8)
+                } else {
+                    Text("—").font(.inter(.caption2)).foregroundStyle(AppColors.textSecondary)
+                }
             }
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
-            .background(player.isMe ? AppColors.brandPrimary.opacity(0.08) : Color.clear)
+            .frame(width: 70)
+
+            Text("\(player.winRate)%")
+                .font(.inter(.subheadline, weight: .semibold))
+                .foregroundStyle(AppColors.textPrimary)
+                .frame(width: 70)
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .background(player.isMe ? AppColors.brandPrimary.opacity(0.08) : Color.clear)
     }
 
     private func headerCell(title: String, key: String, width: CGFloat, alignment: Alignment = .center, help: String? = nil) -> some View {

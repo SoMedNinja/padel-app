@@ -29,11 +29,6 @@ struct SingleGameView: View {
     @State private var teamAScore = 6
     @State private var teamBScore = 4
     @State private var showExtraScores = false
-    @State private var scoreType = "sets"
-    @State private var scoreTargetText = ""
-    @State private var selectedSourceTournamentId: UUID?
-    @State private var sourceTournamentType = ""
-    @State private var teamAServesFirst = true
     @State private var playedAt = Date()
     @State private var isSubmitting = false
     @State private var wizardStep: SingleGameWizardStep = .teamSetup
@@ -196,11 +191,6 @@ struct SingleGameView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 applyDeepLinkModeIfAvailable()
-            }
-            .onChange(of: selectedSourceTournamentId) { _, newValue in
-                guard let newValue,
-                      let selectedTournament = viewModel.tournaments.first(where: { $0.id == newValue }) else { return }
-                sourceTournamentType = selectedTournament.tournamentType
             }
             .padelLiquidGlassChrome()
         }
@@ -462,35 +452,7 @@ struct SingleGameView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Picker("Poängtyp", selection: $scoreType) {
-                        Text("Set").tag("sets")
-                        Text("Poäng").tag("points")
-                    }
-                    .pickerStyle(.segmented)
-
-                    if scoreType == "points" {
-                        TextField("Poängmål (valfritt)", text: $scoreTargetText)
-                            .textFieldStyle(.roundedBorder)
-                            .keyboardType(.numberPad)
-                    }
-
-                    Picker("Turnering (valfritt)", selection: $selectedSourceTournamentId) {
-                        Text("Ingen turnering").tag(Optional<UUID>.none)
-                        ForEach(viewModel.tournaments) { tournament in
-                            Text(tournament.name).tag(Optional(tournament.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    TextField("Turneringstyp (t.ex. mexicano)", text: $sourceTournamentType)
-                        .textFieldStyle(.roundedBorder)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-
-                    Toggle("Lag A servar först", isOn: $teamAServesFirst)
-                        .font(.inter(.subheadline))
-                }
+                // Note for non-coders: single match now always saves as a standard set match.
             }
         }
     }
@@ -501,7 +463,7 @@ struct SingleGameView: View {
                 reviewRow(label: "Lag A", value: teamText(primary: teamAPlayer1Id, secondary: isOneVsOne ? nil : teamAPlayer2Id))
                 reviewRow(label: "Lag B", value: teamText(primary: teamBPlayer1Id, secondary: isOneVsOne ? nil : teamBPlayer2Id))
                 reviewRow(label: "Resultat", value: "\(teamAScore)–\(teamBScore)")
-                reviewRow(label: "Poängtyp", value: scoreType == "points" ? "Poäng" : "Set")
+                reviewRow(label: "Format", value: "Set")
 
                 Text("Detta är en sista kontroll innan matchen sparas.")
                     .font(.inter(.footnote))
@@ -682,11 +644,11 @@ struct SingleGameView: View {
                 teamBPlayerIds: teamBIds,
                 teamAScore: teamAScore,
                 teamBScore: teamBScore,
-                scoreType: scoreType,
-                scoreTarget: Int(scoreTargetText),
-                sourceTournamentId: selectedSourceTournamentId,
-                sourceTournamentType: sourceTournamentType,
-                teamAServesFirst: teamAServesFirst
+                scoreType: "sets",
+                scoreTarget: nil,
+                sourceTournamentId: nil,
+                sourceTournamentType: "",
+                teamAServesFirst: true
             )
 
             guard let recap else { return }
@@ -712,11 +674,6 @@ struct SingleGameView: View {
         teamAScore = 6
         teamBScore = 4
         playedAt = Date()
-        scoreType = "sets"
-        scoreTargetText = ""
-        selectedSourceTournamentId = nil
-        sourceTournamentType = ""
-        teamAServesFirst = true
         fairnessLabel = nil
         wizardStep = .teamSetup
         if keepMatchType {

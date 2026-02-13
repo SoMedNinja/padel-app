@@ -1,7 +1,5 @@
-import PhotosUI
 import Charts
 import SwiftUI
-import UIKit
 
 private enum ProfileTab: String, CaseIterable, Identifiable {
     case overview
@@ -30,16 +28,10 @@ struct BadgeGroup: Identifiable {
 
 struct ProfileView: View {
     @EnvironmentObject private var viewModel: AppViewModel
-    @State private var selectedAvatarItem: PhotosPickerItem?
     @State private var selectedTab: ProfileTab = .overview
     @State private var selectedFilter: DashboardMatchFilter = .all
     @State private var compareWithIds: Set<UUID> = []
     @State private var selectedMeritSection: String = "earned"
-    @State private var isEditingName = false
-
-    @State private var chartSelection: Date?
-    @State private var showCropper = false
-    @State private var imageToCrop: UIImage?
 
     private var profileFilterOptions: [DashboardMatchFilter] {
         [.last7, .last30, .tournaments, .custom, .all]
@@ -152,62 +144,13 @@ struct ProfileView: View {
     private func headerSection(_ current: Player) -> some View {
         VStack(spacing: 20) {
             HStack(spacing: 20) {
-                ZStack(alignment: .bottomTrailing) {
-                    PlayerAvatarView(urlString: current.avatarURL, size: 100)
-                        .shadow(color: AppColors.shadowColor, radius: 8, x: 0, y: 4)
-
-                    Menu {
-                        PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
-                            Label("Välj ny bild", systemImage: "photo")
-                        }
-                        Button(role: .destructive) {
-                            viewModel.profileAvatarURLInput = ""
-                            Task { await viewModel.saveProfileSetup() }
-                        } label: {
-                            Label("Ta bort bild", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white)
-                            .padding(8)
-                            .background(AppColors.brandPrimary)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                    }
-                }
+                PlayerAvatarView(urlString: current.avatarURL, size: 100)
+                    .shadow(color: AppColors.shadowColor, radius: 8, x: 0, y: 4)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        if isEditingName {
-                            TextField("Namn", text: $viewModel.profileDisplayNameDraft)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.inter(.title3, weight: .bold))
-                                .onSubmit {
-                                    Task { await viewModel.saveProfileSetup() }
-                                    isEditingName = false
-                                }
-                            Button {
-                                Task { await viewModel.saveProfileSetup() }
-                                isEditingName = false
-                            } label: {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(AppColors.success)
-                            }
-                        } else {
-                            Text(current.profileName)
-                                .font(.inter(.title2, weight: .bold))
-                                .foregroundStyle(AppColors.textPrimary)
-
-                            Button {
-                                viewModel.profileDisplayNameDraft = current.profileName
-                                isEditingName = true
-                            } label: {
-                                Image(systemName: "pencil.circle")
-                                    .foregroundStyle(AppColors.textSecondary)
-                            }
-                        }
-                    }
+                    Text(current.profileName)
+                        .font(.inter(.title2, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
 
                     HStack(spacing: 4) {
                         Text("ELO: \(current.elo)")
@@ -234,27 +177,6 @@ struct ProfileView: View {
         }
         .padding()
         .padelSurfaceCard()
-        .onChange(of: selectedAvatarItem) { _, newItem in
-            guard let newItem else { return }
-            Task {
-                if let data = try? await newItem.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
-                    imageToCrop = image
-                    showCropper = true
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showCropper) {
-            if let image = imageToCrop {
-                CircularAvatarCropperView(image: image, isPresented: $showCropper) { croppedImage in
-                    if let resizedData = croppedImage.jpegData(compressionQuality: 0.7) {
-                        let base64 = resizedData.base64EncodedString()
-                        viewModel.profileAvatarURLInput = "data:image/jpeg;base64,\(base64)"
-                        Task { await viewModel.saveProfileSetup() }
-                    }
-                }
-            }
-        }
     }
 
     private var eloTrendTab: some View {
@@ -671,21 +593,29 @@ struct ProfileView: View {
 
     private var performanceSection: some View {
         SectionCard(title: "Prestation") {
-            ForEach(viewModel.profilePerformanceWidgets(filter: selectedFilter)) { widget in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Label(widget.title, systemImage: widget.symbol)
-                        Spacer()
+            // Note for non-coders: we use a grid of equal cards here so this matches the PWA layout.
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(viewModel.profilePerformanceWidgets(filter: selectedFilter)) { widget in
+                    VStack(spacing: 8) {
+                        Text(widget.title.uppercased())
+                            .font(.inter(size: 9, weight: .black))
+                            .foregroundStyle(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
                         Text(widget.value)
-                            .font(.headline)
+                            .font(.inter(.title3, weight: .bold))
                             .foregroundStyle(widget.color == "success" ? .green : (widget.color == "error" ? .red : .primary))
+                            .multilineTextAlignment(.center)
+                        Text(widget.detail)
+                            .font(.inter(size: 10))
+                            .foregroundStyle(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
                     }
-                    Text(widget.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 112)
+                    .padding(10)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .padding(.vertical, 4)
-                Divider()
             }
         }
     }
@@ -780,7 +710,7 @@ struct ProfileView: View {
                             )
                             .interpolationMethod(.catmullRom)
                             .foregroundStyle(color)
-                            .symbol(by: .value("Spelare", name))
+                            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                         }
                     }
                 }
@@ -789,11 +719,7 @@ struct ProfileView: View {
                     RuleMark(x: .value("Vald", index))
                         .foregroundStyle(Color.secondary.opacity(0.3))
                         .offset(y: -10)
-                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .disabled)) {
-                            Circle()
-                                .fill(Color.accentColor)
-                                .frame(width: 10, height: 10)
-                        }
+                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .disabled)) { EmptyView() }
                 }
             }
             .frame(height: 280)
@@ -833,7 +759,7 @@ struct ProfileView: View {
                         )
                         .interpolationMethod(.catmullRom)
                         .foregroundStyle(color)
-                        .symbol(by: .value("Spelare", name))
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                     }
                 }
             }
@@ -853,17 +779,6 @@ struct ProfileView: View {
                 }
             }
         }
-    }
-
-
-    private func resizeAvatarImageData(_ data: Data) -> Data? {
-        guard let image = UIImage(data: data) else { return nil }
-        let targetSize = CGSize(width: 360, height: 360)
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        let rendered = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
-        }
-        return rendered.jpegData(compressionQuality: 0.72)
     }
 
     private func chartYDomain(timeline: [ComparisonTimelinePoint]) -> ClosedRange<Double> {
