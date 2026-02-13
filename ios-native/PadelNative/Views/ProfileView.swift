@@ -36,6 +36,7 @@ struct ProfileView: View {
     @State private var compareWithIds: Set<UUID> = []
     @State private var selectedMeritSection: String = "earned"
 
+    @State private var chartSelection: Date?
     @State private var showCropper = false
     @State private var imageToCrop: UIImage?
 
@@ -201,39 +202,10 @@ struct ProfileView: View {
                         .padding(.vertical, 40)
                         .frame(maxWidth: .infinity)
                 } else {
-                    Chart {
-                        ForEach(myPoints) { point in
-                            LineMark(
-                                x: .value("Datum", point.date),
-                                y: .value("ELO", point.elo),
-                                series: .value("Spelare", "Du")
-                            )
-                            .interpolationMethod(.catmullRom)
-                            .foregroundStyle(Color.accentColor)
-                            .symbol(by: .value("Spelare", "Du"))
-                        }
-
-                        ForEach(Array(compareWithIds), id: \.self) { otherId in
-                            let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
-                            let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
-                            ForEach(otherPoints) { point in
-                                LineMark(
-                                    x: .value("Datum", point.date),
-                                    y: .value("ELO", point.elo),
-                                    series: .value("Spelare", name)
-                                )
-                                .interpolationMethod(.catmullRom)
-                                .symbol(by: .value("Spelare", name))
-                            }
-                        }
-                    }
-                    .frame(height: 280)
-                    .chartLegend(.visible)
-                    .chartXAxis {
-                        AxisMarks(values: .stride(by: .day, count: 7)) { value in
-                            AxisGridLine()
-                            AxisValueLabel(format: .dateTime.day().month())
-                        }
+                    if #available(iOS 17.0, *) {
+                        chartWithScrubbing(myPoints: myPoints)
+                    } else {
+                        chartStatic(myPoints: myPoints)
                     }
                 }
             }
@@ -794,6 +766,115 @@ struct ProfileView: View {
                 Text("Ditt konto väntar på admin-godkännande.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @available(iOS 17.0, *)
+    @ViewBuilder
+    private func chartWithScrubbing(myPoints: [ProfileEloPoint]) -> some View {
+        VStack(alignment: .leading) {
+            if let selection = chartSelection {
+                let selectedPoint = myPoints.min(by: { abs($0.date.timeIntervalSince(selection)) < abs($1.date.timeIntervalSince(selection)) })
+                if let point = selectedPoint {
+                    Text("\(point.date, format: .dateTime.day().month().year())")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(point.elo) ELO")
+                        .font(.headline)
+                        .foregroundStyle(Color.accentColor)
+                }
+            } else {
+                Text("Dra över grafen för detaljer")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(" ")
+                    .font(.headline)
+            }
+
+            Chart {
+                ForEach(myPoints) { point in
+                    LineMark(
+                        x: .value("Datum", point.date),
+                        y: .value("ELO", point.elo),
+                        series: .value("Spelare", "Du")
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(Color.accentColor)
+                    .symbol(by: .value("Spelare", "Du"))
+                }
+
+                ForEach(Array(compareWithIds), id: \.self) { otherId in
+                    let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
+                    let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
+                    ForEach(otherPoints) { point in
+                        LineMark(
+                            x: .value("Datum", point.date),
+                            y: .value("ELO", point.elo),
+                            series: .value("Spelare", name)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .symbol(by: .value("Spelare", name))
+                    }
+                }
+
+                if let selection = chartSelection {
+                    RuleMark(x: .value("Vald", selection))
+                        .foregroundStyle(Color.secondary.opacity(0.3))
+                        .offset(y: -10)
+                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .disabled)) {
+                            Circle()
+                                .fill(Color.accentColor)
+                                .frame(width: 10, height: 10)
+                        }
+                }
+            }
+            .frame(height: 280)
+            .chartLegend(.visible)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { value in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.day().month())
+                }
+            }
+            .chartXSelection(value: $chartSelection)
+        }
+    }
+
+    @ViewBuilder
+    private func chartStatic(myPoints: [ProfileEloPoint]) -> some View {
+        Chart {
+            ForEach(myPoints) { point in
+                LineMark(
+                    x: .value("Datum", point.date),
+                    y: .value("ELO", point.elo),
+                    series: .value("Spelare", "Du")
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(Color.accentColor)
+                .symbol(by: .value("Spelare", "Du"))
+            }
+
+            ForEach(Array(compareWithIds), id: \.self) { otherId in
+                let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
+                let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
+                ForEach(otherPoints) { point in
+                    LineMark(
+                        x: .value("Datum", point.date),
+                        y: .value("ELO", point.elo),
+                        series: .value("Spelare", name)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .symbol(by: .value("Spelare", name))
+                }
+            }
+        }
+        .frame(height: 280)
+        .chartLegend(.visible)
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day, count: 7)) { value in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.day().month())
             }
         }
     }

@@ -1,4 +1,7 @@
 import Foundation
+import SwiftUI
+import CoreTransferable
+import UniformTypeIdentifiers
 
 struct Match: Identifiable, Codable {
     let id: UUID
@@ -132,5 +135,30 @@ struct Match: Identifiable, Codable {
         try container.encodeIfPresent(sourceTournamentId, forKey: .sourceTournamentId)
         try container.encodeIfPresent(sourceTournamentType, forKey: .sourceTournamentType)
         try container.encodeIfPresent(teamAServesFirst, forKey: .teamAServesFirst)
+    }
+}
+
+extension Match: Transferable {
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .text) { match in
+            match.shareText.data(using: .utf8) ?? Data()
+        }
+
+        // Suggestion 6: Adding image support for rich previews
+        DataRepresentation(exportedContentType: .png) { match in
+            let lines = [
+                "\(match.teamAName) vs \(match.teamBName)",
+                "Resultat: \(match.teamAScore)-\(match.teamBScore)"
+            ]
+            if let url = try? ShareCardService.createShareImageFile(title: "Padel Match", bodyLines: lines, fileNamePrefix: "match") {
+                return try Data(contentsOf: url)
+            }
+            return Data()
+        }
+    }
+
+    var shareText: String {
+        let scoreLabel = (scoreType ?? "sets") == "points" ? "Poäng" : "Set"
+        return "🎾 Padel Matchresultat:\n\(teamAName) vs \(teamBName)\n\(scoreLabel): \(teamAScore)-\(teamBScore)"
     }
 }

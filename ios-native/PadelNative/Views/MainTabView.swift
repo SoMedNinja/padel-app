@@ -37,7 +37,16 @@ struct MainTabView: View {
             if viewModel.canSeeTournament {
                 TournamentView()
                     .tabItem {
-                        Label("Turnering", systemImage: "trophy")
+                        if #available(iOS 17.0, *) {
+                            Label {
+                                Text("Turnering")
+                            } icon: {
+                                Image(systemName: "trophy")
+                                    .symbolEffect(.pulse, options: .repeating, value: viewModel.activeTournamentNotice != nil)
+                            }
+                        } else {
+                            Label("Turnering", systemImage: "trophy")
+                        }
                     }
                     .tag(4)
             }
