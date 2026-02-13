@@ -126,14 +126,38 @@ struct MatchSuccessCeremonyView: View {
                         .lineLimit(1)
 
                     if showDeltas {
-                        Text("\(player.delta >= 0 ? "+" : "")\(player.delta)")
-                            .font(.caption2.monospacedDigit().bold())
-                            .foregroundStyle(player.delta >= 0 ? .green : .red)
-                            .transition(.scale.combined(with: .opacity))
+                        HStack(spacing: 4) {
+                            Text("\(player.delta >= 0 ? "+" : "")\(player.delta)")
+                                .font(.caption2.monospacedDigit().bold())
+                                .foregroundStyle(player.delta >= 0 ? .green : .red)
+
+                            AnimatedNumberView(value: player.elo)
+                                .font(.caption.monospacedDigit().bold())
+                        }
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct AnimatedNumberView: View {
+    let value: Int
+    @State private var displayValue: Int = 0
+
+    var body: some View {
+        Text("\(displayValue)")
+            .onAppear {
+                let duration: Double = 1.0
+                let steps = 30
+                let interval = duration / Double(steps)
+                for i in 0...steps {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + interval * Double(i)) {
+                        displayValue = Int(Double(value) * (Double(i) / Double(steps)))
+                    }
+                }
+            }
     }
 }

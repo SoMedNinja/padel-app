@@ -99,8 +99,13 @@ struct HistoryView: View {
                         MatchDetailView(match: match)
                     } label: {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("\(match.teamAName) vs \(match.teamBName)")
-                                .font(.headline)
+                            HStack {
+                                Text("\(match.teamAName) vs \(match.teamBName)")
+                                    .font(.headline)
+                                Spacer()
+                                typeLabelChip(for: match)
+                            }
+
                             Text(scoreLabel(match))
                             Text(formatter.string(from: match.playedAt))
                                 .font(.caption)
@@ -140,5 +145,27 @@ struct HistoryView: View {
             return "Poäng: \(match.teamAScore)-\(match.teamBScore)\(target)"
         }
         return "Set: \(match.teamAScore)-\(match.teamBScore)"
+    }
+
+    @ViewBuilder
+    private func typeLabelChip(for match: Match) -> some View {
+        let type = match.sourceTournamentType ?? "standalone"
+        let label: String
+
+        if type == "standalone" {
+            let is1v1 = match.teamAPlayerIds.compactMap { $0 }.count == 1 && match.teamBPlayerIds.compactMap { $0 }.count == 1
+            label = is1v1 ? "1v1" : "2v2"
+        } else if type == "standalone_1v1" {
+            label = "1v1"
+        } else {
+            label = type.capitalized
+        }
+
+        Text(label)
+            .font(.system(size: 8, weight: .bold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.accentColor.opacity(0.1), in: Capsule())
+            .foregroundStyle(Color.accentColor)
     }
 }

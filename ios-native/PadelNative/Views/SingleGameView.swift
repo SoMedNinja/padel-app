@@ -28,6 +28,7 @@ struct SingleGameView: View {
     @State private var teamBPlayer2Id: String?
     @State private var teamAScore = 6
     @State private var teamBScore = 4
+    @State private var showExtraScores = false
     @State private var scoreType = "sets"
     @State private var scoreTargetText = ""
     @State private var selectedSourceTournamentId: UUID?
@@ -191,17 +192,18 @@ struct SingleGameView: View {
 
     private var scoreSection: some View {
         Section("Resultat") {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Lag A").font(.caption.bold()).foregroundStyle(.secondary)
-                        Stepper("\(teamAScore)", value: $teamAScore, in: 0...99)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing) {
-                        Text("Lag B").font(.caption.bold()).foregroundStyle(.secondary)
-                        Stepper("\(teamBScore)", value: $teamBScore, in: 0...99)
-                    }
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Lag A").font(.caption.bold()).foregroundStyle(.secondary)
+                    scoreButtonGrid(selection: $teamAScore)
+                }
+
+                Divider()
+
+                VStack(alignment: .trailing, spacing: 8) {
+                    Text("Lag B").font(.caption.bold()).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    scoreButtonGrid(selection: $teamBScore)
                 }
 
                 if let (fairness, prob) = currentMatchFairnessAndProb {
@@ -569,5 +571,56 @@ struct SingleGameView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
             )
+    }
+
+    @ViewBuilder
+    private func scoreButtonGrid(selection: Binding<Int>) -> some View {
+        let scores = [0, 1, 2, 3, 4, 5, 6, 7]
+        let extras = [8, 9, 10, 11, 12]
+
+        VStack(spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 8) {
+                ForEach(scores, id: \.self) { score in
+                    Button {
+                        selection.wrappedValue = score
+                    } label: {
+                        Text("\(score)")
+                            .font(.headline)
+                            .frame(width: 44, height: 44)
+                            .background(selection.wrappedValue == score ? Color.accentColor : Color(.systemGray6))
+                            .foregroundStyle(selection.wrappedValue == score ? .white : .primary)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if showExtraScores {
+                    ForEach(extras, id: \.self) { score in
+                        Button {
+                            selection.wrappedValue = score
+                        } label: {
+                            Text("\(score)")
+                                .font(.headline)
+                                .frame(width: 44, height: 44)
+                                .background(selection.wrappedValue == score ? Color.accentColor : Color(.systemGray6))
+                                .foregroundStyle(selection.wrappedValue == score ? .white : .primary)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                Button {
+                    showExtraScores.toggle()
+                } label: {
+                    Text(showExtraScores ? "Göm" : "Mer…")
+                        .font(.caption)
+                        .frame(width: 44, height: 44)
+                        .background(Color(.systemGray5))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }

@@ -153,45 +153,45 @@ struct DashboardView: View {
     private var dashboardNoticeSections: some View {
         if let error = viewModel.lastErrorMessage {
             Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Varning vid datahämtning", systemImage: "exclamationmark.triangle.fill")
+                AppAlert(severity: .warning) {
+                    Text("Varning vid datahämtning")
                         .font(.headline)
-                        .foregroundStyle(.orange)
                     Text(error)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 4)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
             }
         }
 
         if let notice = viewModel.activeTournamentNotice {
             Section {
-                VStack(alignment: .leading, spacing: 8) {
+                AppAlert(severity: .info, icon: "play.fill", onClose: {
+                    viewModel.dismissTournamentNotice()
+                }) {
                     Text("Turnering pågår!")
                         .font(.headline)
                     Text("\(notice.name) är live nu.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    HStack {
-                        Button("Visa turnering") {
-                            viewModel.openTournamentTab()
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        Button("Stäng") {
-                            viewModel.dismissTournamentNotice()
-                        }
-                        .buttonStyle(.bordered)
+                    Button("Visa turnering") {
+                        viewModel.openTournamentTab()
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .padding(.top, 4)
                 }
-                .padding(.vertical, 4)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
             }
         }
 
         if let upcoming = viewModel.nextScheduledGameNotice {
             Section {
-                VStack(alignment: .leading, spacing: 8) {
+                AppAlert(severity: .info, icon: "timer", onClose: {
+                    viewModel.dismissScheduledGameNotice()
+                }) {
                     Text("Uppkommande bokning")
                         .font(.headline)
                     Text("\(upcoming.description) • \(upcoming.location)")
@@ -199,46 +199,38 @@ struct DashboardView: View {
                     Text(dateFormatter.string(from: upcoming.startsAt))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    HStack {
-                        Button("Se schema") {
-                            viewModel.openScheduleTab()
-                        }
-                        .buttonStyle(.bordered)
-                        Button("Stäng") {
-                            viewModel.dismissScheduledGameNotice()
-                        }
-                        .buttonStyle(.plain)
+                    Button("Se schema") {
+                        viewModel.openScheduleTab()
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .padding(.top, 4)
                 }
-                .padding(.vertical, 4)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
             }
         }
 
         if let recent = viewModel.latestRecentMatch {
-            Section("Senaste highlight") {
-                VStack(alignment: .leading, spacing: 6) {
+            Section {
+                AppAlert(severity: .success, icon: "timer", onClose: {
+                    viewModel.dismissRecentMatchNotice()
+                }) {
                     Text("Nytt resultat!")
                         .font(.headline)
                     Text("\(recent.teamAName) vs \(recent.teamBName)")
                     Text("Resultat: \(recent.teamAScore)-\(recent.teamBScore)")
                         .font(.subheadline.weight(.semibold))
 
-                    HStack(spacing: 16) {
-                        Button("Se alla") {
-                            viewModel.openHistoryTab()
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button("Stäng") {
-                            viewModel.dismissRecentMatchNotice()
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                        .font(.subheadline)
+                    Button("Se alla") {
+                        viewModel.openHistoryTab()
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                     .padding(.top, 4)
                 }
-                .padding(.vertical, 4)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
             }
         }
     }
