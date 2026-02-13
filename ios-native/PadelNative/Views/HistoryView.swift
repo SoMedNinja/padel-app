@@ -191,7 +191,6 @@ struct HistoryView: View {
         }
     }
 
-    @ViewBuilder
     private func typeLabelChip(for match: Match) -> some View {
         let type = match.sourceTournamentType ?? "standalone"
         let label: String
