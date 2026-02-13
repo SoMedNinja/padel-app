@@ -206,6 +206,9 @@ struct SingleGameView: View {
         }
     }
 
+    }
+    // Note for non-coders: this helper builds a shareable image file URL from the recap text.
+
     private func recapShareImageURL(for recap: SingleGameRecap) -> URL? {
         let lines = [recap.matchSummary, "", recap.eveningSummary]
         return try? ShareCardService.createShareImageFile(
