@@ -36,16 +36,16 @@ struct DashboardView: View {
             ScrollViewReader { proxy in
                 ZStack(alignment: .bottom) {
                     ScrollView {
-                        VStack(spacing: 20) {
+                        VStack(spacing: 12) {
                             Color.clear
-                                .frame(height: 1)
+                                .frame(height: 0.01)
                                 .id("top")
                                 .onAppear { showScrollToTop = false }
                                 .onDisappear { showScrollToTop = true }
 
                             content(proxy: proxy)
                         }
-                        .padding()
+                        .padding(.horizontal)
                         .padding(.bottom, 60)
                     }
                     .background(AppColors.background)
@@ -448,122 +448,119 @@ struct DashboardView: View {
 
     private var rivalrySection: some View {
         SectionCard(title: "Head-to-head") {
-            if viewModel.currentRivalryAgainstStats.isEmpty {
-                Text("Ingen data än.")
-                    .font(.inter(.body))
-                    .foregroundStyle(AppColors.textSecondary)
-            } else {
-                VStack(spacing: 16) {
-                    Picker("Läge", selection: $viewModel.dashboardRivalryMode) {
-                        Text("Mot").tag("against")
-                        Text("Med").tag("together")
+            VStack(spacing: 16) {
+                Picker("Läge", selection: $viewModel.dashboardRivalryMode) {
+                    Text("Mot").tag("against")
+                    Text("Med").tag("together")
+                }
+                .pickerStyle(.segmented)
+
+                Picker("Spelare", selection: $viewModel.dashboardRivalryOpponentId) {
+                    Text("Välj spelare").tag(UUID?.none)
+                    ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
+                        Text(player.profileName).tag(UUID?.init(player.id))
                     }
-                    .pickerStyle(.segmented)
+                }
+                .pickerStyle(.menu)
 
-                    let stats = viewModel.dashboardRivalryMode == "against" ? viewModel.currentRivalryAgainstStats : viewModel.currentRivalryTogetherStats
-                    let currentOpponentId = viewModel.dashboardRivalryOpponentId ?? stats.first?.id
+                let stats = viewModel.dashboardRivalryMode == "against" ? viewModel.currentRivalryAgainstStats : viewModel.currentRivalryTogetherStats
+                let currentOpponentId = viewModel.dashboardRivalryOpponentId ?? stats.first?.id
 
-                    Picker("Spelare", selection: $viewModel.dashboardRivalryOpponentId) {
-                        Text("Välj spelare").tag(UUID?.none)
-                        ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
-                            Text(player.profileName).tag(UUID?.init(player.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    if let featured = stats.first(where: { $0.id == currentOpponentId }) {
-                        featuredRivalryCard(featured)
-                    } else {
-                        Text("Ingen data för vald kombination.")
-                            .font(.inter(.caption))
-                            .foregroundStyle(AppColors.textSecondary)
-                    }
-
-                    VStack(spacing: 0) {
-                        let listStats = (viewModel.dashboardRivalryMode == "against" ? viewModel.currentRivalryAgainstStats : viewModel.currentRivalryTogetherStats)
-                        let currentFeaturedId = viewModel.dashboardRivalryOpponentId ?? listStats.first?.id
-
-                        ForEach(listStats.prefix(6).filter { $0.id != currentFeaturedId }) { summary in
-                            NavigationLink(destination: RivalryView(opponentId: summary.id)) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(viewModel.dashboardRivalryMode == "against" ? "Du vs \(summary.opponentName)" : "Du & \(summary.opponentName)")
-                                            .font(.inter(.subheadline, weight: .semibold))
-                                            .foregroundStyle(AppColors.textPrimary)
-                                        Text("\(summary.matchesPlayed) matcher • \(summary.wins) vinster")
-                                            .font(.inter(.caption))
-                                            .foregroundStyle(AppColors.textSecondary)
-                                    }
-                                    Spacer()
-                                    Text(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")
-                                        .font(.inter(.caption2, weight: .bold))
-                                        .foregroundStyle(summary.lastMatchResult == "V" ? AppColors.success : AppColors.error)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background((summary.lastMatchResult == "V" ? AppColors.success : AppColors.error).opacity(0.1), in: Capsule())
-                                }
-                                .padding(.vertical, 10)
-                            }
-                            Divider()
-                                .background(AppColors.borderSubtle)
-                        }
-                    }
+                if let opponentId = currentOpponentId {
+                    rivalryDetailContent(opponentId: opponentId)
+                } else {
+                    Text("Välj en spelare ovan för att se statistik.")
+                        .font(.inter(.caption))
+                        .foregroundStyle(AppColors.textSecondary)
+                        .padding(.vertical, 20)
                 }
             }
         }
     }
 
-    private func featuredRivalryCard(_ summary: RivalrySummary) -> some View {
-        NavigationLink(destination: RivalryView(opponentId: summary.id)) {
-            VStack(spacing: 16) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("DIN STÖRSTA RIVAL")
+    @ViewBuilder
+    private func rivalryDetailContent(opponentId: UUID) -> some View {
+        let stats = viewModel.dashboardRivalryMode == "against" ? viewModel.currentRivalryAgainstStats : viewModel.currentRivalryTogetherStats
+        if let summary = stats.first(where: { $0.id == opponentId }) {
+            VStack(spacing: 20) {
+                rivalryHeader(summary: summary)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    rivalStat(label: "Matcher", value: "\(summary.matchesPlayed)")
+                    rivalStat(label: "Vinst/förlust", value: "\(summary.wins) - \(summary.losses)")
+                    rivalStat(label: "Vinst %", value: "\(Int((summary.winRate) * 100))%")
+                    rivalStat(label: "Totala set", value: "\(summary.totalSetsFor) - \(summary.totalSetsAgainst)")
+
+                    if viewModel.dashboardRivalryMode == "against" {
+                        rivalStat(label: "Vinstchans", value: "\(Int(round(summary.winProbability * 100)))%")
+                        rivalStat(label: "ELO-utbyte", value: "\(summary.eloDelta >= 0 ? "+" : "")\(summary.eloDelta)", color: summary.eloDelta >= 0 ? AppColors.success : AppColors.error)
+                    }
+                }
+
+                if !summary.recentResults.isEmpty {
+                    VStack(spacing: 8) {
+                        Text("FORM (SENASTE 5)")
                             .font(.inter(.caption2, weight: .black))
                             .foregroundStyle(AppColors.textSecondary)
-                        Text(summary.opponentName)
-                            .font(.inter(.title3, weight: .bold))
-                            .foregroundStyle(AppColors.textPrimary)
-                    }
-                    Spacer()
-                    PlayerAvatarView(urlString: summary.opponentAvatarURL, size: 50)
-                        .overlay(Circle().stroke(AppColors.brandPrimary.opacity(0.2), lineWidth: 1))
-                }
-
-                HStack(spacing: 20) {
-                    rivalStat(label: "Matcher", value: "\(summary.matchesPlayed)")
-                    rivalStat(label: "Vinster", value: "\(summary.wins)", color: AppColors.success)
-                    rivalStat(label: "Vinstchans", value: "\(Int(round(summary.winProbability * 100)))%")
-                }
-
-                HStack {
-                    Text("Senaste: \(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")")
-                        .font(.inter(.caption, weight: .bold))
-                        .foregroundStyle(summary.lastMatchResult == "V" ? AppColors.success : AppColors.error)
-
-                    Spacer()
-
-                    HStack(spacing: 4) {
-                        ForEach(Array(summary.recentResults.prefix(5).enumerated()), id: \.offset) { _, res in
-                            Text(res)
-                                .font(.inter(size: 8, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 16, height: 16)
-                                .background(res == "V" ? AppColors.success : AppColors.error)
-                                .clipShape(Circle())
+                        HStack(spacing: 8) {
+                            ForEach(Array(summary.recentResults.enumerated()), id: \.offset) { _, res in
+                                Text(res)
+                                    .font(.inter(size: 8, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 20, height: 20)
+                                    .background(res == "V" ? AppColors.success : AppColors.error)
+                                    .clipShape(Circle())
+                            }
                         }
                     }
                 }
+
+                NavigationLink(destination: RivalryView(opponentId: opponentId)) {
+                    Text("Se fullständig analys")
+                        .font(.inter(.caption, weight: .bold))
+                        .foregroundStyle(AppColors.brandPrimary)
+                }
             }
-            .padding()
-            .background(AppColors.background)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.top, 10)
+        } else {
+            Text("Ingen matchhistorik hittades för denna kombination.")
+                .font(.inter(.caption))
+                .foregroundStyle(AppColors.textSecondary)
+                .padding(.vertical, 20)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func rivalryHeader(summary: RivalrySummary) -> some View {
+        HStack(spacing: 12) {
+            rivalryPlayerAvatar(player: viewModel.currentPlayer, label: "Du")
+            Text(viewModel.dashboardRivalryMode == "against" ? "VS" : "&")
+                .font(.inter(.headline, weight: .black))
+                .foregroundStyle(AppColors.textSecondary.opacity(0.3))
+
+            let opponent = viewModel.players.first(where: { $0.id == summary.id })
+            rivalryPlayerAvatar(player: opponent, label: viewModel.dashboardRivalryMode == "against" ? "Motstånd" : "Partner")
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func rivalryPlayerAvatar(player: Player?, label: String) -> some View {
+        let elo = (player?.id).flatMap { viewModel.playerBadgeStats[$0]?.currentElo } ?? player?.elo ?? 1000
+
+        return VStack(spacing: 6) {
+            PlayerAvatarView(urlString: player?.avatarURL, size: 44)
+                .overlay(Circle().stroke(AppColors.brandPrimary.opacity(0.1), lineWidth: 1))
+            Text(player?.profileName ?? "Okänd")
+                .font(.inter(.caption, weight: .bold))
+                .lineLimit(1)
+            Text("ELO \(elo)")
+                .font(.inter(size: 8))
+                .foregroundStyle(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func rivalStat(label: String, value: String, color: Color = AppColors.textPrimary) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(spacing: 2) {
             Text(label.uppercased())
                 .font(.inter(size: 8, weight: .bold))
                 .foregroundStyle(AppColors.textSecondary)
@@ -571,7 +568,10 @@ struct DashboardView: View {
                 .font(.inter(.subheadline, weight: .bold))
                 .foregroundStyle(color)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(AppColors.background.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func leaderboardRow(index: Int, player: LeaderboardPlayer) -> some View {

@@ -75,21 +75,21 @@ struct AppBootstrapService {
 
         var errorsBySection: [String: String] = [:]
 
-        if case .failure(let error) = playersResult {
-            errorsBySection["leaderboard"] = error.localizedDescription
+        func addError(_ error: Error, section: String) {
+            // Note for non-coders:
+            // If the error is just 'cancelled', we don't count it as a failure for the UI
+            // because it's a normal lifecycle event (e.g. user pulled to refresh twice).
+            if (error as? URLError)?.code == .cancelled || error is CancellationError {
+                return
+            }
+            errorsBySection[section] = error.localizedDescription
         }
-        if case .failure(let error) = matchesResult {
-            errorsBySection["matches"] = error.localizedDescription
-        }
-        if case .failure(let error) = allMatchesResult {
-            errorsBySection["allMatches"] = error.localizedDescription
-        }
-        if case .failure(let error) = scheduleResult {
-            errorsBySection["schedule"] = error.localizedDescription
-        }
-        if case .failure(let error) = pollsResult {
-            errorsBySection["polls"] = error.localizedDescription
-        }
+
+        if case .failure(let error) = playersResult { addError(error, section: "leaderboard") }
+        if case .failure(let error) = matchesResult { addError(error, section: "matches") }
+        if case .failure(let error) = allMatchesResult { addError(error, section: "allMatches") }
+        if case .failure(let error) = scheduleResult { addError(error, section: "schedule") }
+        if case .failure(let error) = pollsResult { addError(error, section: "polls") }
 
         return PartialSnapshot(
             players: try? playersResult.get(),
@@ -105,6 +105,12 @@ struct AppBootstrapService {
         do {
             return .success(try await operation())
         } catch {
+            // Note for non-coders:
+            // We ignore cancellation errors here because they usually mean the user navigated away
+            // or started a new refresh, and showing a "cancelled" warning is confusing.
+            if (error as? URLError)?.code == .cancelled || error is CancellationError {
+                return .failure(error)
+            }
             return .failure(error)
         }
     }

@@ -46,63 +46,96 @@ struct SingleGameView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    SectionCard(title: "Matchtyp") {
-                        Toggle("1 mot 1", isOn: $isOneVsOne)
-                            .font(.inter(.body))
-                    }
+            VStack(spacing: 0) {
+                // Stepper Header (PWA Style)
+                if wizardStep != .matchmaker && !showSuccessState {
+                    HStack(spacing: 0) {
+                        ForEach(SingleGameWizardStep.allCases.filter { $0 != .matchmaker }, id: \.self) { step in
+                            VStack(spacing: 8) {
+                                Circle()
+                                    .fill(wizardStep.rawValue >= step.rawValue ? AppColors.brandPrimary : AppColors.textSecondary.opacity(0.3))
+                                    .frame(width: 24, height: 24)
+                                    .overlay(
+                                        Text("\(step.rawValue + 1)")
+                                            .font(.inter(size: 10, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    )
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text(wizardStep.title)
-                                .font(.inter(.headline, weight: .bold))
-                                .foregroundStyle(AppColors.textPrimary)
-                            Spacer()
-                            Text("\(wizardStep.rawValue + 1)/\(SingleGameWizardStep.allCases.count)")
-                                .font(.inter(.caption, weight: .bold))
-                                .foregroundStyle(AppColors.textSecondary)
-                        }
-
-                        ProgressView(value: Double(wizardStep.rawValue + 1), total: Double(SingleGameWizardStep.allCases.count))
-                            .tint(AppColors.brandPrimary)
-                    }
-                    .padding(.horizontal, 4)
-
-                    switch wizardStep {
-                    case .teamSetup:
-                        teamSetupSection
-                    case .opponentSetup:
-                        opponentSetupSection
-                    case .score:
-                        scoreSection
-                    case .review:
-                        reviewSection
-                    case .matchmaker:
-                        matchmakerSection
-                    }
-
-                    HStack(spacing: 16) {
-                        if wizardStep != .teamSetup {
-                            Button("Tillbaka") {
-                                previousStep()
+                                Text(step.title.replacingOccurrences(of: "Steg \(step.rawValue + 1): ", with: ""))
+                                    .font(.inter(size: 10, weight: wizardStep == step ? .bold : .medium))
+                                    .foregroundStyle(wizardStep == step ? AppColors.textPrimary : AppColors.textSecondary)
                             }
-                            .buttonStyle(.bordered)
-                            .font(.inter(.subheadline, weight: .bold))
-                            .disabled(isSubmitting)
-                        }
+                            .frame(maxWidth: .infinity)
+                            .onTapGesture {
+                                if step.rawValue < wizardStep.rawValue {
+                                    wizardStep = step
+                                }
+                            }
 
-                        Button(wizardStep == .review ? "Spara match" : "Nästa") {
-                            if wizardStep == .review {
-                                submitMatch()
-                            } else {
-                                nextStep()
+                            if step != .review {
+                                Rectangle()
+                                    .fill(wizardStep.rawValue > step.rawValue ? AppColors.brandPrimary : AppColors.textSecondary.opacity(0.3))
+                                    .frame(height: 2)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.bottom, 20)
                             }
                         }
-                        .buttonStyle(PrimaryButtonStyle())
-                        .disabled(isSubmitting)
                     }
                     .padding(.top, 10)
+                    .padding(.horizontal)
+                    .background(AppColors.surface)
+                }
+
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if wizardStep == .teamSetup || wizardStep == .opponentSetup {
+                            SectionCard(title: "Matchtyp") {
+                                Picker("Matchtyp", selection: $isOneVsOne) {
+                                    Text("2 mot 2").tag(false)
+                                    Text("1 mot 1").tag(true)
+                                }
+                                .pickerStyle(.segmented)
+                            }
+                        }
+
+                        switch wizardStep {
+                        case .teamSetup:
+                            teamSetupSection
+                        case .opponentSetup:
+                            opponentSetupSection
+                        case .score:
+                            scoreSection
+                        case .review:
+                            reviewSection
+                        case .matchmaker:
+                            matchmakerSection
+                        }
+
+                        if !showSuccessState {
+                            HStack(spacing: 16) {
+                                if wizardStep != .teamSetup && wizardStep != .matchmaker {
+                                    Button("Tillbaka") {
+                                        previousStep()
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .font(.inter(.subheadline, weight: .bold))
+                                    .disabled(isSubmitting)
+                                }
+
+                                if wizardStep != .matchmaker {
+                                    Button(wizardStep == .review ? "Spara match" : "Nästa") {
+                                        if wizardStep == .review {
+                                            submitMatch()
+                                        } else {
+                                            nextStep()
+                                        }
+                                    }
+                                    .buttonStyle(PrimaryButtonStyle())
+                                    .disabled(isSubmitting || !isStepValid)
+                                }
+                            }
+                            .padding(.top, 10)
+                        }
 
                     if showSuccessState, let recap = generatedRecap {
                         SectionCard(title: "Klart 🎉") {
@@ -170,43 +203,106 @@ struct SingleGameView: View {
         )
     }
 
+    private var isStepValid: Bool {
+        switch wizardStep {
+        case .teamSetup:
+            if isOneVsOne { return teamAPlayer1Id != nil }
+            return teamAPlayer1Id != nil && teamAPlayer2Id != nil
+        case .opponentSetup:
+            if isOneVsOne { return teamBPlayer1Id != nil }
+            return teamBPlayer1Id != nil && teamBPlayer2Id != nil
+        case .score:
+            return true
+        case .review:
+            return true
+        case .matchmaker:
+            return true
+        }
+    }
+
     private var teamSetupSection: some View {
-        SectionCard(title: "Ditt lag") {
-            VStack(alignment: .leading, spacing: 16) {
-                playerSelectorRow(title: "Lag A – spelare 1", selection: $teamAPlayer1Id)
-                if !isOneVsOne {
-                    playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
-                }
-
-                DatePicker("Datum & tid", selection: $playedAt)
-                    .font(.inter(.subheadline))
-
-                HStack {
-                    Button("Föreslå match") {
-                        applySuggestedMatchup()
+        VStack(alignment: .leading, spacing: 16) {
+            SectionCard(title: isOneVsOne ? "Välj Spelare A" : "Välj Lag A") {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 12) {
+                        selectionChip(id: $teamAPlayer1Id, placeholder: "Spelare 1")
+                        if !isOneVsOne {
+                            selectionChip(id: $teamAPlayer2Id, placeholder: "Spelare 2")
+                        }
                     }
-                    .font(.inter(.caption, weight: .bold))
 
-                    Spacer()
+                    playerGrid(selection: Binding(
+                        get: { "" },
+                        set: { id in
+                            if teamAPlayer1Id == nil {
+                                teamAPlayer1Id = id
+                            } else if !isOneVsOne && teamAPlayer2Id == nil && id != teamAPlayer1Id {
+                                teamAPlayer2Id = id
+                            }
 
-                    Button("Matchmaker") {
-                        wizardStep = .matchmaker
-                    }
-                    .buttonStyle(.bordered)
-                    .font(.inter(.caption, weight: .bold))
+                            // Auto-advance if team is full
+                            if isOneVsOne && teamAPlayer1Id != nil {
+                                wizardStep = .opponentSetup
+                            } else if !isOneVsOne && teamAPlayer1Id != nil && teamAPlayer2Id != nil {
+                                wizardStep = .opponentSetup
+                            }
+                        }
+                    ), excluded: [])
                 }
-                .padding(.top, 8)
+            }
+
+            SectionCard(title: "Matchdetaljer") {
+                VStack(alignment: .leading, spacing: 12) {
+                    DatePicker("Datum & tid", selection: $playedAt)
+                        .font(.inter(.subheadline))
+
+                    HStack {
+                        Button("Föreslå match") {
+                            applySuggestedMatchup()
+                        }
+                        .font(.inter(.caption, weight: .bold))
+
+                        Spacer()
+
+                        Button("Matchmaker") {
+                            wizardStep = .matchmaker
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.inter(.caption, weight: .bold))
+                    }
+                }
             }
         }
     }
 
     private var opponentSetupSection: some View {
-        SectionCard(title: "Motståndare") {
+        SectionCard(title: isOneVsOne ? "Välj Spelare B" : "Välj Lag B") {
             VStack(alignment: .leading, spacing: 16) {
-                playerSelectorRow(title: "Lag B – spelare 1", selection: $teamBPlayer1Id)
-                if !isOneVsOne {
-                    playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $teamBPlayer2Id)
+                HStack(spacing: 12) {
+                    selectionChip(id: $teamBPlayer1Id, placeholder: "Spelare 1")
+                    if !isOneVsOne {
+                        selectionChip(id: $teamBPlayer2Id, placeholder: "Spelare 2")
+                    }
                 }
+
+                playerGrid(selection: Binding(
+                    get: { "" },
+                    set: { id in
+                        if teamBPlayer1Id == nil {
+                            teamBPlayer1Id = id
+                        } else if !isOneVsOne && teamBPlayer2Id == nil && id != teamBPlayer1Id {
+                            teamBPlayer2Id = id
+                        }
+
+                        // Auto-advance if team is full
+                        if isOneVsOne && teamBPlayer1Id != nil {
+                            wizardStep = .score
+                        } else if !isOneVsOne && teamBPlayer1Id != nil && teamBPlayer2Id != nil {
+                            wizardStep = .score
+                        }
+                    }
+                ), excluded: [teamAPlayer1Id, teamAPlayer2Id].compactMap { $0 })
+
                 if let fairnessLabel {
                     Text(fairnessLabel.replacingOccurrences(of: "Fairness", with: "Rättvisa"))
                         .font(.inter(.footnote))
@@ -214,6 +310,98 @@ struct SingleGameView: View {
                 }
             }
         }
+    }
+
+    private func selectionChip(id: Binding<String?>, placeholder: String) -> some View {
+        HStack {
+            if let selectedId = id.wrappedValue {
+                Text(resolveName(selectedId))
+                    .font(.inter(.subheadline, weight: .bold))
+                Spacer()
+                Button {
+                    id.wrappedValue = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+            } else {
+                Text(placeholder)
+                    .font(.inter(.subheadline))
+                    .foregroundStyle(AppColors.textSecondary)
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(id.wrappedValue != nil ? AppColors.brandPrimary.opacity(0.1) : AppColors.textSecondary.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(id.wrappedValue != nil ? AppColors.brandPrimary : Color.clear, lineWidth: 1)
+        )
+        .frame(maxWidth: .infinity)
+    }
+
+    private func resolveName(_ id: String) -> String {
+        if id == "guest" { return "Gäst" }
+        if let uuid = UUID(uuidString: id), let p = viewModel.players.first(where: { $0.id == uuid }) {
+            return p.profileName
+        }
+        return "Okänd"
+    }
+
+    private func playerGrid(selection: Binding<String>, excluded: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("Sök spelare...", text: $playerSearchText)
+                .textFieldStyle(.roundedBorder)
+                .font(.inter(.body))
+
+            let filteredPlayers = viewModel.players.filter {
+                (playerSearchText.isEmpty || $0.profileName.localizedCaseInsensitiveContains(playerSearchText) || $0.fullName.localizedCaseInsensitiveContains(playerSearchText))
+                && !excluded.contains($0.id.uuidString)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                // Guest tile
+                if !excluded.contains("guest") {
+                    playerTileButton(id: "guest", name: "Gäst", icon: "person.badge.plus", selection: selection)
+                }
+
+                ForEach(filteredPlayers) { player in
+                    playerTileButton(id: player.id.uuidString, name: player.profileName, avatarURL: player.avatarURL, selection: selection)
+                }
+            }
+        }
+    }
+
+    private func playerTileButton(id: String, name: String, icon: String? = nil, avatarURL: String? = nil, selection: Binding<String>) -> some View {
+        Button {
+            selection.wrappedValue = id
+        } label: {
+            VStack(spacing: 8) {
+                if let icon = icon {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundStyle(AppColors.brandPrimary)
+                        .frame(width: 44, height: 44)
+                        .background(AppColors.brandPrimary.opacity(0.1), in: Circle())
+                } else {
+                    PlayerAvatarView(urlString: avatarURL, size: 44)
+                }
+
+                Text(name)
+                    .font(.inter(.caption2, weight: .bold))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(height: 30)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(AppColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padelSurfaceCard()
+        }
+        .buttonStyle(.plain)
     }
 
     private var scoreSection: some View {
@@ -528,76 +716,6 @@ struct SingleGameView: View {
         return names.joined(separator: " & ")
     }
 
-    private func playerSelectorRow(title: String, selection: Binding<String?>) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.inter(.subheadline, weight: .bold))
-                .foregroundStyle(AppColors.textSecondary)
-
-            TextField("Sök spelare...", text: $playerSearchText)
-                .textFieldStyle(.roundedBorder)
-                .font(.inter(.body))
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    playerTile(title: "Ingen", icon: "person.crop.circle.badge.xmark", isSelected: selection.wrappedValue == nil) {
-                        selection.wrappedValue = nil
-                    }
-
-                    playerTile(title: "Gäst", icon: "person.badge.plus", isSelected: selection.wrappedValue == "guest") {
-                        selection.wrappedValue = "guest"
-                    }
-
-
-                    let filteredPlayers = viewModel.players.filter {
-                        playerSearchText.isEmpty || $0.profileName.localizedCaseInsensitiveContains(playerSearchText) || $0.fullName.localizedCaseInsensitiveContains(playerSearchText)
-                    }
-
-                    ForEach(filteredPlayers) { player in
-                        Button {
-                            selection.wrappedValue = player.id.uuidString
-                        } label: {
-                            VStack(spacing: 8) {
-                                PlayerAvatarView(urlString: player.avatarURL, size: 44)
-                                Text(player.profileName)
-                                    .font(.inter(.caption2, weight: .bold))
-                                    .lineLimit(1)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(width: 80, height: 90)
-                            .background(selection.wrappedValue == player.id.uuidString ? AppColors.brandPrimary.opacity(0.1) : AppColors.textSecondary.opacity(0.05))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(selection.wrappedValue == player.id.uuidString ? AppColors.brandPrimary : Color.clear, lineWidth: 2)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private func playerTile(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(isSelected ? AppColors.brandPrimary : AppColors.textSecondary)
-                Text(title)
-                    .font(.inter(.caption2, weight: .bold))
-            }
-            .frame(width: 80, height: 90)
-            .background(isSelected ? AppColors.brandPrimary.opacity(0.1) : AppColors.textSecondary.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? AppColors.brandPrimary : Color.clear, lineWidth: 2)
-            )
-        }
-        .buttonStyle(.plain)
-    }
 
     @ViewBuilder
     private func scoreButtonGrid(selection: Binding<Int>) -> some View {

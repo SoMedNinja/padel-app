@@ -50,7 +50,9 @@ struct RivalryView: View {
     }
 
     private func playerCard(player: Player?, label: String) -> some View {
-        VStack(spacing: 10) {
+        let elo = (player?.id).flatMap { viewModel.playerBadgeStats[$0]?.currentElo } ?? player?.elo ?? 1000
+
+        return VStack(spacing: 10) {
             PlayerAvatarView(urlString: player?.avatarURL, size: 64)
                 .overlay(Circle().stroke(AppColors.brandPrimary.opacity(0.15), lineWidth: 2))
 
@@ -58,7 +60,7 @@ struct RivalryView: View {
                 Text(player?.profileName ?? "Okänd")
                     .font(.inter(.subheadline, weight: .bold))
                     .foregroundStyle(AppColors.textPrimary)
-                Text("\(label) • ELO \(player?.elo ?? 1000)")
+                Text("\(label) • ELO \(elo)")
                     .font(.inter(.caption))
                     .foregroundStyle(AppColors.textSecondary)
             }
