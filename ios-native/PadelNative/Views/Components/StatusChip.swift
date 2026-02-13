@@ -9,9 +9,10 @@ struct StatusChip: View {
 
     var body: some View {
         Text(title)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8)
+            .font(.inter(.caption, weight: .bold))
+            .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(tint.opacity(0.18), in: Capsule())
+            .background(tint.opacity(0.12), in: Capsule())
+            .foregroundStyle(tint)
     }
 }

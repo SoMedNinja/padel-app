@@ -20,7 +20,7 @@ struct RivalryView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
                 Picker("Läge", selection: $mode) {
                     Text("Möten").tag("against")
                     Text("Tillsammans").tag("together")
@@ -34,40 +34,43 @@ struct RivalryView: View {
             }
             .padding()
         }
+        .background(AppColors.background)
         .navigationTitle("Head-to-head")
         .padelLiquidGlassChrome()
     }
 
     private var headerSection: some View {
-        HStack {
+        HStack(spacing: 16) {
             playerCard(player: viewModel.currentPlayer, label: "Du")
             Text(mode == "against" ? "VS" : "&")
-                .font(.largeTitle.bold())
-                .foregroundStyle(.secondary)
+                .font(.inter(.title, weight: .black))
+                .foregroundStyle(AppColors.textSecondary.opacity(0.5))
             playerCard(player: opponent, label: mode == "against" ? "Motstånd" : "Partner")
         }
     }
 
     private func playerCard(player: Player?, label: String) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             PlayerAvatarView(urlString: player?.avatarURL, size: 64)
-                .overlay(Circle().stroke(Color.accentColor.opacity(0.2), lineWidth: 1))
+                .overlay(Circle().stroke(AppColors.brandPrimary.opacity(0.15), lineWidth: 2))
 
-            Text(player?.profileName ?? "Okänd")
-                .font(.subheadline.weight(.bold))
-            Text("\(label) • ELO \(player?.elo ?? 1000)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(spacing: 2) {
+                Text(player?.profileName ?? "Okänd")
+                    .font(.inter(.subheadline, weight: .bold))
+                    .foregroundStyle(AppColors.textPrimary)
+                Text("\(label) • ELO \(player?.elo ?? 1000)")
+                    .font(.inter(.caption))
+                    .foregroundStyle(AppColors.textSecondary)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padelSurfaceCard()
     }
 
     private var statsGrid: some View {
-        VStack(spacing: 12) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        VStack(spacing: 16) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 statCard(title: "Matcher", value: "\(summary?.matchesPlayed ?? 0)")
                 statCard(title: "Vinst/förlust", value: "\(summary?.wins ?? 0) - \(summary?.losses ?? 0)")
                 statCard(title: "Vinst %", value: "\(Int((summary?.winRate ?? 0) * 100))%")
@@ -80,22 +83,22 @@ struct RivalryView: View {
 
                 if mode == "against" {
                     statCard(title: "Vinstchans", value: "\(Int(round((summary?.winProbability ?? 0.5) * 100)))%")
-                    statCard(title: "ELO-utbyte", value: "\(summary?.eloDelta ?? 0 >= 0 ? "+" : "")\(summary?.eloDelta ?? 0)", color: (summary?.eloDelta ?? 0) >= 0 ? .green : .red)
+                    statCard(title: "ELO-utbyte", value: "\(summary?.eloDelta ?? 0 >= 0 ? "+" : "")\(summary?.eloDelta ?? 0)", color: (summary?.eloDelta ?? 0) >= 0 ? AppColors.success : AppColors.error)
                 }
             }
 
             if let last = summary?.lastMatchDate {
-                VStack(spacing: 4) {
+                VStack(spacing: 6) {
                     Text("SENASTE MÖTET")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.secondary)
+                        .font(.inter(.caption2, weight: .black))
+                        .foregroundStyle(AppColors.textSecondary)
                     Text("\(last, style: .date): \(summary?.lastMatchResult == "V" ? "Vinst" : "Förlust")")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.inter(.subheadline, weight: .bold))
+                        .foregroundStyle(summary?.lastMatchResult == "V" ? AppColors.success : AppColors.error)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padelSurfaceCard()
             }
         }
     }
@@ -103,7 +106,7 @@ struct RivalryView: View {
     private var detailedComparisonSection: some View {
         Group {
             if let summary = summary {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     comparisonRow(
                         title: "Antal dagar som månadens MVP",
                         myValue: "\(viewModel.currentMonthlyMvpDays)",
@@ -129,74 +132,74 @@ struct RivalryView: View {
     }
 
     private func comparisonRow(title: String, myValue: String, oppValue: String, myLabel: String = "Du", oppLabel: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title.uppercased())
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.secondary)
+                .font(.inter(size: 9, weight: .black))
+                .foregroundStyle(AppColors.textSecondary)
 
             HStack {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(myLabel)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.inter(.caption2, weight: .bold))
+                        .foregroundStyle(AppColors.textSecondary)
                     Text(myValue)
-                        .font(.headline.weight(.bold))
+                        .font(.inter(.title3, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
                 }
                 Spacer()
-                VStack(alignment: .trailing) {
+                VStack(alignment: .trailing, spacing: 2) {
                     Text(oppLabel ?? (opponent?.profileName ?? "Motståndare"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.inter(.caption2, weight: .bold))
+                        .foregroundStyle(AppColors.textSecondary)
                     Text(oppValue)
-                        .font(.headline.weight(.bold))
+                        .font(.inter(.title3, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
                 }
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padelSurfaceCard()
     }
 
-    private func statCard(title: String, value: String, color: Color = .primary) -> some View {
-        VStack(spacing: 4) {
+    private func statCard(title: String, value: String, color: Color = AppColors.textPrimary) -> some View {
+        VStack(spacing: 6) {
             Text(title.uppercased())
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.secondary)
+                .font(.inter(size: 9, weight: .black))
+                .foregroundStyle(AppColors.textSecondary)
             Text(value)
-                .font(.headline.weight(.bold))
+                .font(.inter(.headline, weight: .bold))
                 .foregroundStyle(color)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padelSurfaceCard()
     }
 
     private var recentResultsSection: some View {
-        VStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .center, spacing: 12) {
             Text("FORM (SENASTE 5)")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.secondary)
+                .font(.inter(.caption, weight: .black))
+                .foregroundStyle(AppColors.textSecondary)
 
             if let summary = summary, !summary.recentResults.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     ForEach(Array(summary.recentResults.enumerated()), id: \.offset) { _, res in
                         Text(res)
-                            .font(.caption.weight(.bold))
+                            .font(.inter(.caption, weight: .black))
                             .foregroundStyle(.white)
-                            .frame(width: 28, height: 28)
-                            .background(res == "V" ? Color.green : Color.red)
+                            .frame(width: 32, height: 32)
+                            .background(res == "V" ? AppColors.success : AppColors.error)
                             .clipShape(Circle())
                     }
                 }
             } else {
                 Text("Inga matcher hittades.")
-                    .foregroundStyle(.secondary)
+                    .font(.inter(.footnote))
+                    .foregroundStyle(AppColors.textSecondary)
             }
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padelSurfaceCard()
     }
 }

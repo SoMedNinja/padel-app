@@ -49,38 +49,51 @@ struct SingleGameView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Matchtyp") {
-                    Toggle("1 mot 1", isOn: $isOneVsOne)
-                }
+            ScrollView {
+                VStack(spacing: 20) {
+                    SectionCard(title: "Matchtyp") {
+                        Toggle("1 mot 1", isOn: $isOneVsOne)
+                            .font(.inter(.body))
+                    }
 
-                Section("Wizard") {
-                    Text(wizardStep.title)
-                        .font(.headline)
-                    ProgressView(value: Double(wizardStep.rawValue + 1), total: Double(SingleGameWizardStep.allCases.count))
-                }
-
-                switch wizardStep {
-                case .teamSetup:
-                    teamSetupSection
-                case .opponentSetup:
-                    opponentSetupSection
-                case .score:
-                    scoreSection
-                case .review:
-                    reviewSection
-                case .matchmaker:
-                    matchmakerSection
-                }
-
-                Section {
-                    HStack {
-                        Button("Tillbaka") {
-                            previousStep()
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text(wizardStep.title)
+                                .font(.inter(.headline, weight: .bold))
+                                .foregroundStyle(AppColors.textPrimary)
+                            Spacer()
+                            Text("\(wizardStep.rawValue + 1)/\(SingleGameWizardStep.allCases.count)")
+                                .font(.inter(.caption, weight: .bold))
+                                .foregroundStyle(AppColors.textSecondary)
                         }
-                        .disabled(wizardStep == .teamSetup || isSubmitting)
 
-                        Spacer()
+                        ProgressView(value: Double(wizardStep.rawValue + 1), total: Double(SingleGameWizardStep.allCases.count))
+                            .tint(AppColors.brandPrimary)
+                    }
+                    .padding(.horizontal, 4)
+
+                    switch wizardStep {
+                    case .teamSetup:
+                        teamSetupSection
+                    case .opponentSetup:
+                        opponentSetupSection
+                    case .score:
+                        scoreSection
+                    case .review:
+                        reviewSection
+                    case .matchmaker:
+                        matchmakerSection
+                    }
+
+                    HStack(spacing: 16) {
+                        if wizardStep != .teamSetup {
+                            Button("Tillbaka") {
+                                previousStep()
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.inter(.subheadline, weight: .bold))
+                            .disabled(isSubmitting)
+                        }
 
                         Button(wizardStep == .review ? "Spara match" : "Nästa") {
                             if wizardStep == .review {
@@ -89,42 +102,54 @@ struct SingleGameView: View {
                                 nextStep()
                             }
                         }
+                        .buttonStyle(PrimaryButtonStyle())
                         .disabled(isSubmitting)
                     }
-                }
+                    .padding(.top, 10)
 
-                if showSuccessState, let recap = generatedRecap {
-                    Section("Klart 🎉") {
-                        MatchSuccessCeremonyView(recap: recap, players: viewModel.players)
+                    if showSuccessState, let recap = generatedRecap {
+                        SectionCard(title: "Klart 🎉") {
+                            MatchSuccessCeremonyView(recap: recap, players: viewModel.players)
+                        }
                     }
-                }
 
-                if let recap = generatedRecap {
-                    Section("Recap") {
-                        Text(recap.matchSummary)
-                            .font(.subheadline)
-                        Text(recap.eveningSummary)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    if let recap = generatedRecap {
+                        SectionCard(title: "Sammanfattning") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(recap.matchSummary)
+                                    .font(.inter(.subheadline, weight: .bold))
+                                Text(recap.eveningSummary)
+                                    .font(.inter(.subheadline))
+                                    .foregroundStyle(AppColors.textSecondary)
 
-                        if let shareImageURL = recapShareImageURL(for: recap) {
-                            ShareLink(item: shareImageURL) {
-                                Label("Dela recap som bild", systemImage: "photo.on.rectangle")
+                                HStack(spacing: 12) {
+                                    if let shareImageURL = recapShareImageURL(for: recap) {
+                                        ShareLink(item: shareImageURL) {
+                                            Label("Dela bild", systemImage: "photo.on.rectangle")
+                                        }
+                                    }
+
+                                    ShareLink(item: recap.sharePayload) {
+                                        Label("Dela text", systemImage: "square.and.arrow.up")
+                                    }
+                                }
+                                .font(.inter(.caption, weight: .bold))
+                                .padding(.top, 4)
                             }
                         }
+                    }
 
-                        ShareLink(item: recap.sharePayload) {
-                            Label("Dela recap som text", systemImage: "square.and.arrow.up")
+                    if let status = viewModel.statusMessage {
+                        SectionCard(title: "Status") {
+                            Text(status)
+                                .font(.inter(.footnote))
+                                .foregroundStyle(AppColors.textSecondary)
                         }
                     }
                 }
-
-                if let status = viewModel.statusMessage {
-                    Section("Status") {
-                        Text(status).foregroundStyle(.secondary)
-                    }
-                }
+                .padding()
             }
+            .background(AppColors.background)
             .navigationTitle("Singelmatch")
             .onAppear {
                 applyDeepLinkModeIfAvailable()
@@ -148,189 +173,237 @@ struct SingleGameView: View {
     }
 
     private var teamSetupSection: some View {
-        Section("Ditt lag") {
-            playerSelectorRow(title: "Lag A – spelare 1", selection: $teamAPlayer1Id)
-            if !isOneVsOne {
-                playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
-            }
-
-            DatePicker("Datum & tid", selection: $playedAt)
-                .font(.subheadline)
-
-            HStack {
-                Button("Föreslå match") {
-                    applySuggestedMatchup()
+        SectionCard(title: "Ditt lag") {
+            VStack(alignment: .leading, spacing: 16) {
+                playerSelectorRow(title: "Lag A – spelare 1", selection: $teamAPlayer1Id)
+                if !isOneVsOne {
+                    playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $teamAPlayer2Id)
                 }
-                Spacer()
-                Button("Matchmaker") {
-                    wizardStep = .matchmaker
+
+                DatePicker("Datum & tid", selection: $playedAt)
+                    .font(.inter(.subheadline))
+
+                HStack {
+                    Button("Föreslå match") {
+                        applySuggestedMatchup()
+                    }
+                    .font(.inter(.caption, weight: .bold))
+
+                    Spacer()
+
+                    Button("Matchmaker") {
+                        wizardStep = .matchmaker
+                    }
+                    .buttonStyle(.bordered)
+                    .font(.inter(.caption, weight: .bold))
                 }
-                .buttonStyle(.bordered)
+                .padding(.top, 8)
             }
         }
     }
 
     private var opponentSetupSection: some View {
-        Section("Motståndare") {
-            playerSelectorRow(title: "Lag B – spelare 1", selection: $teamBPlayer1Id)
-            if !isOneVsOne {
-                playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $teamBPlayer2Id)
-            }
-            if let fairnessLabel {
-                Text(fairnessLabel.replacingOccurrences(of: "Fairness", with: "Rättvisa"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+        SectionCard(title: "Motståndare") {
+            VStack(alignment: .leading, spacing: 16) {
+                playerSelectorRow(title: "Lag B – spelare 1", selection: $teamBPlayer1Id)
+                if !isOneVsOne {
+                    playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $teamBPlayer2Id)
+                }
+                if let fairnessLabel {
+                    Text(fairnessLabel.replacingOccurrences(of: "Fairness", with: "Rättvisa"))
+                        .font(.inter(.footnote))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
             }
         }
     }
 
     private var scoreSection: some View {
-        Section("Resultat") {
+        SectionCard(title: "Resultat") {
             VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Lag A").font(.caption.bold()).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Lag A")
+                        .font(.inter(.caption, weight: .black))
+                        .foregroundStyle(AppColors.textSecondary)
                     scoreButtonGrid(selection: $teamAScore)
                 }
 
-                Divider()
+                Divider().background(AppColors.borderSubtle)
 
-                VStack(alignment: .trailing, spacing: 8) {
-                    Text("Lag B").font(.caption.bold()).foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 10) {
+                    Text("Lag B")
+                        .font(.inter(.caption, weight: .black))
+                        .foregroundStyle(AppColors.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     scoreButtonGrid(selection: $teamBScore)
                 }
 
                 if let (fairness, prob) = currentMatchFairnessAndProb {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Rättvisa: \(fairness)%")
                             ProgressView(value: Double(fairness), total: 100)
-                                .tint(fairness > 70 ? .green : (fairness > 40 ? .orange : .red))
+                                .tint(fairness > 70 ? AppColors.success : (fairness > 40 ? AppColors.warning : AppColors.error))
                         }
                         Spacer()
-                        VStack(alignment: .trailing, spacing: 2) {
+                        VStack(alignment: .trailing, spacing: 4) {
                             Text("Vinstchans Lag A: \(Int(round(prob * 100)))%")
                             ProgressView(value: prob, total: 1.0)
                         }
                     }
-                    .font(.caption2.bold())
-                    .padding(10)
-                    .background(Color.accentColor.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .font(.inter(.caption2, weight: .bold))
+                    .padding(12)
+                    .background(AppColors.brandPrimary.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Poängtyp", selection: $scoreType) {
+                        Text("Set").tag("sets")
+                        Text("Poäng").tag("points")
+                    }
+                    .pickerStyle(.segmented)
+
+                    if scoreType == "points" {
+                        TextField("Poängmål (valfritt)", text: $scoreTargetText)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.numberPad)
+                    }
+
+                    Picker("Turnering (valfritt)", selection: $selectedSourceTournamentId) {
+                        Text("Ingen turnering").tag(Optional<UUID>.none)
+                        ForEach(viewModel.tournaments) { tournament in
+                            Text(tournament.name).tag(Optional(tournament.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    TextField("Turneringstyp (t.ex. mexicano)", text: $sourceTournamentType)
+                        .textFieldStyle(.roundedBorder)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                    Toggle("Lag A servar först", isOn: $teamAServesFirst)
+                        .font(.inter(.subheadline))
                 }
             }
-
-            Picker("Poängtyp", selection: $scoreType) {
-                Text("Set").tag("sets")
-                Text("Poäng").tag("points")
-            }
-
-            if scoreType == "points" {
-                TextField("Poängmål (valfritt)", text: $scoreTargetText)
-                    .keyboardType(.numberPad)
-            }
-
-            Picker("Turnering (valfritt)", selection: $selectedSourceTournamentId) {
-                Text("Ingen turnering").tag(Optional<UUID>.none)
-                ForEach(viewModel.tournaments) { tournament in
-                    Text(tournament.name).tag(Optional(tournament.id))
-                }
-            }
-
-            TextField("Turneringstyp (t.ex. mexicano)", text: $sourceTournamentType)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-
-            Toggle("Lag A servar först", isOn: $teamAServesFirst)
         }
     }
 
     private var reviewSection: some View {
-        Section("Granska match") {
-            Text("Lag A: \(teamText(primary: teamAPlayer1Id, secondary: isOneVsOne ? nil : teamAPlayer2Id))")
-            Text("Lag B: \(teamText(primary: teamBPlayer1Id, secondary: isOneVsOne ? nil : teamBPlayer2Id))")
-            Text("Resultat: \(teamAScore)-\(teamBScore)")
-            Text("Poängtyp: \(scoreType == "points" ? "Poäng" : "Set")")
-            Text("Detta är en sista kontroll innan matchen sparas i databasen.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        SectionCard(title: "Granska match") {
+            VStack(alignment: .leading, spacing: 12) {
+                reviewRow(label: "Lag A", value: teamText(primary: teamAPlayer1Id, secondary: isOneVsOne ? nil : teamAPlayer2Id))
+                reviewRow(label: "Lag B", value: teamText(primary: teamBPlayer1Id, secondary: isOneVsOne ? nil : teamBPlayer2Id))
+                reviewRow(label: "Resultat", value: "\(teamAScore)–\(teamBScore)")
+                reviewRow(label: "Poängtyp", value: scoreType == "points" ? "Poäng" : "Set")
+
+                Text("Detta är en sista kontroll innan matchen sparas.")
+                    .font(.inter(.footnote))
+                    .foregroundStyle(AppColors.textSecondary)
+                    .padding(.top, 4)
+            }
+        }
+    }
+
+    private func reviewRow(label: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text("\(label):")
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
+                .frame(width: 80, alignment: .leading)
+            Text(value)
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.textPrimary)
         }
     }
 
     private var matchmakerSection: some View {
-        Group {
-            Section("Välj spelare (4–8)") {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(viewModel.players) { player in
-                            Button {
-                                if matchmakerPool.contains(player.id) {
-                                    matchmakerPool.remove(player.id)
-                                } else if matchmakerPool.count < 8 {
-                                    matchmakerPool.insert(player.id)
+        VStack(spacing: 20) {
+            SectionCard(title: "Välj spelare (4–8)") {
+                VStack(alignment: .leading, spacing: 16) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(viewModel.players) { player in
+                                Button {
+                                    if matchmakerPool.contains(player.id) {
+                                        matchmakerPool.remove(player.id)
+                                    } else if matchmakerPool.count < 8 {
+                                        matchmakerPool.insert(player.id)
+                                    }
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        PlayerAvatarView(urlString: player.avatarURL, size: 44)
+                                        Text(player.profileName)
+                                            .font(.inter(.caption2, weight: .bold))
+                                            .lineLimit(1)
+                                    }
+                                    .frame(width: 80, height: 90)
+                                    .background(matchmakerPool.contains(player.id) ? AppColors.brandPrimary.opacity(0.1) : AppColors.textSecondary.opacity(0.05))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(matchmakerPool.contains(player.id) ? AppColors.brandPrimary : Color.clear, lineWidth: 2)
+                                    )
                                 }
-                            } label: {
-                                VStack(spacing: 6) {
-                                    playerAvatar(player)
-                                    Text(player.profileName)
-                                        .font(.caption)
-                                }
-                                .frame(width: 84, height: 92)
-                                .background(tileBackground(isSelected: matchmakerPool.contains(player.id)))
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
-                }
 
-                HStack(spacing: 12) {
-                    Button("Balansera lag") {
-                        viewModel.generateBalancedMatch(poolIds: Array(matchmakerPool))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(matchmakerPool.count != 4)
+                    HStack(spacing: 12) {
+                        Button("Balansera lag") {
+                            viewModel.generateBalancedMatch(poolIds: Array(matchmakerPool))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .font(.inter(.caption, weight: .bold))
+                        .disabled(matchmakerPool.count != 4)
 
-                    Button("Skapa rotation") {
-                        viewModel.generateRotation(poolIds: Array(matchmakerPool))
+                        Button("Skapa rotation") {
+                            viewModel.generateRotation(poolIds: Array(matchmakerPool))
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.inter(.caption, weight: .bold))
+                        .disabled(matchmakerPool.count < 4)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(matchmakerPool.count < 4)
                 }
             }
 
             if let rotation = viewModel.currentRotation {
-                ForEach(rotation.rounds) { round in
-                    Section {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Lag A: \(rotationTeamText(ids: round.teamA))")
-                                Spacer()
-                                Text("VS")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("Lag B: \(rotationTeamText(ids: round.teamB))")
-                            }
-                            .font(.subheadline)
+                VStack(spacing: 16) {
+                    ForEach(rotation.rounds) { round in
+                        SectionCard(title: "Runda \(round.roundNumber)") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text(rotationTeamText(ids: round.teamA))
+                                    Spacer()
+                                    Text("VS")
+                                        .font(.inter(.caption, weight: .black))
+                                        .foregroundStyle(AppColors.textSecondary)
+                                    Spacer()
+                                    Text(rotationTeamText(ids: round.teamB))
+                                }
+                                .font(.inter(.subheadline, weight: .bold))
+                                .multilineTextAlignment(.center)
 
-                            if !round.rest.isEmpty {
-                                Text("Vilar: \(rotationTeamText(ids: round.rest))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                                if !round.rest.isEmpty {
+                                    Text("Vilar: \(rotationTeamText(ids: round.rest))")
+                                        .font(.inter(.caption))
+                                        .foregroundStyle(AppColors.textSecondary)
+                                }
 
-                            Button("Starta denna match") {
-                                startRotationMatch(round: round)
+                                HStack {
+                                    Text("Rättvisa: \(round.fairness)%")
+                                        .font(.inter(.caption, weight: .bold))
+                                        .foregroundStyle(AppColors.textSecondary)
+                                    Spacer()
+                                    Button("Starta match") {
+                                        startRotationMatch(round: round)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .font(.inter(.caption, weight: .bold))
+                                }
                             }
-                            .buttonStyle(.bordered)
-                        }
-                    } header: {
-                        HStack {
-                            Text("Runda \(round.roundNumber)")
-                            Spacer()
-                            Text("Rättvisa: \(round.fairness)%")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -343,8 +416,6 @@ struct SingleGameView: View {
     }
 
     private func startRotationMatch(round: RotationRound) {
-        // Note for non-coders: player ids are stored as text in this screen,
-        // so we convert each UUID value to a string before saving it.
         teamAPlayer1Id = round.teamA.first?.uuidString
         teamAPlayer2Id = round.teamA.dropFirst().first?.uuidString
         teamBPlayer1Id = round.teamB.first?.uuidString
@@ -460,59 +531,30 @@ struct SingleGameView: View {
     }
 
     private func playerSelectorRow(title: String, selection: Binding<String?>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
 
             TextField("Sök spelare...", text: $playerSearchText)
                 .textFieldStyle(.roundedBorder)
-                .controlSize(.small)
+                .font(.inter(.body))
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    Button {
+                HStack(spacing: 12) {
+                    playerTile(title: "Ingen", icon: "person.crop.circle.badge.xmark", isSelected: selection.wrappedValue == nil) {
                         selection.wrappedValue = nil
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "person.crop.circle.badge.xmark")
-                                .font(.title2)
-                            Text("Ingen")
-                                .font(.caption)
-                        }
-                        .frame(width: 76, height: 84)
-                        .background(tileBackground(isSelected: selection.wrappedValue == nil))
                     }
-                    .buttonStyle(.plain)
 
-                    Button {
+                    playerTile(title: "Gäst", icon: "person.badge.plus", isSelected: selection.wrappedValue == "guest") {
                         selection.wrappedValue = "guest"
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "person.badge.plus")
-                                .font(.title2)
-                            Text("Gäst")
-                                .font(.caption)
-                        }
-                        .frame(width: 76, height: 84)
-                        .background(tileBackground(isSelected: selection.wrappedValue == "guest"))
                     }
-                    .buttonStyle(.plain)
 
-                    Button {
+                    playerTile(title: "Namngiven", icon: "character.cursor.ibeam", isSelected: selection.wrappedValue?.hasPrefix("name:") == true) {
                         activeSelectionBinding = selection
                         newGuestName = ""
                         showGuestDialog = true
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "character.cursor.ibeam")
-                                .font(.title2)
-                            Text("Namngiven")
-                                .font(.caption)
-                        }
-                        .frame(width: 76, height: 84)
-                        .background(tileBackground(isSelected: selection.wrappedValue?.hasPrefix("name:") == true))
                     }
-                    .buttonStyle(.plain)
 
                     let filteredPlayers = viewModel.players.filter {
                         playerSearchText.isEmpty || $0.profileName.localizedCaseInsensitiveContains(playerSearchText) || $0.fullName.localizedCaseInsensitiveContains(playerSearchText)
@@ -522,15 +564,20 @@ struct SingleGameView: View {
                         Button {
                             selection.wrappedValue = player.id.uuidString
                         } label: {
-                            VStack(spacing: 6) {
-                                playerAvatar(player)
+                            VStack(spacing: 8) {
+                                PlayerAvatarView(urlString: player.avatarURL, size: 44)
                                 Text(player.profileName)
-                                    .font(.caption)
-                                    .lineLimit(2)
+                                    .font(.inter(.caption2, weight: .bold))
+                                    .lineLimit(1)
                                     .multilineTextAlignment(.center)
                             }
-                            .frame(width: 84, height: 92)
-                            .background(tileBackground(isSelected: selection.wrappedValue == player.id.uuidString))
+                            .frame(width: 80, height: 90)
+                            .background(selection.wrappedValue == player.id.uuidString ? AppColors.brandPrimary.opacity(0.1) : AppColors.textSecondary.opacity(0.05))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(selection.wrappedValue == player.id.uuidString ? AppColors.brandPrimary : Color.clear, lineWidth: 2)
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -550,17 +597,24 @@ struct SingleGameView: View {
         }
     }
 
-    private func playerAvatar(_ player: Player) -> some View {
-        PlayerAvatarView(urlString: player.avatarURL, size: 42)
-    }
-
-    private func tileBackground(isSelected: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(isSelected ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground))
+    private func playerTile(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(isSelected ? AppColors.brandPrimary : AppColors.textSecondary)
+                Text(title)
+                    .font(.inter(.caption2, weight: .bold))
+            }
+            .frame(width: 80, height: 90)
+            .background(isSelected ? AppColors.brandPrimary.opacity(0.1) : AppColors.textSecondary.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? AppColors.brandPrimary : Color.clear, lineWidth: 2)
             )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -568,35 +622,15 @@ struct SingleGameView: View {
         let scores = [0, 1, 2, 3, 4, 5, 6, 7]
         let extras = [8, 9, 10, 11, 12]
 
-        VStack(spacing: 8) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 8) {
+        VStack(spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
                 ForEach(scores, id: \.self) { score in
-                    Button {
-                        selection.wrappedValue = score
-                    } label: {
-                        Text("\(score)")
-                            .font(.headline)
-                            .frame(width: 44, height: 44)
-                            .background(selection.wrappedValue == score ? Color.accentColor : Color(.systemGray6))
-                            .foregroundStyle(selection.wrappedValue == score ? .white : .primary)
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
+                    scoreButton(score: score, selection: selection)
                 }
 
                 if showExtraScores {
                     ForEach(extras, id: \.self) { score in
-                        Button {
-                            selection.wrappedValue = score
-                        } label: {
-                            Text("\(score)")
-                                .font(.headline)
-                                .frame(width: 44, height: 44)
-                                .background(selection.wrappedValue == score ? Color.accentColor : Color(.systemGray6))
-                                .foregroundStyle(selection.wrappedValue == score ? .white : .primary)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
+                        scoreButton(score: score, selection: selection)
                     }
                 }
 
@@ -604,13 +638,30 @@ struct SingleGameView: View {
                     showExtraScores.toggle()
                 } label: {
                     Text(showExtraScores ? "Göm" : "Mer…")
-                        .font(.caption)
-                        .frame(width: 44, height: 44)
-                        .background(Color(.systemGray5))
-                        .clipShape(Circle())
+                        .font(.inter(.caption, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(AppColors.textSecondary.opacity(0.1))
+                        .foregroundStyle(AppColors.textPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func scoreButton(score: Int, selection: Binding<Int>) -> some View {
+        Button {
+            selection.wrappedValue = score
+        } label: {
+            Text("\(score)")
+                .font(.inter(.headline, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(selection.wrappedValue == score ? AppColors.brandPrimary : AppColors.textSecondary.opacity(0.1))
+                .foregroundStyle(selection.wrappedValue == score ? .white : AppColors.textPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 }

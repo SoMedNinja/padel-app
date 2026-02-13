@@ -39,7 +39,7 @@ struct TournamentView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 20) {
                     tournamentPicker
 
                     SectionCard(title: "Turnering") {
@@ -49,7 +49,6 @@ struct TournamentView: View {
                             }
                         }
                         .pickerStyle(.segmented)
-
                     }
 
                     switch selectedPanel {
@@ -69,6 +68,7 @@ struct TournamentView: View {
                 }
                 .padding()
             }
+            .background(AppColors.background)
             .navigationTitle("Tournament")
             .refreshable {
                 await viewModel.loadTournamentData()
@@ -78,58 +78,8 @@ struct TournamentView: View {
                     await viewModel.loadTournamentData()
                 }
                 if selectedParticipantIds.isEmpty {
-                    // Note for non-coders:
-                    // We preselect regular members as a smart default so setup is faster,
-                    // but organizers can still adjust the list before creating the draft.
                     selectedParticipantIds = Set(viewModel.players.filter { $0.isRegular }.map { $0.id })
                 }
-            }
-            .onChange(of: viewModel.selectedTournamentId) { _, newValue in
-                // Note for non-coders: when switching tournaments, we sync the selection list
-                // so organizers can edit the roster of an existing draft correctly.
-                if let tournamentId = newValue,
-                   let tournament = viewModel.tournaments.first(where: { $0.id == tournamentId }),
-                   tournament.status == "draft" {
-                    selectedParticipantIds = Set(viewModel.tournamentParticipants.map { $0.profileId })
-                }
-            }
-            .onChange(of: viewModel.tournamentParticipants.count) { _, _ in
-                // Note for non-coders: sync when participants finish loading from server
-                if let tournament = viewModel.activeTournament, tournament.status == "draft" {
-                     selectedParticipantIds = Set(viewModel.tournamentParticipants.map { $0.profileId })
-                }
-            }
-            .confirmationDialog("Start this tournament?", isPresented: $showStartConfirmation) {
-                Button("Start", role: .none) {
-                    Task { await viewModel.startSelectedTournament() }
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("This moves a draft tournament into live play.")
-            }
-            .confirmationDialog("Cancel this tournament?", isPresented: $showCancelConfirmation) {
-                Button("Cancel Tournament", role: .destructive) {
-                    Task { await viewModel.cancelSelectedTournament() }
-                }
-                Button("Keep", role: .cancel) { }
-            } message: {
-                Text("Use this when the event should be marked as cancelled before completion.")
-            }
-            .confirmationDialog("Mark as abandoned?", isPresented: $showAbandonConfirmation) {
-                Button("Mark Abandoned", role: .destructive) {
-                    Task { await viewModel.abandonSelectedTournament() }
-                }
-                Button("Keep", role: .cancel) { }
-            } message: {
-                Text("Use this when the tournament started but could not be finished.")
-            }
-            .confirmationDialog("Delete this tournament permanently?", isPresented: $showDeleteConfirmation) {
-                Button("Delete", role: .destructive) {
-                    Task { await viewModel.deleteSelectedTournament() }
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("This removes the tournament and related rows from the database.")
             }
             .padelLiquidGlassChrome()
         }
@@ -153,7 +103,8 @@ struct TournamentView: View {
                                 .tag(Optional(tournament.id))
                         }
                     }
-
+                    .pickerStyle(.menu)
+                    .font(.inter(.body))
                 }
             }
         }
@@ -163,33 +114,38 @@ struct TournamentView: View {
         SectionCard(title: "Skapa turnering") {
             VStack(alignment: .leading, spacing: 12) {
                 TextField("Namn", text: $newTournamentName)
+                    .textFieldStyle(.roundedBorder)
                     .textInputAutocapitalization(.words)
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                    .font(.inter(.body))
 
                 TextField("Plats (valfritt)", text: $newTournamentLocation)
+                    .textFieldStyle(.roundedBorder)
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
+                    .font(.inter(.body))
 
                 Picker("Typ", selection: $newTournamentType) {
                     Text("Americano").tag("americano")
                     Text("Mexicano").tag("mexicano")
                 }
+                .pickerStyle(.segmented)
 
                 Text(newTournamentType == "mexicano"
                      ? "Mexicano betyder att spelare roterar position efter poäng, så tabellen blir extra viktig mellan rundor."
                      : "Americano skapar balanserade matcher per runda med tydlig poängsummering.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.inter(.caption))
+                .foregroundStyle(AppColors.textSecondary)
 
                 Picker("Poängmål", selection: $newTournamentScoreTarget) {
                     ForEach(scoreTargetOptions, id: \.self) { value in
                         Text("\(value)").tag(value)
                     }
                 }
+                .pickerStyle(.segmented)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Deltagare (\(selectedParticipantIds.count))")
-                        .font(.subheadline.weight(.semibold))
-
+                        .font(.inter(.subheadline, weight: .bold))
 
                     ForEach(viewModel.players) { player in
                         Button {
@@ -201,21 +157,26 @@ struct TournamentView: View {
                         } label: {
                             HStack {
                                 Image(systemName: selectedParticipantIds.contains(player.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedParticipantIds.contains(player.id) ? .green : .secondary)
+                                    .foregroundStyle(selectedParticipantIds.contains(player.id) ? AppColors.success : AppColors.textSecondary)
                                 Text(player.profileName)
+                                    .font(.inter(.body))
+                                    .foregroundStyle(AppColors.textPrimary)
                                 Spacer()
                                 Text("ELO \(player.elo)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(.inter(.caption))
+                                    .foregroundStyle(AppColors.textSecondary)
                             }
                         }
                         .buttonStyle(.plain)
+                        .padding(.vertical, 2)
                     }
                 }
 
-                Toggle("Set scheduled date", isOn: $includeScheduledDate)
+                Toggle("Ange datum", isOn: $includeScheduledDate)
+                    .font(.inter(.body))
                 if includeScheduledDate {
-                    DatePicker("Scheduled at", selection: $newTournamentDate)
+                    DatePicker("Datum", selection: $newTournamentDate)
+                        .font(.inter(.body))
                 }
 
                 Button {
@@ -235,10 +196,10 @@ struct TournamentView: View {
                     if viewModel.isTournamentActionRunning {
                         ProgressView().frame(maxWidth: .infinity)
                     } else {
-                        Text("Create Draft Tournament").frame(maxWidth: .infinity)
+                        Text("Skapa utkast").frame(maxWidth: .infinity)
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament || selectedParticipantIds.count < 4)
             }
         }
@@ -247,25 +208,31 @@ struct TournamentView: View {
     private var activeTournamentOverview: some View {
         SectionCard(title: "Vald turnering") {
             if let tournament = viewModel.activeTournament {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(tournament.name)
-                            .font(.title3.weight(.semibold))
+                            .font(.inter(.title3, weight: .bold))
+                            .foregroundStyle(AppColors.textPrimary)
                         Text("Status: \(readableStatus(tournament.status))")
+                            .font(.inter(.subheadline))
                         Text("Typ: \(tournament.tournamentType.capitalized)")
+                            .font(.inter(.subheadline))
                         if let location = tournament.location, !location.isEmpty {
                             Text("Plats: \(location)")
+                                .font(.inter(.subheadline))
                         }
                         if let scheduledAt = tournament.scheduledAt {
                             Text("Planerad: \(dateFormatter.string(from: scheduledAt))")
+                                .font(.inter(.subheadline))
                         }
                     }
+                    .foregroundStyle(AppColors.textSecondary)
 
                     if tournament.status == "draft" {
                         Divider()
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Deltagarlista (\(selectedParticipantIds.count))")
-                                .font(.subheadline.weight(.bold))
+                                .font(.inter(.subheadline, weight: .bold))
 
                             ForEach(viewModel.players) { player in
                                 Button {
@@ -277,12 +244,14 @@ struct TournamentView: View {
                                 } label: {
                                     HStack {
                                         Image(systemName: selectedParticipantIds.contains(player.id) ? "checkmark.circle.fill" : "circle")
-                                            .foregroundStyle(selectedParticipantIds.contains(player.id) ? .green : .secondary)
+                                            .foregroundStyle(selectedParticipantIds.contains(player.id) ? AppColors.success : AppColors.textSecondary)
                                         Text(player.profileName)
+                                            .font(.inter(.body))
+                                            .foregroundStyle(AppColors.textPrimary)
                                         Spacer()
                                         Text("ELO \(player.elo)")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
+                                            .font(.inter(.caption2))
+                                            .foregroundStyle(AppColors.textSecondary)
                                     }
                                 }
                                 .buttonStyle(.plain)
@@ -302,20 +271,23 @@ struct TournamentView: View {
                     }
 
                     if let message = viewModel.tournamentStatusMessage {
-                        Text(message).font(.footnote).foregroundStyle(.secondary)
+                        Text(message).font(.inter(.footnote)).foregroundStyle(AppColors.textSecondary)
                     }
 
                     if let errorMessage = viewModel.tournamentActionErrorMessage {
-                        Text(errorMessage).font(.footnote).foregroundStyle(.red)
+                        Text(errorMessage).font(.inter(.footnote)).foregroundStyle(AppColors.error)
                     }
 
                     actionButtons(for: tournament)
                 }
             } else {
-                Text("No tournament selected.")
-                Text("Tip: choose one from the list above or create a new draft tournament.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ingen turnering vald.")
+                        .font(.inter(.body))
+                    Text("Tips: välj en från listan ovan eller skapa ett nytt utkast.")
+                        .font(.inter(.footnote))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
             }
         }
     }
@@ -325,18 +297,19 @@ struct TournamentView: View {
             if let suggestion = nextRoundSuggestion {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Nästa runda: #\(suggestion.round.roundNumber)")
-                        .font(.headline)
+                        .font(.inter(.headline, weight: .bold))
                     Text("\(suggestion.team1) vs \(suggestion.team2)")
+                        .font(.inter(.body))
                     if !suggestion.resting.isEmpty {
-                        // NOTE (for non-coders): this line only appears when one or more players must rest this round.
                         Text("Vilar: \(suggestion.resting)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.inter(.caption))
+                            .foregroundStyle(AppColors.textSecondary)
                     }
                 }
             } else {
                 Text("Alla rundor har redan score, eller så finns inga rundor än.")
-                    .foregroundStyle(.secondary)
+                    .font(.inter(.body))
+                    .foregroundStyle(AppColors.textSecondary)
             }
         }
     }
@@ -345,46 +318,52 @@ struct TournamentView: View {
     private func actionButtons(for tournament: Tournament) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if tournament.status == "draft" {
-                Button("Start Tournament") { showStartConfirmation = true }
-                    .buttonStyle(.borderedProminent)
+                Button("Starta turnering") { showStartConfirmation = true }
+                    .buttonStyle(PrimaryButtonStyle())
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
             }
 
             if tournament.status == "in_progress" {
-                Button("Complete Tournament") {
+                Button("Slutför turnering") {
                     Task { await viewModel.completeActiveTournament() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
 
-                Button("Mark Abandoned") { showAbandonConfirmation = true }
+                Button("Markera som avbruten") { showAbandonConfirmation = true }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
             }
 
             if tournament.status == "draft" || tournament.status == "in_progress" {
-                Button("Cancel Tournament") { showCancelConfirmation = true }
+                Button("Avbryt turnering") { showCancelConfirmation = true }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
             }
 
-            Button("Delete Tournament") { showDeleteConfirmation = true }
+            Button("Radera turnering permanent") { showDeleteConfirmation = true }
                 .buttonStyle(.bordered)
-                .tint(.red)
+                .tint(AppColors.error)
                 .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
         }
+        .font(.inter(.subheadline, weight: .bold))
     }
 
     private var activeRoundEditor: some View {
         SectionCard(title: "Resultatregistrering") {
             if viewModel.tournamentRounds.isEmpty {
                 Text("Inga rundor hittades.")
-                    .foregroundStyle(.secondary)
+                    .font(.inter(.body))
+                    .foregroundStyle(AppColors.textSecondary)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     ForEach(viewModel.tournamentRounds) { round in
                         RoundEditorRow(round: round, canEdit: viewModel.canMutateTournament) { team1Score, team2Score in
                             await viewModel.saveTournamentRound(round: round, team1Score: team1Score, team2Score: team2Score)
+                        }
+                        if round.id != viewModel.tournamentRounds.last?.id {
+                            Divider()
+                                .background(AppColors.borderSubtle)
                         }
                     }
                 }
@@ -396,10 +375,11 @@ struct TournamentView: View {
         Group {
             if let tournament = viewModel.activeTournament,
                (tournament.status == "in_progress" || tournament.status == "completed") {
-                SectionCard(title: "Live view") {
+                SectionCard(title: "Bracket-vy") {
                     TournamentBracketView(rounds: viewModel.tournamentRounds) { id in
                         viewModel.tournamentPlayerName(for: id)
                     }
+                    .padding(.vertical, 8)
                 }
             }
         }
@@ -409,22 +389,30 @@ struct TournamentView: View {
         SectionCard(title: "Tabell") {
             if viewModel.tournamentStandings.isEmpty {
                 Text("Tabellen dyker upp när resultat finns.")
-                    .foregroundStyle(.secondary)
+                    .font(.inter(.body))
+                    .foregroundStyle(AppColors.textSecondary)
             } else {
-                VStack(spacing: 8) {
+                VStack(spacing: 0) {
                     ForEach(viewModel.tournamentStandings) { standing in
                         HStack(spacing: 8) {
                             Text("#\(standing.rank)")
-                                .font(.subheadline.weight(.semibold))
+                                .font(.inter(.subheadline, weight: .bold))
                                 .frame(width: 36, alignment: .leading)
                             Text(standing.playerName)
+                                .font(.inter(.body))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Text("\(standing.pointsFor) pts")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.inter(.caption))
+                                .foregroundStyle(AppColors.brandPrimary)
                             Text("W\(standing.wins)-L\(standing.losses)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.inter(.caption))
+                                .foregroundStyle(AppColors.textSecondary)
+                        }
+                        .padding(.vertical, 10)
+
+                        if standing.rank != viewModel.tournamentStandings.last?.rank {
+                            Divider()
+                                .background(AppColors.borderSubtle)
                         }
                     }
                 }
@@ -435,23 +423,27 @@ struct TournamentView: View {
     private var shareCard: some View {
         SectionCard(title: "Dela / Exportera") {
             if let exportText = viewModel.exportTextForSelectedCompletedTournament() {
-                if let cardURL = tournamentShareImageURL(text: exportText) {
-                    ShareLink(item: cardURL) {
-                        Label("Dela som bild", systemImage: "photo.on.rectangle")
+                VStack(spacing: 12) {
+                    if let cardURL = tournamentShareImageURL(text: exportText) {
+                        ShareLink(item: cardURL) {
+                            Label("Dela som bild", systemImage: "photo.on.rectangle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    ShareLink(item: exportText) {
+                        Label("Dela som text", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
-
-                ShareLink(item: exportText) {
-                    Label("Dela som text", systemImage: "square.and.arrow.up")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
+                .font(.inter(.subheadline, weight: .bold))
 
             } else {
-                Text("Complete tournament to enable rich summary export.")
-                    .foregroundStyle(.secondary)
+                Text("Slutför turneringen för att kunna exportera sammanfattning.")
+                    .font(.inter(.footnote))
+                    .foregroundStyle(AppColors.textSecondary)
             }
         }
     }
@@ -473,20 +465,22 @@ struct TournamentView: View {
         SectionCard(title: "Resultathistorik") {
             if viewModel.tournamentHistoryResults.isEmpty {
                 Text("Ingen historik än.")
-                    .foregroundStyle(.secondary)
+                    .font(.inter(.body))
+                    .foregroundStyle(AppColors.textSecondary)
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(viewModel.tournamentHistoryResults.prefix(12)) { result in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(viewModel.tournamentName(for: result.tournamentId))
-                                .font(.subheadline.weight(.semibold))
+                                .font(.inter(.subheadline, weight: .bold))
+                                .foregroundStyle(AppColors.textPrimary)
                             Text("\(result.profileId.map { viewModel.tournamentPlayerName(for: $0) } ?? "Gästspelare") • Rank #\(result.rank) • W\(result.wins)-L\(result.losses) • PF \(result.pointsFor) / PA \(result.pointsAgainst)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.inter(.caption))
+                                .foregroundStyle(AppColors.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                        .background(Color(.tertiarySystemBackground))
+                        .padding(10)
+                        .background(AppColors.background)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                 }
@@ -542,16 +536,28 @@ private struct RoundEditorRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Runda \(round.roundNumber)")
-                .font(.subheadline.weight(.semibold))
-            Text("Typ: \((round.mode ?? "okänd").capitalized)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Stepper("Lag 1: \(team1Score)", value: $team1Score, in: 0...99)
-                Stepper("Lag 2: \(team2Score)", value: $team2Score, in: 0...99)
+                Text("Runda \(round.roundNumber)")
+                    .font(.inter(.subheadline, weight: .bold))
+                Spacer()
+                Text("\((round.mode ?? "okänd").capitalized)")
+                    .font(.inter(.caption, weight: .bold))
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+
+            HStack(spacing: 20) {
+                VStack(spacing: 4) {
+                    Text("Lag 1").font(.inter(.caption2, weight: .bold))
+                    Stepper("\(team1Score)", value: $team1Score, in: 0...99)
+                        .font(.inter(.body, weight: .bold))
+                }
+
+                VStack(spacing: 4) {
+                    Text("Lag 2").font(.inter(.caption2, weight: .bold))
+                    Stepper("\(team2Score)", value: $team2Score, in: 0...99)
+                        .font(.inter(.body, weight: .bold))
+                }
             }
 
             Button {
@@ -568,8 +574,9 @@ private struct RoundEditorRow: View {
                 }
             }
             .buttonStyle(.bordered)
+            .font(.inter(.subheadline, weight: .bold))
             .disabled(!canEdit || isSaving)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 }

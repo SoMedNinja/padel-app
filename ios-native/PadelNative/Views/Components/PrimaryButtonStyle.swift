@@ -6,15 +6,16 @@ import SwiftUI
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.inter(.headline, weight: .bold))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
             .foregroundStyle(.white)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(AppColors.brandPrimary)
-                    .opacity(configuration.isPressed ? 0.82 : 1)
+                    .shadow(color: AppColors.brandPrimary.opacity(0.3), radius: 8, x: 0, y: 4)
+                    .opacity(configuration.isPressed ? 0.9 : 1.0)
             )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
     }
 }
-

@@ -78,42 +78,45 @@ struct AdminView: View {
         NavigationStack {
             Group {
                 if viewModel.canUseAdmin {
-                    List {
-                        Section {
-                            Picker("Adminområde", selection: $selectedTab) {
-                                ForEach(AdminTab.allCases) { tab in
-                                    Text(tab.rawValue).tag(tab)
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            SectionCard(title: "Adminområde") {
+                                Picker("Område", selection: $selectedTab) {
+                                    ForEach(AdminTab.allCases) { tab in
+                                        Text(tab.rawValue).tag(tab)
+                                    }
                                 }
+                                .pickerStyle(.segmented)
                             }
-                            .pickerStyle(.segmented)
-                        }
 
-                        if let adminBanner = viewModel.adminBanner {
-                            Section {
+                            if let adminBanner = viewModel.adminBanner {
                                 bannerView(adminBanner)
                             }
-                        }
 
-                        switch selectedTab {
-                        case .users:
-                            usersSection
-                        case .reports:
-                            reportsSection
-                        case .emails:
-                            emailsSection
-                        }
+                            switch selectedTab {
+                            case .users:
+                                usersSection
+                            case .reports:
+                                reportsSection
+                            case .emails:
+                                emailsSection
+                            }
 
-                        Section("Information") {
-                            Text("Här hanterar du användare, rapporter och e-postutskick. Alla åtgärder loggas och kräver adminbehörighet.")
-                                .foregroundStyle(.secondary)
+                            SectionCard(title: "Information") {
+                                Text("Här hanterar du användare, rapporter och e-postutskick. Alla åtgärder loggas och kräver adminbehörighet.")
+                                    .font(.inter(.footnote))
+                                    .foregroundStyle(AppColors.textSecondary)
+                            }
                         }
+                        .padding()
                     }
+                    .background(AppColors.background)
                     .overlay {
                         if viewModel.isAdminActionRunning || viewModel.isAdminReportRunning || viewModel.isAdminEmailActionRunning {
-                            ProgressView("Processing admin action...")
+                            ProgressView("Bearbetar...")
+                                .font(.inter(.body))
                                 .padding()
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .padelGlassCard()
                         }
                     }
                 } else {
@@ -121,6 +124,7 @@ struct AdminView: View {
                         "Admin Access Required",
                         systemImage: "lock.shield",
                         description: Text("Verktyg för att hantera spelare, matcher och rapporter.")
+                            .font(.inter(.body))
                     )
                 }
             }
@@ -186,122 +190,50 @@ struct AdminView: View {
         }
     }
 
+    @ViewBuilder
     private var usersSection: some View {
-        Group {
-            Section("Översikt") {
+        VStack(spacing: 20) {
+            SectionCard(title: "Översikt") {
                 let pendingCount = viewModel.adminProfiles.filter { !$0.isApproved && !$0.isDeleted }.count
                 let adminCount = viewModel.adminProfiles.filter { $0.isAdmin && !$0.isDeleted }.count
 
-                HStack(spacing: 12) {
-                    metricCard(title: "Spelare", value: "\(viewModel.adminSnapshot.playerCount)", icon: "person.2.fill", color: .blue)
-                    metricCard(title: "Väntar", value: "\(pendingCount)", icon: "hourglass", color: pendingCount > 0 ? .orange : .green)
-                    metricCard(title: "Admins", value: "\(adminCount)", icon: "shield.fill", color: .purple)
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-                .padding(.vertical, 8)
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        metricCard(title: "Spelare", value: "\(viewModel.adminSnapshot.playerCount)", icon: "person.2.fill", color: .blue)
+                        metricCard(title: "Väntar", value: "\(pendingCount)", icon: "hourglass", color: pendingCount > 0 ? .orange : .green)
+                        metricCard(title: "Admins", value: "\(adminCount)", icon: "shield.fill", color: .purple)
+                    }
 
-                metricRow(label: "Matcher totalt", value: "\(viewModel.adminSnapshot.matchCount)")
-                metricRow(label: "Schemalagda pass", value: "\(viewModel.adminSnapshot.scheduledCount)")
+                    Divider()
+                        .background(AppColors.borderSubtle)
+
+                    metricRow(label: "Matcher totalt", value: "\(viewModel.adminSnapshot.matchCount)")
+                    metricRow(label: "Schemalagda pass", value: "\(viewModel.adminSnapshot.scheduledCount)")
+                }
             }
 
-            Section("Användarhantering") {
-                VStack(spacing: 12) {
-                    TextField("Sök spelare...", text: $userSearchText)
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.vertical, 4)
+            SectionCard(title: "Användarhantering") {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(spacing: 12) {
+                        TextField("Sök spelare...", text: $userSearchText)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.inter(.body))
 
-                    Picker("Filtrera", selection: $userFilter) {
-                        ForEach(AdminUserFilter.allCases) { filter in
-                            Text(filter.rawValue).tag(filter)
+                        Picker("Filtrera", selection: $userFilter) {
+                            ForEach(AdminUserFilter.allCases) { filter in
+                                Text(filter.rawValue).tag(filter)
+                            }
                         }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
-                }
-                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
 
-                ForEach(filteredAdminProfiles) { profile in
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(profile.name).font(.headline)
-                                if profile.isDeleted {
-                                    Text("RADERAD ANVÄNDARE")
-                                        .font(.caption2.bold())
-                                        .foregroundStyle(.red)
-                                }
+                    VStack(spacing: 0) {
+                        ForEach(filteredAdminProfiles) { profile in
+                            userRow(profile: profile)
+                            if profile.id != filteredAdminProfiles.last?.id {
+                                Divider()
+                                    .background(AppColors.borderSubtle)
                             }
-                            Spacer()
-                            if !profile.isDeleted {
-                                if profile.isApproved {
-                                    Label("Godkänd", systemImage: "checkmark.seal.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(AppColors.success)
-                                } else {
-                                    Label("Väntar", systemImage: "hourglass")
-                                        .font(.caption)
-                                        .foregroundStyle(.orange)
-                                }
-                            }
-                        }
-
-                        if !profile.isDeleted {
-                            HStack {
-                                Text(profile.isRegular ? "Ordinarie" : "Gäst")
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.secondary.opacity(0.1), in: Capsule())
-
-                                if profile.isAdmin {
-                                    Text("Admin")
-                                        .font(.caption2.bold())
-                                        .foregroundStyle(.purple)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.purple.opacity(0.1), in: Capsule())
-                                }
-
-                                Spacer()
-
-                                Text("Svep för åtgärder")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .opacity(0.5)
-                            }
-                        } else {
-                            Text("Inga åtgärder tillgängliga för raderad användare.")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 6)
-                    .opacity(profile.isDeleted ? 0.6 : 1.0)
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        if !profile.isDeleted {
-                            Button {
-                                pendingAction = .toggleApproval(profile)
-                            } label: {
-                                Label(profile.isApproved ? "Dra in" : "Godkänn", systemImage: profile.isApproved ? "xmark.seal" : "checkmark.seal")
-                            }
-                            .tint(profile.isApproved ? .orange : .green)
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if !profile.isDeleted {
-                            Button(role: .destructive) {
-                                pendingAction = .deactivate(profile)
-                            } label: {
-                                Label("Inaktivera", systemImage: "person.crop.circle.badge.xmark")
-                            }
-
-                            Button {
-                                renamingProfile = profile
-                                newPlayerName = profile.name
-                            } label: {
-                                Label("Namn", systemImage: "pencil")
-                            }
-                            .tint(.blue)
                         }
                     }
                 }
@@ -309,35 +241,115 @@ struct AdminView: View {
         }
     }
 
-    private var reportsSection: some View {
-        Group {
-            Section("Matchkvälls-rapport") {
-                Picker("Datum", selection: $selectedEvening) {
-                    ForEach(viewModel.adminMatchEveningOptions, id: \.self) { day in
-                        Text(day).tag(day)
+    private func userRow(profile: AdminProfile) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(profile.name)
+                        .font(.inter(.headline, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
+                    if profile.isDeleted {
+                        Text("RADERAD ANVÄNDARE")
+                            .font(.inter(size: 8, weight: .bold))
+                            .foregroundStyle(AppColors.error)
                     }
                 }
-                .disabled(viewModel.adminMatchEveningOptions.isEmpty)
-
-                Button("Generera rapport") {
-                    viewModel.generateMatchEveningReport(for: selectedEvening)
+                Spacer()
+                if !profile.isDeleted {
+                    if profile.isApproved {
+                        Label("Godkänd", systemImage: "checkmark.seal.fill")
+                            .font(.inter(.caption, weight: .bold))
+                            .foregroundStyle(AppColors.success)
+                    } else {
+                        Label("Väntar", systemImage: "hourglass")
+                            .font(.inter(.caption, weight: .bold))
+                            .foregroundStyle(.orange)
+                    }
                 }
-                .disabled(selectedEvening.isEmpty)
             }
 
-            Section("Turneringsrapport") {
-                Picker("Slutförd turnering", selection: $selectedReportTournamentId) {
-                    Text("Välj turnering").tag(Optional<UUID>.none)
-                    ForEach(viewModel.tournaments.filter { $0.status == "completed" }) { tournament in
-                        Text(tournament.name).tag(Optional(tournament.id))
+            if !profile.isDeleted {
+                HStack {
+                    Text(profile.isRegular ? "Ordinarie" : "Gäst")
+                        .font(.inter(size: 8, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(AppColors.textSecondary.opacity(0.1), in: Capsule())
+                        .foregroundStyle(AppColors.textSecondary)
+
+                    if profile.isAdmin {
+                        Text("Admin")
+                            .font(.inter(size: 8, weight: .bold))
+                            .foregroundStyle(.purple)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.1), in: Capsule())
+                    }
+
+                    Spacer()
+
+                    Menu {
+                        Button { pendingAction = .toggleApproval(profile) } label: {
+                            Label(profile.isApproved ? "Dra in godkännande" : "Godkänn", systemImage: profile.isApproved ? "xmark.seal" : "checkmark.seal")
+                        }
+                        Button { renamingProfile = profile; newPlayerName = profile.name } label: {
+                            Label("Byt namn", systemImage: "pencil")
+                        }
+                        Button(role: .destructive) { pendingAction = .deactivate(profile) } label: {
+                            Label("Inaktivera", systemImage: "person.crop.circle.badge.xmark")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.body)
+                            .foregroundStyle(AppColors.brandPrimary)
                     }
                 }
+            }
+        }
+        .padding(.vertical, 12)
+        .opacity(profile.isDeleted ? 0.6 : 1.0)
+    }
 
-                Button("Generera rapport") {
-                    guard let id = selectedReportTournamentId else { return }
-                    Task { await viewModel.generateTournamentReport(for: id) }
+    @ViewBuilder
+    private var reportsSection: some View {
+        VStack(spacing: 20) {
+            SectionCard(title: "Matchkvälls-rapport") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Datum", selection: $selectedEvening) {
+                        ForEach(viewModel.adminMatchEveningOptions, id: \.self) { day in
+                            Text(day).tag(day)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(viewModel.adminMatchEveningOptions.isEmpty)
+
+                    Button("Generera rapport") {
+                        viewModel.generateMatchEveningReport(for: selectedEvening)
+                    }
+                    .buttonStyle(.bordered)
+                    .font(.inter(.subheadline, weight: .bold))
+                    .disabled(selectedEvening.isEmpty)
                 }
-                .disabled(selectedReportTournamentId == nil)
+            }
+
+            SectionCard(title: "Turneringsrapport") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Slutförd turnering", selection: $selectedReportTournamentId) {
+                        Text("Välj turnering").tag(Optional<UUID>.none)
+                        ForEach(viewModel.tournaments.filter { $0.status == "completed" }) { tournament in
+                            Text(tournament.name).tag(Optional(tournament.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Button("Generera rapport") {
+                        guard let id = selectedReportTournamentId else { return }
+                        Task { await viewModel.generateTournamentReport(for: id) }
+                    }
+                    .buttonStyle(.bordered)
+                    .font(.inter(.subheadline, weight: .bold))
+                    .disabled(selectedReportTournamentId == nil)
+                }
             }
 
             previewSection(
@@ -348,52 +360,69 @@ struct AdminView: View {
         }
     }
 
+    @ViewBuilder
     private var emailsSection: some View {
-        Group {
-            Section("Veckobrev") {
-                Picker("Tidsram", selection: $selectedWeeklyTimeframe) {
-                    ForEach(AdminWeeklyTimeframe.allCases) { option in
-                        Text(option.title.replacingOccurrences(of: "Last 7 days", with: "Senaste 7 dagarna").replacingOccurrences(of: "Last 30 days", with: "Senaste 30 dagarna")).tag(option)
+        VStack(spacing: 20) {
+            SectionCard(title: "Veckobrev") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Tidsram", selection: $selectedWeeklyTimeframe) {
+                        ForEach(AdminWeeklyTimeframe.allCases) { option in
+                            Text(option.title.replacingOccurrences(of: "Last 7 days", with: "Senaste 7 dagarna").replacingOccurrences(of: "Last 30 days", with: "Senaste 30 dagarna")).tag(option)
+                        }
                     }
-                }
+                    .pickerStyle(.segmented)
 
-                if selectedWeeklyTimeframe == .isoWeek {
-                    Stepper("ISO Vecka: \(selectedISOWeek)", value: $selectedISOWeek, in: 1...53)
-                    Stepper("ISO År: \(selectedISOYear)", value: $selectedISOYear, in: 2020...2100)
-                }
+                    if selectedWeeklyTimeframe == .isoWeek {
+                        Stepper("ISO Vecka: \(selectedISOWeek)", value: $selectedISOWeek, in: 1...53)
+                            .font(.inter(.subheadline))
+                        Stepper("ISO År: \(selectedISOYear)", value: $selectedISOYear, in: 2020...2100)
+                            .font(.inter(.subheadline))
+                    }
 
-                Button("Förhandsgranska veckobrev") {
-                    let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
-                    let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
-                    viewModel.buildWeeklyEmailPreview(timeframe: selectedWeeklyTimeframe, week: week, year: year)
-                }
+                    HStack {
+                        Button("Förhandsgranska") {
+                            let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
+                            let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
+                            viewModel.buildWeeklyEmailPreview(timeframe: selectedWeeklyTimeframe, week: week, year: year)
+                        }
+                        .buttonStyle(.bordered)
 
-                Button("Skicka test-veckobrev") {
-                    let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
-                    let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
-                    Task { await viewModel.sendWeeklyEmailTest(timeframe: selectedWeeklyTimeframe, week: week, year: year) }
+                        Button("Skicka test") {
+                            let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
+                            let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
+                            Task { await viewModel.sendWeeklyEmailTest(timeframe: selectedWeeklyTimeframe, week: week, year: year) }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .font(.inter(.subheadline, weight: .bold))
                 }
-                .buttonStyle(.borderedProminent)
             }
 
-            Section("Turneringsbrev") {
-                Picker("Slutförd turnering", selection: $selectedEmailTournamentId) {
-                    Text("Välj turnering").tag(Optional<UUID>.none)
-                    ForEach(viewModel.tournaments.filter { $0.status == "completed" }) { tournament in
-                        Text(tournament.name).tag(Optional(tournament.id))
+            SectionCard(title: "Turneringsbrev") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Slutförd turnering", selection: $selectedEmailTournamentId) {
+                        Text("Välj turnering").tag(Optional<UUID>.none)
+                        ForEach(viewModel.tournaments.filter { $0.status == "completed" }) { tournament in
+                            Text(tournament.name).tag(Optional(tournament.id))
+                        }
                     }
-                }
+                    .pickerStyle(.menu)
 
-                Button("Förhandsgranska turneringsbrev") {
-                    guard let id = selectedEmailTournamentId else { return }
-                    Task { await viewModel.buildTournamentEmailPreview(for: id) }
-                }
-                .disabled(selectedEmailTournamentId == nil)
+                    HStack {
+                        Button("Förhandsgranska") {
+                            guard let id = selectedEmailTournamentId else { return }
+                            Task { await viewModel.buildTournamentEmailPreview(for: id) }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(selectedEmailTournamentId == nil)
 
-                Button("Skicka test-turneringsbrev") {
-                    Task { await viewModel.sendTournamentEmailTest() }
+                        Button("Skicka test") {
+                            Task { await viewModel.sendTournamentEmailTest() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .font(.inter(.subheadline, weight: .bold))
                 }
-                .buttonStyle(.borderedProminent)
             }
 
             previewSection(
@@ -407,8 +436,12 @@ struct AdminView: View {
     private func metricRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
+                .font(.inter(.subheadline))
+                .foregroundStyle(AppColors.textSecondary)
             Spacer()
-            Text(value).bold()
+            Text(value)
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.textPrimary)
         }
     }
 
@@ -423,49 +456,55 @@ struct AdminView: View {
 
             HStack {
                 Text(value)
-                    .font(.title2.bold())
+                    .font(.inter(.title2, weight: .bold))
                 Spacer()
             }
 
             HStack {
                 Text(title)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .font(.inter(size: 8, weight: .bold))
+                    .foregroundStyle(AppColors.textSecondary)
                 Spacer()
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(AppColors.background)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     @ViewBuilder
     private func previewSection(title: String, content: String?, status: String?) -> some View {
-        Section(title) {
-            if let content, content.isEmpty == false {
-                Text(content)
-                    .font(.footnote)
-                    .textSelection(.enabled)
+        SectionCard(title: title) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let content, content.isEmpty == false {
+                    Text(content)
+                        .font(.inter(.caption))
+                        .textSelection(.enabled)
 
-                if let cardURL = adminShareImageURL(content: content, title: title) {
-                    ShareLink(item: cardURL) {
-                        Label("Dela som bild", systemImage: "photo.on.rectangle")
+                    HStack {
+                        if let cardURL = adminShareImageURL(content: content, title: title) {
+                            ShareLink(item: cardURL) {
+                                Label("Dela bild", systemImage: "photo.on.rectangle")
+                            }
+                        }
+
+                        ShareLink(item: content) {
+                            Label("Dela text", systemImage: "square.and.arrow.up")
+                        }
                     }
+                    .font(.inter(.caption, weight: .bold))
+                } else {
+                    Text("Ingen förhandsgranskning än.")
+                        .font(.inter(.footnote))
+                        .foregroundStyle(AppColors.textSecondary)
                 }
 
-                ShareLink(item: content) {
-                    Label("Dela som text", systemImage: "square.and.arrow.up")
+                if let status, status.isEmpty == false {
+                    Text(status)
+                        .font(.inter(.caption2))
+                        .foregroundStyle(AppColors.textSecondary)
                 }
-            } else {
-                Text("Ingen förhandsgranskning än.")
-                    .foregroundStyle(.secondary)
-            }
-
-            if let status, status.isEmpty == false {
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -485,13 +524,13 @@ struct AdminView: View {
         HStack(spacing: 8) {
             Image(systemName: banner.style == .success ? "checkmark.circle.fill" : "xmark.octagon.fill")
             Text(banner.message)
-                .font(.subheadline)
+                .font(.inter(.subheadline))
                 .multilineTextAlignment(.leading)
         }
         .foregroundStyle(.white)
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(banner.style == .success ? AppColors.success : Color.red)
+        .background(banner.style == .success ? AppColors.success : AppColors.error)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 

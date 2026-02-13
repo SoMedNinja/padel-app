@@ -48,7 +48,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 20) {
                     if let current = viewModel.currentPlayer {
                         headerSection(current)
                         tabSelector
@@ -60,6 +60,7 @@ struct ProfileView: View {
                 }
                 .padding()
             }
+            .background(AppColors.background)
             .navigationTitle("Profil")
             .task {
                 viewModel.syncProfileSetupDraftFromCurrentPlayer()
@@ -82,13 +83,14 @@ struct ProfileView: View {
     private var guestModeSection: some View {
         SectionCard(title: "Gästläge") {
             Text("Gästläge är skrivskyddat. Du kan se statistik, men för att spara matcher eller ändra profil krävs ett konto.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(.inter(.footnote))
+                .foregroundStyle(AppColors.textSecondary)
 
             Button("Logga in") {
                 viewModel.exitGuestMode()
             }
             .buttonStyle(.borderedProminent)
+            .font(.inter(.subheadline, weight: .bold))
         }
     }
 
@@ -125,7 +127,7 @@ struct ProfileView: View {
             HStack(spacing: 20) {
                 ZStack(alignment: .bottomTrailing) {
                     PlayerAvatarView(urlString: current.avatarURL, size: 100)
-                        .shadow(radius: 4)
+                        .shadow(color: AppColors.shadowColor, radius: 8, x: 0, y: 4)
 
                     Menu {
                         PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
@@ -142,7 +144,7 @@ struct ProfileView: View {
                             .font(.system(size: 14))
                             .foregroundStyle(.white)
                             .padding(8)
-                            .background(Color.accentColor)
+                            .background(AppColors.brandPrimary)
                             .clipShape(Circle())
                             .overlay(Circle().stroke(Color.white, lineWidth: 2))
                     }
@@ -153,7 +155,7 @@ struct ProfileView: View {
                         if isEditingName {
                             TextField("Namn", text: $viewModel.profileDisplayNameDraft)
                                 .textFieldStyle(.roundedBorder)
-                                .font(.title3.bold())
+                                .font(.inter(.title3, weight: .bold))
                                 .onSubmit {
                                     Task { await viewModel.saveProfileSetup() }
                                     isEditingName = false
@@ -163,43 +165,45 @@ struct ProfileView: View {
                                 isEditingName = false
                             } label: {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(AppColors.success)
                             }
                         } else {
                             Text(current.profileName)
-                                .font(.title2.bold())
+                                .font(.inter(.title2, weight: .bold))
+                                .foregroundStyle(AppColors.textPrimary)
 
                             Button {
                                 viewModel.profileDisplayNameDraft = current.profileName
                                 isEditingName = true
                             } label: {
                                 Image(systemName: "pencil.circle")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppColors.textSecondary)
                             }
                         }
                     }
 
                     HStack(spacing: 4) {
                         Text("ELO: \(current.elo)")
-                            .font(.headline)
-                            .foregroundStyle(Color.accentColor)
+                            .font(.inter(.headline, weight: .bold))
+                            .foregroundStyle(AppColors.brandPrimary)
 
                         if let badgeId = current.featuredBadgeId,
                            let badgeLabel = BadgeService.getBadgeIconById(badgeId) {
                             Text("•")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppColors.textSecondary)
                             Text(badgeLabel)
-                                .font(.subheadline)
+                                .font(.inter(.subheadline))
                         }
                     }
 
                     let earned = viewModel.currentPlayerBadges.filter { $0.earned }
                     if earned.isEmpty {
                         Text(viewModel.highlightedBadgeTitle)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.secondary.opacity(0.1), in: Capsule())
+                            .font(.inter(.caption, weight: .bold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(AppColors.textSecondary.opacity(0.1), in: Capsule())
+                            .foregroundStyle(AppColors.textSecondary)
                     } else {
                         Menu {
                             ForEach(earned) { badge in
@@ -223,10 +227,11 @@ struct ProfileView: View {
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 8))
                             }
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.accentColor.opacity(0.1), in: Capsule())
+                            .font(.inter(.caption, weight: .bold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(AppColors.brandPrimary.opacity(0.1), in: Capsule())
+                            .foregroundStyle(AppColors.brandPrimary)
                         }
                     }
                 }
@@ -235,13 +240,12 @@ struct ProfileView: View {
 
             if let message = viewModel.profileSetupMessage {
                 Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.inter(.caption2))
+                    .foregroundStyle(AppColors.textSecondary)
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padelSurfaceCard()
         .onChange(of: selectedAvatarItem) { _, newItem in
             guard let newItem else { return }
             Task {
