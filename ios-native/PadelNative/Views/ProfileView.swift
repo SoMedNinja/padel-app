@@ -45,6 +45,10 @@ struct ProfileView: View {
         [.last7, .last30, .tournaments, .custom, .all]
     }
 
+    // Note for non-coders:
+    // We keep a fixed color palette so each compared player gets a stable, distinct line color.
+    private let trendPalette: [Color] = [.blue, .green, .orange, .purple, .pink, .teal, .indigo, .brown]
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -62,6 +66,7 @@ struct ProfileView: View {
             }
             .background(AppColors.background)
             .navigationTitle("Profil")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 viewModel.syncProfileSetupDraftFromCurrentPlayer()
             }
@@ -196,44 +201,12 @@ struct ProfileView: View {
                         }
                     }
 
-                    let earned = viewModel.currentPlayerBadges.filter { $0.earned }
-                    if earned.isEmpty {
-                        Text(viewModel.highlightedBadgeTitle)
-                            .font(.inter(.caption, weight: .bold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(AppColors.textSecondary.opacity(0.1), in: Capsule())
-                            .foregroundStyle(AppColors.textSecondary)
-                    } else {
-                        Menu {
-                            ForEach(earned) { badge in
-                                Button {
-                                    viewModel.selectedFeaturedBadgeId = badge.id
-                                    Task { await viewModel.saveProfileSetup() }
-                                } label: {
-                                    Label(badge.title, systemImage: (viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id ? "checkmark.circle.fill" : "circle")
-                                }
-                            }
-                            Divider()
-                            Button(role: .destructive) {
-                                viewModel.selectedFeaturedBadgeId = nil
-                                Task { await viewModel.saveProfileSetup() }
-                            } label: {
-                                Label("Ingen merit", systemImage: "xmark.circle")
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(viewModel.highlightedBadgeTitle)
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 8))
-                            }
-                            .font(.inter(.caption, weight: .bold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(AppColors.brandPrimary.opacity(0.1), in: Capsule())
-                            .foregroundStyle(AppColors.brandPrimary)
-                        }
-                    }
+                    Text(viewModel.highlightedBadgeTitle)
+                        .font(.inter(.caption, weight: .bold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(AppColors.textSecondary.opacity(0.1), in: Capsule())
+                        .foregroundStyle(AppColors.textSecondary)
                 }
                 Spacer()
             }
@@ -355,16 +328,9 @@ struct ProfileView: View {
 
     private var teammatesTab: some View {
         SectionCard(title: "Lagkombinationer") {
-            Picker("Visa stats för", selection: $viewModel.teammateFilterPlayerId) {
-                Text("Mig själv").tag(UUID?.none)
-                ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
-                    Text(player.profileName).tag(UUID?.init(player.id))
-                }
-            }
-            .pickerStyle(.menu)
-            .onChange(of: viewModel.teammateFilterPlayerId) { _, _ in
-                viewModel.recalculateDerivedStats()
-            }
+            Text("Visar endast lagkamrater du har spelat med.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
@@ -780,6 +746,9 @@ struct ProfileView: View {
                     .font(.headline)
             }
 
+            let chartData = chartSeries(myPoints: myPoints)
+            let domain = chartYDomain(series: chartData)
+
             Chart {
                 ForEach(myPoints) { point in
                     LineMark(
@@ -788,7 +757,7 @@ struct ProfileView: View {
                         series: .value("Spelare", "Du")
                     )
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(colorForSeries(name: "Du", index: 0))
                     .symbol(by: .value("Spelare", "Du"))
                 }
 
@@ -802,6 +771,7 @@ struct ProfileView: View {
                             series: .value("Spelare", name)
                         )
                         .interpolationMethod(.catmullRom)
+                        .foregroundStyle(colorForSeries(name: name, index: chartData.firstIndex(where: { $0.name == name }) ?? 1))
                         .symbol(by: .value("Spelare", name))
                     }
                 }
@@ -818,6 +788,7 @@ struct ProfileView: View {
                 }
             }
             .frame(height: 280)
+            .chartYScale(domain: domain)
             .chartLegend(.visible)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 7)) { value in
@@ -831,6 +802,9 @@ struct ProfileView: View {
 
     @ViewBuilder
     private func chartStatic(myPoints: [ProfileEloPoint]) -> some View {
+        let chartData = chartSeries(myPoints: myPoints)
+        let domain = chartYDomain(series: chartData)
+
         Chart {
             ForEach(myPoints) { point in
                 LineMark(
@@ -839,7 +813,7 @@ struct ProfileView: View {
                     series: .value("Spelare", "Du")
                 )
                 .interpolationMethod(.catmullRom)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(colorForSeries(name: "Du", index: 0))
                 .symbol(by: .value("Spelare", "Du"))
             }
 
@@ -853,11 +827,13 @@ struct ProfileView: View {
                         series: .value("Spelare", name)
                     )
                     .interpolationMethod(.catmullRom)
+                    .foregroundStyle(colorForSeries(name: name, index: chartData.firstIndex(where: { $0.name == name }) ?? 1))
                     .symbol(by: .value("Spelare", name))
                 }
             }
         }
         .frame(height: 280)
+        .chartYScale(domain: domain)
         .chartLegend(.visible)
         .chartXAxis {
             AxisMarks(values: .stride(by: .day, count: 7)) { value in
@@ -876,5 +852,29 @@ struct ProfileView: View {
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
         return rendered.jpegData(compressionQuality: 0.72)
+    }
+
+    private func chartSeries(myPoints: [ProfileEloPoint]) -> [(name: String, points: [ProfileEloPoint])] {
+        var series: [(name: String, points: [ProfileEloPoint])] = [("Du", myPoints)]
+        for otherId in compareWithIds {
+            let otherPoints = viewModel.playerEloTimeline(playerId: otherId, filter: selectedFilter)
+            let name = viewModel.players.first(where: { $0.id == otherId })?.profileName ?? "Annan"
+            series.append((name, otherPoints))
+        }
+        return series
+    }
+
+    private func chartYDomain(series: [(name: String, points: [ProfileEloPoint])]) -> ClosedRange<Double> {
+        let values = series.flatMap { $0.points.map { Double($0.elo) } }
+        guard let minValue = values.min(), let maxValue = values.max() else {
+            return 900...1100
+        }
+        let padding = max(8, (maxValue - minValue) * 0.08)
+        return (minValue - padding)...(maxValue + padding)
+    }
+
+    private func colorForSeries(name: String, index: Int) -> Color {
+        if name == "Du" { return AppColors.brandPrimary }
+        return trendPalette[index % trendPalette.count]
     }
 }

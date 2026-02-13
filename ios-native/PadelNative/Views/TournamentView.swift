@@ -70,6 +70,7 @@ struct TournamentView: View {
             }
             .background(AppColors.background)
             .navigationTitle("Tournament")
+            .navigationBarTitleDisplayMode(.inline)
             .refreshable {
                 await viewModel.loadTournamentData()
             }
@@ -162,7 +163,7 @@ struct TournamentView: View {
                                     .font(.inter(.body))
                                     .foregroundStyle(AppColors.textPrimary)
                                 Spacer()
-                                Text("ELO \(player.elo)")
+                                Text("ELO \(viewModel.playerBadgeStats[player.id]?.currentElo ?? player.elo)")
                                     .font(.inter(.caption))
                                     .foregroundStyle(AppColors.textSecondary)
                             }
@@ -249,7 +250,7 @@ struct TournamentView: View {
                                             .font(.inter(.body))
                                             .foregroundStyle(AppColors.textPrimary)
                                         Spacer()
-                                        Text("ELO \(player.elo)")
+                                        Text("ELO \(viewModel.playerBadgeStats[player.id]?.currentElo ?? player.elo)")
                                             .font(.inter(.caption2))
                                             .foregroundStyle(AppColors.textSecondary)
                                     }

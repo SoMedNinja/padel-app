@@ -1,28 +1,28 @@
 import SwiftUI
 
-
 struct MainTabView: View {
     @EnvironmentObject private var viewModel: AppViewModel
-    @State private var showQuickAdd = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         TabView(selection: $viewModel.selectedMainTab) {
-            ProfileView()
-                .tabItem {
-                    Label("Profil", systemImage: "person.crop.circle")
-                }
-                .tag(0)
-
             DashboardView()
                 .tabItem {
                     Label("Översikt", systemImage: "chart.xyaxis.line")
                 }
-                .tag(1)
+                .tag(0)
 
-            HistoryView()
+            if viewModel.canUseSingleGame {
+                SingleGameView()
+                    .tabItem {
+                        Label("Match", systemImage: "plus.square.on.square")
+                    }
+                    .tag(1)
+            }
+
+            ProfileView()
                 .tabItem {
-                    Label("Historik", systemImage: "clock.arrow.circlepath")
+                    Label("Profil", systemImage: "person.crop.circle")
                 }
                 .tag(2)
 
@@ -34,45 +34,11 @@ struct MainTabView: View {
                     .tag(3)
             }
 
-            if viewModel.canSeeTournament {
-                TournamentView()
-                    .tabItem {
-                        if #available(iOS 17.0, *) {
-                            Label {
-                                Text("Turnering")
-                            } icon: {
-                                Image(systemName: "trophy")
-                                    .symbolEffect(.pulse, options: .repeating, value: viewModel.activeTournamentNotice != nil)
-                            }
-                        } else {
-                            Label("Turnering", systemImage: "trophy")
-                        }
-                    }
-                    .tag(4)
-            }
-
-
-            if viewModel.canUseSingleGame {
-                SingleGameView()
-                    .tabItem {
-                        Label("Match", systemImage: "plus.square.on.square")
-                    }
-                    .tag(5)
-            }
-
-            if viewModel.canUseAdmin {
-                AdminView()
-                    .tabItem {
-                        Label("Admin", systemImage: "person.badge.key")
-                    }
-                    .tag(6)
-            }
-
-            SettingsView()
+            MoreView()
                 .tabItem {
-                    Label("Inställningar", systemImage: "gearshape")
+                    Label("More", systemImage: "ellipsis.circle")
                 }
-                .tag(7)
+                .tag(4)
         }
         .overlay(alignment: .top) {
             if (viewModel.liveUpdateBanner != nil && viewModel.liveUpdateBanner?.isEmpty == false) ||
@@ -87,7 +53,6 @@ struct MainTabView: View {
                             .background(.ultraThinMaterial, in: Capsule())
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
-
 
                     if viewModel.isGuestMode {
                         HStack(spacing: 10) {
@@ -132,33 +97,6 @@ struct MainTabView: View {
                 .animation(.easeInOut(duration: 0.2), value: viewModel.liveUpdateBanner)
                 .animation(.easeInOut(duration: 0.2), value: viewModel.appVersionMessage)
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            if viewModel.selectedMainTab != 5 {
-                HStack {
-                    Spacer()
-                    Button {
-                        showQuickAdd = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 58, height: 58)
-                            .background(Circle().fill(AppColors.brandPrimary))
-                            .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                    }
-                    .accessibilityLabel("Snabblägg till match")
-                     .disabled(!viewModel.canCreateMatches || viewModel.isUpdateRequired || viewModel.isGuestMode)
-                    .opacity(viewModel.canCreateMatches && !viewModel.isGuestMode ? 1 : 0.45)
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 6)
-                }
-            }
-        }
-        .sheet(isPresented: $showQuickAdd) {
-            SingleGameView()
-                .environmentObject(viewModel)
-                .presentationDetents([.medium, .large])
         }
     }
 }

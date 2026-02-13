@@ -73,6 +73,7 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("Översikt")
+            .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
             .task {
                 viewModel.syncHighlightDismissalWindow()

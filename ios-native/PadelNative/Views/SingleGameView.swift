@@ -43,9 +43,6 @@ struct SingleGameView: View {
     @State private var matchmakerPool: Set<UUID> = []
 
     @State private var playerSearchText = ""
-    @State private var showGuestDialog = false
-    @State private var newGuestName = ""
-    @State private var activeSelectionBinding: Binding<String?>?
 
     var body: some View {
         NavigationStack {
@@ -150,7 +147,8 @@ struct SingleGameView: View {
                 .padding()
             }
             .background(AppColors.background)
-            .navigationTitle("Singelmatch")
+            .navigationTitle("Match")
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 applyDeepLinkModeIfAvailable()
             }
@@ -550,11 +548,6 @@ struct SingleGameView: View {
                         selection.wrappedValue = "guest"
                     }
 
-                    playerTile(title: "Namngiven", icon: "character.cursor.ibeam", isSelected: selection.wrappedValue?.hasPrefix("name:") == true) {
-                        activeSelectionBinding = selection
-                        newGuestName = ""
-                        showGuestDialog = true
-                    }
 
                     let filteredPlayers = viewModel.players.filter {
                         playerSearchText.isEmpty || $0.profileName.localizedCaseInsensitiveContains(playerSearchText) || $0.fullName.localizedCaseInsensitiveContains(playerSearchText)
@@ -583,17 +576,6 @@ struct SingleGameView: View {
                     }
                 }
             }
-        }
-        .alert("Namngiven gäst", isPresented: $showGuestDialog) {
-            TextField("Namn", text: $newGuestName)
-            Button("Avbryt", role: .cancel) { }
-            Button("Lägg till") {
-                if !newGuestName.isEmpty {
-                    activeSelectionBinding?.wrappedValue = "name:\(newGuestName)"
-                }
-            }
-        } message: {
-            Text("Ange namn på gästspelaren.")
         }
     }
 
