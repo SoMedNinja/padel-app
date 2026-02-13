@@ -19,7 +19,7 @@ import { calculateMvpScore, getMvpWinner } from "../../utils/mvp";
 import { formatShortDate, formatScore, getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
-import { supabase, supabaseAnonKey, supabaseUrl } from "../../supabaseClient";
+import { assertEdgeFunctionAnonKey, buildEdgeFunctionAuthHeaders, supabase, supabaseAnonKey, supabaseUrl } from "../../supabaseClient";
 import { getBadgeLabelById } from "../../utils/badges";
 
 interface WeeklyEmailPreviewProps {
@@ -779,13 +779,15 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     // Note for non-coders: we ask Supabase who is logged in right now before we attempt to send email.
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     // Note for non-coders: the access token proves to the server that this logged-in user is allowed to call the function.
-    const hasAccessToken = Boolean(sessionData.session?.access_token);
-    if (sessionError || !hasAccessToken) {
+    const accessToken = sessionData.session?.access_token;
+    if (sessionError || !accessToken) {
       setHasSession(false);
       alert("Du måste vara inloggad för att skicka test-mail.");
       return;
     }
     setHasSession(true);
+
+    assertEdgeFunctionAnonKey();
 
     const confirmed = window.confirm(`Vill du skicka ett test-mail till ${player?.name}?`);
     if (!confirmed) return;
@@ -806,7 +808,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
           alert("Admin-varning: access_token saknas men id_token/provider_token finns.");
         }
       }
-      // Note for non-coders: Supabase adds the login token for us when we call a server function.
+      // Note for non-coders: we attach login + project headers explicitly so the function can verify both user and app key.
       const body: any = { playerId: selectedPlayerId, timeframe };
       if (timeframe === "isoWeek" && selectedWeek) {
         const [year, week] = selectedWeek.split("-W");
@@ -816,6 +818,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
       const { data, error } = await supabase.functions.invoke("weekly-summary", {
         body,
+        headers: buildEdgeFunctionAuthHeaders(accessToken),
       });
 
       if (error) {
@@ -869,13 +872,15 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     // Note for non-coders: we ask Supabase who is logged in right now before we attempt to send email.
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     // Note for non-coders: the access token proves to the server that this logged-in user is allowed to call the function.
-    const hasAccessToken = Boolean(sessionData.session?.access_token);
-    if (sessionError || !hasAccessToken) {
+    const accessToken = sessionData.session?.access_token;
+    if (sessionError || !accessToken) {
       setHasSession(false);
       alert("Du måste vara inloggad för att skicka veckobrevet.");
       return;
     }
     setHasSession(true);
+
+    assertEdgeFunctionAnonKey();
 
     const confirmed = window.confirm("Vill du skicka veckobrevet nu till alla aktiva spelare?");
     if (!confirmed) return;
@@ -891,6 +896,7 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
 
       const { data, error } = await supabase.functions.invoke("weekly-summary", {
         body,
+        headers: buildEdgeFunctionAuthHeaders(accessToken),
       });
 
       if (error) {

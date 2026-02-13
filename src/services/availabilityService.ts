@@ -1,4 +1,4 @@
-import { supabase, supabaseAnonKey } from "../supabaseClient";
+import { assertEdgeFunctionAnonKey, buildEdgeFunctionAuthHeaders, supabase } from "../supabaseClient";
 import { AvailabilityPoll, AvailabilityPollDay, AvailabilityScheduledGame, AvailabilitySlot } from "../types";
 import { requireAdmin } from "./authUtils";
 
@@ -202,11 +202,13 @@ export const availabilityService = {
   }> {
     await requireAdmin("Endast administratörer kan skicka omröstningsmail.");
 
-    if (typeof supabaseAnonKey === "string" && supabaseAnonKey.startsWith("sb_publishable_")) {
-      // Note for non-coders: publishable keys can browse data but cannot authenticate Edge Function calls.
-      throw new Error(
-        "Miljöfel: VITE_SUPABASE_ANON_KEY använder sb_publishable_*. Byt till Supabase anon public key i Project Settings → API för att kunna skicka mail."
-      );
+    assertEdgeFunctionAnonKey();
+
+    // Note for non-coders: we re-check the logged-in token immediately before calling the mail function.
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (sessionError || !accessToken) {
+      throw new Error("Du måste vara inloggad med giltig session för att skicka mail.");
     }
 
     const { data, error } = await supabase.functions.invoke("availability-poll-mail", {
@@ -215,6 +217,7 @@ export const availabilityService = {
         testRecipientEmail: options?.testRecipientEmail || null,
         onlyMissingVotes: options?.onlyMissingVotes === true,
       },
+      headers: buildEdgeFunctionAuthHeaders(accessToken),
     });
 
     if (error) {
@@ -253,11 +256,13 @@ export const availabilityService = {
   }> {
     await requireAdmin("Endast administratörer kan skicka kalenderinbjudningar.");
 
-    if (typeof supabaseAnonKey === "string" && supabaseAnonKey.startsWith("sb_publishable_")) {
-      // Note for non-coders: publishable keys can browse data but cannot authenticate Edge Function calls.
-      throw new Error(
-        "Miljöfel: VITE_SUPABASE_ANON_KEY använder sb_publishable_*. Byt till Supabase anon public key i Project Settings → API för att kunna skicka mail.",
-      );
+    assertEdgeFunctionAnonKey();
+
+    // Note for non-coders: we re-check the logged-in token immediately before calling the invite function.
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (sessionError || !accessToken) {
+      throw new Error("Du måste vara inloggad med giltig session för att skicka kalenderinbjudningar.");
     }
 
     const { data, error } = await supabase.functions.invoke("availability-calendar-invite", {
@@ -272,6 +277,7 @@ export const availabilityService = {
         action: input.action,
         title: input.title || null,
       },
+      headers: buildEdgeFunctionAuthHeaders(accessToken),
     });
 
     if (error) {
