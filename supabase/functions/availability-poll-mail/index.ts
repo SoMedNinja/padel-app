@@ -60,6 +60,16 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const authHeader = req.headers.get("Authorization") ?? "";
+  // Note for non-coders: this temporary log helps confirm whether requests reach the function with an auth header.
+  console.log(
+    JSON.stringify({
+      event: "availability-poll-mail.auth-header-check",
+      hasAuthorizationHeader: authHeader.length > 0,
+      hasBearerPrefix: authHeader.startsWith("Bearer "),
+    }),
+  );
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -77,7 +87,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
       return jsonResponse({ success: false, error: "Du måste vara inloggad." }, 401);
     }
