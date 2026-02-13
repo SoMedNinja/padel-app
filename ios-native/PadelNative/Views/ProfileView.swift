@@ -8,6 +8,7 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
     case eloTrend
     case teammates
     case merits
+    case more
 
     var id: String { rawValue }
 
@@ -17,6 +18,7 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
         case .eloTrend: return "ELO trend"
         case .teammates: return "Lagkamrater"
         case .merits: return "Meriter"
+        case .more: return "Mer"
         }
     }
 }
@@ -54,20 +56,12 @@ struct ProfileView: View {
                     if let current = viewModel.currentPlayer {
                         selectedTabContent(for: current)
                     } else if viewModel.isGuestMode {
-                        guestModeSection
-                    }
-
-                    Button(role: .destructive) {
-                        if viewModel.isGuestMode {
-                            viewModel.exitGuestMode()
+                        if selectedTab == .more {
+                            moreTabGuest
                         } else {
-                            viewModel.signOut()
+                            guestModeSection
                         }
-                    } label: {
-                        Label(viewModel.isGuestMode ? "Gå till inloggning" : "Logga ut", systemImage: "rectangle.portrait.and.arrow.right")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
                 }
                 .padding()
             }
@@ -139,6 +133,42 @@ struct ProfileView: View {
             teammatesTab
         case .merits:
             meritsTab(current)
+        case .more:
+            moreTab(current)
+        }
+    }
+
+    private func moreTab(_ current: Player) -> some View {
+        VStack(spacing: 20) {
+            accountSection
+
+            SectionCard(title: "Hantering") {
+                Button(role: .destructive) {
+                    viewModel.signOut()
+                } label: {
+                    Label("Logga ut", systemImage: "rectangle.portrait.and.arrow.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private var moreTabGuest: some View {
+        VStack(spacing: 20) {
+            SectionCard(title: "Inloggning") {
+                Text("Du är i gästläge. Logga in för att spara matcher och hantera din profil.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    viewModel.exitGuestMode()
+                } label: {
+                    Label("Gå till inloggning", systemImage: "person.badge.key")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
     }
 
@@ -151,13 +181,11 @@ struct ProfileView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            accountSection
             currentPlayerSection(current)
             profileSetupSection
             performanceSection
             synergyRivalrySection
             navigationActionsSection
-            permissionsSection(current)
         }
     }
 
