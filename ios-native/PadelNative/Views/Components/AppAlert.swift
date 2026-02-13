@@ -58,6 +58,7 @@ struct AppAlert<Content: View>: View {
                         .padding(4)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Stäng meddelande")
             }
         }
         .padding()

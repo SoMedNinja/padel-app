@@ -55,6 +55,7 @@ struct DashboardView: View {
 
                     if showScrollToTop {
                         Button {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             withAnimation {
                                 proxy.scrollTo("top", anchor: .top)
                             }
@@ -68,6 +69,7 @@ struct DashboardView: View {
                                 .shadow(color: AppColors.shadowColor, radius: 4)
                         }
                         .padding(.bottom, 20)
+                        .accessibilityLabel("Scrolla till toppen")
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -226,6 +228,7 @@ struct DashboardView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                .sensoryFeedback(.selection, trigger: viewModel.dashboardFilter)
 
                 if viewModel.dashboardFilter == .custom {
                     DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
@@ -333,6 +336,7 @@ struct DashboardView: View {
                             .padding(8)
                             .background(AppColors.background, in: Circle())
                     }
+                    .accessibilityLabel("Dölj match-fokus")
                 }
 
                 HStack(spacing: 12) {
@@ -645,6 +649,7 @@ struct DashboardView: View {
         HStack(spacing: 2) {
             Button {
                 if !key.isEmpty {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     if leaderboardSortKey == key {
                         leaderboardSortAscending.toggle()
                     } else {
