@@ -1806,10 +1806,31 @@ final class AppViewModel: ObservableObject {
             if !changedCollections.isEmpty {
                 showLiveUpdateBanner(for: changedCollections)
             }
+
+            updateLiveActivity()
         } catch {
             // Note for non-coders:
             // If selective refresh fails, we do a full refresh as a safety net so data stays correct.
             await performFullLiveRefresh()
+        }
+    }
+
+    private func updateLiveActivity() {
+        if let tournament = activeTournamentNotice {
+            // For tournament, we show current standings or top players as "score" in a simplified way
+            let topA = tournamentStandings.first?.playerName ?? tournament.name
+            let topB = tournamentStandings.dropFirst().first?.playerName ?? "Padel"
+            let scoreA = tournamentStandings.first?.pointsFor ?? 0
+            let scoreB = tournamentStandings.dropFirst().first?.pointsFor ?? 0
+
+            LiveMatchActivityService.shared.startOrUpdateMatchActivity(
+                teamA: topA,
+                teamB: topB,
+                scoreA: scoreA,
+                scoreB: scoreB
+            )
+        } else {
+            LiveMatchActivityService.shared.endMatchActivity()
         }
     }
 
@@ -1883,6 +1904,8 @@ final class AppViewModel: ObservableObject {
             if !changedCollections.isEmpty {
                 showLiveUpdateBanner(for: changedCollections)
             }
+
+            updateLiveActivity()
         } catch {
             // Note for non-coders:
             // Full sync errors are intentionally silent so background refresh never blocks normal app usage.

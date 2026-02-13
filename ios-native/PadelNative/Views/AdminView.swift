@@ -246,25 +246,29 @@ struct AdminView: View {
                         }
 
                         if !profile.isDeleted {
-                            HStack(spacing: 8) {
-                                Button(profile.isApproved ? "Dra in" : "Godkänn") { pendingAction = .toggleApproval(profile) }
-                                    .buttonStyle(.bordered)
-                                Button(profile.isAdmin ? "Ta bort admin" : "Gör till admin") { pendingAction = .toggleAdmin(profile) }
-                                    .buttonStyle(.bordered)
-                                Button(profile.isRegular ? "Ta bort ordinarie" : "Gör till ordinarie") { pendingAction = .toggleRegular(profile) }
-                                    .buttonStyle(.bordered)
-                                Button("Ändra namn") {
-                                    renamingProfile = profile
-                                    newPlayerName = profile.name
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                            .font(.caption)
+                            HStack {
+                                Text(profile.isRegular ? "Ordinarie" : "Gäst")
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.secondary.opacity(0.1), in: Capsule())
 
-                            Button(role: .destructive) { pendingAction = .deactivate(profile) } label: {
-                                Label("Inaktivera användare", systemImage: "person.crop.circle.badge.xmark")
+                                if profile.isAdmin {
+                                    Text("Admin")
+                                        .font(.caption2.bold())
+                                        .foregroundStyle(.purple)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.purple.opacity(0.1), in: Capsule())
+                                }
+
+                                Spacer()
+
+                                Text("Svep för åtgärder")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .opacity(0.5)
                             }
-                            .font(.caption)
                         } else {
                             Text("Inga åtgärder tillgängliga för raderad användare.")
                                 .font(.caption2)
@@ -273,6 +277,33 @@ struct AdminView: View {
                     }
                     .padding(.vertical, 6)
                     .opacity(profile.isDeleted ? 0.6 : 1.0)
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        if !profile.isDeleted {
+                            Button {
+                                pendingAction = .toggleApproval(profile)
+                            } label: {
+                                Label(profile.isApproved ? "Dra in" : "Godkänn", systemImage: profile.isApproved ? "xmark.seal" : "checkmark.seal")
+                            }
+                            .tint(profile.isApproved ? .orange : .green)
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if !profile.isDeleted {
+                            Button(role: .destructive) {
+                                pendingAction = .deactivate(profile)
+                            } label: {
+                                Label("Inaktivera", systemImage: "person.crop.circle.badge.xmark")
+                            }
+
+                            Button {
+                                renamingProfile = profile
+                                newPlayerName = profile.name
+                            } label: {
+                                Label("Namn", systemImage: "pencil")
+                            }
+                            .tint(.blue)
+                        }
+                    }
                 }
             }
         }

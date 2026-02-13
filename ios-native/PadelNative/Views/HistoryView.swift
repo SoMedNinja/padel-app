@@ -121,6 +121,13 @@ struct HistoryView: View {
                                 Label("Radera", systemImage: "trash")
                             }
                         }
+
+                        Button {
+                            shareMatch(match)
+                        } label: {
+                            Label("Dela", systemImage: "square.and.arrow.up")
+                        }
+                        .tint(.blue)
                     }
                     .onAppear {
                         Task { await viewModel.loadMoreHistoryMatchesIfNeeded(currentMatch: match) }
@@ -145,6 +152,41 @@ struct HistoryView: View {
             return "Poäng: \(match.teamAScore)-\(match.teamBScore)\(target)"
         }
         return "Set: \(match.teamAScore)-\(match.teamBScore)"
+    }
+
+    private func shareMatch(_ match: Match) {
+        let score = scoreLabel(match)
+        let lines = [
+            "Matchresultat",
+            "",
+            "\(match.teamAName) vs \(match.teamBName)",
+            score,
+            "",
+            "Spelad: \(formatter.string(from: match.playedAt))"
+        ]
+
+        let fileURL = try? ShareCardService.createShareImageFile(
+            title: "Padel Match",
+            bodyLines: lines,
+            fileNamePrefix: "match-history"
+        )
+
+        let text = """
+        🎾 Matchresultat:
+        \(match.teamAName) vs \(match.teamBName)
+        \(score)
+        """
+
+        var items: [Any] = [text]
+        if let fileURL = fileURL {
+            items.insert(fileURL, at: 0)
+        }
+
+        let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(av, animated: true)
+        }
     }
 
     @ViewBuilder
