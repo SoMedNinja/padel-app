@@ -2861,6 +2861,11 @@ final class AppViewModel: ObservableObject {
             return
         }
 
+        guard let creatorId = currentPlayer?.id else {
+            tournamentActionErrorMessage = "Could not find your signed-in profile. Please sign in again and retry."
+            return
+        }
+
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanName.isEmpty {
             tournamentActionErrorMessage = "Tournament name is required."
@@ -2883,7 +2888,11 @@ final class AppViewModel: ObservableObject {
                     tournamentType: tournamentType,
                     scheduledAt: scheduledAt,
                     location: location?.trimmingCharacters(in: .whitespacesAndNewlines),
-                    scoreTarget: scoreTarget
+                    scoreTarget: scoreTarget,
+                    // Note for non-coders:
+                    // The database checks who created each tournament.
+                    // We send your profile ID so iOS writes pass the same security rule as web.
+                    createdBy: creatorId
                 )
             )
             try await apiClient.replaceTournamentParticipants(tournamentId: created.id, participantIds: participantIds)
@@ -4075,6 +4084,16 @@ final class AppViewModel: ObservableObject {
         teamAServesFirst: Bool = true,
         playedAt: Date = .now
     ) async -> SingleGameRecap? {
+        guard canCreateMatches else {
+            statusMessage = "Du måste vara inloggad för att spara matcher."
+            return nil
+        }
+
+        guard let creatorId = currentPlayer?.id else {
+            statusMessage = "Kunde inte hitta din profil. Logga in igen och försök på nytt."
+            return nil
+        }
+
         let normalizedAIds = Array(teamAPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamAPlayerIds.count))
         let normalizedBIds = Array(teamBPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamBPlayerIds.count))
         let compactA = normalizedAIds.compactMap { $0 }
@@ -4125,7 +4144,11 @@ final class AppViewModel: ObservableObject {
                 sourceTournamentId: sourceTournamentId,
                 sourceTournamentType: normalizedTournamentType,
                 teamAServesFirst: teamAServesFirst,
-                playedAt: playedAt
+                playedAt: playedAt,
+                // Note for non-coders:
+                // The backend only allows inserts when "created_by" matches the logged-in user.
+                // Sending this value avoids iOS-only 403 failures when saving matches.
+                createdBy: creatorId
             )
 
             try await apiClient.submitMatch(submission)
