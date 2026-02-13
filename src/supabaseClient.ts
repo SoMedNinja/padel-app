@@ -76,4 +76,24 @@ export const supabase: SupabaseClient = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : (createMockSupabase() as unknown as SupabaseClient);
 
+
+// Note for non-coders: this guard gives a clear error if the environment key is not the project "anon public" key.
+export const assertEdgeFunctionAnonKey = () => {
+  if (!supabaseAnonKey) {
+    throw new Error("Miljöfel: VITE_SUPABASE_ANON_KEY saknas. Lägg in Supabase anon public key i miljövariablerna.");
+  }
+  if (supabaseAnonKey.startsWith("sb_publishable_")) {
+    throw new Error(
+      "Miljöfel: VITE_SUPABASE_ANON_KEY använder sb_publishable_*. Byt till Supabase anon public key i Project Settings → API.",
+    );
+  }
+};
+
+// Note for non-coders: Edge Functions need both keys below so Supabase can verify
+// who is calling and which project/app key is being used.
+export const buildEdgeFunctionAuthHeaders = (accessToken: string) => ({
+  Authorization: `Bearer ${accessToken}`,
+  apikey: supabaseAnonKey,
+});
+
 export { isSupabaseConfigured, supabaseAnonKey, supabaseUrl, supabaseConfigWarning };
