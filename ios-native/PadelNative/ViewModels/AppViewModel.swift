@@ -4078,8 +4078,8 @@ enum SampleData {
     ]
 
     static let schedule: [ScheduleEntry] = [
-        ScheduleEntry(id: UUID(), startsAt: .now.addingTimeInterval(172_800), location: "Center Court", description: "Friendly doubles"),
-        ScheduleEntry(id: UUID(), startsAt: .now.addingTimeInterval(345_600), location: "North Hall", description: "Weekly ladder"),
+        ScheduleEntry(id: UUID(), date: "2030-01-15", startTime: "18:00:00", location: "Center Court", description: "Friendly doubles"),
+        ScheduleEntry(id: UUID(), date: "2030-01-17", startTime: "19:00:00", location: "North Hall", description: "Weekly ladder"),
     ]
 
     static let tournament = Tournament(
