@@ -154,6 +154,34 @@ enum BadgeService {
         return definitions.first(where: { $0.idPrefix == badgeId })?.icon
     }
 
+    static func getBadgeTierLabelById(_ badgeId: String?) -> String? {
+        guard let badgeId, !badgeId.isEmpty else { return nil }
+        if badgeId == "giant-slayer" { return "I" }
+        if badgeId == "giant-slayer-pro" { return "II" }
+
+        guard let lastDashIndex = badgeId.lastIndex(of: "-") else { return nil }
+        let prefix = String(badgeId[..<lastDashIndex])
+        let targetStr = String(badgeId[badgeId.index(after: lastDashIndex)...])
+
+        guard let target = Int(targetStr),
+              let thresholds = definitions.first(where: { $0.idPrefix == prefix })?.thresholds,
+              let index = thresholds.firstIndex(of: target) else {
+            return nil
+        }
+
+        return toRoman(index)
+    }
+
+    static func getBadgeLabelById(_ badgeId: String?) -> String {
+        let icon = getBadgeIconById(badgeId)
+        guard let icon = icon else { return "" }
+        let tier = getBadgeTierLabelById(badgeId)
+        if let tier = tier {
+            return "\(icon) \(tier)"
+        }
+        return icon
+    }
+
     static func buildAllPlayersBadgeStats(
         matches: [Match],
         players: [Player],
@@ -437,6 +465,10 @@ enum BadgeService {
                     formattedValue = "\(Int(round(bestValue))) ELO"
                 } else if def.id == "trough-dweller" {
                     formattedValue = "\(10000 - Int(round(bestValue))) ELO"
+                } else if def.id == "upset-king" {
+                    formattedValue = "+\(Int(round(bestValue))) ELO"
+                } else if def.id == "biggest-fall" {
+                    formattedValue = "-\(Int(round(bestValue))) ELO"
                 } else {
                     formattedValue = "\(Int(round(bestValue)))"
                 }

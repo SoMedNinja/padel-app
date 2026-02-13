@@ -233,42 +233,65 @@ struct ProfileView: View {
         }
     }
 
+    @State private var comboSortKey: String = "games"
+    @State private var comboSortAscending: Bool = false
+
+    private var sortedHeatmapCombos: [HeatmapCombo] {
+        viewModel.heatmapCombos.sorted { a, b in
+            let result: Bool
+            switch comboSortKey {
+            case "games": result = a.games < b.games
+            case "winPct": result = a.winPct < b.winPct
+            case "avgElo": result = a.avgElo < b.avgElo
+            default: result = a.games < b.games
+            }
+            return comboSortAscending ? result : !result
+        }
+    }
+
     private var teammatesTab: some View {
         SectionCard(title: "Lagkombinationer") {
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     // Header
                     HStack(spacing: 0) {
-                        Text("Lagkamrat").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 120, alignment: .leading)
-                        Text("Matcher").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 60)
-                        Text("Vinst %").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 70)
+                        Text("Lagkamrat").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 130, alignment: .leading)
+
+                        sortableHeader(title: "Matcher", key: "games", width: 70)
+                        sortableHeader(title: "Vinst %", key: "winPct", width: 70)
+
                         Text("S/M %").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 80)
-                        Text("Snitt-ELO").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 80)
+                            .help("Vinstprocent vid Start-serve (S) respektive Mottagning (M).")
+
+                        sortableHeader(title: "Snitt-ELO", key: "avgElo", width: 80)
+
                         Text("Senaste 5").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 110)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 10)
                     .background(Color(.systemGray6))
 
-                    ForEach(viewModel.heatmapCombos) { combo in
+                    ForEach(sortedHeatmapCombos) { combo in
                         let otherPlayers = combo.players.filter { $0 != (viewModel.currentPlayer?.profileName ?? "") }
                         let otherNames = otherPlayers.joined(separator: " & ")
 
                         HStack(spacing: 0) {
                             Text(otherNames.isEmpty ? "Singles" : otherNames)
                                 .font(.subheadline.weight(.semibold))
-                                .frame(width: 120, alignment: .leading)
+                                .frame(width: 130, alignment: .leading)
                                 .lineLimit(1)
 
                             Text("\(combo.games)")
                                 .font(.subheadline)
-                                .frame(width: 60)
+                                .frame(width: 70)
 
                             Text("\(combo.winPct)%")
                                 .font(.subheadline.weight(.bold))
+                                .foregroundStyle(combo.winPct >= 50 ? .green : .primary)
                                 .frame(width: 70)
 
                             Text("\(combo.serveFirstWinPct ?? 0)%/\(combo.serveSecondWinPct ?? 0)%")
                                 .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
                                 .frame(width: 80)
 
                             Text("\(combo.avgElo)")
@@ -280,19 +303,43 @@ struct ProfileView: View {
                                     Text(res)
                                         .font(.system(size: 9, weight: .bold))
                                         .foregroundStyle(.white)
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: 18, height: 18)
                                         .background(res == "V" ? Color.green : Color.red)
                                         .clipShape(Circle())
                                 }
                             }
                             .frame(width: 110)
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 10)
                         Divider()
                     }
                 }
             }
         }
+    }
+
+    private func sortableHeader(title: String, key: String, width: CGFloat) -> some View {
+        Button {
+            if comboSortKey == key {
+                comboSortAscending.toggle()
+            } else {
+                comboSortKey = key
+                comboSortAscending = false
+            }
+        } label: {
+            HStack(spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                if comboSortKey == key {
+                    Image(systemName: comboSortAscending ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(width: width)
     }
 
     private func meritsTab(_ current: Player) -> some View {

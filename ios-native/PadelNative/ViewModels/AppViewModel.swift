@@ -1627,9 +1627,9 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        let trimmedName = profileDisplayNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = ProfileNameService.stripBadgeLabelFromName(profileDisplayNameDraft, badgeId: selectedFeaturedBadgeId ?? currentPlayer?.featuredBadgeId)
         guard trimmedName.count >= 2 else {
-            profileSetupMessage = "Please use at least 2 characters for your display name."
+            profileSetupMessage = "Please use at least 2 characters for your display name (badges are automatically stripped)."
             return
         }
 
@@ -3861,9 +3861,11 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let profile = adminProfiles.first(where: { $0.id == profileId })
+        let badgeId = players.first(where: { $0.id == profileId })?.featuredBadgeId
+        let trimmed = ProfileNameService.stripBadgeLabelFromName(newName, badgeId: badgeId)
         guard trimmed.count >= 2 else {
-            adminBanner = AdminActionBanner(message: "Namnet måste vara minst 2 tecken.", style: .failure)
+            adminBanner = AdminActionBanner(message: "Namnet måste vara minst 2 tecken (meriter rensas automatiskt).", style: .failure)
             return
         }
 
