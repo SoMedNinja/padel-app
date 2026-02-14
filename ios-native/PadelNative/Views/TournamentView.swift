@@ -85,6 +85,16 @@ struct TournamentView: View {
     }
 
     private func attachTournamentBehaviors<Content: View>(to content: Content) -> some View {
+        let withDataLoading = attachDataLoadingBehaviors(to: content)
+        let withStateSync = attachStateSyncBehaviors(to: withDataLoading)
+        let withDialogs = attachTournamentDialogs(to: withStateSync)
+        return withDialogs.padelLiquidGlassChrome()
+    }
+
+    // Note for non-coders:
+    // Each helper below is one "small Lego block". Smaller blocks are easier for Swift
+    // to compile and easier for us humans to maintain.
+    private func attachDataLoadingBehaviors<Content: View>(to content: Content) -> some View {
         content
             .refreshable {
                 await viewModel.loadTournamentData()
@@ -97,6 +107,10 @@ struct TournamentView: View {
                     selectedParticipantIds = Set(viewModel.players.filter { $0.isRegular }.map { $0.id })
                 }
             }
+    }
+
+    private func attachStateSyncBehaviors<Content: View>(to content: Content) -> some View {
+        content
             .onChange(of: viewModel.selectedTournamentId) { _, _ in
                 syncParticipantSelectionFromTournament()
                 autoSelectPanelForTournamentState()
@@ -107,6 +121,10 @@ struct TournamentView: View {
             .onChange(of: viewModel.tournamentParticipants) { _, _ in
                 syncParticipantSelectionFromTournament()
             }
+    }
+
+    private func attachTournamentDialogs<Content: View>(to content: Content) -> some View {
+        content
             .confirmationDialog("Starta turnering?", isPresented: $showStartConfirmation, titleVisibility: .visible) {
                 Button("Starta", role: .none) {
                     Task { await viewModel.startSelectedTournament() }
@@ -135,7 +153,6 @@ struct TournamentView: View {
             } message: {
                 Text("Detta tar bort turnering, deltagare, rundor och resultat permanent.")
             }
-            .padelLiquidGlassChrome()
     }
 
     private var tournamentPicker: some View {
