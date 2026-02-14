@@ -437,7 +437,7 @@ struct DashboardView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 0) {
-                        headerCell(title: "Spelare", key: "name", width: 140, alignment: .leading)
+                        headerCell(title: "Spelare", key: "name", width: 160, alignment: .leading)
                         headerCell(title: "ELO", key: "elo", width: 60, help: "ELO är ett rankingsystem baserat på flertal faktorer.")
                         headerCell(title: "Matcher", key: "games", width: 70)
                         headerCell(title: "Vinster", key: "wins", width: 65)
@@ -598,19 +598,24 @@ struct DashboardView: View {
                     .foregroundStyle(AppColors.textSecondary)
                     .frame(width: 18, alignment: .leading)
 
-                HStack(spacing: 4) {
-                    Text(player.name)
-                        .font(.inter(.subheadline, weight: .semibold))
-                        .foregroundStyle(AppColors.textPrimary)
-                        .lineLimit(1)
-                    if let badgeId = player.featuredBadgeId,
-                       let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
-                        Text(badgeIcon)
-                            .font(.caption2)
+                HStack(spacing: 6) {
+                    PlayerAvatarView(urlString: player.avatarURL, size: 24)
+                        .overlay(Circle().stroke(AppColors.brandPrimary.opacity(0.1), lineWidth: 0.5))
+
+                    HStack(spacing: 4) {
+                        Text(player.name)
+                            .font(.inter(.subheadline, weight: .semibold))
+                            .foregroundStyle(AppColors.textPrimary)
+                            .lineLimit(1)
+                        if let badgeId = player.featuredBadgeId,
+                           let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
+                            Text(badgeIcon)
+                                .font(.caption2)
+                        }
                     }
                 }
             }
-            .frame(width: 140, alignment: .leading)
+            .frame(width: 160, alignment: .leading)
 
             Text("\(player.elo)")
                 .font(.inter(.subheadline, weight: .bold))
