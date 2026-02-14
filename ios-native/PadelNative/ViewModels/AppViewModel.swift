@@ -1215,8 +1215,9 @@ final class AppViewModel: ObservableObject {
                     stats?.eloHistory.first(where: { $0.matchId == match.id })
                 }
 
-                let delta = historyEntry?.delta ?? 0
-                let estimatedAfter = historyEntry?.elo ?? (uuid.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
+                let fallbackSnapshot = uuid.flatMap { matchEloSnapshot(for: $0, in: match) }
+                let delta = historyEntry?.delta ?? fallbackSnapshot?.delta ?? 0
+                let estimatedAfter = historyEntry?.elo ?? fallbackSnapshot?.after ?? (uuid.flatMap { pid in playerBadgeStats[pid]?.currentElo } ?? 1000)
                 let estimatedBefore = estimatedAfter - delta
 
                 var explanation: String? = nil
@@ -1251,6 +1252,21 @@ final class AppViewModel: ObservableObject {
                 if lhs.delta != rhs.delta { return lhs.delta > rhs.delta }
                 return lhs.playerName < rhs.playerName
             }
+    }
+
+    private func matchEloSnapshot(for playerId: UUID, in match: Match) -> (before: Int, after: Int, delta: Int)? {
+        guard let stats = playerBadgeStats[playerId] else { return nil }
+
+        if let entry = stats.eloHistory.first(where: { $0.matchId == match.id }) {
+            return (entry.elo - entry.delta, entry.elo, entry.delta)
+        }
+
+        let ordered = stats.eloHistory.sorted { $0.date < $1.date }
+        guard let nearest = ordered.last(where: { $0.date <= match.playedAt }) else {
+            let current = stats.currentElo
+            return (current, current, 0)
+        }
+        return (nearest.elo - nearest.delta, nearest.elo, nearest.delta)
     }
 
     func tournamentPlayerName(for profileId: UUID) -> String {
@@ -2907,6 +2923,37 @@ final class AppViewModel: ObservableObject {
     }
 
     func startSelectedTournament() async {
+        guard let tournament = activeTournament else {
+            tournamentActionErrorMessage = "Choose a tournament first."
+            return
+        }
+
+        if tournament.tournamentType == "americano" && tournamentRounds.isEmpty {
+            let participantIds = tournamentParticipants.map(\.profileId)
+            let generatedRounds = generateAmericanoRounds(tournamentId: tournament.id, participants: participantIds)
+
+            if generatedRounds.isEmpty {
+                tournamentActionErrorMessage = "Could not generate rounds. Add at least 4 participants first."
+                return
+            }
+
+            do {
+                try await apiClient.createTournamentRounds(generatedRounds.map { round in
+                    TournamentRoundCreationRequest(
+                        tournamentId: tournament.id,
+                        roundNumber: round.roundNumber,
+                        team1Ids: round.team1Ids,
+                        team2Ids: round.team2Ids,
+                        restingIds: round.restingIds,
+                        mode: "americano"
+                    )
+                })
+            } catch {
+                tournamentActionErrorMessage = "Could not generate rounds: \(error.localizedDescription)"
+                return
+            }
+        }
+
         await transitionSelectedTournament(to: "in_progress", successMessage: "Tournament started.")
     }
 
@@ -3366,6 +3413,43 @@ final class AppViewModel: ObservableObject {
         return UUID(uuidString: raw)
     }
 
+    private func generateAmericanoRounds(tournamentId: UUID, participants: [UUID]) -> [TournamentRoundCreationRequest] {
+        let unique = Array(Set(participants)).sorted { $0.uuidString < $1.uuidString }
+        guard unique.count >= 4 else { return [] }
+
+        var rotation = unique
+        if rotation.count % 2 != 0, let first = rotation.first {
+            rotation.append(first)
+        }
+
+        let totalRounds = max(1, rotation.count - 1)
+        var rounds: [TournamentRoundCreationRequest] = []
+
+        for roundIndex in 0..<totalRounds {
+            let half = rotation.count / 2
+            let left = Array(rotation.prefix(half))
+            let right = Array(rotation.suffix(half).reversed())
+            let pairings = zip(left, right).map { ($0, $1) }
+            guard pairings.count >= 2 else { continue }
+
+            rounds.append(TournamentRoundCreationRequest(
+                tournamentId: tournamentId,
+                roundNumber: roundIndex + 1,
+                team1Ids: [pairings[0].0, pairings[0].1],
+                team2Ids: [pairings[1].0, pairings[1].1],
+                restingIds: pairings.dropFirst(2).flatMap { [$0.0, $0.1] },
+                mode: "americano"
+            ))
+
+            guard let fixed = rotation.first else { continue }
+            let moving = Array(rotation.dropFirst())
+            guard let last = moving.last else { continue }
+            rotation = [fixed, last] + moving.dropLast()
+        }
+
+        return rounds
+    }
+
     private func normalizedTeamNames(from rawTeam: String) -> [String] {
         var names = rawTeam
             .split(separator: "&")
@@ -3598,8 +3682,9 @@ final class AppViewModel: ObservableObject {
             let uuid = idString.flatMap { UUID(uuidString: $0) }
             let stats = uuid.flatMap { playerBadgeStats[$0] }
             let history = uuid.flatMap { pid in stats?.eloHistory.first(where: { $0.matchId == match.id }) }
-            let delta = history?.delta ?? 0
-            let elo = history?.elo ?? (uuid.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
+            let snapshot = uuid.flatMap { matchEloSnapshot(for: $0, in: match) }
+            let delta = history?.delta ?? snapshot?.delta ?? 0
+            let elo = history?.elo ?? snapshot?.after ?? (uuid.flatMap { pid in playerBadgeStats[pid]?.currentElo } ?? 1000)
             let player = players.first(where: { $0.id == uuid })
             return MatchRecapPlayer(id: uuid, name: name, elo: elo, delta: delta, avatarURL: player?.avatarURL)
         }
@@ -3609,8 +3694,9 @@ final class AppViewModel: ObservableObject {
             let uuid = idString.flatMap { UUID(uuidString: $0) }
             let stats = uuid.flatMap { playerBadgeStats[$0] }
             let history = uuid.flatMap { pid in stats?.eloHistory.first(where: { $0.matchId == match.id }) }
-            let delta = history?.delta ?? 0
-            let elo = history?.elo ?? (uuid.flatMap { pid in players.first(where: { $0.id == pid })?.elo } ?? 1000)
+            let snapshot = uuid.flatMap { matchEloSnapshot(for: $0, in: match) }
+            let delta = history?.delta ?? snapshot?.delta ?? 0
+            let elo = history?.elo ?? snapshot?.after ?? (uuid.flatMap { pid in playerBadgeStats[pid]?.currentElo } ?? 1000)
             let player = players.first(where: { $0.id == uuid })
             return MatchRecapPlayer(id: uuid, name: name, elo: elo, delta: delta, avatarURL: player?.avatarURL)
         }

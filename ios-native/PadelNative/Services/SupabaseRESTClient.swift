@@ -117,6 +117,24 @@ struct TournamentResultSubmission: Encodable {
     }
 }
 
+struct TournamentRoundCreationRequest: Encodable {
+    let tournamentId: UUID
+    let roundNumber: Int
+    let team1Ids: [UUID]
+    let team2Ids: [UUID]
+    let restingIds: [UUID]
+    let mode: String
+
+    enum CodingKeys: String, CodingKey {
+        case tournamentId = "tournament_id"
+        case roundNumber = "round_number"
+        case team1Ids = "team1_ids"
+        case team2Ids = "team2_ids"
+        case restingIds = "resting_ids"
+        case mode
+    }
+}
+
 struct TournamentCreationRequest: Encodable {
     let name: String
     let status: String
@@ -708,6 +726,14 @@ struct SupabaseRESTClient {
             path: "/rest/v1/mexicana_tournaments",
             query: "id=eq.\(tournamentId.uuidString)",
             body: TournamentStatusUpdate(status: status)
+        )
+    }
+
+    func createTournamentRounds(_ rounds: [TournamentRoundCreationRequest]) async throws {
+        guard !rounds.isEmpty else { return }
+        try await sendPost(
+            path: "/rest/v1/mexicana_rounds",
+            body: rounds
         )
     }
 

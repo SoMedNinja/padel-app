@@ -530,7 +530,7 @@ struct AdminView: View {
         // Note for non-coders: this converts preview text into simple HTML so admins see
         // a realistic email card (closer to the web/PWA preview) instead of plain monospaced text.
         HTMLPreviewWebView(html: buildEmailHTML(from: content))
-            .frame(height: 360)
+            .frame(height: 420)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
@@ -555,8 +555,8 @@ struct AdminView: View {
         <html>
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <body style="margin:0;background:#F3F4F6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-            <div style="padding:14px;">
-              <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;padding:16px;">\(paragraphs)</div>
+            <div style="max-width:680px;margin:0 auto;padding:12px;">
+              <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;padding:14px;">\(paragraphs)</div>
             </div>
           </body>
         </html>
@@ -610,7 +610,7 @@ private struct HTMLPreviewWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero)
         webView.isOpaque = false
         webView.backgroundColor = .clear
-        webView.scrollView.isScrollEnabled = true
+        webView.scrollView.isScrollEnabled = false
         return webView
     }
 

@@ -5,13 +5,14 @@ struct SectionCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.inter(.headline, weight: .bold))
                 .foregroundStyle(AppColors.textPrimary)
             content
         }
-        .padding()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padelSurfaceCard()
     }
