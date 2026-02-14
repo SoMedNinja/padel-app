@@ -484,15 +484,18 @@ struct AdminView: View {
                 if let content, content.isEmpty == false {
                     ScrollView {
                         if renderAsEmail {
-                            if let htmlContent, htmlContent.isEmpty == false {
-                                // Note for non-coders: when this HTML exists, it is the exact email body from the backend.
-                                HTMLPreviewWebView(html: htmlContent)
-                                    .frame(height: 420)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            } else {
-                                emailPreviewCard(content: content)
+                            // Note for non-coders: `Group` lets us apply one shared style (`frame`) to either email branch below.
+                            Group {
+                                if let htmlContent, htmlContent.isEmpty == false {
+                                    // Note for non-coders: when this HTML exists, it is the exact email body from the backend.
+                                    HTMLPreviewWebView(html: htmlContent)
+                                        .frame(height: 420)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                } else {
+                                    emailPreviewCard(content: content)
+                                }
                             }
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
                             Text(content)
                                 .font(.system(.caption, design: .monospaced))
