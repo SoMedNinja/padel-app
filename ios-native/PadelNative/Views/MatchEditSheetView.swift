@@ -12,6 +12,7 @@ struct MatchEditSheetView: View {
     @State private var teamAPlayer2Id: String?
     @State private var teamBPlayer1Id: String?
     @State private var teamBPlayer2Id: String?
+    @State private var didPrepopulatePlayers = false
 
     init(match: Match) {
         self.match = match
@@ -69,6 +70,44 @@ struct MatchEditSheetView: View {
         }
     }
 
+    private func prepopulatePlayersFromMatchIfNeeded() {
+        guard !didPrepopulatePlayers else { return }
+
+        // Note for non-coders: older matches can store only player names (not IDs).
+        // We try to map those names to current player IDs so the picker starts with the same teammates.
+        teamAPlayer1Id = resolvedSelection(currentId: teamAPlayer1Id, fallbackName: match.teamANames[safe: 0])
+        teamAPlayer2Id = resolvedSelection(currentId: teamAPlayer2Id, fallbackName: match.teamANames[safe: 1])
+        teamBPlayer1Id = resolvedSelection(currentId: teamBPlayer1Id, fallbackName: match.teamBNames[safe: 0])
+        teamBPlayer2Id = resolvedSelection(currentId: teamBPlayer2Id, fallbackName: match.teamBNames[safe: 1])
+        didPrepopulatePlayers = true
+    }
+
+    private func resolvedSelection(currentId: String?, fallbackName: String?) -> String? {
+        if let currentId {
+            return normalizedGuestOrPlayerId(currentId)
+        }
+
+        guard let fallbackName = fallbackName?.trimmingCharacters(in: .whitespacesAndNewlines), !fallbackName.isEmpty else {
+            return nil
+        }
+
+        let loweredName = fallbackName.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        if loweredName == "gäst" || loweredName == "guest" {
+            return "guest"
+        }
+
+        return viewModel.players.first(where: {
+            $0.profileName
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current) == loweredName
+        })?.id.uuidString
+    }
+
+    private func normalizedGuestOrPlayerId(_ value: String) -> String {
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.lowercased() == "guest" ? "guest" : normalized
+    }
+
     private func playerPicker(title: String, selection: Binding<String?>) -> some View {
         Picker(title, selection: selection) {
             Text("Ingen").tag(Optional<String>.none)
@@ -77,5 +116,17 @@ struct MatchEditSheetView: View {
                 Text(player.profileName).tag(Optional(player.id.uuidString))
             }
         }
+        .onAppear {
+            prepopulatePlayersFromMatchIfNeeded()
+        }
+        .onChange(of: viewModel.players.count) { _, _ in
+            prepopulatePlayersFromMatchIfNeeded()
+        }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
