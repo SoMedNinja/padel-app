@@ -110,14 +110,11 @@ struct HistoryView: View {
                 .padding(.horizontal, 4)
 
             if viewModel.isHistoryLoading {
-                VStack(spacing: 8) {
-                    BallRefreshIndicator()
-                    HStack {
-                        Spacer()
-                        ProgressView("Laddar historik…")
-                            .font(.inter(.body))
-                        Spacer()
-                    }
+                HStack {
+                    Spacer()
+                    ProgressView("Laddar historik…")
+                        .font(.inter(.body))
+                    Spacer()
                 }
                 .padding(.vertical, 20)
             } else if viewModel.historyFilteredMatches.isEmpty {

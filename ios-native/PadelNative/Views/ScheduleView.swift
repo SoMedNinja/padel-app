@@ -100,11 +100,8 @@ struct ScheduleView: View {
                     }
 
                     if viewModel.isScheduleLoading {
-                        VStack(alignment: .leading, spacing: 8) {
-                            BallRefreshIndicator()
-                            ProgressView("Laddar schemadata…")
-                                .font(.inter(.body))
-                        }
+                        ProgressView("Laddar schemadata…")
+                            .font(.inter(.body))
                     }
 
                     if let error = viewModel.scheduleErrorMessage {

@@ -4,23 +4,7 @@ struct MatchDetailView: View {
     let match: Match
     @EnvironmentObject private var viewModel: AppViewModel
 
-    @State private var editTeamAScore = 0
-    @State private var editTeamBScore = 0
-    @State private var editScoreType = "sets"
-    @State private var editScoreTargetText = ""
-    @State private var editPlayedAt = Date()
-
-    @State private var editTeamAPlayer1Id: String?
-    @State private var editTeamAPlayer2Id: String?
-    @State private var editTeamBPlayer1Id: String?
-    @State private var editTeamBPlayer2Id: String?
-
     @State private var showDeleteConfirm = false
-
-    @State private var playerSearchText = ""
-    @State private var showGuestDialog = false
-    @State private var newGuestName = ""
-    @State private var activeSelectionBinding: Binding<String?>?
 
     private let formatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -123,58 +107,6 @@ struct MatchDetailView: View {
                     }
                 }
 
-                if viewModel.canUseAdmin {
-                    SectionCard(title: "Redigera match") {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Group {
-                                playerSelectorRow(title: "Lag A – spelare 1", selection: $editTeamAPlayer1Id)
-                                playerSelectorRow(title: "Lag A – spelare 2 (valfri)", selection: $editTeamAPlayer2Id)
-                                Divider().background(AppColors.borderSubtle)
-                                playerSelectorRow(title: "Lag B – spelare 1", selection: $editTeamBPlayer1Id)
-                                playerSelectorRow(title: "Lag B – spelare 2 (valfri)", selection: $editTeamBPlayer2Id)
-                            }
-
-                            Divider().background(AppColors.borderSubtle)
-
-                            VStack(spacing: 12) {
-                                Stepper("Lag A poäng: \(editTeamAScore)", value: $editTeamAScore, in: 0...99)
-                                Stepper("Lag B poäng: \(editTeamBScore)", value: $editTeamBScore, in: 0...99)
-
-                                Picker("Poängtyp", selection: $editScoreType) {
-                                    Text("Set").tag("sets")
-                                    Text("Poäng").tag("points")
-                                }
-                                .pickerStyle(.segmented)
-
-                                if editScoreType == "points" {
-                                    TextField("Poängmål (valfritt)", text: $editScoreTargetText)
-                                        .textFieldStyle(.roundedBorder)
-                                        .keyboardType(.numberPad)
-                                }
-
-                                DatePicker("Spelad", selection: $editPlayedAt)
-                            }
-                            .font(.inter(.subheadline))
-
-                            Button("Spara ändringar") {
-                                Task {
-                                    await viewModel.updateMatch(
-                                        match,
-                                        playedAt: editPlayedAt,
-                                        teamAScore: editTeamAScore,
-                                        teamBScore: editTeamBScore,
-                                        scoreType: editScoreType,
-                                        scoreTarget: Int(editScoreTargetText),
-                                        teamAPlayerIds: [editTeamAPlayer1Id, editTeamAPlayer2Id],
-                                        teamBPlayerIds: [editTeamBPlayer1Id, editTeamBPlayer2Id]
-                                    )
-                                }
-                            }
-                            .buttonStyle(PrimaryButtonStyle())
-                        }
-                    }
-                }
-
                 if viewModel.canDeleteMatch(match) {
                     Button("Radera match permanent") {
                         showDeleteConfirm = true
@@ -187,18 +119,6 @@ struct MatchDetailView: View {
             .padding()
         }
         .background(AppColors.background)
-        .onAppear {
-            editTeamAScore = match.teamAScore
-            editTeamBScore = match.teamBScore
-            editScoreType = match.scoreType ?? "sets"
-            editScoreTargetText = match.scoreTarget.map(String.init) ?? ""
-            editPlayedAt = match.playedAt
-
-            editTeamAPlayer1Id = match.teamAPlayerIds.indices.contains(0) ? match.teamAPlayerIds[0] : nil
-            editTeamAPlayer2Id = match.teamAPlayerIds.indices.contains(1) ? match.teamAPlayerIds[1] : nil
-            editTeamBPlayer1Id = match.teamBPlayerIds.indices.contains(0) ? match.teamBPlayerIds[0] : nil
-            editTeamBPlayer2Id = match.teamBPlayerIds.indices.contains(1) ? match.teamBPlayerIds[1] : nil
-        }
         .alert("Radera match?", isPresented: $showDeleteConfirm) {
             Button("Radera", role: .destructive) {
                 Task { await viewModel.deleteMatch(match) }
@@ -222,44 +142,5 @@ struct MatchDetailView: View {
                 .foregroundStyle(AppColors.textPrimary)
         }
         .padding(.vertical, 4)
-    }
-
-    private func playerSelectorRow(title: String, selection: Binding<String?>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.inter(.caption, weight: .bold))
-                .foregroundStyle(AppColors.textSecondary)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    selectorChip(title: "Ingen", isSelected: selection.wrappedValue == nil) {
-                        selection.wrappedValue = nil
-                    }
-
-                    selectorChip(title: "Gäst", isSelected: selection.wrappedValue == "guest") {
-                        selection.wrappedValue = "guest"
-                    }
-
-                    ForEach(viewModel.players) { player in
-                        selectorChip(title: player.profileName, isSelected: selection.wrappedValue == player.id.uuidString) {
-                            selection.wrappedValue = player.id.uuidString
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func selectorChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.inter(.caption2, weight: .bold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(isSelected ? AppColors.brandPrimary : AppColors.textSecondary.opacity(0.1))
-                .foregroundStyle(isSelected ? .white : AppColors.textPrimary)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
     }
 }
