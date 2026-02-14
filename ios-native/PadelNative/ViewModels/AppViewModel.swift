@@ -219,50 +219,6 @@ struct HeatmapCombo: Identifiable {
     let avgElo: Int
 }
 
-enum HistoryDatePreset: String, CaseIterable, Identifiable {
-    case all
-    case last7
-    case last30
-    case custom
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all: return "Alla"
-        case .last7: return "Senaste 7d"
-        case .last30: return "Senaste 30d"
-        case .custom: return "Anpassat"
-        }
-    }
-}
-
-struct HistoryFilterState {
-    var datePreset: HistoryDatePreset = .all
-    var customStartDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
-    var customEndDate: Date = .now
-    var tournamentOnly = false
-    var scoreType: String = "all"
-
-    // Note for non-coders:
-    // We use "23:59:59" so the selected end date includes the full day.
-    var normalizedDateRange: (start: Date?, end: Date?) {
-        let calendar = Calendar.current
-        switch datePreset {
-        case .all:
-            return (nil, nil)
-        case .last7:
-            return (calendar.date(byAdding: .day, value: -7, to: .now), .now)
-        case .last30:
-            return (calendar.date(byAdding: .day, value: -30, to: .now), .now)
-        case .custom:
-            let start = calendar.startOfDay(for: customStartDate)
-            let endDay = calendar.startOfDay(for: customEndDate)
-            let end = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: endDay) ?? customEndDate
-            return (start, end)
-        }
-    }
-}
 
 struct SingleGameSuggestion {
     let teamAPlayerIds: [UUID?]
@@ -368,9 +324,9 @@ final class AppViewModel: ObservableObject {
     @Published var adminEmailPreviewHTML: String?
     @Published var adminEmailStatusMessage: String?
     @Published var liveUpdateBanner: String?
-    @Published var dashboardFilter: DashboardMatchFilter = .all
-    @Published var dashboardCustomStartDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
-    @Published var dashboardCustomEndDate: Date = .now
+    @Published var globalFilter: DashboardMatchFilter = .all
+    @Published var globalCustomStartDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+    @Published var globalCustomEndDate: Date = .now
     @Published var dashboardRivalryOpponentId: UUID?
     @Published var dashboardRivalryMode: String = "against"
     @Published var isDashboardLoading = false
@@ -392,7 +348,6 @@ final class AppViewModel: ObservableObject {
     @Published var currentMVP: DashboardMVPResult?
     @Published var periodMVP: DashboardMVPResult?
     @Published var latestHighlightMatch: DashboardMatchHighlight?
-    @Published var historyFilters = HistoryFilterState()
     @Published var historyMatches: [Match] = []
     @Published var isHistoryLoading = false
     @Published var isHistoryLoadingMore = false
@@ -1371,31 +1326,55 @@ final class AppViewModel: ObservableObject {
         .map { $0 }
     }
 
+    var globalDateRange: (start: Date?, end: Date?) {
+        let now = Date()
+        let calendar = Calendar.current
+
+        switch globalFilter {
+        case .all, .short, .long, .tournaments:
+            return (nil, nil)
+        case .last7:
+            return (calendar.date(byAdding: .day, value: -7, to: now), now)
+        case .last30:
+            return (calendar.date(byAdding: .day, value: -30, to: now), now)
+        case .custom:
+            let range = globalCustomDateRange
+            return (range.start, range.end)
+        }
+    }
+
+    var globalScoreType: String? {
+        switch globalFilter {
+        case .short, .long: return "sets"
+        default: return nil
+        }
+    }
+
     var dashboardFilteredMatches: [Match] {
-        filteredMatches(matches, filter: dashboardFilter)
+        filteredMatches(matches, filter: globalFilter)
     }
 
     // Note for non-coders:
     // We show this label in the UI so people can confirm which filter scope is currently applied.
-    var dashboardActiveFilterLabel: String {
-        if dashboardFilter == .custom {
+    var globalActiveFilterLabel: String {
+        if globalFilter == .custom {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
             formatter.timeStyle = .none
-            return "Custom: \(formatter.string(from: dashboardCustomStartDate)) → \(formatter.string(from: dashboardCustomEndDate))"
+            return "Custom: \(formatter.string(from: globalCustomStartDate)) → \(formatter.string(from: globalCustomEndDate))"
         }
-        return dashboardFilter.title
+        return globalFilter.title
     }
 
     // Note for non-coders:
     // End date is normalized to 23:59:59 so selecting a day includes all matches played that day.
-    var dashboardCustomDateRange: (start: Date, end: Date) {
+    var globalCustomDateRange: (start: Date, end: Date) {
         let calendar = Calendar.current
-        let rawStart = calendar.startOfDay(for: dashboardCustomStartDate)
-        let rawEndDay = calendar.startOfDay(for: dashboardCustomEndDate)
+        let rawStart = calendar.startOfDay(for: globalCustomStartDate)
+        let rawEndDay = calendar.startOfDay(for: globalCustomEndDate)
         let start = min(rawStart, rawEndDay)
         let normalizedEndDay = max(rawStart, rawEndDay)
-        let end = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: normalizedEndDay) ?? dashboardCustomEndDate
+        let end = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: normalizedEndDay) ?? globalCustomEndDate
         return (start, end)
     }
 
@@ -1482,14 +1461,17 @@ final class AppViewModel: ObservableObject {
         defer { isHistoryLoading = false }
 
         do {
-            let range = historyFilters.normalizedDateRange
+            let range = globalDateRange
+            let scoreType = globalScoreType
+            let tournamentOnly = globalFilter == .tournaments
+
             let page = try await apiClient.fetchMatchesPage(
                 limit: historyPageSize,
                 offset: 0,
                 startDate: range.start,
                 endDate: range.end,
-                scoreType: historyFilters.scoreType == "all" ? nil : historyFilters.scoreType,
-                tournamentOnly: historyFilters.tournamentOnly
+                scoreType: scoreType,
+                tournamentOnly: tournamentOnly
             )
             historyMatches = page
             hasMoreHistoryMatches = page.count == historyPageSize
@@ -1508,14 +1490,17 @@ final class AppViewModel: ObservableObject {
 
         do {
             let offset = historyMatches.count
-            let range = historyFilters.normalizedDateRange
+            let range = globalDateRange
+            let scoreType = globalScoreType
+            let tournamentOnly = globalFilter == .tournaments
+
             let nextPage = try await apiClient.fetchMatchesPage(
                 limit: historyPageSize,
                 offset: offset,
                 startDate: range.start,
                 endDate: range.end,
-                scoreType: historyFilters.scoreType == "all" ? nil : historyFilters.scoreType,
-                tournamentOnly: historyFilters.tournamentOnly
+                scoreType: scoreType,
+                tournamentOnly: tournamentOnly
             )
             if nextPage.isEmpty {
                 hasMoreHistoryMatches = false
@@ -1716,12 +1701,41 @@ final class AppViewModel: ObservableObject {
     }
 
     func openDashboardFiltered(_ filter: DashboardMatchFilter) {
-        dashboardFilter = filter
+        globalFilter = filter
         selectedMainTab = 0
     }
 
     func openHistoryTab() {
         selectedMainTab = 4
+    }
+
+    func generatePlayerStatsCard() -> URL? {
+        guard let player = currentPlayer else { return nil }
+        let stats = playerBadgeStats[player.id]
+        let rank = leaderboardPlayers.firstIndex(where: { $0.id == player.id }).map { $0 + 1 } ?? 0
+        let wins = stats?.wins ?? 0
+        let games = stats?.matchesPlayed ?? 0
+        let winRate = games > 0 ? Int(round(Double(wins) / Double(games) * 100)) : 0
+        let badgeIcon = player.featuredBadgeId.flatMap { BadgeService.getBadgeIconById($0) } ?? ""
+
+        let lines = [
+            "Spelarprofil: \(player.profileName) \(badgeIcon)",
+            "",
+            "ELO Ranking: \(player.elo)",
+            "Plats på topplistan: #\(rank)",
+            "",
+            "Matcher: \(games)",
+            "Vinster: \(wins)",
+            "Vinstprocent: \(winRate)%",
+            "",
+            "Senaste form: \(getStreakLabel(stats: stats))"
+        ]
+
+        return try? ShareCardService.createShareImageFile(
+            title: "Padel Profilkort",
+            bodyLines: lines,
+            fileNamePrefix: "player-card"
+        )
     }
 
     // Note for non-coders:
@@ -3089,8 +3103,9 @@ final class AppViewModel: ObservableObject {
         guard let tournament = activeTournament, tournament.status == "completed" else { return nil }
         guard tournamentStandings.isEmpty == false else { return nil }
 
-        let lines = tournamentStandings.map { standing in
-            "#\(standing.rank) \(standing.playerName) • \(standing.pointsFor) pts • W\(standing.wins)-L\(standing.losses)"
+        let lines = tournamentStandings.prefix(5).map { standing in
+            let winnerIcon = standing.rank == 1 ? "🏆 " : ""
+            return "\(winnerIcon)#\(standing.rank) \(standing.playerName) • \(standing.pointsFor) pts"
         }
         let scoredRounds = tournamentRounds.filter { $0.team1Score != nil && $0.team2Score != nil }.count
         let totalRounds = tournamentRounds.count

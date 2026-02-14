@@ -47,24 +47,18 @@ struct HistoryView: View {
                     await viewModel.reloadHistoryMatches()
                 }
             }
-            .onChange(of: viewModel.historyFilters.datePreset) { _, _ in
+            .onChange(of: viewModel.globalFilter) { _, _ in
                 Task { await viewModel.reloadHistoryMatches() }
             }
-            .onChange(of: viewModel.historyFilters.customStartDate) { _, _ in
-                if viewModel.historyFilters.datePreset == .custom {
+            .onChange(of: viewModel.globalCustomStartDate) { _, _ in
+                if viewModel.globalFilter == .custom {
                     Task { await viewModel.reloadHistoryMatches() }
                 }
             }
-            .onChange(of: viewModel.historyFilters.customEndDate) { _, _ in
-                if viewModel.historyFilters.datePreset == .custom {
+            .onChange(of: viewModel.globalCustomEndDate) { _, _ in
+                if viewModel.globalFilter == .custom {
                     Task { await viewModel.reloadHistoryMatches() }
                 }
-            }
-            .onChange(of: viewModel.historyFilters.scoreType) { _, _ in
-                Task { await viewModel.reloadHistoryMatches() }
-            }
-            .onChange(of: viewModel.historyFilters.tournamentOnly) { _, _ in
-                Task { await viewModel.reloadHistoryMatches() }
             }
             .sheet(item: $editingMatch) { match in
                 MatchEditSheetView(match: match)
@@ -89,39 +83,24 @@ struct HistoryView: View {
     }
 
     private var filterSection: some View {
-        SectionCard(title: "Filter") {
+        SectionCard(title: "Globalt Filter") {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Tidsperiod", selection: $viewModel.historyFilters.datePreset) {
-                    ForEach(HistoryDatePreset.allCases) { preset in
-                        Text(preset.title).tag(preset)
+                Picker("Period", selection: $viewModel.globalFilter) {
+                    ForEach(DashboardMatchFilter.allCases) { filter in
+                        Text(filter.title).tag(filter)
                     }
                 }
                 .pickerStyle(.segmented)
+                .sensoryFeedback(.selection, trigger: viewModel.globalFilter)
 
-                Toggle("Visa avancerade filter", isOn: $showAdvancedFilters)
-                    .font(.inter(.subheadline))
-
-                if showAdvancedFilters {
-                    VStack(alignment: .leading, spacing: 10) {
-                        if viewModel.historyFilters.datePreset == .custom {
-                            DatePicker("Startdatum", selection: $viewModel.historyFilters.customStartDate, displayedComponents: [.date])
-                                .font(.inter(.subheadline))
-                            DatePicker("Slutdatum", selection: $viewModel.historyFilters.customEndDate, displayedComponents: [.date])
-                                .font(.inter(.subheadline))
-                        }
-
-                        Picker("Poängtyp", selection: $viewModel.historyFilters.scoreType) {
-                            Text("Alla").tag("all")
-                            Text("Set").tag("sets")
-                            Text("Poäng").tag("points")
-                        }
-                        .pickerStyle(.segmented)
-
-                        Toggle("Bara turneringsmatcher", isOn: $viewModel.historyFilters.tournamentOnly)
-                            .font(.inter(.subheadline))
-                    }
-                    .padding(.top, 4)
+                if viewModel.globalFilter == .custom {
+                    DatePicker("Från", selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                    DatePicker("Till", selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
                 }
+
+                Text("Aktivt filter: \(viewModel.globalActiveFilterLabel)")
+                    .font(.inter(.caption))
+                    .foregroundStyle(AppColors.textSecondary)
             }
         }
     }
@@ -141,15 +120,15 @@ struct HistoryView: View {
                     Spacer()
                 }
                 .padding(.vertical, 20)
-            } else if !viewModel.isHistoryLoading && viewModel.historyFilteredMatches.isEmpty {
+            } else if !viewModel.isHistoryLoading && viewModel.historyMatches.isEmpty {
                 SectionCard(title: "") {
                     VStack(spacing: 16) {
                         Text("Inga matcher hittades för valt filter.")
                             .font(.inter(.body))
                             .foregroundStyle(AppColors.textSecondary)
 
-                        Button("Rensa filter") {
-                            viewModel.historyFilters = HistoryFilterState()
+                        Button("Återställ filter") {
+                            viewModel.globalFilter = .all
                             Task { await viewModel.reloadHistoryMatches() }
                         }
                         .buttonStyle(.bordered)

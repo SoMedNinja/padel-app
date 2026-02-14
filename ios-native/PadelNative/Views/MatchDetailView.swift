@@ -78,23 +78,29 @@ struct MatchDetailView: View {
                                         .foregroundStyle(AppColors.textSecondary)
 
                                     if let explanation = row.explanation {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Label("Analys", systemImage: "magnifyingglass")
-                                                .font(.inter(size: 8, weight: .bold))
+                                        DisclosureGroup {
+                                            VStack(alignment: .leading, spacing: 10) {
+                                                let lines = explanation.split(separator: "\n").map(String.init)
+                                                ForEach(lines, id: \.self) { line in
+                                                    HStack(spacing: 8) {
+                                                        Image(systemName: "info.circle.fill")
+                                                            .font(.caption2)
+                                                            .foregroundStyle(AppColors.brandPrimary)
+                                                        Text(line)
+                                                            .font(.inter(size: 11, weight: .medium))
+                                                            .foregroundStyle(AppColors.textPrimary)
+                                                    }
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        } label: {
+                                            Label("Varför ändrades min ELO?", systemImage: "questionmark.circle.fill")
+                                                .font(.inter(.caption, weight: .bold))
                                                 .foregroundStyle(AppColors.brandPrimary)
-
-                                            Text(explanation)
-                                                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                                .foregroundStyle(AppColors.textPrimary)
-                                                .lineSpacing(2)
                                         }
-                                        .padding(12)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(10)
                                         .background(AppColors.brandPrimary.opacity(0.05))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(AppColors.brandPrimary.opacity(0.1), lineWidth: 1)
-                                        )
                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                     }
                                 }

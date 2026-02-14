@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import MVP from "../Components/MVP";
 import MatchHighlightCard from "../Components/MatchHighlightCard";
 import EloLeaderboard from "../Components/EloLeaderboard";
+import Heatmap from "../Components/Heatmap";
 import { HeadToHeadSection } from "../Components/PlayerSection";
 import FilterBar from "../Components/FilterBar";
 import { Box, Skeleton, Stack, Container, Typography, Button, Grid, Fab } from "@mui/material";
@@ -369,6 +370,15 @@ export default function Dashboard() {
                   profiles={profiles}
                   isFiltered={matchFilter.type !== "all"}
                 />
+
+                <Box sx={{ mt: 4 }}>
+                  <Heatmap
+                    matches={filteredMatches}
+                    profiles={profiles}
+                    allEloPlayers={eloPlayers}
+                  />
+                </Box>
+
                 {!isGuest && (
                   <Box id="head-to-head" component="section" sx={{ mt: 4 }}>
                     {/* Note for non-coders: guests can browse stats but don't see head-to-head comparisons. */}

@@ -323,40 +323,60 @@ struct AdminView: View {
     @ViewBuilder
     private var reportsSection: some View {
         VStack(spacing: 20) {
-            SectionCard(title: "Matchkvälls-rapport") {
+            SectionCard(title: "Matchkvälls-recap") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Datum", selection: $selectedEvening) {
+                    Text("Välj en spelkväll ur listan för att generera en sammanfattning.")
+                        .font(.inter(.caption))
+                        .foregroundStyle(AppColors.textSecondary)
+
+                    Picker("Välj spelkväll", selection: $selectedEvening) {
+                        if viewModel.adminMatchEveningOptions.isEmpty {
+                            Text("Inga kvällar hittades").tag("")
+                        }
                         ForEach(viewModel.adminMatchEveningOptions, id: \.self) { day in
                             Text(day).tag(day)
                         }
                     }
                     .pickerStyle(.menu)
-                    .disabled(viewModel.adminMatchEveningOptions.isEmpty)
 
-                    Button("Generera rapport") {
+                    Button {
                         viewModel.generateMatchEveningReport(for: selectedEvening)
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    } label: {
+                        Label("Generera & Förhandsgranska", systemImage: "doc.text.magnifyingglass")
+                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
                     .font(.inter(.subheadline, weight: .bold))
                     .disabled(selectedEvening.isEmpty)
                 }
             }
 
-            SectionCard(title: "Turneringsrapport") {
+            SectionCard(title: "Turneringsrecap") {
                 VStack(alignment: .leading, spacing: 12) {
+                    Text("Välj en avslutad turnering för att generera en sammanfattning.")
+                        .font(.inter(.caption))
+                        .foregroundStyle(AppColors.textSecondary)
+
                     Picker("Slutförd turnering", selection: $selectedReportTournamentId) {
-                        Text("Välj turnering").tag(Optional<UUID>.none)
+                        Text("Välj turnering...").tag(Optional<UUID>.none)
                         ForEach(viewModel.tournaments.filter { $0.status == "completed" }) { tournament in
                             Text(tournament.name).tag(Optional(tournament.id))
                         }
                     }
                     .pickerStyle(.menu)
 
-                    Button("Generera rapport") {
+                    Button {
                         guard let id = selectedReportTournamentId else { return }
-                        Task { await viewModel.generateTournamentReport(for: id) }
+                        Task {
+                            await viewModel.generateTournamentReport(for: id)
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        }
+                    } label: {
+                        Label("Generera & Förhandsgranska", systemImage: "trophy.fill")
+                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
                     .font(.inter(.subheadline, weight: .bold))
                     .disabled(selectedReportTournamentId == nil)
                 }
@@ -389,18 +409,27 @@ struct AdminView: View {
                             .font(.inter(.subheadline))
                     }
 
-                    HStack {
-                        Button("Förhandsgranska") {
+                    VStack(spacing: 12) {
+                        Button {
                             let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
                             let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
-                            Task { await viewModel.buildWeeklyEmailPreview(timeframe: selectedWeeklyTimeframe, week: week, year: year) }
+                            Task {
+                                await viewModel.buildWeeklyEmailPreview(timeframe: selectedWeeklyTimeframe, week: week, year: year)
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            }
+                        } label: {
+                            Label("Förhandsgranska Veckobrev", systemImage: "eye.fill")
+                                .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
 
-                        Button("Skicka test") {
+                        Button {
                             let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
                             let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
                             Task { await viewModel.sendWeeklyEmailTest(timeframe: selectedWeeklyTimeframe, week: week, year: year) }
+                        } label: {
+                            Label("Skicka test-brev", systemImage: "paperplane.fill")
+                                .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -418,16 +447,25 @@ struct AdminView: View {
                     }
                     .pickerStyle(.menu)
 
-                    HStack {
-                        Button("Förhandsgranska") {
+                    VStack(spacing: 12) {
+                        Button {
                             guard let id = selectedEmailTournamentId else { return }
-                            Task { await viewModel.buildTournamentEmailPreview(for: id) }
+                            Task {
+                                await viewModel.buildTournamentEmailPreview(for: id)
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            }
+                        } label: {
+                            Label("Förhandsgranska Turneringsbrev", systemImage: "eye.fill")
+                                .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
                         .disabled(selectedEmailTournamentId == nil)
 
-                        Button("Skicka test") {
+                        Button {
                             Task { await viewModel.sendTournamentEmailTest() }
+                        } label: {
+                            Label("Skicka test-brev", systemImage: "paperplane.fill")
+                                .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
                     }
