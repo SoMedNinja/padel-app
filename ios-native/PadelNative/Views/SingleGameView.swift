@@ -61,11 +61,18 @@ struct SingleGameView: View {
                                     .foregroundStyle(wizardStep == step ? AppColors.textPrimary : AppColors.textSecondary)
                             }
                             .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
                             .onTapGesture {
                                 if step.rawValue < wizardStep.rawValue {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     wizardStep = step
                                 }
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(step.title)
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityValue(wizardStep == step ? "Aktivt" : (wizardStep.rawValue > step.rawValue ? "Slutfört" : "Kommande"))
+                            .accessibilityHint(step.rawValue < wizardStep.rawValue ? "Gå tillbaka till detta steg" : "")
 
                             if step != .review {
                                 Rectangle()

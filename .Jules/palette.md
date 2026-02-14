@@ -45,3 +45,7 @@
 ## 2025-05-28 - [iOS UX: Pulse Animations & Haptic Hierarchy]
 **Learning:** Pulse animations on icons (Symbol Effects) provide a non-intrusive way to signal live events (like tournaments). Using a hierarchy of haptics (Light for navigation, Medium for primary creation/submission) makes the app feel tactile and responsive. Sorting headers in dense tables require both an accessibilityLabel and an accessibilityHint to explain state changes to VoiceOver users.
 **Action:** Use `.symbolEffect(.pulse)` for live status indicators. Apply Light/Medium haptic feedback consistently based on action importance. Always add hints to sortable table headers.
+
+## 2026-06-01 - [iOS UX: Coherent Accessibility & Tactile Wizard]
+**Learning:** Horizontal data rows (like leaderboards) are best served to VoiceOver as a single, ignored-children element with a summarized `accessibilityLabel`. Multi-step wizards benefit significantly from combining step indicators into a single accessibility element with clear `accessibilityValue` (e.g., "Aktivt/Slutfört") and `accessibilityAddTraits(.isButton)`. Adding light haptics (`UIImpactFeedbackGenerator(style: .light)`) to previous-step navigation makes the wizard feel more tactile and forgiving.
+**Action:** Summarize dense rows in a single label. Use `.combine` and button traits for custom progress steppers. Implement haptics for "go back" interactions in forms.

@@ -390,6 +390,7 @@ struct ProfileView: View {
                 Text("Kommande").tag("locked")
             }
             .pickerStyle(.segmented)
+            .sensoryFeedback(.selection, trigger: selectedMeritSection)
 
             SectionCard(title: "Turneringsmeriter") {
                 HStack(spacing: 16) {
@@ -563,7 +564,9 @@ struct ProfileView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(earned) { badge in
+                            let isSelected = (viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id
                             Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 viewModel.selectedFeaturedBadgeId = viewModel.selectedFeaturedBadgeId == badge.id ? nil : badge.id
                             } label: {
                                 VStack(spacing: 4) {
@@ -576,14 +579,17 @@ struct ProfileView: View {
                                 .frame(width: 80, height: 70)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill((viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id ? Color.accentColor.opacity(0.2) : Color(.systemGray6))
+                                        .fill(isSelected ? Color.accentColor.opacity(0.2) : Color(.systemGray6))
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke((viewModel.selectedFeaturedBadgeId ?? current.featuredBadgeId) == badge.id ? Color.accentColor : Color.clear, lineWidth: 2)
+                                        .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
                                 )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("\(badge.icon) \(badge.title)")
+                            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+                            .accessibilityHint(isSelected ? "Avmarkera för att dölja merit" : "Välj för att visa vid ditt namn")
                         }
                     }
                 }
