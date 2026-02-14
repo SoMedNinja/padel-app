@@ -5,12 +5,12 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   ReferenceLine
 } from "recharts";
 import { getPlayerColor } from "../utils/colors";
-import { Typography, Box, Paper, TextField, Stack, InputAdornment, IconButton, Tooltip } from "@mui/material";
+import { Typography, Box, Paper, TextField, Stack, InputAdornment, IconButton, Tooltip as MuiTooltip } from "@mui/material";
 import { Autorenew as ResetIcon } from "@mui/icons-material";
 import { formatDate, formatShortDate } from "../utils/format";
 
@@ -134,6 +134,36 @@ export default function EloTrend({ players = [] }) {
   if (!data.length) return null;
   const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
+  const renderOverlayTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+
+    return (
+      <Box
+        sx={{
+          borderRadius: 2,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+          p: 1.5,
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(4px)',
+          border: 'none',
+          pointerEvents: 'none',
+          maxHeight: 220,
+          overflowY: 'auto'
+        }}
+      >
+        {/* Note for non-coders: this date title helps people connect the values to one day in history. */}
+        <Typography variant="caption" sx={{ display: 'block', color: 'error.main', fontWeight: 800, mb: 1 }}>
+          {formatDate(label, { dateStyle: 'long' })}
+        </Typography>
+        {payload.map((entry) => (
+          <Typography key={entry.name} variant="caption" sx={{ display: 'block', fontWeight: 700, color: entry.color }}>
+            {entry.name}: {Math.round(entry.value)}
+          </Typography>
+        ))}
+      </Box>
+    );
+  };
+
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>
@@ -168,7 +198,7 @@ export default function EloTrend({ players = [] }) {
             InputProps={{
               endAdornment: startDate ? (
                 <InputAdornment position="end">
-                  <Tooltip title="Återställ till tidigaste datum" arrow>
+                  <MuiTooltip title="Återställ till tidigaste datum" arrow>
                     <IconButton
                       aria-label="Återställ startdatum"
                       size="small"
@@ -180,7 +210,7 @@ export default function EloTrend({ players = [] }) {
                     >
                       <ResetIcon fontSize="small" />
                     </IconButton>
-                  </Tooltip>
+                  </MuiTooltip>
                 </InputAdornment>
               ) : undefined
             }}
@@ -201,7 +231,7 @@ export default function EloTrend({ players = [] }) {
             InputProps={{
               endAdornment: endDate ? (
                 <InputAdornment position="end">
-                  <Tooltip title="Återställ till idag" arrow>
+                  <MuiTooltip title="Återställ till idag" arrow>
                     <IconButton
                       aria-label="Återställ slutdatum"
                       size="small"
@@ -213,7 +243,7 @@ export default function EloTrend({ players = [] }) {
                     >
                       <ResetIcon fontSize="small" />
                     </IconButton>
-                  </Tooltip>
+                  </MuiTooltip>
                 </InputAdornment>
               ) : undefined
             }}
@@ -238,18 +268,10 @@ export default function EloTrend({ players = [] }) {
               domain={yDomain}
               style={{ fontSize: '0.75rem' }}
             />
-            <Tooltip
-              contentStyle={{
-                borderRadius: 16,
-                border: 'none',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                padding: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(4px)'
-              }}
-              itemStyle={{ fontWeight: 700, padding: '2px 0' }}
-              labelStyle={{ fontWeight: 800, color: '#d32f2f', marginBottom: '8px' }}
-              labelFormatter={(val) => formatDate(val, { dateStyle: 'long' })}
+            <RechartsTooltip
+              content={renderOverlayTooltip}
+              position={{ x: 16, y: 16 }}
+              wrapperStyle={{ pointerEvents: 'none', zIndex: 20 }}
               cursor={{ stroke: '#d32f2f', strokeWidth: 1, strokeDasharray: '4 4' }}
             />
 
