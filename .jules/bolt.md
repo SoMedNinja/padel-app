@@ -125,3 +125,7 @@
 ## 2026-06-25 - [Active Player Filtering in Rolling Windows]
 **Learning:** Iterating over all players in every step of a rolling 30-day window ((D \times P)$) is wasteful when most players are inactive in that period.
 **Action:** Maintain a set of "active" player IDs within the window and only iterate over those IDs for daily winner calculations.
+
+## 2026-06-25 - [O(1) Delta Lookups and Match-Centric MVP]
+**Learning:** Performing O(H) searches in every match of a loop results in O(M * H) complexity, which is effectively O(N^2) for active players. Additionally, scanning all player histories (O(P * H)) for a filtered MVP window is highly redundant.
+**Action:** Pre-index ELO deltas into a [PlayerID: [MatchID: Int]] map once. Refactor MVP logic to iterate over the match list (O(M_filtered)) instead of scanning player histories (O(P * H)), using the pre-indexed map for O(1) delta lookups.

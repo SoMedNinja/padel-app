@@ -958,17 +958,19 @@ final class AppViewModel: ObservableObject {
         guard !playerIds.isEmpty else { return [] }
 
         // 1. Collect all match entries for all requested players within the filtered set
+        // ⚡ Optimization: Use a map and set to avoid O(N^2) search
         var timelineEntries: [Match] = []
         let filteredMatches = Set(filteredMatches(allMatches, filter: filter).map { $0.id })
+        let matchMap = Dictionary(uniqueKeysWithValues: allMatches.map { ($0.id, $0) })
+        var seenMatchIds = Set<UUID>()
 
         for pid in playerIds {
             if let stats = playerBadgeStats[pid] {
                 for entry in stats.eloHistory {
-                    if filteredMatches.contains(entry.matchId) {
-                        if !timelineEntries.contains(where: { $0.id == entry.matchId }) {
-                            if let match = allMatches.first(where: { $0.id == entry.matchId }) {
-                                timelineEntries.append(match)
-                            }
+                    if filteredMatches.contains(entry.matchId) && !seenMatchIds.contains(entry.matchId) {
+                        if let match = matchMap[entry.matchId] {
+                            timelineEntries.append(match)
+                            seenMatchIds.insert(entry.matchId)
                         }
                     }
                 }
@@ -1011,11 +1013,16 @@ final class AppViewModel: ObservableObject {
             }
         }
 
+        // ⚡ Optimization: Pre-index player ELOs for O(1) lookup in timeline loop
+        var playerEloMaps: [UUID: [UUID: Int]] = [:]
+        for pid in playerIds {
+            playerEloMaps[pid] = playerBadgeStats[pid]?.eloHistory.reduce(into: [UUID: Int]()) { $0[$1.matchId] = $1.elo }
+        }
+
         for (index, match) in sortedTimeline.enumerated() {
             for pid in playerIds {
-                if let stats = playerBadgeStats[pid],
-                   let entry = stats.eloHistory.first(where: { $0.matchId == match.id }) {
-                    lastKnownElos[pid] = entry.elo
+                if let elo = playerEloMaps[pid]?[match.id] {
+                    lastKnownElos[pid] = elo
                 }
             }
 
@@ -3405,7 +3412,7 @@ final class AppViewModel: ObservableObject {
         return allMatches.filter { Calendar.current.isDate($0.playedAt, inSameDayAs: latest.playedAt) }
     }
 
-    private func mvp(for periodMatches: [Match], minimumGames: Int) -> DashboardMVPResult? {
+    private func mvp(for periodMatches: [Match], minimumGames: Int, deltaMap: [UUID: [UUID: Int]]) -> DashboardMVPResult? {
         guard !periodMatches.isEmpty else { return nil }
 
         struct MvpStat {
@@ -3415,21 +3422,25 @@ final class AppViewModel: ObservableObject {
         }
 
         var stats: [UUID: MvpStat] = [:]
-        let matchIds = Set(periodMatches.map { $0.id })
 
-        for (pid, playerBadgeStats) in playerBadgeStats {
-            var current = MvpStat()
-            for entry in playerBadgeStats.eloHistory {
-                if matchIds.contains(entry.matchId) {
-                    current.games += 1
-                    current.periodEloGain += entry.delta
-                    if entry.result == "W" {
-                        current.wins += 1
-                    }
-                }
+        for match in periodMatches {
+            let teamAWon = match.teamAScore > match.teamBScore
+            let aIds = match.teamAPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) }
+            let bIds = match.teamBPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) }
+
+            for id in aIds {
+                var s = stats[id, default: MvpStat()]
+                s.games += 1
+                s.periodEloGain += deltaMap[id]?[match.id] ?? 0
+                if teamAWon { s.wins += 1 }
+                stats[id] = s
             }
-            if current.games > 0 {
-                stats[pid] = current
+            for id in bIds {
+                var s = stats[id, default: MvpStat()]
+                s.games += 1
+                s.periodEloGain += deltaMap[id]?[match.id] ?? 0
+                if !teamAWon { s.wins += 1 }
+                stats[id] = s
             }
         }
 
@@ -3817,6 +3828,12 @@ final class AppViewModel: ObservableObject {
             tournamentResults: tournamentHistoryResults
         )
 
+        // ⚡ Optimization: Pre-index ELO deltas for O(1) lookup during stats aggregation
+        var deltaMap: [UUID: [UUID: Int]] = [:]
+        for (pid, stats) in playerBadgeStats {
+            deltaMap[pid] = stats.eloHistory.reduce(into: [UUID: Int]()) { $0[$1.matchId] = $1.delta }
+        }
+
         // Pre-calculate merit holders once for use in all players' badge displays
         let meritHolders = BadgeService.buildUniqueMeritHolders(allPlayerStats: playerBadgeStats)
 
@@ -3826,11 +3843,11 @@ final class AppViewModel: ObservableObject {
         self.latestHighlightMatch = findMatchHighlight(matches: allMatches, players: players, statsMap: playerBadgeStats)
 
         let sameEveningMatches = matchesForSameEvening
-        self.currentMVP = mvp(for: sameEveningMatches, minimumGames: 3)
+        self.currentMVP = mvp(for: sameEveningMatches, minimumGames: 3, deltaMap: deltaMap)
 
         let cutoff30 = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? .distantPast
         let periodMatches = allMatches.filter { $0.playedAt >= cutoff30 }
-        self.periodMVP = mvp(for: periodMatches, minimumGames: 6)
+        self.periodMVP = mvp(for: periodMatches, minimumGames: 6, deltaMap: deltaMap)
 
         if let currentId = currentPlayer?.id {
             self.currentPlayerBadges = BadgeService.buildPlayerBadges(
@@ -3839,9 +3856,9 @@ final class AppViewModel: ObservableObject {
                 uniqueMeritHolders: meritHolders
             )
 
-            let mvpStats = calculateAllMvpStats()
+            let mvpStats = calculateAllMvpStats(deltaMap: deltaMap)
 
-            let (against, together) = calculateRivalryStats(for: currentId, mvpStats: mvpStats)
+            let (against, together) = calculateRivalryStats(for: currentId, mvpStats: mvpStats, deltaMap: deltaMap)
             self.currentRivalryAgainstStats = against
             self.currentRivalryTogetherStats = together
 
@@ -3859,7 +3876,7 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    private func calculateAllMvpStats() -> (monthlyMvpDays: [UUID: Int], eveningMvpCounts: [UUID: Int]) {
+    private func calculateAllMvpStats(deltaMap: [UUID: [UUID: Int]]) -> (monthlyMvpDays: [UUID: Int], eveningMvpCounts: [UUID: Int]) {
         var monthlyMvpDays: [UUID: Int] = [:]
         var eveningMvpCounts: [UUID: Int] = [:]
 
@@ -3884,7 +3901,7 @@ final class AppViewModel: ObservableObject {
         }
 
         for (_, dayMatches) in groupedByDay {
-            if let winner = mvp(for: dayMatches, minimumGames: 3) {
+            if let winner = mvp(for: dayMatches, minimumGames: 3, deltaMap: deltaMap) {
                 eveningMvpCounts[winner.player.id, default: 0] += 1
             }
         }
@@ -3904,7 +3921,6 @@ final class AppViewModel: ObservableObject {
         var uuidCache: [String: UUID?] = [:]
         func parseUUID(_ s: String?) -> UUID? {
             guard let s = s, !s.isEmpty else { return nil }
-            // Fix: Cache nil results too (e.g. for "guest")
             if let cached = uuidCache[s] { return cached }
             let u = UUID(uuidString: s)
             uuidCache[s] = u
@@ -3928,14 +3944,14 @@ final class AppViewModel: ObservableObject {
                 let teamAWon = m.teamAScore > m.teamBScore
 
                 for id in m.teamAPlayerIds.compactMap({ parseUUID($0) }) {
-                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
+                    let delta = deltaMap[id]?[m.id] ?? 0
                     rollingStats[id]?.games += 1
                     rollingStats[id]?.eloGain += delta
                     if teamAWon { rollingStats[id]?.wins += 1 }
                     activeInWindow.insert(id)
                 }
                 for id in m.teamBPlayerIds.compactMap({ parseUUID($0) }) {
-                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
+                    let delta = deltaMap[id]?[m.id] ?? 0
                     rollingStats[id]?.games += 1
                     rollingStats[id]?.eloGain += delta
                     if !teamAWon { rollingStats[id]?.wins += 1 }
@@ -3950,14 +3966,14 @@ final class AppViewModel: ObservableObject {
                 let teamAWon = m.teamAScore > m.teamBScore
 
                 for id in m.teamAPlayerIds.compactMap({ parseUUID($0) }) {
-                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
+                    let delta = deltaMap[id]?[m.id] ?? 0
                     rollingStats[id]?.games -= 1
                     rollingStats[id]?.eloGain -= delta
                     if teamAWon { rollingStats[id]?.wins -= 1 }
                     if rollingStats[id]?.games == 0 { activeInWindow.remove(id) }
                 }
                 for id in m.teamBPlayerIds.compactMap({ parseUUID($0) }) {
-                    let delta = playerBadgeStats[id]?.eloHistory.first(where: { $0.matchId == m.id })?.delta ?? 0
+                    let delta = deltaMap[id]?[m.id] ?? 0
                     rollingStats[id]?.games -= 1
                     rollingStats[id]?.eloGain -= delta
                     if !teamAWon { rollingStats[id]?.wins -= 1 }
@@ -4059,7 +4075,7 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    private func calculateRivalryStats(for playerId: UUID, mvpStats: (monthlyMvpDays: [UUID: Int], eveningMvpCounts: [UUID: Int])) -> (against: [RivalrySummary], together: [RivalrySummary]) {
+    private func calculateRivalryStats(for playerId: UUID, mvpStats: (monthlyMvpDays: [UUID: Int], eveningMvpCounts: [UUID: Int]), deltaMap: [UUID: [UUID: Int]]) -> (against: [RivalrySummary], together: [RivalrySummary]) {
         struct Accumulator {
             var wins = 0
             var losses = 0
@@ -4119,7 +4135,7 @@ final class AppViewModel: ObservableObject {
             // That means "served first" maps to "the player was in Team A".
             let playerServedFirst = iAmTeamA
 
-            let delta = playerBadgeStats[playerId]?.eloHistory.first(where: { $0.matchId == match.id })?.delta ?? 0
+            let delta = deltaMap[playerId]?[match.id] ?? 0
 
             func update(_ map: inout [UUID: Accumulator], targetId: UUID) {
                 var acc = map[targetId, default: Accumulator()]
@@ -4246,20 +4262,33 @@ final class AppViewModel: ObservableObject {
         }
 
         for match in allMatches {
-            let teamA = match.teamAPlayerIds.compactMap { $0?.lowercased() }
-            let teamB = match.teamBPlayerIds.compactMap { $0?.lowercased() }
-            let iAmTeamA = teamA.contains(pIdString)
-            let iAmTeamB = teamB.contains(pIdString)
-            guard iAmTeamA || iAmTeamB else { continue }
+            // ⚡ Optimization: check string presence before compactMap/lowercased
+            let isTeamA = match.teamAPlayerIds.contains { $0?.lowercased() == pIdString }
+            let isTeamB = !isTeamA && match.teamBPlayerIds.contains { $0?.lowercased() == pIdString }
+            guard isTeamA || isTeamB else { continue }
 
-            let myTeam = (iAmTeamA ? match.teamAPlayerIds : match.teamBPlayerIds).compactMap { parseUUID($0) }
-            let playerWon = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+            let myTeam = (isTeamA ? match.teamAPlayerIds : match.teamBPlayerIds).compactMap { parseUUID($0) }
+            let playerWon = isTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+            let playerServedFirst = isTeamA
 
-            // Note for non-coders: same serving rule as above for heatmap stats.
-            let playerServedFirst = iAmTeamA
-
-            let sortedIds = myTeam.sorted { $0.uuidString < $1.uuidString }
-            let key = sortedIds.map { $0.uuidString }.joined(separator: "+")
+            // ⚡ Optimization: Fast manual sort for 1-2 players to avoid O(N log N)
+            let key: String
+            let sortedIds: [UUID]
+            if myTeam.count == 2 {
+                if myTeam[0].uuidString < myTeam[1].uuidString {
+                    sortedIds = [myTeam[0], myTeam[1]]
+                    key = "\(myTeam[0].uuidString)+\(myTeam[1].uuidString)"
+                } else {
+                    sortedIds = [myTeam[1], myTeam[0]]
+                    key = "\(myTeam[1].uuidString)+\(myTeam[0].uuidString)"
+                }
+            } else if myTeam.count == 1 {
+                sortedIds = [myTeam[0]]
+                key = myTeam[0].uuidString
+            } else {
+                sortedIds = myTeam.sorted { $0.uuidString < $1.uuidString }
+                key = sortedIds.map { $0.uuidString }.joined(separator: "+")
+            }
 
             var acc = comboMap[key, default: ComboAcc()]
             acc.games += 1
