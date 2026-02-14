@@ -461,6 +461,8 @@ export default function SchedulePage() {
 
   return (
     <PullToRefresh
+      // Note for non-coders: this class lets us apply iOS-specific CSS so only our custom refresh animation is shown.
+      className="app-pull-to-refresh"
       onRefresh={handleRefresh}
       pullingContent={<PullingContent />}
       refreshingContent={<RefreshingContent />}
