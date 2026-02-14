@@ -37,6 +37,8 @@ struct DashboardView: View {
                 ZStack(alignment: .bottom) {
                     ScrollView {
                         VStack(spacing: 12) {
+                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.matches.isEmpty)
+
                             Color.clear
                                 .frame(height: 0.01)
                                 .id("top")
@@ -85,7 +87,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func content(proxy: ScrollViewProxy) -> some View {
-        if viewModel.isDashboardLoading {
+        if viewModel.isDashboardLoading && viewModel.matches.isEmpty {
             loadingState
         } else if let error = viewModel.lastErrorMessage,
                   viewModel.players.isEmpty,
@@ -100,7 +102,6 @@ struct DashboardView: View {
 
     private var loadingState: some View {
         VStack(spacing: 16) {
-            BallRefreshIndicator()
             ProgressView("Laddar översikt…")
                 .font(.inter(.body))
 

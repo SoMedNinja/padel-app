@@ -62,6 +62,7 @@ struct ScheduleView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    PadelRefreshHeader(isRefreshing: viewModel.isScheduleLoading && !viewModel.polls.isEmpty)
                     statusSection
                     scheduledGamesSection
                     calendarInviteSection
@@ -90,7 +91,7 @@ struct ScheduleView: View {
 
     @ViewBuilder
     private var statusSection: some View {
-        if viewModel.isScheduleLoading || viewModel.scheduleErrorMessage != nil || viewModel.scheduleActionMessage != nil || viewModel.deepLinkedPollDayId != nil {
+        if (viewModel.isScheduleLoading && viewModel.polls.isEmpty) || viewModel.scheduleErrorMessage != nil || viewModel.scheduleActionMessage != nil || viewModel.deepLinkedPollDayId != nil {
             SectionCard(title: "Status") {
                 VStack(alignment: .leading, spacing: 8) {
                     if let deepDay = viewModel.deepLinkedPollDayId {
@@ -99,7 +100,7 @@ struct ScheduleView: View {
                             .foregroundStyle(AppColors.textSecondary)
                     }
 
-                    if viewModel.isScheduleLoading {
+                    if viewModel.isScheduleLoading && viewModel.polls.isEmpty {
                         ProgressView("Laddar schemadata…")
                             .font(.inter(.body))
                     }
