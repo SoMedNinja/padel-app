@@ -4400,7 +4400,10 @@ final class AppViewModel: ObservableObject {
                 let customName = String(rawId.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
                 return customName.isEmpty ? "Gästspelare" : customName
             }
-            return resolvePlayerName(playerId: rawId)
+            // Note for non-coders:
+            // Swift requires `self.` inside this closure so it's crystal clear we are reading
+            // the player name from this AppViewModel instance.
+            return self.resolvePlayerName(playerId: rawId)
         }
 
         let teamANames = rawAIds.map(resolveSubmittedName)
