@@ -189,7 +189,10 @@ struct TournamentStanding: Identifiable {
     }
 }
 
-struct TournamentParticipant: Identifiable, Codable {
+// Note for non-coders:
+// Equatable lets Swift compare two TournamentParticipant values to see
+// whether they are the same, which is needed by some UI change-tracking APIs.
+struct TournamentParticipant: Identifiable, Codable, Equatable {
     let id: UUID
     let tournamentId: UUID
     let profileId: UUID
