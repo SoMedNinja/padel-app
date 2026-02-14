@@ -354,6 +354,7 @@
 				INFOPLIST_FILE = PadelNative/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Padel Native";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID används för att låsa upp appen snabbare och säkert.";
 				INFOPLIST_KEY_SUPABASE_ANON_KEY = "$(SUPABASE_ANON_KEY)";
 				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
 				INFOPLIST_KEY_MINIMUM_SUPPORTED_VERSION = 1.0.0;
@@ -385,6 +386,7 @@
 				INFOPLIST_FILE = PadelNative/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Padel Native";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID används för att låsa upp appen snabbare och säkert.";
 				INFOPLIST_KEY_SUPABASE_ANON_KEY = "$(SUPABASE_ANON_KEY)";
 				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
 				INFOPLIST_KEY_MINIMUM_SUPPORTED_VERSION = 1.0.0;
