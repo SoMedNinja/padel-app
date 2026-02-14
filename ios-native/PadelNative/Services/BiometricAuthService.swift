@@ -37,13 +37,23 @@ struct BiometricAuthService {
 
         do {
             // Note for non-coders:
-            // We use "deviceOwnerAuthentication" so iOS can fall back to passcode
-            // if Face ID/Touch ID temporarily fails. This improves reliability.
-            let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+            // We first ask specifically for Face ID / Touch ID, so iOS doesn't jump
+            // straight to the numeric PIN screen on devices that support biometrics.
+            let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
             guard success else {
                 throw BiometricError.failed(reason: "Biometrisk verifiering misslyckades.")
             }
         } catch {
+            // Note for non-coders:
+            // If Face ID/Touch ID is temporarily locked (for example after multiple failed
+            // scans), iOS requires one PIN unlock to re-enable biometrics.
+            if let laError = error as? LAError, laError.code == .biometryLockout {
+                let passcodeSuccess = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+                guard passcodeSuccess else {
+                    throw BiometricError.failed(reason: "PIN-verifiering misslyckades.")
+                }
+                return
+            }
             throw BiometricError.failed(reason: error.localizedDescription)
         }
     }
