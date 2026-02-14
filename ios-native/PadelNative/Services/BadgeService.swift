@@ -207,13 +207,36 @@ enum BadgeService {
             eloMap[player.id] = (Double(EloService.eloBaseline), 0)
         }
 
-        let sortedMatches = matches.sorted { $0.playedAt < $1.playedAt }
+        // Optimization: Linear check for sort order (ASC or DESC) to avoid O(N log N)
+        var isSortedAsc = true
+        var isSortedDesc = true
+        if matches.count > 1 {
+            for i in 0..<matches.count - 1 {
+                if matches[i].playedAt > matches[i+1].playedAt { isSortedAsc = false }
+                if matches[i].playedAt < matches[i+1].playedAt { isSortedDesc = false }
+                if !isSortedAsc && !isSortedDesc { break }
+            }
+        }
+        // Fix: Use Array() wrapper for reversed() to avoid type mismatch
+        let sortedMatches = isSortedAsc ? matches : (isSortedDesc ? Array(matches.reversed()) : matches.sorted { $0.playedAt < $1.playedAt })
+
         let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 60 * 60)
         let calendar = Calendar.current
 
+        // Optimization: Cache UUID parsing to avoid redundant work across thousands of matches
+        var uuidCache: [String: UUID?] = [:]
+        func parseUUID(_ s: String?) -> UUID? {
+            guard let s = s, !s.isEmpty else { return nil }
+            // Fix: Cache nil results too (e.g. for "guest")
+            if let cached = uuidCache[s] { return cached }
+            let u = UUID(uuidString: s)
+            uuidCache[s] = u
+            return u
+        }
+
         for match in sortedMatches {
-            let teamA = match.teamAPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
-            let teamB = match.teamBPlayerIds.compactMap { $0.flatMap { UUID(uuidString: $0) } }
+            let teamA = match.teamAPlayerIds.compactMap { parseUUID($0) }
+            let teamB = match.teamBPlayerIds.compactMap { parseUUID($0) }
 
             if teamA.isEmpty || teamB.isEmpty { continue }
 
@@ -272,7 +295,7 @@ enum BadgeService {
                 // Note: Guest handling in PWA uses "guest" or "name:..."
                 stats.guestPartners += myTeamIdsWithGuests.filter { id in
                     guard let id = id else { return true }
-                    return id == "guest" || id.hasPrefix("name:") || UUID(uuidString: id) == nil
+                    return id == "guest" || id.hasPrefix("name:") || parseUUID(id) == nil
                 }.count
 
                 if playerWon {
@@ -342,9 +365,71 @@ enum BadgeService {
         return statsMap
     }
 
+    struct UniqueMeritHolder {
+        let playerId: UUID
+        let value: Double
+        let formattedValue: String
+    }
+
+    static func buildUniqueMeritHolders(allPlayerStats: [UUID: PlayerBadgeStats]) -> [String: UniqueMeritHolder] {
+        var holders: [String: UniqueMeritHolder] = [:]
+
+        for def in uniqueDefinitions {
+            var bestValue: Double = -1.0
+            var bestPlayerId: UUID?
+
+            for (pId, s) in allPlayerStats {
+                var val: Double = -1.0
+                switch def.id {
+                case "king-of-elo": if s.matchesPlayed >= 10 { val = Double(s.currentElo) }
+                case "most-active": val = Double(s.matchesPlayed)
+                case "win-machine": if s.matchesPlayed >= 20 { val = Double(s.wins) / Double(s.matchesPlayed) }
+                case "upset-king": val = Double(s.biggestUpsetEloGap)
+                case "marathon-pro": val = Double(s.marathonMatches)
+                case "clutch-pro": val = Double(s.closeWins)
+                case "social-butterfly": val = Double(s.uniquePartners)
+                case "monthly-giant": val = Double(s.matchesLast30Days)
+                case "the-wall": val = Double(s.cleanSheets)
+                case "loss-machine": if s.matchesPlayed >= 20 { val = Double(s.losses) / Double(s.matchesPlayed) }
+                case "trough-dweller": if s.matchesPlayed >= 10 { val = 10000.0 - Double(s.currentElo) }
+                case "biggest-fall": val = Double(s.biggestEloLoss)
+                case "hard-times": val = Double(s.losses)
+                case "most-generous": val = Double(s.totalSetsLost)
+                case "cold-streak-pro": val = Double(s.bestLossStreak)
+                default: break
+                }
+
+                if val > bestValue {
+                    bestValue = val
+                    bestPlayerId = pId
+                }
+            }
+
+            if let holderId = bestPlayerId, bestValue >= 0 {
+                var formattedValue = ""
+                if def.id == "win-machine" || def.id == "loss-machine" {
+                    formattedValue = "\(Int(round(bestValue * 100)))%"
+                } else if def.id == "king-of-elo" {
+                    formattedValue = "\(Int(round(bestValue))) ELO"
+                } else if def.id == "trough-dweller" {
+                    formattedValue = "\(10000 - Int(round(bestValue))) ELO"
+                } else if def.id == "upset-king" {
+                    formattedValue = "+\(Int(round(bestValue))) ELO"
+                } else if def.id == "biggest-fall" {
+                    formattedValue = "-\(Int(round(bestValue))) ELO"
+                } else {
+                    formattedValue = "\(Int(round(bestValue)))"
+                }
+                holders[def.id] = UniqueMeritHolder(playerId: holderId, value: bestValue, formattedValue: formattedValue)
+            }
+        }
+        return holders
+    }
+
     static func buildPlayerBadges(
         playerId: UUID,
-        allPlayerStats: [UUID: PlayerBadgeStats]
+        allPlayerStats: [UUID: PlayerBadgeStats],
+        uniqueMeritHolders: [String: UniqueMeritHolder]? = nil
     ) -> [Badge] {
         guard let stats = allPlayerStats[playerId] else { return [] }
 
@@ -432,55 +517,12 @@ enum BadgeService {
             holderValue: nil
         ))
 
-        // Unique Merits
+        // Unique Merits - Optimized O(1) lookup
+        let holders = uniqueMeritHolders ?? buildUniqueMeritHolders(allPlayerStats: allPlayerStats)
+
         for def in uniqueDefinitions {
-            var bestValue: Double = -1.0
-            var bestPlayerId: UUID?
-
-            for (pId, s) in allPlayerStats {
-                var val: Double = -1.0
-                switch def.id {
-                case "king-of-elo": if s.matchesPlayed >= 10 { val = Double(s.currentElo) }
-                case "most-active": val = Double(s.matchesPlayed)
-                case "win-machine": if s.matchesPlayed >= 20 { val = Double(s.wins) / Double(s.matchesPlayed) }
-                case "upset-king": val = Double(s.biggestUpsetEloGap)
-                case "marathon-pro": val = Double(s.marathonMatches)
-                case "clutch-pro": val = Double(s.closeWins)
-                case "social-butterfly": val = Double(s.uniquePartners)
-                case "monthly-giant": val = Double(s.matchesLast30Days)
-                case "the-wall": val = Double(s.cleanSheets)
-                case "loss-machine": if s.matchesPlayed >= 20 { val = Double(s.losses) / Double(s.matchesPlayed) }
-                case "trough-dweller": if s.matchesPlayed >= 10 { val = 10000.0 - Double(s.currentElo) }
-                case "biggest-fall": val = Double(s.biggestEloLoss)
-                case "hard-times": val = Double(s.losses)
-                case "most-generous": val = Double(s.totalSetsLost)
-                case "cold-streak-pro": val = Double(s.bestLossStreak)
-                default: break
-                }
-
-                if val > bestValue {
-                    bestValue = val
-                    bestPlayerId = pId
-                }
-            }
-
-            if let holderId = bestPlayerId, bestValue >= 0 {
-                let isEarned = holderId == playerId
-                var formattedValue = ""
-                if def.id == "win-machine" || def.id == "loss-machine" {
-                    formattedValue = "\(Int(round(bestValue * 100)))%"
-                } else if def.id == "king-of-elo" {
-                    formattedValue = "\(Int(round(bestValue))) ELO"
-                } else if def.id == "trough-dweller" {
-                    formattedValue = "\(10000 - Int(round(bestValue))) ELO"
-                } else if def.id == "upset-king" {
-                    formattedValue = "+\(Int(round(bestValue))) ELO"
-                } else if def.id == "biggest-fall" {
-                    formattedValue = "-\(Int(round(bestValue))) ELO"
-                } else {
-                    formattedValue = "\(Int(round(bestValue)))"
-                }
-
+            if let holder = holders[def.id] {
+                let isEarned = holder.playerId == playerId
                 badges.append(Badge(
                     id: def.id,
                     icon: def.icon,
@@ -492,8 +534,8 @@ enum BadgeService {
                     groupOrder: def.groupOrder,
                     progress: nil,
                     meta: nil,
-                    holderId: isEarned ? nil : holderId,
-                    holderValue: isEarned ? nil : formattedValue
+                    holderId: isEarned ? nil : holder.playerId,
+                    holderValue: isEarned ? nil : holder.formattedValue
                 ))
             }
         }
