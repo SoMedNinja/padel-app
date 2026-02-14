@@ -69,6 +69,18 @@ Deno.serve(async (req) => {
     const isServiceRole = token === serviceRoleKey;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+
+    let previewOnly = false;
+    let previewTournamentId: string | null = null;
+    try {
+      const body = await req.json();
+      // Non-coder note: previewOnly lets apps request the exact HTML without triggering real sends.
+      previewOnly = body.previewOnly === true;
+      previewTournamentId = body.previewTournamentId || null;
+    } catch {
+      // Body is optional for scheduled queue runs.
+    }
+
     if (!isServiceRole) {
       const authClient = createClient(supabaseUrl, anonKey);
       const { data, error } = await authClient.auth.getUser(token);
@@ -90,11 +102,14 @@ Deno.serve(async (req) => {
     }
 
     const nowIso = new Date().toISOString();
-    const { data: jobs, error: jobsError } = await supabase
+    const jobsQuery = supabase
       .from("tournament_email_queue")
       .select("id, tournament_id, scheduled_for")
-      .eq("status", "pending")
-      .lte("scheduled_for", nowIso);
+      .eq("status", "pending");
+    const scopedJobsQuery = previewOnly && previewTournamentId
+      ? jobsQuery.eq("tournament_id", previewTournamentId)
+      : jobsQuery.lte("scheduled_for", nowIso);
+    const { data: jobs, error: jobsError } = await scopedJobsQuery;
 
     if (jobsError) {
       console.error("Queue fetch error:", jobsError);
@@ -102,7 +117,7 @@ Deno.serve(async (req) => {
     }
 
     if (!jobs || jobs.length === 0) {
-      return jsonResponse({ success: true, message: "No pending emails" });
+      return jsonResponse({ success: true, message: previewOnly ? "No matching preview email" : "No pending emails" });
     }
 
     // Non-coder note: we fetch all auth users once to match profile ids with email addresses.
@@ -133,6 +148,7 @@ Deno.serve(async (req) => {
 
     let sentCount = 0;
     let skippedCount = 0;
+    let previewHtml: string | null = null;
     const errors: Array<{ email: string; error: string }> = [];
     const maxRetriesOnRateLimit = 2;
     const rateLimitWaitMs = 1200;
@@ -453,6 +469,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      if (previewOnly) {
+        previewHtml = emailHtml;
+        break;
+      }
+
       for (const email of uniqueEmails) {
         const result = await sendEmailWithRetry(
           email,
@@ -471,10 +492,20 @@ Deno.serve(async (req) => {
         await delay(perEmailDelayMs);
       }
 
-      await supabase
-        .from("tournament_email_queue")
-        .update({ status: "sent", sent_at: new Date().toISOString() })
-        .eq("id", job.id);
+      if (!previewOnly) {
+        await supabase
+          .from("tournament_email_queue")
+          .update({ status: "sent", sent_at: new Date().toISOString() })
+          .eq("id", job.id);
+      }
+
+      if (previewOnly) {
+        break;
+      }
+    }
+
+    if (previewOnly) {
+      return jsonResponse({ success: true, previewHtml, sent: previewHtml ? 1 : 0, skipped: 0 });
     }
 
     return jsonResponse({ success: true, sent: sentCount, skipped: skippedCount, errors });

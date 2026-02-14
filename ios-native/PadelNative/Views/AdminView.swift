@@ -385,7 +385,7 @@ struct AdminView: View {
                         Button("Förhandsgranska") {
                             let week = selectedWeeklyTimeframe == .isoWeek ? selectedISOWeek : nil
                             let year = selectedWeeklyTimeframe == .isoWeek ? selectedISOYear : nil
-                            viewModel.buildWeeklyEmailPreview(timeframe: selectedWeeklyTimeframe, week: week, year: year)
+                            Task { await viewModel.buildWeeklyEmailPreview(timeframe: selectedWeeklyTimeframe, week: week, year: year) }
                         }
                         .buttonStyle(.bordered)
 
@@ -431,7 +431,8 @@ struct AdminView: View {
                 title: "E-post förhandsgranskning",
                 content: viewModel.adminEmailPreviewText,
                 status: viewModel.adminEmailStatusMessage,
-                renderAsEmail: true
+                renderAsEmail: true,
+                htmlContent: viewModel.adminEmailPreviewHTML
             )
         }
     }
@@ -477,13 +478,20 @@ struct AdminView: View {
     }
 
     @ViewBuilder
-    private func previewSection(title: String, content: String?, status: String?, renderAsEmail: Bool = false) -> some View {
+    private func previewSection(title: String, content: String?, status: String?, renderAsEmail: Bool = false, htmlContent: String? = nil) -> some View {
         SectionCard(title: title) {
             VStack(alignment: .leading, spacing: 12) {
                 if let content, content.isEmpty == false {
                     ScrollView {
                         if renderAsEmail {
-                            emailPreviewCard(content: content)
+                            if let htmlContent, htmlContent.isEmpty == false {
+                                // Note for non-coders: when this HTML exists, it is the exact email body from the backend.
+                                HTMLPreviewWebView(html: htmlContent)
+                                    .frame(height: 420)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            } else {
+                                emailPreviewCard(content: content)
+                            }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
                             Text(content)

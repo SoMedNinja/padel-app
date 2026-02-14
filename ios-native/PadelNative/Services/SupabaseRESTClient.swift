@@ -523,18 +523,20 @@ struct SupabaseRESTClient {
         playerId: UUID?,
         timeframe: String,
         week: Int? = nil,
-        year: Int? = nil
+        year: Int? = nil,
+        previewOnly: Bool = false
     ) async throws -> WeeklySummaryResponse {
         struct WeeklySummaryPayload: Encodable {
             let playerId: UUID?
             let timeframe: String
             let week: Int?
             let year: Int?
+            let previewOnly: Bool
         }
 
         let data = try await sendFunctionRequest(
             functionName: "weekly-summary",
-            body: WeeklySummaryPayload(playerId: playerId, timeframe: timeframe, week: week, year: year),
+            body: WeeklySummaryPayload(playerId: playerId, timeframe: timeframe, week: week, year: year, previewOnly: previewOnly),
             accessToken: accessToken
         )
         return try decoder.decode(WeeklySummaryResponse.self, from: data)
@@ -542,11 +544,18 @@ struct SupabaseRESTClient {
 
     // Note for non-coders:
     // This runs the tournament email queue processor used by the web admin tools.
-    func invokeTournamentSummary(accessToken: String) async throws -> TournamentSummaryResponse {
-        struct EmptyPayload: Encodable {}
+    func invokeTournamentSummary(
+        accessToken: String,
+        previewTournamentId: UUID? = nil,
+        previewOnly: Bool = false
+    ) async throws -> TournamentSummaryResponse {
+        struct TournamentSummaryPayload: Encodable {
+            let previewTournamentId: UUID?
+            let previewOnly: Bool
+        }
         let data = try await sendFunctionRequest(
             functionName: "tournament-summary",
-            body: EmptyPayload(),
+            body: TournamentSummaryPayload(previewTournamentId: previewTournamentId, previewOnly: previewOnly),
             accessToken: accessToken
         )
         return try decoder.decode(TournamentSummaryResponse.self, from: data)
@@ -1150,6 +1159,7 @@ struct WeeklySummaryResponse: Decodable {
     let total: Int?
     let error: String?
     let hint: String?
+    let previewHtml: String?
 }
 
 struct TournamentSummaryResponse: Decodable {
@@ -1158,6 +1168,7 @@ struct TournamentSummaryResponse: Decodable {
     let sent: Int?
     let skipped: Int?
     let error: String?
+    let previewHtml: String?
 }
 
 struct PollReminderResult: Decodable {
