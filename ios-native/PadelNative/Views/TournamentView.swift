@@ -251,7 +251,7 @@ struct TournamentView: View {
 
                 Button {
                     Task {
-                        await viewModel.createTournament(
+                        let didCreateTournament = await viewModel.createTournament(
                             name: newTournamentName,
                             location: newTournamentLocation,
                             scheduledAt: includeScheduledDate ? newTournamentDate : nil,
@@ -259,8 +259,13 @@ struct TournamentView: View {
                             tournamentType: newTournamentType,
                             participantIds: Array(selectedParticipantIds)
                         )
-                        newTournamentName = ""
-                        newTournamentLocation = ""
+                        // Note for non-coders:
+                        // We only clear the form after a successful save.
+                        // If something fails, leaving the typed values helps users retry quickly.
+                        if didCreateTournament {
+                            newTournamentName = ""
+                            newTournamentLocation = ""
+                        }
                     }
                 } label: {
                     if viewModel.isTournamentActionRunning {
@@ -271,6 +276,21 @@ struct TournamentView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament || selectedParticipantIds.count < 4)
+
+                if let message = viewModel.tournamentStatusMessage {
+                    Text(message)
+                        .font(.inter(.footnote))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+
+                if let errorMessage = viewModel.tournamentActionErrorMessage {
+                    // Note for non-coders:
+                    // Showing errors right under the "Skapa utkast" button makes failed saves visible,
+                    // so it no longer feels like the button does nothing.
+                    Text(errorMessage)
+                        .font(.inter(.footnote))
+                        .foregroundStyle(AppColors.error)
+                }
             }
         }
     }

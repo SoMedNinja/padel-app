@@ -2877,26 +2877,26 @@ final class AppViewModel: ObservableObject {
         scoreTarget: Int?,
         tournamentType: String,
         participantIds: [UUID]
-    ) async {
+    ) async -> Bool {
         guard canMutateTournament else {
             tournamentActionErrorMessage = "Sign in is required to create tournaments."
-            return
+            return false
         }
 
         guard let creatorId = currentPlayer?.id else {
             tournamentActionErrorMessage = "Could not find your signed-in profile. Please sign in again and retry."
-            return
+            return false
         }
 
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanName.isEmpty {
             tournamentActionErrorMessage = "Tournament name is required."
-            return
+            return false
         }
 
         if participantIds.count < 4 {
             tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
-            return
+            return false
         }
 
         isTournamentActionRunning = true
@@ -2921,11 +2921,14 @@ final class AppViewModel: ObservableObject {
             selectedTournamentId = created.id
             tournamentStatusMessage = "Tournament created in draft mode with \(participantIds.count) participants."
             await loadTournamentData(silently: false)
+            isTournamentActionRunning = false
+            return true
         } catch {
             tournamentActionErrorMessage = "Could not create tournament: \(error.localizedDescription)"
         }
 
         isTournamentActionRunning = false
+        return false
     }
 
     func startSelectedTournament() async {
