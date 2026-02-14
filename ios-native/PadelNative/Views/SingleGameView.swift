@@ -161,7 +161,18 @@ struct SingleGameView: View {
 
                     if showSuccessState, let recap = generatedRecap {
                         SectionCard(title: "Klart 🎉") {
-                            MatchSuccessCeremonyView(recap: recap, players: viewModel.players)
+                            VStack(alignment: .leading, spacing: 12) {
+                                MatchSuccessCeremonyView(recap: recap, players: viewModel.players)
+
+                                Button("Ny match") {
+                                    // Note for non-coders:
+                                    // This is a quick restart action right in the success card,
+                                    // so users can immediately begin logging the next match.
+                                    startNewMatchFlow()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .font(.inter(.subheadline, weight: .bold))
+                            }
                         }
                     }
 
@@ -191,12 +202,7 @@ struct SingleGameView: View {
                         }
 
                         Button("Registrera en till match") {
-                            // Note for non-coders:
-                            // This clears the previous result and restarts the wizard from step 1.
-                            generatedRecap = nil
-                            showSuccessState = false
-                            navigateToRecap = false
-                            resetFormForNextEntry(keepMatchType: true)
+                            startNewMatchFlow()
                         }
                         .buttonStyle(PrimaryButtonStyle())
                     }
@@ -223,6 +229,20 @@ struct SingleGameView: View {
                 }
             }
             .padelLiquidGlassChrome()
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { value in
+                        // Note for non-coders:
+                        // A left swipe moves back one step in the match wizard,
+                        // matching the requested iOS flow shortcut.
+                        let mostlyHorizontal = abs(value.translation.width) > abs(value.translation.height)
+                        guard mostlyHorizontal else { return }
+                        guard value.translation.width < -70 else { return }
+                        guard wizardStep != .teamSetup else { return }
+                        guard wizardStep != .matchmaker else { return }
+                        previousStep()
+                    }
+            )
         }
     }
 
@@ -692,6 +712,15 @@ struct SingleGameView: View {
             try? await Task.sleep(nanoseconds: 900_000_000)
             navigateToRecap = true
         }
+    }
+
+    private func startNewMatchFlow() {
+        // Note for non-coders:
+        // We keep the selected match type (1v1 or 2v2), but clear players/scores and return to step 1.
+        generatedRecap = nil
+        showSuccessState = false
+        navigateToRecap = false
+        resetFormForNextEntry(keepMatchType: true)
     }
 
     private func resetFormForNextEntry(keepMatchType: Bool) {

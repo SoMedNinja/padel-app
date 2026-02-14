@@ -423,6 +423,7 @@ final class AppViewModel: ObservableObject {
     private var liveSyncTask: Task<Void, Never>?
     private var liveSyncDebounceTask: Task<Void, Never>?
     private var liveUpdateBannerTask: Task<Void, Never>?
+    private var scheduleMessageClearTask: Task<Void, Never>?
     private var lastGlobalLiveMarker: SupabaseRESTClient.GlobalLiveMarker?
     private var lastFullLiveSyncAt: Date?
     private var consecutiveLiveProbeFailures = 0
@@ -1700,7 +1701,7 @@ final class AppViewModel: ObservableObject {
 
             hasPendingDeepLinkedVote = deepLinkedPollDayId != nil
             if deepLinkedPollId == nil && deepLinkedPollDayId == nil {
-                scheduleActionMessage = "Länken öppnade schemafliken, men saknade omröstningsdetaljer."
+                setScheduleActionMessage("Länken öppnade schemafliken, men saknade omröstningsdetaljer.")
             }
             return
         }
@@ -1836,11 +1837,9 @@ final class AppViewModel: ObservableObject {
             guard !plan.changedDomains.isEmpty || plan.shouldForceFallbackRefresh else { return }
 
             if !plan.changedDomains.isEmpty {
-                let channels = plan.changedDomains
-                    .map(\.webRealtimeChannelName)
-                    .sorted()
-                    .joined(separator: ", ")
-                liveUpdateBanner = "Live updates detected (\(channels)). Syncing latest data…"
+                // Note for non-coders:
+                // Realtime probes can run often, so a "syncing" banner here can feel permanent.
+                // We now only show a short "updated" confirmation after refresh finishes.
                 await performScopedLiveRefresh(domains: plan.changedDomains)
             } else {
                 await performFullLiveRefresh()
@@ -2070,6 +2069,35 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    // Note for non-coders:
+    // Action messages are short-lived confirmations (like "saved").
+    // Auto-clearing keeps the status panel from looking stuck forever.
+    private func setScheduleActionMessage(_ message: String?, autoClearAfter seconds: Double = 3.5) {
+        scheduleActionMessage = message
+        scheduleMessageClearTask?.cancel()
+        guard message != nil else { return }
+
+        scheduleMessageClearTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.scheduleActionMessage = nil
+            }
+        }
+    }
+
+    private func shouldIgnoreScheduleError(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return true
+        }
+
+        return false
+    }
+
     private func playerSignature(_ players: [Player]) -> String {
         players
             .map { "\($0.id.uuidString)|\($0.fullName)|\($0.elo)|\($0.isAdmin)|\($0.isRegular)" }
@@ -2194,6 +2222,12 @@ final class AppViewModel: ObservableObject {
             }
             scheduleErrorMessage = nil
         } catch {
+            guard !shouldIgnoreScheduleError(error) else {
+                // Note for non-coders:
+                // A cancelled refresh is normal during pull-to-refresh retries.
+                // We skip the warning so users only see real failures.
+                return
+            }
             scheduleErrorMessage = "Could not refresh schedule data: \(error.localizedDescription)"
         }
     }
@@ -2220,7 +2254,7 @@ final class AppViewModel: ObservableObject {
 
         do {
             try await apiClient.upsertAvailabilityVote(dayId: day.id, profileId: profileId, slotPreferences: deepLinkedVoteSlots)
-            scheduleActionMessage = "Direktlänken öppnade rätt dag och sparade din röst."
+            setScheduleActionMessage("Direktlänken öppnade rätt dag och sparade din röst.")
             scheduleErrorMessage = nil
             await refreshScheduleData()
         } catch {
@@ -2269,7 +2303,7 @@ final class AppViewModel: ObservableObject {
 
         do {
             _ = try await apiClient.createAvailabilityPoll(weekYear: option.year, weekNumber: option.week, createdBy: profileId)
-            scheduleActionMessage = "Poll created successfully."
+            setScheduleActionMessage("Poll created successfully.")
             scheduleErrorMessage = nil
             await refreshScheduleData()
         } catch {
@@ -2288,7 +2322,7 @@ final class AppViewModel: ObservableObject {
 
         do {
             try await apiClient.closeAvailabilityPoll(pollId: poll.id)
-            scheduleActionMessage = "Poll closed."
+            setScheduleActionMessage("Poll closed.")
             scheduleErrorMessage = nil
             await refreshScheduleData()
         } catch {
@@ -2307,7 +2341,7 @@ final class AppViewModel: ObservableObject {
 
         do {
             try await apiClient.deleteAvailabilityPoll(pollId: poll.id)
-            scheduleActionMessage = "Poll deleted."
+            setScheduleActionMessage("Poll deleted.")
             scheduleErrorMessage = nil
             await refreshScheduleData()
         } catch {
@@ -2332,10 +2366,10 @@ final class AppViewModel: ObservableObject {
         do {
             if !draft.hasVote {
                 try await apiClient.removeAvailabilityVote(dayId: day.id, profileId: profileId)
-                scheduleActionMessage = "Vote removed."
+                setScheduleActionMessage("Vote removed.")
             } else {
                 try await apiClient.upsertAvailabilityVote(dayId: day.id, profileId: profileId, slotPreferences: Array(draft.slots))
-                scheduleActionMessage = "Vote saved."
+                setScheduleActionMessage("Vote saved.")
             }
             scheduleErrorMessage = nil
             await refreshScheduleData()
@@ -2364,7 +2398,7 @@ final class AppViewModel: ObservableObject {
                 pollId: poll.id,
                 onlyMissingVotes: onlyMissingVotesByPoll[poll.id] == true
             )
-            scheduleActionMessage = "Reminder sent to \(result.sent)/\(result.total) players."
+            setScheduleActionMessage("Reminder sent to \(result.sent)/\(result.total) players.")
             scheduleErrorMessage = nil
             await refreshScheduleData()
         } catch {
@@ -2402,7 +2436,7 @@ final class AppViewModel: ObservableObject {
                 title: title
             )
             if result.success {
-                scheduleActionMessage = "Kalenderinbjudan skickad till \(result.sent)/\(result.total)."
+                setScheduleActionMessage("Kalenderinbjudan skickad till \(result.sent)/\(result.total).")
                 scheduleErrorMessage = nil
                 await refreshScheduleData()
             } else {
@@ -4018,8 +4052,10 @@ final class AppViewModel: ObservableObject {
             let oppSets = iAmTeamA ? match.teamBScore : match.teamAScore
             let playerWon = mySets > oppSets
 
-            let servedFirst = match.teamAServesFirst ?? true
-            let playerServedFirst = (iAmTeamA && servedFirst) || (iAmTeamB && !servedFirst)
+            // Note for non-coders:
+            // In this app's match flow, Team A is the side that starts serving.
+            // That means "served first" maps to "the player was in Team A".
+            let playerServedFirst = iAmTeamA
 
             let delta = playerBadgeStats[playerId]?.eloHistory.first(where: { $0.matchId == match.id })?.delta ?? 0
 
@@ -4147,8 +4183,8 @@ final class AppViewModel: ObservableObject {
             let myTeam = (iAmTeamA ? teamA : teamB).compactMap { UUID(uuidString: $0) }
             let playerWon = iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
 
-            let servedFirst = match.teamAServesFirst ?? true
-            let playerServedFirst = (iAmTeamA && servedFirst) || (iAmTeamB && !servedFirst)
+            // Note for non-coders: same serving rule as above for heatmap stats.
+            let playerServedFirst = iAmTeamA
 
             let sortedIds = myTeam.sorted { $0.uuidString < $1.uuidString }
             let key = sortedIds.map { $0.uuidString }.joined(separator: "+")

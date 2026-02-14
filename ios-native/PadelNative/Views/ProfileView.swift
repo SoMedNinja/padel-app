@@ -738,7 +738,7 @@ struct ProfileView: View {
             }
             .frame(height: 280)
             .chartYScale(domain: domain)
-            .chartLegend(.visible)
+            .chartLegend(.hidden)
             .chartXAxis {
                 AxisMarks(values: .stride(by: 1)) { value in
                     if let index = value.as(Int.self), index < timeline.count {
@@ -755,23 +755,7 @@ struct ProfileView: View {
             }
             .chartXSelection(value: $chartSelectionIndex)
 
-            // Note for non-coders:
-            // This fixed legend mirrors the web app so each player always has a visible color key.
-            HStack(spacing: 10) {
-                ForEach(Array(playerIds.enumerated()), id: \.element) { index, pid in
-                    let label = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(colorForSeries(name: label, index: index))
-                            .frame(width: 8, height: 8)
-                        Text(label)
-                            .font(.caption2.weight(.semibold))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color(.systemGray6), in: Capsule())
-                }
-            }
+            chartLegendPills(playerIds: playerIds)
         }
     }
 
@@ -800,7 +784,7 @@ struct ProfileView: View {
         }
         .frame(height: 280)
         .chartYScale(domain: domain)
-        .chartLegend(.visible)
+        .chartLegend(.hidden)
         .chartXAxis {
             AxisMarks(values: .stride(by: 1)) { value in
                 if let index = value.as(Int.self), index < timeline.count {
@@ -811,6 +795,28 @@ struct ProfileView: View {
                         }
                     }
                 }
+            }
+        }
+
+        chartLegendPills(playerIds: playerIds)
+    }
+
+    // Note for non-coders:
+    // We render one custom legend row so iOS shows exactly one consistent key for line colors.
+    private func chartLegendPills(playerIds: [UUID]) -> some View {
+        HStack(spacing: 10) {
+            ForEach(Array(playerIds.enumerated()), id: \.element) { index, pid in
+                let label = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(colorForSeries(name: label, index: index))
+                        .frame(width: 8, height: 8)
+                    Text(label)
+                        .font(.caption2.weight(.semibold))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(.systemGray6), in: Capsule())
             }
         }
     }
