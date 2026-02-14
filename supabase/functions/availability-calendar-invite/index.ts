@@ -24,6 +24,18 @@ const toIcsLocalDateTime = (date: string, time: string) => {
   return `${compactDate}T${compactTime}00`;
 };
 
+const normalizeClockTime = (rawTime: string): string | null => {
+  // Note for non-coders: some clients can send extra seconds/timezone text, so we keep only HH:MM to avoid accidental timezone shifts.
+  const match = rawTime.trim().match(/^(\d{2}):(\d{2})/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
+
 const toBase64 = (value: string) => {
   // Note for non-coders: calendar files must be base64-encoded before they are attached to an email.
   return btoa(unescape(encodeURIComponent(value)));
@@ -91,8 +103,10 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const pollId = typeof body?.pollId === "string" ? body.pollId : "";
     const date = typeof body?.date === "string" ? body.date : "";
-    const startTime = typeof body?.startTime === "string" ? body.startTime : "";
-    const endTime = typeof body?.endTime === "string" ? body.endTime : "";
+    const startTimeRaw = typeof body?.startTime === "string" ? body.startTime : "";
+    const endTimeRaw = typeof body?.endTime === "string" ? body.endTime : "";
+    const startTime = normalizeClockTime(startTimeRaw);
+    const endTime = normalizeClockTime(endTimeRaw);
     // Note for non-coders: location is optional so admins can describe any venue without a dropdown.
     const location = typeof body?.location === "string" && body.location.trim() ? body.location.trim() : "";
     const inviteeProfileIds = Array.isArray(body?.inviteeProfileIds)
