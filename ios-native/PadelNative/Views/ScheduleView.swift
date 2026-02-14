@@ -15,6 +15,7 @@ struct ScheduleView: View {
     @State private var selectedInviteDayId: UUID?
     @State private var addToLocalCalendar = false
     @State private var localCalendarStatus: String?
+    @State private var showCalendarInviteForm = false
 
     private let calendarService = CalendarService()
 
@@ -72,8 +73,7 @@ struct ScheduleView: View {
                 .padding(.bottom, 40)
             }
             .background(AppColors.background)
-            .navigationTitle("Schema")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .padelLiquidGlassChrome()
             .task {
                 await viewModel.refreshScheduleData()
@@ -355,6 +355,20 @@ struct ScheduleView: View {
             if viewModel.canManageSchedulePolls {
                 SectionCard(title: "Kalenderinbjudan (admin)") {
                     VStack(alignment: .leading, spacing: 12) {
+                        Button(showCalendarInviteForm ? "Dölj kalenderinbjudan" : "Skapa kalenderinbjudan") {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showCalendarInviteForm.toggle()
+                            }
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+
+                        if !showCalendarInviteForm {
+                            Text("Öppna formuläret när du vill skapa, uppdatera eller avboka en kalenderinbjudan.")
+                                .font(.inter(.footnote))
+                                .foregroundStyle(AppColors.textSecondary)
+                        }
+
+                        if showCalendarInviteForm {
                         Picker("Omröstning", selection: $selectedInvitePollId) {
                             Text("Ingen kopplad omröstning").tag(Optional<UUID>.none)
                             ForEach(viewModel.polls) { poll in
@@ -473,6 +487,7 @@ struct ScheduleView: View {
                             Text(localCalendarStatus)
                                 .font(.inter(.caption))
                                 .foregroundStyle(AppColors.textSecondary)
+                        }
                         }
                     }
                 }

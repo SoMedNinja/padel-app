@@ -8,12 +8,14 @@ extension View {
     func padelLiquidGlassChrome() -> some View {
         if #available(iOS 26.0, *) {
             self
+                .toolbar(.hidden, for: .navigationBar)
                 .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
                 .toolbarBackground(.ultraThinMaterial, for: .tabBar)
                 .toolbarBackground(.visible, for: .tabBar)
         } else {
             self
+                .toolbar(.hidden, for: .navigationBar)
                 .toolbarBackground(.regularMaterial, for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
                 .toolbarBackground(.regularMaterial, for: .tabBar)

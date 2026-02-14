@@ -16,6 +16,10 @@ private enum SingleGameWizardStep: Int, CaseIterable {
         case .matchmaker: return "Matchmaker"
         }
     }
+
+    var shortTitle: String {
+        title.replacingOccurrences(of: "Steg \(rawValue + 1): ", with: "")
+    }
 }
 
 struct SingleGameView: View {
@@ -57,9 +61,12 @@ struct SingleGameView: View {
                                             .foregroundStyle(.white)
                                     )
 
-                                Text(step.title.replacingOccurrences(of: "Steg \(step.rawValue + 1): ", with: ""))
+                                Text(step.shortTitle)
                                     .font(.inter(size: 10, weight: wizardStep == step ? .bold : .medium))
                                     .foregroundStyle(wizardStep == step ? AppColors.textPrimary : AppColors.textSecondary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .frame(height: 24, alignment: .top)
                             }
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())
@@ -182,6 +189,16 @@ struct SingleGameView: View {
                                 .padding(.top, 4)
                             }
                         }
+
+                        Button("Registrera en till match") {
+                            // Note for non-coders:
+                            // This clears the previous result and restarts the wizard from step 1.
+                            generatedRecap = nil
+                            showSuccessState = false
+                            navigateToRecap = false
+                            resetFormForNextEntry(keepMatchType: true)
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
                     }
 
                     if let status = viewModel.statusMessage {
@@ -196,8 +213,7 @@ struct SingleGameView: View {
             }
             }
             .background(AppColors.background)
-            .navigationTitle("Match")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 applyDeepLinkModeIfAvailable()
             }

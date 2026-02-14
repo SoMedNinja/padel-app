@@ -6,9 +6,6 @@ import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import {
-  AppBar,
-  Toolbar,
-  Typography,
   IconButton,
   Box,
   Fab,
@@ -19,7 +16,6 @@ import {
   Alert,
   AlertTitle,
   Container,
-  Chip,
   Button,
 } from "@mui/material";
 import {
@@ -46,7 +42,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isDashboard = location.pathname === "/dashboard";
   const guestModeMaxAgeMs = 1000 * 60 * 60 * 24;
   const [now] = useState(() => Date.now());
   const guestModeTimestamp = guestModeStartedAt ? Date.parse(guestModeStartedAt) : Number.NaN;
@@ -116,88 +111,25 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', pb: { xs: 8, sm: 0 } }}>
-      <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-        <Container maxWidth="lg" disableGutters>
-          <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
-              <Box
-                sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 2,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: (theme) => `linear-gradient(140deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.main})`,
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: 14,
-                  letterSpacing: '0.08em',
-                  boxShadow: '0 6px 12px rgba(183, 28, 28, 0.2)', // Note for non-coders: subtle shadow helps the logo stand out from the toolbar.
-                }}
-              >
-                GS
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                <Typography
-                  variant="h6"
-                  component="div"
-                  sx={{
-                    color: 'primary.main',
-                    fontWeight: 800,
-                    lineHeight: 1.2,
-                    fontSize: { xs: '1.1rem', sm: '1.25rem' }
-                  }}
-                >
-                    {isDashboard ? "Grabbarnas serie" : "Padel-app"}
-                </Typography>
-                {hasGuestAccess && (
-                  <Chip
-                    label="Gästläge"
-                    size="small"
-                    color="warning"
-                    sx={{ mt: 0.5, fontWeight: 700, alignSelf: 'flex-start' }}
-                  />
-                )}
-                {isDashboard && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: 10,
-                      letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                      Padel, prestige & ära
-                  </Typography>
-                )}
-              </Box>
-            </Box>
-
-            <IconButton
-              edge="end"
-              color="primary"
-              aria-label="meny"
-              onClick={toggleMenu}
-              sx={{
-                display: { xs: 'none', sm: 'inline-flex' },
-                ml: 'auto'
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <IconButton
-              edge="end"
-              color="primary"
-              aria-label="fler alternativ"
-              onClick={handleOverflowOpen}
-              sx={{ ml: 1 }}
-            >
-              <MoreVertIcon />
-            </IconButton>
-          </Toolbar>
-        </Container>
-      </AppBar>
+      <Container maxWidth="lg" sx={{ pt: 1, display: "flex", justifyContent: "flex-end", gap: 1 }}>
+        <IconButton
+          edge="end"
+          color="primary"
+          aria-label="meny"
+          onClick={toggleMenu}
+          sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+        >
+          <MenuIcon />
+        </IconButton>
+        <IconButton
+          edge="end"
+          color="primary"
+          aria-label="fler alternativ"
+          onClick={handleOverflowOpen}
+        >
+          <MoreVertIcon />
+        </IconButton>
+      </Container>
 
       <SideMenu
         isMenuOpen={isMenuOpen}
