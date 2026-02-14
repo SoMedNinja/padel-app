@@ -434,7 +434,8 @@ struct DashboardView: View {
                         headerCell(title: "ELO", key: "elo", width: 60, help: "ELO är ett rankingsystem baserat på flertal faktorer.")
                         headerCell(title: "Matcher", key: "games", width: 70)
                         headerCell(title: "Vinster", key: "wins", width: 65)
-                        headerCell(title: "Streak", key: "", width: 60, help: "Antal vinster (V) eller förluster (F) i rad.")
+                        // NOTE (för icke-kodare): Vi visar inte "Streak" i iOS-topplistan längre,
+                        // så tabellen fokuserar på ELO, matcher, formkurva och vinstprocent.
                         headerCell(title: "Form", key: "", width: 70)
                         headerCell(title: "Vinst %", key: "winPct", width: 70)
                     }
@@ -618,11 +619,6 @@ struct DashboardView: View {
                 .font(.inter(.subheadline))
                 .foregroundStyle(AppColors.textPrimary)
                 .frame(width: 65)
-
-            Text(player.streak)
-                .font(.inter(.subheadline))
-                .foregroundStyle(AppColors.textPrimary)
-                .frame(width: 60)
 
             Group {
                 if player.eloHistory.count >= 2 {
