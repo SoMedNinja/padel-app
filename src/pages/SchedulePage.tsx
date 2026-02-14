@@ -496,15 +496,72 @@ export default function SchedulePage() {
             Här visas planerade matcher som redan är bokade.
           </Typography>
           {user?.is_admin && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<EventIcon />}
-              sx={{ mb: 2 }}
-              onClick={() => openInviteDialog()}
-            >
-              Ny kalenderinbjudan
-            </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<EventIcon />}
+                onClick={() => openInviteDialog()}
+              >
+                Ny kalenderinbjudan
+              </Button>
+              <Tooltip title="Skapa veckans tillgänglighetsomröstning" arrow>
+                <span>
+                  {/* Note for non-coders: this is the same poll-creation flow as before,
+                  now grouped under scheduled matches so admins find all planning actions in one place. */}
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => createPollMutation.mutate()}
+                    disabled={createPollMutation.isPending || !selectedWeek}
+                  >
+                    Admin: skapa omröstning
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+          )}
+          {user?.is_admin && selectedWeek && (
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, width: { xs: "100%", sm: "auto" } }}>
+              <Tooltip title="Föregående vecka" arrow>
+                <span>
+                  <IconButton
+                    size="small"
+                    aria-label="Välj föregående vecka"
+                    onClick={() => handleWeekStep(-1)}
+                    disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}
+                  >
+                    <RemoveIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Select
+                size="small"
+                value={selectedWeekKey}
+                onChange={(e) => setSelectedWeekKey(e.target.value)}
+                sx={{ minWidth: 160, height: 36, fontSize: "0.875rem" }}
+              >
+                {weekOptions.map((option) => (
+                  <MenuItem key={option.key} value={option.key} sx={{ fontSize: "0.875rem" }}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+
+              <Tooltip title="Nästa vecka" arrow>
+                <span>
+                  <IconButton
+                    size="small"
+                    aria-label="Välj nästa vecka"
+                    onClick={() => handleWeekStep(1)}
+                    disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
+                  >
+                    <AddIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
           )}
           {isLoadingScheduledGames ? (
             <Typography variant="body2">Laddar bokningar...</Typography>
@@ -542,64 +599,6 @@ export default function SchedulePage() {
             </Stack>
           )}
         </Box>
-
-        {user?.is_admin && selectedWeek && (
-          <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Ny omröstning:</Typography>
-
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: 'center' }}>
-              <Tooltip title="Föregående vecka" arrow>
-                <span>
-                  <IconButton
-                    size="small"
-                    aria-label="Välj föregående vecka"
-                    onClick={() => handleWeekStep(-1)}
-                    disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) <= 0}
-                  >
-                    <RemoveIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
-              <Select
-                size="small"
-                value={selectedWeekKey}
-                onChange={(e) => setSelectedWeekKey(e.target.value)}
-                sx={{ minWidth: 160, height: 36, fontSize: '0.875rem' }}
-              >
-                {weekOptions.map((option) => (
-                  <MenuItem key={option.key} value={option.key} sx={{ fontSize: '0.875rem' }}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-
-              <Tooltip title="Nästa vecka" arrow>
-                <span>
-                  <IconButton
-                    size="small"
-                    aria-label="Välj nästa vecka"
-                    onClick={() => handleWeekStep(1)}
-                    disabled={weekOptions.findIndex((w) => w.key === selectedWeekKey) >= weekOptions.length - 1}
-                  >
-                    <AddIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
-              {/* Note for non-coders: this button starts the poll creation for the selected week. */}
-              <Button
-                size="small"
-                variant="contained"
-                onClick={() => createPollMutation.mutate()}
-                disabled={createPollMutation.isPending}
-                sx={{ whiteSpace: 'nowrap', px: 2 }}
-              >
-                Skapa
-              </Button>
-            </Stack>
-          </Box>
-        )}
 
         {isError && (
           <Alert severity="error" sx={{ mb: 2 }}>
