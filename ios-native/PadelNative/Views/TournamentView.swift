@@ -39,39 +39,53 @@ struct TournamentView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    tournamentPicker
+            tournamentContent
+        }
+    }
 
-                    SectionCard(title: "Turnering") {
-                        Picker("Panel", selection: $selectedPanel) {
-                            ForEach(TournamentPanel.allCases) { panel in
-                                Text(panel.rawValue).tag(panel)
-                            }
+    private var tournamentContent: some View {
+        let baseContent = ScrollView {
+            VStack(spacing: 20) {
+                tournamentPicker
+
+                SectionCard(title: "Turnering") {
+                    Picker("Panel", selection: $selectedPanel) {
+                        ForEach(TournamentPanel.allCases) { panel in
+                            Text(panel.rawValue).tag(panel)
                         }
-                        .pickerStyle(.segmented)
                     }
-
-                    switch selectedPanel {
-                    case .setup:
-                        createTournamentCard
-                        activeTournamentOverview
-                    case .run:
-                        runHelperCard
-                        activeRoundEditor
-                    case .results:
-                        bracketOverview
-                        liveStandings
-                        shareCard
-                    case .history:
-                        historicalResults
-                    }
+                    .pickerStyle(.segmented)
                 }
-                .padding()
+
+                switch selectedPanel {
+                case .setup:
+                    createTournamentCard
+                    activeTournamentOverview
+                case .run:
+                    runHelperCard
+                    activeRoundEditor
+                case .results:
+                    bracketOverview
+                    liveStandings
+                    shareCard
+                case .history:
+                    historicalResults
+                }
             }
-            .background(AppColors.background)
-            .navigationTitle("Tournament")
-            .navigationBarTitleDisplayMode(.inline)
+            .padding()
+        }
+        .background(AppColors.background)
+        .navigationTitle("Tournament")
+        .navigationBarTitleDisplayMode(.inline)
+
+        // Note for non-coders:
+        // This second step attaches behaviors (refreshing, dialogs, auto-sync) separately
+        // so the compiler can process a smaller chunk at a time.
+        return attachTournamentBehaviors(to: baseContent)
+    }
+
+    private func attachTournamentBehaviors<Content: View>(to content: Content) -> some View {
+        content
             .refreshable {
                 await viewModel.loadTournamentData()
             }
@@ -122,7 +136,6 @@ struct TournamentView: View {
                 Text("Detta tar bort turnering, deltagare, rundor och resultat permanent.")
             }
             .padelLiquidGlassChrome()
-        }
     }
 
     private var tournamentPicker: some View {
