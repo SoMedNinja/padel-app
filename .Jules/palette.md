@@ -49,3 +49,7 @@
 ## 2026-06-01 - [iOS UX: Coherent Accessibility & Tactile Wizard]
 **Learning:** Horizontal data rows (like leaderboards) are best served to VoiceOver as a single, ignored-children element with a summarized `accessibilityLabel`. Multi-step wizards benefit significantly from combining step indicators into a single accessibility element with clear `accessibilityValue` (e.g., "Aktivt/Slutfört") and `accessibilityAddTraits(.isButton)`. Adding light haptics (`UIImpactFeedbackGenerator(style: .light)`) to previous-step navigation makes the wizard feel more tactile and forgiving.
 **Action:** Summarize dense rows in a single label. Use `.combine` and button traits for custom progress steppers. Implement haptics for "go back" interactions in forms.
+
+## 2026-06-05 - [iOS UX: Confirmation Safety & Empty State Guidance]
+**Learning:** Destructive actions on mobile (logout, match deletion) require explicit confirmation dialogs to prevent accidental taps. Empty states that offer a clear path forward (e.g., "Registrera match" button) reduce user frustration when data is missing. In-place editors should maintain their state until async operations finish to avoid jarring UI transitions.
+**Action:** Always use `.confirmationDialog` for destructive actions. Provide helpful navigation CTAs in empty states. Use loading states (ProgressView) inside buttons to provide immediate feedback for save actions.

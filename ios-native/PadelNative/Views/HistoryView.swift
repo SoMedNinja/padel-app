@@ -6,6 +6,7 @@ struct HistoryView: View {
 
     @State private var showAdvancedFilters = false
     @State private var editingMatch: Match?
+    @State private var matchToDelete: Match?
     @State private var pullProgress: CGFloat = 0
 
     private let formatter: DateFormatter = {
@@ -69,6 +70,21 @@ struct HistoryView: View {
                 MatchEditSheetView(match: match)
                     .environmentObject(viewModel)
             }
+            .confirmationDialog("Radera match?", isPresented: Binding(
+                get: { matchToDelete != nil },
+                set: { if !$0 { matchToDelete = nil } }
+            ), titleVisibility: .visible) {
+                Button("Radera permanent", role: .destructive) {
+                    if let match = matchToDelete {
+                        Task { await viewModel.deleteMatch(match) }
+                    }
+                }
+                Button("Avbryt", role: .cancel) { }
+            } message: {
+                if let match = matchToDelete {
+                    Text("Är du säker på att du vill radera matchen mellan \(match.teamAName) och \(match.teamBName)? Detta kan inte ångras.")
+                }
+            }
         }
     }
 
@@ -127,11 +143,20 @@ struct HistoryView: View {
                 .padding(.vertical, 20)
             } else if !viewModel.isHistoryLoading && viewModel.historyFilteredMatches.isEmpty {
                 SectionCard(title: "") {
-                    Text("Inga matcher hittades för valt filter.")
-                        .font(.inter(.body))
-                        .foregroundStyle(AppColors.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 20)
+                    VStack(spacing: 16) {
+                        Text("Inga matcher hittades för valt filter.")
+                            .font(.inter(.body))
+                            .foregroundStyle(AppColors.textSecondary)
+
+                        Button("Rensa filter") {
+                            viewModel.historyFilters = HistoryFilterState()
+                            Task { await viewModel.reloadHistoryMatches() }
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.inter(.subheadline, weight: .bold))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
                 }
             } else {
                 ForEach(viewModel.historyFilteredMatches) { match in
@@ -174,7 +199,7 @@ struct HistoryView: View {
 
                         if viewModel.canDeleteMatch(match) {
                             Button(role: .destructive) {
-                                Task { await viewModel.deleteMatch(match) }
+                                matchToDelete = match
                             } label: {
                                 Label("Radera", systemImage: "trash")
                             }

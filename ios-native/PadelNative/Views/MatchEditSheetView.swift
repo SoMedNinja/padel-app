@@ -13,6 +13,7 @@ struct MatchEditSheetView: View {
     @State private var teamBPlayer1Id: String?
     @State private var teamBPlayer2Id: String?
     @State private var didPrepopulatePlayers = false
+    @State private var isSaving = false
 
     init(match: Match) {
         self.match = match
@@ -43,8 +44,9 @@ struct MatchEditSheetView: View {
 
                 Section {
                     // Note for non-coders: this keeps edit simple in iOS and matches the quick-edit pattern from the web app.
-                    Button("Spara ändringar") {
+                    Button {
                         Task {
+                            isSaving = true
                             await viewModel.updateMatch(
                                 match,
                                 playedAt: playedAt,
@@ -55,10 +57,22 @@ struct MatchEditSheetView: View {
                                 teamAPlayerIds: [teamAPlayer1Id, teamAPlayer2Id],
                                 teamBPlayerIds: [teamBPlayer1Id, teamBPlayer2Id]
                             )
+                            isSaving = false
                             dismiss()
+                        }
+                    } label: {
+                        if isSaving {
+                            HStack {
+                                ProgressView()
+                                    .padding(.trailing, 8)
+                                Text("Sparar...")
+                            }
+                        } else {
+                            Text("Spara ändringar")
                         }
                     }
                     .frame(maxWidth: .infinity)
+                    .disabled(isSaving)
                 }
             }
             .navigationTitle("Redigera match")

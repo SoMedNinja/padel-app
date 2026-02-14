@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var showCropper = false
     @State private var imageToCrop: UIImage?
     @State private var pullProgress: CGFloat = 0
+    @State private var showLogoutConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -27,7 +28,7 @@ struct SettingsView: View {
 
                     SectionCard(title: "Hantering") {
                         Button(role: .destructive) {
-                            viewModel.signOut()
+                            showLogoutConfirmation = true
                         } label: {
                             Label("Logga ut", systemImage: "rectangle.portrait.and.arrow.right")
                                 .font(.inter(.subheadline, weight: .bold))
@@ -83,6 +84,14 @@ struct SettingsView: View {
                 }
             }
             .padelLiquidGlassChrome()
+            .confirmationDialog("Vill du logga ut?", isPresented: $showLogoutConfirmation, titleVisibility: .visible) {
+                Button("Logga ut", role: .destructive) {
+                    viewModel.signOut()
+                }
+                Button("Avbryt", role: .cancel) { }
+            } message: {
+                Text("Du kommer att behöva logga in igen för att se din statistik och boka matcher.")
+            }
         }
     }
 
@@ -114,16 +123,32 @@ struct SettingsView: View {
                     HStack(spacing: 10) {
                         TextField("Namn", text: $viewModel.profileDisplayNameDraft)
                             .textFieldStyle(.roundedBorder)
+                            .disabled(viewModel.isSavingProfileSetup)
                             .onSubmit {
-                                Task { await viewModel.saveProfileSetup() }
-                                isEditingName = false
+                                Task {
+                                    await viewModel.saveProfileSetup()
+                                    isEditingName = false
+                                }
                             }
 
-                        Button("Spara") {
-                            Task { await viewModel.saveProfileSetup() }
-                            isEditingName = false
+                        Button {
+                            Task {
+                                await viewModel.saveProfileSetup()
+                                isEditingName = false
+                            }
+                        } label: {
+                            if viewModel.isSavingProfileSetup {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .tint(.white)
+                                    Text("Sparar...")
+                                }
+                            } else {
+                                Text("Spara")
+                            }
                         }
                         .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.isSavingProfileSetup)
                     }
                 } else {
                     HStack {
