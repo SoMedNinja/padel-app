@@ -255,8 +255,18 @@ struct ScheduleView: View {
                             }
                         }
 
-                        Button(viewModel.isScheduleActionRunning ? "Sparar…" : "Spara röst") {
+                        Button {
                             Task { await viewModel.submitVote(for: day) }
+                        } label: {
+                            if viewModel.isScheduleActionRunning {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .tint(.white)
+                                    Text("Sparar…")
+                                }
+                            } else {
+                                Text("Spara röst")
+                            }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(viewModel.isScheduleActionRunning)

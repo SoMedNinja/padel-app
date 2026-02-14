@@ -138,9 +138,21 @@ struct DashboardView: View {
 
     private var emptyState: some View {
         SectionCard(title: "Inga matcher ännu") {
-            Text("Lägg till din första match för att låsa upp trender, highlights och MVP-kort.")
-                .font(.inter(.body))
-                .foregroundStyle(AppColors.textSecondary)
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Lägg till din första match för att låsa upp trender, highlights och MVP-kort.")
+                    .font(.inter(.body))
+                    .foregroundStyle(AppColors.textSecondary)
+
+                if viewModel.canUseSingleGame {
+                    Button {
+                        viewModel.selectedMainTab = 1
+                    } label: {
+                        Label("Registrera första matchen", systemImage: "plus.square.on.square")
+                            .font(.inter(.subheadline, weight: .bold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
         }
     }
 
