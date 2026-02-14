@@ -25,6 +25,7 @@ struct TournamentView: View {
     @State private var showCancelConfirmation = false
     @State private var showAbandonConfirmation = false
     @State private var showDeleteConfirmation = false
+    @State private var lastAutoPanelKey = ""
 
     private let scoreTargetOptions = [16, 21, 24, 31]
 
@@ -81,6 +82,16 @@ struct TournamentView: View {
                 if selectedParticipantIds.isEmpty {
                     selectedParticipantIds = Set(viewModel.players.filter { $0.isRegular }.map { $0.id })
                 }
+            }
+            .onChange(of: viewModel.selectedTournamentId) { _, _ in
+                syncParticipantSelectionFromTournament()
+                autoSelectPanelForTournamentState()
+            }
+            .onChange(of: viewModel.activeTournament?.status) { _, _ in
+                autoSelectPanelForTournamentState()
+            }
+            .onChange(of: viewModel.tournamentParticipants) { _, _ in
+                syncParticipantSelectionFromTournament()
             }
             .confirmationDialog("Starta turnering?", isPresented: $showStartConfirmation, titleVisibility: .visible) {
                 Button("Starta", role: .none) {
@@ -543,6 +554,50 @@ struct TournamentView: View {
         case "abandoned": return "Avbruten"
         case "cancelled": return "Inställd"
         default: return status.capitalized
+        }
+    }
+
+    private func autoSelectPanelForTournamentState() {
+        guard let tournament = viewModel.activeTournament,
+              let tournamentId = viewModel.selectedTournamentId else {
+            selectedPanel = .setup
+            lastAutoPanelKey = ""
+            return
+        }
+
+        // Note for non-coders:
+        // We only auto-switch tabs when the selected tournament or its status changes.
+        // That keeps iOS behavior aligned with web while still letting users stay on a
+        // manually chosen tab during normal data refreshes.
+        let redirectKey = "\(tournamentId.uuidString)-\(tournament.status)"
+        guard redirectKey != lastAutoPanelKey else { return }
+
+        switch tournament.status {
+        case "in_progress":
+            selectedPanel = .run
+        case "completed":
+            selectedPanel = .results
+        default:
+            selectedPanel = .setup
+        }
+
+        lastAutoPanelKey = redirectKey
+    }
+
+    private func syncParticipantSelectionFromTournament() {
+        guard viewModel.activeTournament != nil else {
+            if selectedParticipantIds.isEmpty {
+                selectedParticipantIds = Set(viewModel.players.filter { $0.isRegular }.map { $0.id })
+            }
+            return
+        }
+
+        // Note for non-coders:
+        // This keeps the iOS participant checklist in sync with the roster saved on the
+        // tournament, so "save roster" starts from the true backend state like web does.
+        let participantIds = Set(viewModel.tournamentParticipants.map(\.profileId))
+        if !participantIds.isEmpty {
+            selectedParticipantIds = participantIds
         }
     }
 }
