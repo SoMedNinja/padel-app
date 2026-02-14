@@ -365,6 +365,7 @@ final class AppViewModel: ObservableObject {
     @Published var adminReportPreviewText: String?
     @Published var adminReportStatusMessage: String?
     @Published var adminEmailPreviewText: String?
+    @Published var adminEmailPreviewHTML: String?
     @Published var adminEmailStatusMessage: String?
     @Published var liveUpdateBanner: String?
     @Published var dashboardFilter: DashboardMatchFilter = .all
@@ -670,6 +671,7 @@ final class AppViewModel: ObservableObject {
         adminReportPreviewText = nil
         adminReportStatusMessage = nil
         adminEmailPreviewText = nil
+        adminEmailPreviewHTML = nil
         adminEmailStatusMessage = nil
         polls = []
         voteDraftsByDay = [:]
@@ -2664,11 +2666,19 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func buildWeeklyEmailPreview(timeframe: AdminWeeklyTimeframe, week: Int?, year: Int?) {
+    func buildWeeklyEmailPreview(timeframe: AdminWeeklyTimeframe, week: Int?, year: Int?) async {
         guard canUseAdmin else {
             adminEmailStatusMessage = "Admin access is required to preview email actions."
             return
         }
+
+        guard let accessToken = authService.currentAccessToken() else {
+            adminEmailStatusMessage = "Missing session token. Please sign in again."
+            return
+        }
+
+        isAdminEmailActionRunning = true
+        defer { isAdminEmailActionRunning = false }
 
         let now = Date()
         let calendar = Calendar(identifier: .iso8601)
@@ -2694,15 +2704,41 @@ final class AppViewModel: ObservableObject {
         let filtered = allMatches.filter { $0.playedAt >= startDate && $0.playedAt <= now }
         let uniquePlayers = Set(filtered.flatMap { $0.teamAPlayerIds + $0.teamBPlayerIds }.compactMap { $0 })
 
-        adminEmailPreviewText = ([
-            "Weekly Email Preview",
-            "Timeframe: \(timeframe.title)",
-            "Matches in window: \(filtered.count)",
-            "Players included: \(uniquePlayers.count)",
-            "",
-            "Note for non-coders: this preview estimates who would appear in the weekly email before sending any test/broadcast action."
-        ]).joined(separator: "\n")
-        adminEmailStatusMessage = "Weekly preview generated."
+        do {
+            let response = try await apiClient.invokeWeeklySummary(
+                accessToken: accessToken,
+                playerId: currentPlayer?.id,
+                timeframe: timeframe.rawValue,
+                week: week,
+                year: year,
+                previewOnly: true
+            )
+
+            adminEmailPreviewHTML = response.previewHtml
+            adminEmailPreviewText = ([
+                "Weekly Email Preview",
+                "Timeframe: \(timeframe.title)",
+                "Matches in window: \(filtered.count)",
+                "Players included: \(uniquePlayers.count)",
+                "",
+                // Note for non-coders: this fallback text appears if the server cannot return full HTML.
+                "Note for non-coders: this preview estimates who would appear in the weekly email before sending any test/broadcast action."
+            ]).joined(separator: "\n")
+            adminEmailStatusMessage = response.previewHtml == nil
+                ? "Weekly preview generated (text fallback)."
+                : "Weekly preview generated (full email render)."
+        } catch {
+            adminEmailPreviewHTML = nil
+            adminEmailPreviewText = ([
+                "Weekly Email Preview",
+                "Timeframe: \(timeframe.title)",
+                "Matches in window: \(filtered.count)",
+                "Players included: \(uniquePlayers.count)",
+                "",
+                "Note for non-coders: the live HTML preview failed, so this plain-text summary is shown instead."
+            ]).joined(separator: "\n")
+            adminEmailStatusMessage = "Could not build weekly preview HTML: \(error.localizedDescription)"
+        }
     }
 
     func buildTournamentEmailPreview(for tournamentId: UUID) async {
@@ -2722,6 +2758,17 @@ final class AppViewModel: ObservableObject {
                 return
             }
 
+            if let accessToken = authService.currentAccessToken() {
+                let previewResponse = try? await apiClient.invokeTournamentSummary(
+                    accessToken: accessToken,
+                    previewTournamentId: tournamentId,
+                    previewOnly: true
+                )
+                adminEmailPreviewHTML = previewResponse?.previewHtml
+            } else {
+                adminEmailPreviewHTML = nil
+            }
+
             adminEmailPreviewText = ([
                 "Tournament Email Preview",
                 "Tournament: \(tournament.name)",
@@ -2730,8 +2777,12 @@ final class AppViewModel: ObservableObject {
                 "",
                 "Note for non-coders: this preview checks that tournament data is present before you run a test send action."
             ]).joined(separator: "\n")
-            adminEmailStatusMessage = "Tournament preview generated."
+            // Note for non-coders: if HTML is available we show the exact email body; otherwise we keep the summary text.
+            adminEmailStatusMessage = adminEmailPreviewHTML == nil
+                ? "Tournament preview generated (text fallback)."
+                : "Tournament preview generated (full email render)."
         } catch {
+            adminEmailPreviewHTML = nil
             adminEmailStatusMessage = "Could not build tournament preview: \(error.localizedDescription)"
         }
     }

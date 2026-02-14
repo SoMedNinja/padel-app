@@ -540,6 +540,7 @@ Deno.serve(async (req) => {
     let requestedTimeframe: string | null = null;
     let requestedWeek: number | null = null;
     let requestedYear: number | null = null;
+    let previewOnly = false;
 
     try {
       const body = await req.json();
@@ -547,6 +548,8 @@ Deno.serve(async (req) => {
       requestedTimeframe = body.timeframe || null;
       requestedWeek = body.week || null;
       requestedYear = body.year || null;
+      // Non-coder note: previewOnly returns the final HTML without sending an email, useful for native app previews.
+      previewOnly = body.previewOnly === true;
     } catch {
       // No body or not JSON, proceed with defaults
     }
@@ -949,6 +952,7 @@ Deno.serve(async (req) => {
       }
     };
     const emailResults = [];
+    let previewHtml: string | null = null;
     for (const id of Array.from(activePlayerIds)) {
       const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
@@ -1264,6 +1268,13 @@ Deno.serve(async (req) => {
         </html>
       `;
 
+      if (previewOnly) {
+        // Non-coder note: we return the first fully-rendered email so iOS can show an exact preview.
+        previewHtml = html;
+        emailResults.push({ id, name, success: true, preview: true });
+        break;
+      }
+
       const result = await sendEmailWithRetry(email, html, weekLabel);
 
       if (!result.ok) {
@@ -1273,6 +1284,18 @@ Deno.serve(async (req) => {
         emailResults.push({ id, name, success: true });
       }
       await delay(perEmailDelayMs);
+    }
+
+    if (previewOnly) {
+      return new Response(JSON.stringify({
+        success: true,
+        previewHtml,
+        total: 1,
+        sent: previewHtml ? 1 : 0
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const successfulCount = emailResults.filter(r => r.success).length;
