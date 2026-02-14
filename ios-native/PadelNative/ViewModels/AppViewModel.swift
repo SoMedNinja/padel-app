@@ -3758,7 +3758,10 @@ final class AppViewModel: ObservableObject {
             return (0..<slotCount).compactMap { index in
                 let idValue = ids.indices.contains(index) ? ids[index] : nil
                 let fallback = names.indices.contains(index) ? names[index].trimmingCharacters(in: .whitespacesAndNewlines) : ""
-                let isPlaceholder = fallback.isEmpty || fallback == "Gästspelare" || fallback == "Spelare"
+                // Note for non-coders:
+                // "Spelare" is just a generic placeholder label, so we hide that.
+                // "Gästspelare" is a *real* selected participant and should be visible in recaps.
+                let isPlaceholder = fallback.isEmpty || fallback == "Spelare"
                 guard idValue != nil || !isPlaceholder else { return nil }
                 return (index, idValue)
             }
@@ -4449,6 +4452,10 @@ final class AppViewModel: ObservableObject {
                 teamAServesFirst: teamAServesFirst
             )
             matches.insert(localMatch, at: 0)
+            // Note for non-coders:
+            // `allMatches` is the full dataset used by ELO/stat calculations.
+            // We must insert the new match there too so recap numbers are based on this just-saved game.
+            allMatches.insert(localMatch, at: 0)
             statusMessage = "Match sparad."
 
             // Note: recalculate stats so the recap gets correct ELO deltas
