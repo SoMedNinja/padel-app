@@ -250,6 +250,19 @@ struct SupabaseRESTClient {
                 return date
             }
 
+            // Note for non-coders:
+            // Some tournament fields in the database are "date only" (for example: 2026-02-14)
+            // instead of full timestamps. We support that format too so tournament creation/loading
+            // does not fail when users choose a scheduled day.
+            let dateOnlyFormatter = DateFormatter()
+            dateOnlyFormatter.calendar = Calendar(identifier: .gregorian)
+            dateOnlyFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dateOnlyFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            dateOnlyFormatter.dateFormat = "yyyy-MM-dd"
+            if let date = dateOnlyFormatter.date(from: dateStr) {
+                return date
+            }
+
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date format: \(dateStr)")
         }
         return decoder
