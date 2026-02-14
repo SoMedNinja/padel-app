@@ -30,6 +30,7 @@ struct DashboardView: View {
     }
 
     @State private var showScrollToTop = false
+    @State private var pullProgress: CGFloat = 0
 
     var body: some View {
         NavigationStack {
@@ -37,7 +38,8 @@ struct DashboardView: View {
                 ZStack(alignment: .bottom) {
                     ScrollView {
                         VStack(spacing: 12) {
-                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.matches.isEmpty)
+                            ScrollOffsetTracker()
+                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.matches.isEmpty, pullProgress: pullProgress)
 
                             Color.clear
                                 .frame(height: 0.01)
@@ -51,6 +53,11 @@ struct DashboardView: View {
                         .padding(.bottom, 60)
                     }
                     .background(AppColors.background)
+                    .coordinateSpace(name: "padelScroll")
+                    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                        let threshold: CGFloat = 80
+                        pullProgress = max(0, min(1.0, offset / threshold))
+                    }
                     .refreshable {
                         await viewModel.bootstrap()
                     }

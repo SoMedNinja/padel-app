@@ -74,6 +74,7 @@ struct AdminView: View {
 
     @State private var renamingProfile: AdminProfile?
     @State private var newPlayerName: String = ""
+    @State private var pullProgress: CGFloat = 0
 
     var body: some View {
         NavigationStack {
@@ -81,7 +82,8 @@ struct AdminView: View {
                 if viewModel.canUseAdmin {
                     ScrollView {
                         VStack(spacing: 20) {
-                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.adminProfiles.isEmpty)
+                            ScrollOffsetTracker()
+                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.adminProfiles.isEmpty, pullProgress: pullProgress)
                             SectionCard(title: "Adminområde") {
                                 Picker("Område", selection: $selectedTab) {
                                     ForEach(AdminTab.allCases) { tab in
@@ -113,6 +115,11 @@ struct AdminView: View {
                         .padding()
                     }
                     .background(AppColors.background)
+                    .coordinateSpace(name: "padelScroll")
+                    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                        let threshold: CGFloat = 80
+                        pullProgress = max(0, min(1.0, offset / threshold))
+                    }
                     .overlay {
                         if viewModel.isAdminActionRunning || viewModel.isAdminReportRunning || viewModel.isAdminEmailActionRunning {
                             ProgressView("Bearbetar...")
