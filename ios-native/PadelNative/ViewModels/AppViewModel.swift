@@ -4332,14 +4332,12 @@ final class AppViewModel: ObservableObject {
         // Note for non-coders:
         // We only keep selected players when creating team labels.
         // This removes the fake second slot in 1v1 matches across recap/history.
-        let teamANames = normalizedAIds.compactMap { idString in
-            guard idString != nil else { return nil }
-            return resolvePlayerName(playerId: idString)
-        }
-        let teamBNames = normalizedBIds.compactMap { idString in
-            guard idString != nil else { return nil }
-            return resolvePlayerName(playerId: idString)
-        }
+        let teamANames = normalizedAIds
+            .compactMap { $0 }
+            .map { resolvePlayerName(playerId: $0) }
+        let teamBNames = normalizedBIds
+            .compactMap { $0 }
+            .map { resolvePlayerName(playerId: $0) }
 
         do {
             let submission = MatchSubmission(
