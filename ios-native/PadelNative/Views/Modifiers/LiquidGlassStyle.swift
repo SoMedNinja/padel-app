@@ -6,16 +6,18 @@ extension View {
     /// while still behaving correctly on older iOS versions.
     @ViewBuilder
     func padelLiquidGlassChrome() -> some View {
+        // Note for non-coders:
+        // We intentionally DO NOT hide the navigation bar globally anymore.
+        // Keeping it available lets iOS preserve its built-in "swipe from the left edge to go back"
+        // behavior on every pushed subpage (for example, Match History -> Match Details).
         if #available(iOS 26.0, *) {
             self
-                .toolbar(.hidden, for: .navigationBar)
                 .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
                 .toolbarBackground(.ultraThinMaterial, for: .tabBar)
                 .toolbarBackground(.visible, for: .tabBar)
         } else {
             self
-                .toolbar(.hidden, for: .navigationBar)
                 .toolbarBackground(.regularMaterial, for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
                 .toolbarBackground(.regularMaterial, for: .tabBar)
