@@ -32,6 +32,7 @@ struct ProfileView: View {
     @State private var selectedFilter: DashboardMatchFilter = .all
     @State private var compareWithIds: Set<UUID> = []
     @State private var selectedMeritSection: String = "earned"
+    @State private var pullProgress: CGFloat = 0
 
     private var profileFilterOptions: [DashboardMatchFilter] {
         [.last7, .last30, .tournaments, .custom, .all]
@@ -45,6 +46,9 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    ScrollOffsetTracker()
+                    PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.players.isEmpty, pullProgress: pullProgress)
+
                     if let current = viewModel.currentPlayer {
                         headerSection(current)
                         tabSelector
@@ -59,6 +63,14 @@ struct ProfileView: View {
                 .padding(.bottom, 40)
             }
             .background(AppColors.background)
+            .coordinateSpace(name: "padelScroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                let threshold: CGFloat = 80
+                pullProgress = max(0, min(1.0, offset / threshold))
+            }
+            .refreshable {
+                await viewModel.bootstrap()
+            }
             .navigationTitle("Profil")
             .navigationBarTitleDisplayMode(.inline)
             .task {

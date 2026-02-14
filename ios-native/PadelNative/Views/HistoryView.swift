@@ -6,6 +6,7 @@ struct HistoryView: View {
 
     @State private var showAdvancedFilters = false
     @State private var editingMatch: Match?
+    @State private var pullProgress: CGFloat = 0
 
     private let formatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -19,7 +20,8 @@ struct HistoryView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    PadelRefreshHeader(isRefreshing: viewModel.isHistoryLoading && !viewModel.historyMatches.isEmpty)
+                    ScrollOffsetTracker()
+                    PadelRefreshHeader(isRefreshing: viewModel.isHistoryLoading && !viewModel.historyMatches.isEmpty, pullProgress: pullProgress)
                     filterSection
                     matchesSection
                 }
@@ -31,6 +33,11 @@ struct HistoryView: View {
             .navigationTitle("Historik")
             .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
+            .coordinateSpace(name: "padelScroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                let threshold: CGFloat = 80
+                pullProgress = max(0, min(1.0, offset / threshold))
+            }
             .refreshable {
                 await viewModel.reloadHistoryMatches()
             }

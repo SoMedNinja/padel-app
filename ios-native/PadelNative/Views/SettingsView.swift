@@ -8,11 +8,15 @@ struct SettingsView: View {
     @State private var isEditingName = false
     @State private var showCropper = false
     @State private var imageToCrop: UIImage?
+    @State private var pullProgress: CGFloat = 0
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    ScrollOffsetTracker()
+                    PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.players.isEmpty, pullProgress: pullProgress)
+
                     if let current = viewModel.currentPlayer {
                         profileSection(current)
                         accountSection
@@ -47,6 +51,14 @@ struct SettingsView: View {
                 .padding()
             }
             .background(AppColors.background)
+            .coordinateSpace(name: "padelScroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                let threshold: CGFloat = 80
+                pullProgress = max(0, min(1.0, offset / threshold))
+            }
+            .refreshable {
+                await viewModel.bootstrap()
+            }
             .navigationTitle("Inställningar")
             .navigationBarTitleDisplayMode(.inline)
             .onChange(of: selectedAvatarItem) { _, newItem in

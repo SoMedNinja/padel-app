@@ -16,6 +16,7 @@ struct ScheduleView: View {
     @State private var addToLocalCalendar = false
     @State private var localCalendarStatus: String?
     @State private var showCalendarInviteForm = false
+    @State private var pullProgress: CGFloat = 0
 
     private let calendarService = CalendarService()
 
@@ -62,7 +63,8 @@ struct ScheduleView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    PadelRefreshHeader(isRefreshing: viewModel.isScheduleLoading && !viewModel.polls.isEmpty)
+                    ScrollOffsetTracker()
+                    PadelRefreshHeader(isRefreshing: viewModel.isScheduleLoading && !viewModel.polls.isEmpty, pullProgress: pullProgress)
                     statusSection
                     scheduledGamesSection
                     calendarInviteSection
@@ -76,6 +78,11 @@ struct ScheduleView: View {
             .background(AppColors.background)
             .toolbar(.hidden, for: .navigationBar)
             .padelLiquidGlassChrome()
+            .coordinateSpace(name: "padelScroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                let threshold: CGFloat = 80
+                pullProgress = max(0, min(1.0, offset / threshold))
+            }
             .task {
                 await viewModel.refreshScheduleData()
                 syncExpandedPollDefaults()

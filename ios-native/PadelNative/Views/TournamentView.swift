@@ -26,6 +26,7 @@ struct TournamentView: View {
     @State private var showAbandonConfirmation = false
     @State private var showDeleteConfirmation = false
     @State private var lastAutoPanelKey = ""
+    @State private var pullProgress: CGFloat = 0
 
     private let scoreTargetOptions = [16, 21, 24, 31]
 
@@ -46,7 +47,8 @@ struct TournamentView: View {
     private var tournamentContent: some View {
         let baseContent = ScrollView {
             VStack(spacing: 20) {
-                PadelRefreshHeader(isRefreshing: viewModel.isTournamentLoading && !viewModel.tournaments.isEmpty)
+                ScrollOffsetTracker()
+                PadelRefreshHeader(isRefreshing: viewModel.isTournamentLoading && !viewModel.tournaments.isEmpty, pullProgress: pullProgress)
                 tournamentPicker
 
                 SectionCard(title: "Turnering") {
@@ -78,6 +80,11 @@ struct TournamentView: View {
         .background(AppColors.background)
         .navigationTitle("Tournament")
         .navigationBarTitleDisplayMode(.inline)
+        .coordinateSpace(name: "padelScroll")
+        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+            let threshold: CGFloat = 80
+            pullProgress = max(0, min(1.0, offset / threshold))
+        }
 
         // Note for non-coders:
         // This second step attaches behaviors (refreshing, dialogs, auto-sync) separately

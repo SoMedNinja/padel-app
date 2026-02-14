@@ -2,43 +2,81 @@ import SwiftUI
 
 struct MoreView: View {
     @EnvironmentObject private var viewModel: AppViewModel
+    @State private var pullProgress: CGFloat = 0
 
     var body: some View {
         NavigationStack {
-            List {
-                NavigationLink {
-                    HistoryView()
-                } label: {
-                    Label("Historik", systemImage: "clock.arrow.circlepath")
-                }
+            ScrollView {
+                VStack(spacing: 16) {
+                    ScrollOffsetTracker()
+                    PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.players.isEmpty, pullProgress: pullProgress)
 
-                if viewModel.canSeeTournament {
-                    NavigationLink {
-                        TournamentView()
-                    } label: {
-                        Label("Turnering", systemImage: "trophy")
+                    VStack(spacing: 0) {
+                        moreLink(title: "Historik", icon: "clock.arrow.circlepath") {
+                            HistoryView()
+                        }
+
+                        Divider().padding(.leading, 44)
+
+                        if viewModel.canSeeTournament {
+                            moreLink(title: "Turnering", icon: "trophy") {
+                                TournamentView()
+                            }
+                            Divider().padding(.leading, 44)
+                        }
+
+                        if viewModel.canUseAdmin {
+                            moreLink(title: "Admin", icon: "person.badge.key") {
+                                AdminView()
+                            }
+                            Divider().padding(.leading, 44)
+                        }
+
+                        moreLink(title: "Inställningar", icon: "gearshape") {
+                            SettingsView()
+                        }
                     }
+                    .padelSurfaceCard()
                 }
-
-                if viewModel.canUseAdmin {
-                    NavigationLink {
-                        AdminView()
-                    } label: {
-                        Label("Admin", systemImage: "person.badge.key")
-                    }
-                }
-
-                NavigationLink {
-                    SettingsView()
-                } label: {
-                    Label("Inställningar", systemImage: "gearshape")
-                }
+                .padding()
             }
-            .navigationTitle("More")
+            .navigationTitle("Mer")
             .navigationBarTitleDisplayMode(.inline)
-            .scrollContentBackground(.hidden)
             .background(AppColors.background)
+            .coordinateSpace(name: "padelScroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                let threshold: CGFloat = 80
+                pullProgress = max(0, min(1.0, offset / threshold))
+            }
+            .refreshable {
+                await viewModel.bootstrap()
+            }
             .padelLiquidGlassChrome()
         }
+    }
+
+    private func moreLink<Destination: View>(title: String, icon: String, @ViewBuilder destination: () -> Destination) -> some View {
+        NavigationLink(destination: destination) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.headline)
+                    .foregroundStyle(AppColors.brandPrimary)
+                    .frame(width: 32)
+
+                Text(title)
+                    .font(.inter(.body))
+                    .foregroundStyle(AppColors.textPrimary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.textSecondary.opacity(0.5))
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
