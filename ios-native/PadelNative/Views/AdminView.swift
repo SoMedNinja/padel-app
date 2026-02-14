@@ -81,6 +81,7 @@ struct AdminView: View {
                 if viewModel.canUseAdmin {
                     ScrollView {
                         VStack(spacing: 20) {
+                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.adminProfiles.isEmpty)
                             SectionCard(title: "Adminområde") {
                                 Picker("Område", selection: $selectedTab) {
                                     ForEach(AdminTab.allCases) { tab in

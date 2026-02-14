@@ -24,6 +24,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 @main
 struct PadelNativeApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
+    init() {
+        // Note for non-coders: this hides the native iOS pull-to-refresh spinner
+        // so we can use our custom BallRefreshIndicator instead without double icons.
+        UIRefreshControl.appearance().tintColor = .clear
+    }
     @StateObject private var appViewModel = AppViewModel()
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = true

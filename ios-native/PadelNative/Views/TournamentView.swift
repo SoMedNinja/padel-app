@@ -46,6 +46,7 @@ struct TournamentView: View {
     private var tournamentContent: some View {
         let baseContent = ScrollView {
             VStack(spacing: 20) {
+                PadelRefreshHeader(isRefreshing: viewModel.isTournamentLoading && !viewModel.tournaments.isEmpty)
                 tournamentPicker
 
                 SectionCard(title: "Turnering") {

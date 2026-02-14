@@ -19,6 +19,7 @@ struct HistoryView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    PadelRefreshHeader(isRefreshing: viewModel.isHistoryLoading && !viewModel.historyMatches.isEmpty)
                     filterSection
                     matchesSection
                 }
@@ -109,7 +110,7 @@ struct HistoryView: View {
                 .foregroundStyle(AppColors.textPrimary)
                 .padding(.horizontal, 4)
 
-            if viewModel.isHistoryLoading {
+            if viewModel.isHistoryLoading && viewModel.historyMatches.isEmpty {
                 HStack {
                     Spacer()
                     ProgressView("Laddar historik…")
@@ -117,7 +118,7 @@ struct HistoryView: View {
                     Spacer()
                 }
                 .padding(.vertical, 20)
-            } else if viewModel.historyFilteredMatches.isEmpty {
+            } else if !viewModel.isHistoryLoading && viewModel.historyFilteredMatches.isEmpty {
                 SectionCard(title: "") {
                     Text("Inga matcher hittades för valt filter.")
                         .font(.inter(.body))
