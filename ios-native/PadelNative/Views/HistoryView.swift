@@ -219,30 +219,38 @@ struct HistoryView: View {
     private func teamDisplay(names: [String], ids: [String?], match: Match, isTeamA: Bool) -> some View {
         let isWinner = isTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
         let breakdown = viewModel.eloBreakdown(for: match)
+        let slotCount = max(names.count, ids.count)
+
+        // Note for non-coders:
+        // We hide empty placeholder slots so a 1v1 match only shows one player per team.
+        let visibleRows = (0..<slotCount).compactMap { idx -> (name: String, id: String?)? in
+            let idString = ids.indices.contains(idx) ? ids[idx] : nil
+            let name = names.indices.contains(idx) ? names[idx].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+            let isPlaceholder = name.isEmpty || name == "Gästspelare" || name == "Spelare"
+            guard idString != nil || !isPlaceholder else { return nil }
+            return (name.isEmpty ? "Spelare" : name, idString)
+        }
 
         return VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(ids.enumerated()), id: \.offset) { idx, idString in
-                let name = idx < names.count ? names[idx] : "Spelare"
-                if !name.isEmpty {
-                    HStack(spacing: 8) {
-                        if isWinner {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(AppColors.success)
-                        }
+            ForEach(Array(visibleRows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 8) {
+                    if isWinner {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(AppColors.success)
+                    }
 
-                        Text(name)
-                            .font(.inter(.subheadline, weight: isWinner ? .bold : .medium))
-                            .foregroundStyle(isWinner ? AppColors.textPrimary : AppColors.textSecondary)
-                            .lineLimit(1)
+                    Text(row.name)
+                        .font(.inter(.subheadline, weight: isWinner ? .bold : .medium))
+                        .foregroundStyle(isWinner ? AppColors.textPrimary : AppColors.textSecondary)
+                        .lineLimit(1)
 
-                        Spacer()
+                    Spacer()
 
-                        if let row = breakdown.first(where: { $0.playerName == name || ($0.id.uuidString.lowercased() == idString?.lowercased()) }) {
-                            Text("\(row.delta >= 0 ? "+" : "")\(row.delta)")
-                                .font(.inter(.caption2, weight: .bold))
-                                .foregroundStyle(row.delta >= 0 ? AppColors.success : AppColors.error)
-                        }
+                    if let deltaRow = breakdown.first(where: { $0.playerName == row.name || ($0.id.uuidString.lowercased() == row.id?.lowercased()) }) {
+                        Text("\(deltaRow.delta >= 0 ? "+" : "")\(deltaRow.delta)")
+                            .font(.inter(.caption2, weight: .bold))
+                            .foregroundStyle(deltaRow.delta >= 0 ? AppColors.success : AppColors.error)
                     }
                 }
             }

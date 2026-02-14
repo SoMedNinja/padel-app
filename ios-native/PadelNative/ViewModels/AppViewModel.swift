@@ -3771,7 +3771,20 @@ final class AppViewModel: ObservableObject {
             leaders.isEmpty ? "• Ingen topplista ännu." : leaders.joined(separator: "\n"),
         ]).joined(separator: "\n")
 
-        let teamAPlayers = match.teamAPlayerIds.enumerated().map { index, idString in
+        let recapSlots: (_ ids: [String?], _ names: [String]) -> [(index: Int, id: String?)] = { ids, names in
+            let slotCount = max(ids.count, names.count)
+            return (0..<slotCount).compactMap { index in
+                let idValue = ids.indices.contains(index) ? ids[index] : nil
+                let fallback = names.indices.contains(index) ? names[index].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+                let isPlaceholder = fallback.isEmpty || fallback == "Gästspelare" || fallback == "Spelare"
+                guard idValue != nil || !isPlaceholder else { return nil }
+                return (index, idValue)
+            }
+        }
+
+        let teamAPlayers = recapSlots(match.teamAPlayerIds, match.teamANames).map { slot in
+            let index = slot.index
+            let idString = slot.id
             let name = resolvePlayerName(playerId: idString, fallbackLabel: match.teamANames.indices.contains(index) ? match.teamANames[index] : "Spelare")
             let uuid = idString.flatMap { UUID(uuidString: $0) }
             let stats = uuid.flatMap { playerBadgeStats[$0] }
@@ -3783,7 +3796,9 @@ final class AppViewModel: ObservableObject {
             return MatchRecapPlayer(id: uuid, name: name, elo: elo, delta: delta, avatarURL: player?.avatarURL)
         }
 
-        let teamBPlayers = match.teamBPlayerIds.enumerated().map { index, idString in
+        let teamBPlayers = recapSlots(match.teamBPlayerIds, match.teamBNames).map { slot in
+            let index = slot.index
+            let idString = slot.id
             let name = resolvePlayerName(playerId: idString, fallbackLabel: match.teamBNames.indices.contains(index) ? match.teamBNames[index] : "Spelare")
             let uuid = idString.flatMap { UUID(uuidString: $0) }
             let stats = uuid.flatMap { playerBadgeStats[$0] }
@@ -4315,12 +4330,15 @@ final class AppViewModel: ObservableObject {
             : sourceTournamentType.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Note for non-coders:
-        // We derive readable team names from selected profiles or guest tags.
-        let teamANames = normalizedAIds.map { idString in
-            resolvePlayerName(playerId: idString)
+        // We only keep selected players when creating team labels.
+        // This removes the fake second slot in 1v1 matches across recap/history.
+        let teamANames = normalizedAIds.compactMap { idString in
+            guard idString != nil else { return nil }
+            return resolvePlayerName(playerId: idString)
         }
-        let teamBNames = normalizedBIds.map { idString in
-            resolvePlayerName(playerId: idString)
+        let teamBNames = normalizedBIds.compactMap { idString in
+            guard idString != nil else { return nil }
+            return resolvePlayerName(playerId: idString)
         }
 
         do {
