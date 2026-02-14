@@ -259,7 +259,7 @@ struct SingleGameRecap {
 
     var sharePayload: String {
         [
-            "Padel match recap",
+            "Padel match-sammanfattning",
             "",
             matchSummary,
             "",
@@ -387,6 +387,7 @@ final class AppViewModel: ObservableObject {
     private var lastGlobalLiveMarker: SupabaseRESTClient.GlobalLiveMarker?
     private var lastFullLiveSyncAt: Date?
     private var consecutiveLiveProbeFailures = 0
+    private var realtimeClient: SupabaseRealtimeClient?
     private var hasPendingDeepLinkedVote = false
     private var deepLinkedVoteSlots: [AvailabilitySlot] = []
     private var pendingLiveSyncScopes: Set<LiveSyncScope> = []
@@ -429,6 +430,15 @@ final class AppViewModel: ObservableObject {
         dismissedTournamentNoticeId = Self.uuidValue(from: dismissalStore, key: dismissedTournamentNoticeIdKey)
         areScheduleNotificationsEnabled = dismissalStore.bool(forKey: scheduleNotificationsEnabledKey)
         isBiometricLockEnabled = dismissalStore.bool(forKey: biometricLockEnabledKey)
+
+        if AppConfig.isConfigured {
+            realtimeClient = SupabaseRealtimeClient(supabaseURL: AppConfig.supabaseURL, apiKey: AppConfig.supabaseAnonKey)
+            realtimeClient?.onDataChange = { [weak self] in
+                Task { @MainActor in
+                    await self?.performFullLiveRefresh()
+                }
+            }
+        }
     }
 
     // Note for non-coders:
@@ -1036,9 +1046,9 @@ final class AppViewModel: ObservableObject {
         let densityName = densestOpponent.map { playerName(for: $0.key) } ?? "No matchup data"
 
         return [
-            ProfileComboStat(id: "top-teammate", title: "Most played teammate", value: teammateName, detail: topTeammate.map { "\($0.value) matches together" } ?? "Play more matches to populate this tile", symbol: "person.2.fill"),
-            ProfileComboStat(id: "best-combo", title: "Best win-rate combo", value: "\(comboName) · \(comboRate)", detail: bestCombo.map { "\(teammateWins[$0.key, default: 0]) wins in \($0.value) matches" } ?? "Needs at least two shared matches", symbol: "chart.bar.doc.horizontal"),
-            ProfileComboStat(id: "matchup-density", title: "Highest matchup density", value: densityName, detail: densestOpponent.map { "Faced \($0.value) times in selected filter" } ?? "No opponents detected for this filter", symbol: "square.grid.3x3.fill")
+            ProfileComboStat(id: "top-teammate", title: "Vanligaste partner", value: teammateName, detail: topTeammate.map { "\($0.value) matcher tillsammans" } ?? "Spela fler matcher för att se data", symbol: "person.2.fill"),
+            ProfileComboStat(id: "best-combo", title: "Bästa vinstprocent", value: "\(comboName) · \(comboRate)", detail: bestCombo.map { "\(teammateWins[$0.key, default: 0]) vinster på \($0.value) matcher" } ?? "Kräver minst två gemensamma matcher", symbol: "chart.bar.doc.horizontal"),
+            ProfileComboStat(id: "matchup-density", title: "Tätaste möten", value: densityName, detail: densestOpponent.map { "Mött \($0.value) gånger i valt filter" } ?? "Inga motståndare hittades i filtret", symbol: "square.grid.3x3.fill")
         ]
     }
 
@@ -1518,6 +1528,7 @@ final class AppViewModel: ObservableObject {
 
     func bootstrap() async {
         isDashboardLoading = true
+        realtimeClient?.connect()
         defer { isDashboardLoading = false }
 
         if scheduleWeekOptions.isEmpty {
@@ -2059,8 +2070,19 @@ final class AppViewModel: ObservableObject {
 
     private func showLiveUpdateBanner(for collections: [String]) {
         let unique = Array(Set(collections)).sorted()
-        let noun = unique.count == 1 ? "section" : "sections"
-        liveUpdateBanner = "Updated \(unique.joined(separator: ", ")) \(noun)."
+        let translated = unique.map { col -> String in
+            switch col {
+            case "players": return "spelare"
+            case "matches": return "matcher"
+            case "schedule": return "schema"
+            case "polls": return "omröstningar"
+            case "tournament": return "turnering"
+            default: return col
+            }
+        }
+
+        let prefix = unique.count == 1 ? "Uppdaterade" : "Uppdaterade sektioner:"
+        liveUpdateBanner = "\(prefix) \(translated.joined(separator: ", "))."
 
         liveUpdateBannerTask?.cancel()
         liveUpdateBannerTask = Task { [weak self] in
@@ -2613,63 +2635,85 @@ final class AppViewModel: ObservableObject {
 
     // Note for non-coders:
     // This creates a plain-language report text that admins can preview and share.
+    // Enhanced with "Fun Facts" and deeper analytics to align with the PWA report logic.
     func generateMatchEveningReport(for dayKey: String) {
         guard canUseAdmin else {
-            adminReportStatusMessage = "Admin access is required to create reports."
+            adminReportStatusMessage = "Admin-behörighet krävs för att skapa rapporter."
             return
         }
 
         let formatter = Self.adminDayFormatter
         let selectedMatches = allMatches.filter { formatter.string(from: $0.playedAt) == dayKey }
 
-        guard selectedMatches.isEmpty == false else {
+        guard !selectedMatches.isEmpty else {
             adminReportPreviewText = nil
-            adminReportStatusMessage = "No matches found for \(dayKey)."
+            adminReportStatusMessage = "Inga matcher hittades för \(dayKey)."
             return
         }
 
         let totalMatches = selectedMatches.count
-        let totalGames = selectedMatches.reduce(0) { $0 + $1.teamAScore + $1.teamBScore }
+        let totalSets = selectedMatches.reduce(0) { $0 + $1.teamAScore + $1.teamBScore }
 
         var winsByPlayer: [UUID: Int] = [:]
+        var gamesByPlayer: [UUID: Int] = [:]
+        var partnerCounts: [UUID: Set<UUID>] = [:]
+        var totalFairness: Int = 0
+
         for match in selectedMatches {
             let teamAWon = match.teamAScore > match.teamBScore
-            let winners = teamAWon ? match.teamAPlayerIds : match.teamBPlayerIds
-            for id in winners.compactMap({ $0.flatMap(UUID.init(uuidString:)) }) {
-                winsByPlayer[id, default: 0] += 1
-            }
+            let teamAIds = match.teamAPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) }
+            let teamBIds = match.teamBPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) }
+
+            let winners = teamAWon ? teamAIds : teamBIds
+            for id in winners { winsByPlayer[id, default: 0] += 1 }
+            for id in (teamAIds + teamBIds) { gamesByPlayer[id, default: 0] += 1 }
+
+            // Partner rotations
+            for id in teamAIds { teamAIds.forEach { if $0 != id { partnerCounts[id, default: []].insert($0) } } }
+            for id in teamBIds { teamBIds.forEach { if $0 != id { partnerCounts[id, default: []].insert($0) } } }
+
+            // Fairness calculation
+            let aElo = teamAIds.reduce(0.0) { $0 + Double(playerBadgeStats[$1]?.currentElo ?? 1000) } / Double(max(1, teamAIds.count))
+            let bElo = teamBIds.reduce(0.0) { $0 + Double(playerBadgeStats[$1]?.currentElo ?? 1000) } / Double(max(1, teamBIds.count))
+            let prob = EloService.getWinProbability(rating: aElo, opponentRating: bElo)
+            totalFairness += Int(round((1 - abs(0.5 - prob) * 2) * 100))
         }
 
-        let topEntries = winsByPlayer
-            .sorted { lhs, rhs in
-                if lhs.value != rhs.value { return lhs.value > rhs.value }
-                let leftName = players.first(where: { $0.id == lhs.key })?.fullName ?? "Guest"
-                let rightName = players.first(where: { $0.id == rhs.key })?.fullName ?? "Guest"
-                return leftName < rightName
-            }
+        let avgFairness = totalFairness / max(1, totalMatches)
+
+        let topWinners = winsByPlayer
+            .sorted { $0.value > $1.value }
             .prefix(3)
-            .map { entry in
-                let name = players.first(where: { $0.id == entry.key })?.fullName ?? "Guest"
-                return "• \(name): \(entry.value) wins"
-            }
+            .map { "• \(playerName(for: $0.key)): \($0.value) vinster" }
+
+        let marathon = gamesByPlayer.max { $0.value < $1.value }
+        let mostRotations = partnerCounts.max { $0.value.count < $1.value.count }
 
         adminReportPreviewText = ([
-            "Match Evening Report",
-            "Date: \(dayKey)",
-            "Matches played: \(totalMatches)",
-            "Total games scored: \(totalGames)",
+            "🎾 MATCHKVÄLLS-RAPPORT",
+            "Datum: \(dayKey)",
+            "Antal matcher: \(totalMatches)",
+            "Totalt antal game: \(totalSets)",
+            "Snitt-rättvisa: \(avgFairness)%",
             "",
-            "Top performers:",
-            topEntries.isEmpty ? "• No winners could be calculated." : topEntries.joined(separator: "\n")
-        ]).joined(separator: "\n")
-        adminReportStatusMessage = "Evening report ready to preview/share."
+            "🏆 TOPP-VINSTER",
+            topWinners.isEmpty ? "• Inga resultat ännu." : topWinners.joined(separator: "\n"),
+            "",
+            "✨ FUN FACTS",
+            marathon.map { "🏃 Marathon-spelare: \(playerName(for: $0.key)) (\($0.value) matcher)" },
+            mostRotations.map { "🔄 Flest lagkamrater: \(playerName(for: $0.key)) (\($0.value.count) st)" },
+            "⚡ Jämna matcher: \(selectedMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 2 }.count) st"
+        ].compactMap { $0 }).joined(separator: "\n")
+
+        adminReportStatusMessage = "Kvällsrapport genererad med fördjupad statistik."
     }
 
     // Note for non-coders:
     // This composes a share-friendly tournament summary similar to the web admin share output.
+    // Enhanced with more granular standings and tournament metadata.
     func generateTournamentReport(for tournamentId: UUID) async {
         guard canUseAdmin else {
-            adminReportStatusMessage = "Admin access is required to create reports."
+            adminReportStatusMessage = "Admin-behörighet krävs för att skapa rapporter."
             return
         }
 
@@ -2678,28 +2722,38 @@ final class AppViewModel: ObservableObject {
 
         do {
             let standings = try await apiClient.fetchTournamentStandings(tournamentId: tournamentId)
+            let rounds = try await apiClient.fetchTournamentRounds(tournamentId: tournamentId)
+
             guard let tournament = tournaments.first(where: { $0.id == tournamentId }) else {
-                adminReportStatusMessage = "Tournament not found in local state."
+                adminReportStatusMessage = "Turneringen hittades inte lokalt."
                 return
             }
 
-            let lines = standings.prefix(8).map { result in
-                let name = players.first(where: { $0.id == result.profileId })?.fullName ?? "Guest"
-                return "#\(result.rank) \(name) • \(result.pointsFor) pts • W\(result.wins)-L\(result.losses)"
+            let standingLines = standings.prefix(12).map { result in
+                let name = playerName(for: result.profileId ?? UUID())
+                let winnerIcon = result.rank == 1 ? "🏆 " : ""
+                return "\(winnerIcon)#\(result.rank) \(name) • \(result.pointsFor) pts (W\(result.wins)-L\(result.losses))"
             }
 
+            let scoredRounds = rounds.filter { $0.team1Score != nil }.count
+
             adminReportPreviewText = ([
-                "Tournament Report",
-                "Name: \(tournament.name)",
-                "Type: \(tournament.tournamentType.capitalized)",
-                "Status: \(tournament.status)",
+                "🏆 TURNERINGS-RAPPORT",
+                "Namn: \(tournament.name)",
+                "Typ: \(tournament.tournamentType.uppercased())",
+                "Status: \(tournament.status.capitalized)",
+                "Spelade rundor: \(scoredRounds)/\(rounds.count)",
                 "",
-                "Standings:",
-                lines.isEmpty ? "No standings found yet." : lines.joined(separator: "\n")
+                "📊 SLUTSTÄLLNING",
+                standingLines.isEmpty ? "Ingen ställning tillgänglig ännu." : standingLines.joined(separator: "\n"),
+                "",
+                "✨ SAMMANFATTNING",
+                "Totalt antal deltagare: \(standings.count) st",
+                "Mest poäng i en runda: \(rounds.compactMap { max($0.team1Score ?? 0, $0.team2Score ?? 0) }.max() ?? 0) pts"
             ]).joined(separator: "\n")
-            adminReportStatusMessage = "Tournament report ready to preview/share."
+            adminReportStatusMessage = "Turneringsrapport genererad."
         } catch {
-            adminReportStatusMessage = "Could not generate tournament report: \(error.localizedDescription)"
+            adminReportStatusMessage = "Kunde inte generera rapport: \(error.localizedDescription)"
         }
     }
 
@@ -3689,7 +3743,7 @@ final class AppViewModel: ObservableObject {
                 let opponentPenalty = Double(opponentCounts[pairKey(teamA[0], teamB[0]), default: 0])
                 let gamePenalty = Double(gamesByPlayer[teamA[0], default: 0] + gamesByPlayer[teamB[0], default: 0])
                 let underplayedBonus = (gameTarget - gamePenalty) * 0.5
-                let score = Double(fairness) * 2 - opponentPenalty * 8 - gamePenalty * 3 + underplayedBonus
+                let score = Double(fairness) * 2 - opponentPenalty * 6 - gamePenalty * 4 + underplayedBonus
 
                 if bestCandidate == nil || score > bestCandidate!.score {
                     bestCandidate = (score, teamA, teamB, fairness, winProbability)
@@ -3719,7 +3773,7 @@ final class AppViewModel: ObservableObject {
                     })
                     let gamePenalty = Double((teamA + teamB).reduce(0) { $0 + gamesByPlayer[$1, default: 0] })
                     let underplayedBonus = (gameTarget * 2 - gamePenalty) * 0.5
-                    let score = Double(fairness) * 2 - teammatePenalty * 15 - opponentPenalty * 6 - gamePenalty * 3 + underplayedBonus
+                    let score = Double(fairness) * 2 - teammatePenalty * 15 - opponentPenalty * 6 - gamePenalty * 4 + underplayedBonus
 
                     if bestCandidate == nil || score > bestCandidate!.score {
                         bestCandidate = (score, teamA, teamB, fairness, winProbability)

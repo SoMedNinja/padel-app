@@ -130,9 +130,9 @@ struct AdminView: View {
                     }
                 } else {
                     ContentUnavailableView(
-                        "Admin Access Required",
+                        "Admin-behörighet krävs",
                         systemImage: "lock.shield",
-                        description: Text("Verktyg för att hantera spelare, matcher och rapporter.")
+                        description: Text("Dessa verktyg är endast tillgängliga för administratörer.")
                             .font(.inter(.body))
                     )
                 }

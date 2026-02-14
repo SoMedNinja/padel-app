@@ -260,7 +260,7 @@ struct SingleGameView: View {
     private func recapShareImageURL(for recap: SingleGameRecap) -> URL? {
         let lines = [recap.matchSummary, "", recap.eveningSummary]
         return try? ShareCardService.createShareImageFile(
-            title: "Padel recap",
+            title: "Match-sammanfattning",
             bodyLines: lines,
             fileNamePrefix: "single-game-recap"
         )

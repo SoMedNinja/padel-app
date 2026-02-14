@@ -272,6 +272,17 @@ struct ProfileView: View {
                     } else {
                         chartStatic(timeline: timeline, playerIds: playerIds)
                     }
+
+                    NavigationLink {
+                        EloTrendDetailView(playerIds: playerIds, filter: viewModel.globalFilter)
+                    } label: {
+                        Label("Fullständig analys", systemImage: "arrow.up.left.and.arrow.down.right")
+                            .font(.inter(.subheadline, weight: .bold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.top, 10)
                 }
             }
         }

@@ -78,7 +78,7 @@ struct TournamentView: View {
             .padding()
         }
         .background(AppColors.background)
-        .navigationTitle("Tournament")
+        .navigationTitle("Turnering")
         .navigationBarTitleDisplayMode(.inline)
         .coordinateSpace(name: "padelScroll")
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
@@ -560,7 +560,7 @@ struct TournamentView: View {
     }
 
     private var historicalResults: some View {
-        SectionCard(title: "Resultathistorik") {
+        SectionCard(title: "Tidigare turneringar") {
             if viewModel.tournamentHistoryResults.isEmpty {
                 Text("Ingen historik än.")
                     .font(.inter(.body))
