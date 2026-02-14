@@ -26,13 +26,14 @@ struct SingleGameView: View {
     @State private var teamAPlayer2Id: String?
     @State private var teamBPlayer1Id: String?
     @State private var teamBPlayer2Id: String?
-    @State private var teamAScore = 6
-    @State private var teamBScore = 4
+    @State private var teamAScore: Int?
+    @State private var teamBScore: Int?
     @State private var showExtraScores = false
     @State private var playedAt = Date()
     @State private var isSubmitting = false
     @State private var wizardStep: SingleGameWizardStep = .teamSetup
     @State private var generatedRecap: SingleGameRecap?
+    @State private var navigateToRecap = false
     @State private var fairnessLabel: String?
     @State private var showSuccessState = false
     @State private var matchmakerPool: Set<UUID> = []
@@ -199,11 +200,15 @@ struct SingleGameView: View {
             .onAppear {
                 applyDeepLinkModeIfAvailable()
             }
+            .navigationDestination(isPresented: $navigateToRecap) {
+                if let recap = generatedRecap {
+                    SingleGameRecapView(recap: recap, players: viewModel.players)
+                }
+            }
             .padelLiquidGlassChrome()
         }
     }
 
-    }
     // Note for non-coders: this helper builds a shareable image file URL from the recap text.
 
     private func recapShareImageURL(for recap: SingleGameRecap) -> URL? {
@@ -224,7 +229,7 @@ struct SingleGameView: View {
             if isOneVsOne { return teamBPlayer1Id != nil }
             return teamBPlayer1Id != nil && teamBPlayer2Id != nil
         case .score:
-            return true
+            return teamAScore != nil && teamBScore != nil
         case .review:
             return true
         case .matchmaker:
@@ -469,7 +474,7 @@ struct SingleGameView: View {
             VStack(alignment: .leading, spacing: 12) {
                 reviewRow(label: "Lag A", value: teamText(primary: teamAPlayer1Id, secondary: isOneVsOne ? nil : teamAPlayer2Id))
                 reviewRow(label: "Lag B", value: teamText(primary: teamBPlayer1Id, secondary: isOneVsOne ? nil : teamBPlayer2Id))
-                reviewRow(label: "Resultat", value: "\(teamAScore)–\(teamBScore)")
+                reviewRow(label: "Resultat", value: "\(teamAScore.map(String.init) ?? "–")–\(teamBScore.map(String.init) ?? "–")")
 
                 Text("Detta är en sista kontroll innan matchen sparas.")
                     .font(.inter(.footnote))
@@ -645,6 +650,11 @@ struct SingleGameView: View {
             let teamAIds: [String?] = [teamAPlayer1Id, isOneVsOne ? nil : teamAPlayer2Id]
             let teamBIds: [String?] = [teamBPlayer1Id, isOneVsOne ? nil : teamBPlayer2Id]
 
+            guard let teamAScore, let teamBScore else {
+                viewModel.statusMessage = "Välj resultat för båda lagen innan du sparar."
+                return
+            }
+
             let recap = await viewModel.submitSingleGame(
                 teamAPlayerIds: teamAIds,
                 teamBPlayerIds: teamBIds,
@@ -662,12 +672,8 @@ struct SingleGameView: View {
             withAnimation(.spring) {
                 showSuccessState = true
             }
-
-            try? await Task.sleep(nanoseconds: 1_400_000_000)
-            withAnimation(.easeInOut) {
-                showSuccessState = false
-            }
-            resetFormForNextEntry(keepMatchType: true)
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            navigateToRecap = true
         }
     }
 
@@ -677,8 +683,8 @@ struct SingleGameView: View {
         teamAPlayer2Id = nil
         teamBPlayer1Id = nil
         teamBPlayer2Id = nil
-        teamAScore = 6
-        teamBScore = 4
+        teamAScore = nil
+        teamBScore = nil
         playedAt = Date()
         fairnessLabel = nil
         wizardStep = .teamSetup
@@ -711,7 +717,7 @@ struct SingleGameView: View {
 
 
     @ViewBuilder
-    private func scoreButtonGrid(selection: Binding<Int>) -> some View {
+    private func scoreButtonGrid(selection: Binding<Int?>) -> some View {
         let scores = [0, 1, 2, 3, 4, 5, 6, 7]
         let extras = [8, 9, 10, 11, 12]
 
@@ -744,7 +750,7 @@ struct SingleGameView: View {
         }
     }
 
-    private func scoreButton(score: Int, selection: Binding<Int>) -> some View {
+    private func scoreButton(score: Int, selection: Binding<Int?>) -> some View {
         Button {
             selection.wrappedValue = score
             UIImpactFeedbackGenerator(style: .light).impactOccurred()

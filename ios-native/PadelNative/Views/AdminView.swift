@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 private enum PendingAdminAction: Identifiable {
     case toggleApproval(AdminProfile)
@@ -526,38 +527,40 @@ struct AdminView: View {
 
     @ViewBuilder
     private func emailPreviewCard(content: String) -> some View {
-        let lines = content.split(separator: "\n").map(String.init)
-        let subject = lines.first ?? "E-post"
-        let bodyLines = Array(lines.dropFirst())
+        // Note for non-coders: this converts preview text into simple HTML so admins see
+        // a realistic email card (closer to the web/PWA preview) instead of plain monospaced text.
+        HTMLPreviewWebView(html: buildEmailHTML(from: content))
+            .frame(height: 360)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
 
-        VStack(alignment: .leading, spacing: 10) {
-            // Note for non-coders: this card styles plain preview text as a visual email
-            // so admins can review hierarchy and spacing similar to the PWA preview.
-            Text(subject)
-                .font(.inter(.headline, weight: .bold))
-                .foregroundStyle(AppColors.textPrimary)
-
-            Divider().background(AppColors.borderSubtle)
-
-            ForEach(Array(bodyLines.enumerated()), id: \.offset) { _, line in
-                if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Spacer().frame(height: 4)
-                } else if line.hasSuffix(":") {
-                    Text(line)
-                        .font(.inter(.caption, weight: .black))
-                        .foregroundStyle(AppColors.textSecondary)
-                        .textCase(.uppercase)
-                } else {
-                    Text(line)
-                        .font(.inter(.subheadline))
-                        .foregroundStyle(AppColors.textPrimary)
+    private func buildEmailHTML(from content: String) -> String {
+        let escaped = content
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+        let paragraphs = escaped
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> String in
+                let value = String(line).trimmingCharacters(in: .whitespacesAndNewlines)
+                if value.isEmpty { return "<div style='height:10px'></div>" }
+                if value.hasSuffix(":") {
+                    return "<h4 style='margin:8px 0 4px;font-size:12px;letter-spacing:0.6px;color:#6B7280;text-transform:uppercase;'>\(value)</h4>"
                 }
+                return "<p style='margin:0 0 8px;font-size:14px;line-height:1.5;color:#111827;'>\(value)</p>"
             }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .joined()
+
+        return """
+        <html>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <body style="margin:0;background:#F3F4F6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div style="padding:14px;">
+              <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;padding:16px;">\(paragraphs)</div>
+            </div>
+          </body>
+        </html>
+        """
     }
 
 
@@ -596,5 +599,22 @@ struct AdminView: View {
         case .deactivate(let profile):
             await viewModel.deactivateProfile(profile)
         }
+    }
+}
+
+
+private struct HTMLPreviewWebView: UIViewRepresentable {
+    let html: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView(frame: .zero)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = true
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        uiView.loadHTMLString(html, baseURL: nil)
     }
 }

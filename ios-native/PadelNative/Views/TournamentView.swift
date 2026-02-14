@@ -82,6 +82,34 @@ struct TournamentView: View {
                     selectedParticipantIds = Set(viewModel.players.filter { $0.isRegular }.map { $0.id })
                 }
             }
+            .confirmationDialog("Starta turnering?", isPresented: $showStartConfirmation, titleVisibility: .visible) {
+                Button("Starta", role: .none) {
+                    Task { await viewModel.startSelectedTournament() }
+                }
+                Button("Avbryt", role: .cancel) { }
+            } message: {
+                Text("Detta byter status från utkast till pågående och följer samma flöde som PWA.")
+            }
+            .confirmationDialog("Avbryt turnering?", isPresented: $showCancelConfirmation, titleVisibility: .visible) {
+                Button("Avbryt turnering", role: .destructive) {
+                    Task { await viewModel.cancelSelectedTournament() }
+                }
+                Button("Stäng", role: .cancel) { }
+            }
+            .confirmationDialog("Markera som avbruten?", isPresented: $showAbandonConfirmation, titleVisibility: .visible) {
+                Button("Markera avbruten", role: .destructive) {
+                    Task { await viewModel.abandonSelectedTournament() }
+                }
+                Button("Stäng", role: .cancel) { }
+            }
+            .confirmationDialog("Radera turnering?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                Button("Radera permanent", role: .destructive) {
+                    Task { await viewModel.deleteSelectedTournament() }
+                }
+                Button("Stäng", role: .cancel) { }
+            } message: {
+                Text("Detta tar bort turnering, deltagare, rundor och resultat permanent.")
+            }
             .padelLiquidGlassChrome()
         }
     }

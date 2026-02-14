@@ -5,6 +5,7 @@ struct HistoryView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
     @State private var showAdvancedFilters = false
+    @State private var editingMatch: Match?
 
     private let formatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -55,6 +56,10 @@ struct HistoryView: View {
             }
             .onChange(of: viewModel.historyFilters.tournamentOnly) { _, _ in
                 Task { await viewModel.reloadHistoryMatches() }
+            }
+            .sheet(item: $editingMatch) { match in
+                MatchEditSheetView(match: match)
+                    .environmentObject(viewModel)
             }
         }
     }
@@ -156,6 +161,12 @@ struct HistoryView: View {
                     Spacer()
 
                     Menu {
+                        Button {
+                            editingMatch = match
+                        } label: {
+                            Label("Redigera", systemImage: "pencil")
+                        }
+
                         if viewModel.canDeleteMatch(match) {
                             Button(role: .destructive) {
                                 Task { await viewModel.deleteMatch(match) }
