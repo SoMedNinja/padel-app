@@ -4356,10 +4356,13 @@ final class AppViewModel: ObservableObject {
             return rawId
         }
 
-        let normalizedAIds = (Array(teamAPlayerIds.prefix(2)).map(normalizeSlot))
+        let rawAIds = Array(teamAPlayerIds.prefix(2))
             + Array(repeating: nil, count: max(0, 2 - teamAPlayerIds.count))
-        let normalizedBIds = (Array(teamBPlayerIds.prefix(2)).map(normalizeSlot))
+        let rawBIds = Array(teamBPlayerIds.prefix(2))
             + Array(repeating: nil, count: max(0, 2 - teamBPlayerIds.count))
+
+        let normalizedAIds = rawAIds.map(normalizeSlot)
+        let normalizedBIds = rawBIds.map(normalizeSlot)
         let compactA = normalizedAIds.compactMap { $0 }
         let compactB = normalizedBIds.compactMap { $0 }
 
@@ -4387,14 +4390,21 @@ final class AppViewModel: ObservableObject {
             : sourceTournamentType.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Note for non-coders:
-        // We only keep selected players when creating team labels.
-        // This removes the fake second slot in 1v1 matches across recap/history.
-        let teamANames = normalizedAIds
-            .compactMap { $0 }
-            .map { resolvePlayerName(playerId: $0) }
-        let teamBNames = normalizedBIds
-            .compactMap { $0 }
-            .map { resolvePlayerName(playerId: $0) }
+        // iOS sends IDs and names separately. For guests, IDs must be nil in the database,
+        // but the name slot still has to say "Gästspelare" so history/recap shows the correct person.
+        // This now matches the PWA behavior exactly.
+        let resolveSubmittedName: (String?) -> String = { rawId in
+            guard let rawId, !rawId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "" }
+            if rawId == "guest" { return "Gästspelare" }
+            if rawId.hasPrefix("name:") {
+                let customName = String(rawId.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                return customName.isEmpty ? "Gästspelare" : customName
+            }
+            return resolvePlayerName(playerId: rawId)
+        }
+
+        let teamANames = rawAIds.map(resolveSubmittedName)
+        let teamBNames = rawBIds.map(resolveSubmittedName)
 
         do {
             let submission = MatchSubmission(
