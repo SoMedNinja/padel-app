@@ -7,6 +7,8 @@ struct MatchSuccessCeremonyView: View {
     @State private var step = 0
     @State private var showDeltas = false
 
+    private var teamAWon: Bool { recap.teamAScore > recap.teamBScore }
+
     var body: some View {
         VStack(spacing: 24) {
             if step == 0 {
@@ -27,8 +29,7 @@ struct MatchSuccessCeremonyView: View {
                         .font(.system(size: 72, weight: .black, design: .rounded))
                         .foregroundStyle(AppColors.brandPrimary)
 
-                    let aWon = recap.teamAScore > recap.teamBScore
-                    Text(aWon ? "Lag A Vann!" : "Lag B Vann!")
+                    Text(teamAWon ? "Lag A Vann!" : "Lag B Vann!")
                         .font(.inter(.headline, weight: .bold))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
@@ -44,8 +45,8 @@ struct MatchSuccessCeremonyView: View {
                         .foregroundStyle(AppColors.textSecondary)
 
                     HStack(alignment: .top, spacing: 32) {
-                        recapTeamColumn(team: recap.teamA, title: "Lag A")
-                        recapTeamColumn(team: recap.teamB, title: "Lag B")
+                        recapTeamColumn(team: recap.teamA, title: "Lag A", isWinner: teamAWon)
+                        recapTeamColumn(team: recap.teamB, title: "Lag B", isWinner: !teamAWon)
                     }
 
                     VStack(spacing: 8) {
@@ -99,11 +100,18 @@ struct MatchSuccessCeremonyView: View {
         }
     }
 
-    private func recapTeamColumn(team: MatchRecapTeam, title: String) -> some View {
+    private func recapTeamColumn(team: MatchRecapTeam, title: String, isWinner: Bool) -> some View {
         VStack(spacing: 16) {
-            Text(title)
-                .font(.inter(.caption2, weight: .bold))
-                .foregroundStyle(AppColors.textSecondary)
+            HStack(spacing: 6) {
+                if isWinner {
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.yellow)
+                }
+                Text(title)
+                    .font(.inter(.caption2, weight: .bold))
+                    .foregroundStyle(AppColors.textSecondary)
+            }
 
             ForEach(team.players) { player in
                 VStack(spacing: 4) {
@@ -130,6 +138,13 @@ struct MatchSuccessCeremonyView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(isWinner ? AppColors.success.opacity(0.08) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isWinner ? AppColors.success.opacity(0.45) : AppColors.borderSubtle, lineWidth: 1)
+        )
     }
 }
 
