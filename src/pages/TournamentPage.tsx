@@ -56,7 +56,8 @@ export default function TournamentPage() {
 
   return (
     <PullToRefresh
-      className="tournament-scroll"
+      // Note for non-coders: this class lets us apply iOS-specific CSS so only our custom refresh animation is shown.
+      className="app-pull-to-refresh tournament-scroll"
       onRefresh={handleRefresh}
       pullingContent={<PullingContent />}
       refreshingContent={<RefreshingContent />}
