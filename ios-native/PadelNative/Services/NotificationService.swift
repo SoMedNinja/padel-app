@@ -53,9 +53,14 @@ struct NotificationService {
             let reminderDate = game.startsAt.addingTimeInterval(-60 * 60)
             guard reminderDate > .now else { continue }
 
+            // Note for non-coders:
+            // Some schedule fields can be empty. We choose friendly fallback text so reminders always read naturally.
+            let gameSummary = game.description ?? "Match"
+            let gameLocation = game.location ?? "okänd plats"
+
             let content = UNMutableNotificationContent()
             content.title = "Padel snart"
-            content.body = "\(game.description) kl \(timeLabel(for: game.startsAt)) på \(game.location)."
+            content.body = "\(gameSummary) kl \(timeLabel(for: game.startsAt)) på \(gameLocation)."
             content.sound = .default
             content.userInfo = ["route": "schedule"]
 

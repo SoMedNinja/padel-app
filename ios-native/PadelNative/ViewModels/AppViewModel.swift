@@ -2084,7 +2084,13 @@ final class AppViewModel: ObservableObject {
 
     private func scheduleSignature(_ entries: [ScheduleEntry]) -> String {
         entries
-            .map { "\($0.id.uuidString)|\($0.startsAt.timeIntervalSince1970)|\($0.location)|\($0.description)" }
+            .map {
+                // Note for non-coders:
+                // A "signature" is just a compact text fingerprint we use to detect if schedule data changed.
+                let location = $0.location ?? ""
+                let description = $0.description ?? ""
+                return "\($0.id.uuidString)|\($0.startsAt.timeIntervalSince1970)|\(location)|\(description)"
+            }
             .joined(separator: "||")
     }
 
@@ -4137,7 +4143,6 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        let profile = adminProfiles.first(where: { $0.id == profileId })
         let badgeId = players.first(where: { $0.id == profileId })?.featuredBadgeId
         let trimmed = ProfileNameService.stripBadgeLabelFromName(newName, badgeId: badgeId)
         guard trimmed.count >= 2 else {
