@@ -29,7 +29,6 @@ struct BadgeGroup: Identifiable {
 struct ProfileView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var selectedTab: ProfileTab = .overview
-    @State private var selectedFilter: DashboardMatchFilter = .all
     @State private var compareWithIds: Set<UUID> = []
     @State private var selectedMeritSection: String = "earned"
     @State private var pullProgress: CGFloat = 0
@@ -90,19 +89,23 @@ struct ProfileView: View {
             .pickerStyle(.segmented)
 
             if selectedTab == .overview || selectedTab == .eloTrend {
-                SectionCard(title: "Filter") {
+                SectionCard(title: "Globalt Filter") {
                     VStack(alignment: .leading, spacing: 10) {
-                        Picker("Period", selection: $selectedFilter) {
+                        Picker("Period", selection: $viewModel.globalFilter) {
                             ForEach(profileFilterOptions) { filter in
                                 Text(filter.title).tag(filter)
                             }
                         }
                         .pickerStyle(.segmented)
 
-                        if selectedFilter == .custom {
-                            DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
-                            DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+                        if viewModel.globalFilter == .custom {
+                            DatePicker("Från", selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                            DatePicker("Till", selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
                         }
+
+                        Text("Aktivt filter: \(viewModel.globalActiveFilterLabel)")
+                            .font(.inter(.caption))
+                            .foregroundStyle(AppColors.textSecondary)
                     }
                 }
             }
@@ -160,9 +163,23 @@ struct ProfileView: View {
                     .shadow(color: AppColors.shadowColor, radius: 8, x: 0, y: 4)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(current.profileName)
-                        .font(.inter(.title2, weight: .bold))
-                        .foregroundStyle(AppColors.textPrimary)
+                    HStack {
+                        Text(current.profileName)
+                            .font(.inter(.title2, weight: .bold))
+                            .foregroundStyle(AppColors.textPrimary)
+
+                        Spacer()
+
+                        if let cardURL = viewModel.generatePlayerStatsCard() {
+                            ShareLink(item: cardURL) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.body.bold())
+                                    .foregroundStyle(AppColors.brandPrimary)
+                                    .padding(8)
+                                    .background(AppColors.brandPrimary.opacity(0.1), in: Circle())
+                            }
+                        }
+                    }
 
                     HStack(spacing: 4) {
                         Text("ELO: \(current.elo)")
@@ -242,7 +259,7 @@ struct ProfileView: View {
                 }
 
                 let playerIds = (viewModel.currentPlayer?.id).map { [$0] + Array(compareWithIds) } ?? Array(compareWithIds)
-                let timeline = viewModel.buildComparisonTimeline(playerIds: playerIds, filter: selectedFilter)
+                let timeline = viewModel.buildComparisonTimeline(playerIds: playerIds, filter: viewModel.globalFilter)
 
                 if timeline.count <= 1 {
                     Text("Spela fler matcher för att se din ELO-trend.")
@@ -263,114 +280,14 @@ struct ProfileView: View {
     @State private var comboSortKey: String = "games"
     @State private var comboSortAscending: Bool = false
 
-    private var sortedHeatmapCombos: [HeatmapCombo] {
-        viewModel.heatmapCombos.sorted { a, b in
-            let result: Bool
-            switch comboSortKey {
-            case "games": result = a.games < b.games
-            case "winPct": result = a.winPct < b.winPct
-            case "avgElo": result = a.avgElo < b.avgElo
-            default: result = a.games < b.games
-            }
-            return comboSortAscending ? result : !result
-        }
-    }
-
     private var teammatesTab: some View {
-        SectionCard(title: "Lagkombinationer") {
-            Text("Visar endast lagkamrater du har spelat med.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    // Header
-                    HStack(spacing: 0) {
-                        Text("Lagkamrat").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 130, alignment: .leading)
-
-                        sortableHeader(title: "Matcher", key: "games", width: 70)
-                        sortableHeader(title: "Vinst %", key: "winPct", width: 70)
-
-                        Text("S/M %").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 80)
-                            .help("Vinstprocent vid Start-serve (S) respektive Mottagning (M).")
-
-                        sortableHeader(title: "Snitt-ELO", key: "avgElo", width: 80)
-
-                        Text("Senaste 5").font(.caption.bold()).foregroundStyle(.secondary).frame(width: 110)
-                    }
-                    .padding(.vertical, 10)
-                    .background(Color(.systemGray6))
-
-                    ForEach(sortedHeatmapCombos) { combo in
-                        let otherPlayers = combo.players.filter { $0 != (viewModel.currentPlayer?.profileName ?? "") }
-                        let otherNames = otherPlayers.joined(separator: " & ")
-
-                        HStack(spacing: 0) {
-                            Text(otherNames.isEmpty ? "Singles" : otherNames)
-                                .font(.subheadline.weight(.semibold))
-                                .frame(width: 130, alignment: .leading)
-                                .lineLimit(1)
-
-                            Text("\(combo.games)")
-                                .font(.subheadline)
-                                .frame(width: 70)
-
-                            Text("\(combo.winPct)%")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(combo.winPct >= 50 ? .green : .primary)
-                                .frame(width: 70)
-
-                            Text("\(combo.serveFirstWinPct ?? 0)%/\(combo.serveSecondWinPct ?? 0)%")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                                .frame(width: 80)
-
-                            Text("\(combo.avgElo)")
-                                .font(.subheadline)
-                                .frame(width: 80)
-
-                            HStack(spacing: 4) {
-                                ForEach(Array(combo.recentResults.enumerated()), id: \.offset) { _, res in
-                                    Text(res)
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 18, height: 18)
-                                        .background(res == "V" ? Color.green : Color.red)
-                                        .clipShape(Circle())
-                                }
-                            }
-                            .frame(width: 110)
-                        }
-                        .padding(.vertical, 10)
-                        Divider()
-                    }
-                }
-            }
-        }
-    }
-
-    private func sortableHeader(title: String, key: String, width: CGFloat) -> some View {
-        Button {
-            if comboSortKey == key {
-                comboSortAscending.toggle()
-            } else {
-                comboSortKey = key
-                comboSortAscending = false
-            }
-        } label: {
-            HStack(spacing: 2) {
-                Text(title)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
-                if comboSortKey == key {
-                    Image(systemName: comboSortAscending ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .frame(width: width)
+        HeatmapSectionView(
+            combos: viewModel.heatmapCombos,
+            title: "Lagkombinationer",
+            sortKey: $comboSortKey,
+            sortAscending: $comboSortAscending,
+            currentPlayerName: viewModel.currentPlayer?.profileName
+        )
     }
 
     private func groupBadges(_ badges: [Badge]) -> [BadgeGroup] {
@@ -613,7 +530,7 @@ struct ProfileView: View {
         SectionCard(title: "Prestation") {
             // Note for non-coders: we use a grid of equal cards here so this matches the PWA layout.
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(viewModel.profilePerformanceWidgets(filter: selectedFilter)) { widget in
+                ForEach(viewModel.profilePerformanceWidgets(filter: viewModel.globalFilter)) { widget in
                     VStack(spacing: 8) {
                         Text(widget.title.uppercased())
                             .font(.inter(size: 9, weight: .black))

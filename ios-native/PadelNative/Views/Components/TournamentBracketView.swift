@@ -4,29 +4,72 @@ struct TournamentBracketView: View {
     let rounds: [TournamentRound]
     let playerResolver: (UUID) -> String
 
+    @State private var zoomScale: CGFloat = 1.0
+    @State private var lastZoomScale: CGFloat = 1.0
+
     private var sortedRounds: [TournamentRound] {
         rounds.sorted { $0.roundNumber < $1.roundNumber }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Turneringsöversikt")
-                .font(.headline.weight(.bold))
+            HStack {
+                Text("Turneringsöversikt")
+                    .font(.inter(.headline, weight: .bold))
+                Spacer()
+                if !rounds.isEmpty {
+                    Button {
+                        withAnimation(.spring()) {
+                            zoomScale = 1.0
+                        }
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise.circle")
+                            .font(.title3)
+                            .foregroundStyle(AppColors.textSecondary)
+                    }
+                    .accessibilityLabel("Återställ zoom")
+                }
+            }
 
             if rounds.isEmpty {
                 Text("Inga ronder har skapats än.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.inter(.subheadline))
+                    .foregroundStyle(AppColors.textSecondary)
                     .padding(.vertical, 20)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
+                ScrollView([.horizontal, .vertical], showsIndicators: false) {
                     HStack(spacing: 16) {
                         ForEach(sortedRounds) { round in
                             roundCard(round)
                         }
                     }
-                    .padding(.bottom, 8)
+                    .padding(.vertical, 20)
+                    .padding(.horizontal, 10)
+                    .scaleEffect(zoomScale)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                zoomScale = lastZoomScale * value
+                            }
+                            .onEnded { value in
+                                lastZoomScale = zoomScale
+                                if zoomScale < 0.5 { zoomScale = 0.5; lastZoomScale = 0.5 }
+                                if zoomScale > 2.0 { zoomScale = 2.0; lastZoomScale = 2.0 }
+                            }
+                    )
                 }
+                .frame(minHeight: 200)
+                .background(AppColors.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(AppColors.borderSubtle, lineWidth: 1)
+                )
+
+                Text("Nyp för att zooma in/ut")
+                    .font(.inter(size: 9))
+                    .foregroundStyle(AppColors.textSecondary)
+                    .padding(.top, 4)
             }
         }
     }

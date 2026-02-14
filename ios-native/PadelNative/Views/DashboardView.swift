@@ -31,6 +31,8 @@ struct DashboardView: View {
 
     @State private var showScrollToTop = false
     @State private var pullProgress: CGFloat = 0
+    @State private var heatmapSortKey: String = "games"
+    @State private var heatmapSortAscending: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -163,8 +165,19 @@ struct DashboardView: View {
             mvpSection
             highlightSection
             leaderboardSection
+            heatmapSection
             rivalrySection
         }
+    }
+
+    private var heatmapSection: some View {
+        HeatmapSectionView(
+            combos: viewModel.heatmapCombos,
+            title: "Lagkombinationer",
+            sortKey: $heatmapSortKey,
+            sortAscending: $heatmapSortAscending,
+            currentPlayerName: viewModel.currentPlayer?.profileName
+        )
     }
 
     @ViewBuilder
@@ -241,27 +254,27 @@ struct DashboardView: View {
     }
 
     private var filterSection: some View {
-        SectionCard(title: "Filter") {
+        SectionCard(title: "Globalt Filter") {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Period", selection: $viewModel.dashboardFilter) {
+                Picker("Period", selection: $viewModel.globalFilter) {
                     ForEach(DashboardMatchFilter.allCases) { filter in
                         Text(filter.title).tag(filter)
                     }
                 }
                 .pickerStyle(.segmented)
-                .sensoryFeedback(.selection, trigger: viewModel.dashboardFilter)
+                .sensoryFeedback(.selection, trigger: viewModel.globalFilter)
 
-                if viewModel.dashboardFilter == .custom {
-                    DatePicker("Från", selection: $viewModel.dashboardCustomStartDate, displayedComponents: [.date])
-                    DatePicker("Till", selection: $viewModel.dashboardCustomEndDate, displayedComponents: [.date])
+                if viewModel.globalFilter == .custom {
+                    DatePicker("Från", selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                    DatePicker("Till", selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
 
                     Button("Återställ") {
-                        viewModel.dashboardFilter = .all
+                        viewModel.globalFilter = .all
                     }
                     .buttonStyle(.bordered)
                 }
 
-                Text("Aktivt filter: \(viewModel.dashboardActiveFilterLabel)")
+                Text("Aktivt filter: \(viewModel.globalActiveFilterLabel)")
                     .font(.inter(.caption))
                     .foregroundStyle(AppColors.textSecondary)
             }
