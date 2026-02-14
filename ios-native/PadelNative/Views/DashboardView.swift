@@ -642,6 +642,8 @@ struct DashboardView: View {
         .padding(.vertical, 10)
         .contentShape(Rectangle())
         .background(player.isMe ? AppColors.brandPrimary.opacity(0.08) : Color.clear)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(index + 1). \(player.name), \(player.elo) ELO. \(player.games) matcher, \(player.wins) vinster, \(player.winRate) procent vinst.")
     }
 
     private func headerCell(title: String, key: String, width: CGFloat, alignment: Alignment = .center, help: String? = nil) -> some View {
