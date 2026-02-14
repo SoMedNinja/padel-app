@@ -194,6 +194,7 @@ struct SingleGameView: View {
                 }
                 .padding()
             }
+            }
             .background(AppColors.background)
             .navigationTitle("Match")
             .navigationBarTitleDisplayMode(.inline)
