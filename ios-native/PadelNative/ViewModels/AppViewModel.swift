@@ -4188,8 +4188,19 @@ final class AppViewModel: ObservableObject {
             return nil
         }
 
-        let normalizedAIds = Array(teamAPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamAPlayerIds.count))
-        let normalizedBIds = Array(teamBPlayerIds.prefix(2)) + Array(repeating: nil, count: max(0, 2 - teamBPlayerIds.count))
+        let normalizeSlot: (String?) -> String? = { rawId in
+            guard let rawId else { return nil }
+            // Note for non-coders:
+            // The database expects real UUIDs in the *_ids columns.
+            // Guest slots use text labels in the UI, so we store those as nil IDs.
+            if rawId == "guest" || rawId.hasPrefix("name:") { return nil }
+            return rawId
+        }
+
+        let normalizedAIds = (Array(teamAPlayerIds.prefix(2)).map(normalizeSlot))
+            + Array(repeating: nil, count: max(0, 2 - teamAPlayerIds.count))
+        let normalizedBIds = (Array(teamBPlayerIds.prefix(2)).map(normalizeSlot))
+            + Array(repeating: nil, count: max(0, 2 - teamBPlayerIds.count))
         let compactA = normalizedAIds.compactMap { $0 }
         let compactB = normalizedBIds.compactMap { $0 }
 

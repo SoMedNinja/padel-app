@@ -257,7 +257,7 @@ export default function EloTrend({ players = [] }) {
               <Line
                 key={name}
                 type="monotone"
-                dataKey={(row) => row[name]}
+                dataKey={name}
                 name={name}
                 stroke={getPlayerColor(name)}
                 strokeWidth={4}

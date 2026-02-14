@@ -687,10 +687,18 @@ struct ProfileView: View {
                 Text("\(point.date, format: .dateTime.day().month().year().hour().minute())")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if let currentId = viewModel.currentPlayer?.id, let elo = point.elos[currentId] {
-                    Text("\(elo) ELO")
-                        .font(.headline)
-                        .foregroundStyle(Color.accentColor)
+                ForEach(Array(playerIds.enumerated()), id: \.element) { index, pid in
+                    let label = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
+                    if let elo = point.elos[pid] {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(colorForSeries(name: label, index: index))
+                                .frame(width: 8, height: 8)
+                            Text("\(label): \(elo) ELO")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(colorForSeries(name: label, index: index))
+                        }
+                    }
                 }
             } else {
                 Text("Dra över grafen för detaljer")
@@ -746,6 +754,24 @@ struct ProfileView: View {
                 }
             }
             .chartXSelection(value: $chartSelectionIndex)
+
+            // Note for non-coders:
+            // This fixed legend mirrors the web app so each player always has a visible color key.
+            HStack(spacing: 10) {
+                ForEach(Array(playerIds.enumerated()), id: \.element) { index, pid in
+                    let label = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(colorForSeries(name: label, index: index))
+                            .frame(width: 8, height: 8)
+                        Text(label)
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(.systemGray6), in: Capsule())
+                }
+            }
         }
     }
 

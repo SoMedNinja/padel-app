@@ -20,6 +20,7 @@ struct BiometricAuthService {
     // This checks if the phone can do Face ID/Touch ID before we ask the user.
     func canUseBiometrics() -> Bool {
         let context = LAContext()
+        context.localizedFallbackTitle = "Använd lösenkod"
         var error: NSError?
         return context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
     }
@@ -27,6 +28,7 @@ struct BiometricAuthService {
     func authenticate(reason: String) async throws {
         let context = LAContext()
         context.localizedCancelTitle = "Inte nu"
+        context.localizedFallbackTitle = "Använd lösenkod"
         var policyError: NSError?
 
         guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &policyError) else {
@@ -34,7 +36,10 @@ struct BiometricAuthService {
         }
 
         do {
-            let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+            // Note for non-coders:
+            // We use "deviceOwnerAuthentication" so iOS can fall back to passcode
+            // if Face ID/Touch ID temporarily fails. This improves reliability.
+            let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
             guard success else {
                 throw BiometricError.failed(reason: "Biometrisk verifiering misslyckades.")
             }
