@@ -65,6 +65,7 @@ struct MatchSuccessCeremonyView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .foregroundStyle(.yellow)
+                            .symbolEffect(.pulse)
                         Text("Topplistan har uppdaterats!")
                             .font(.inter(.caption, weight: .bold))
                     }
@@ -81,15 +82,18 @@ struct MatchSuccessCeremonyView: View {
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: AppColors.shadowColor, radius: 20)
         .onAppear {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(.spring(duration: 0.6)) {
                 step = 0
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                 withAnimation(.spring(duration: 0.6)) {
                     step = 1
                 }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 withAnimation(.easeInOut(duration: 0.5)) {
                     step = 2
                 }
@@ -140,6 +144,7 @@ struct MatchSuccessCeremonyView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(isWinner ? AppColors.success.opacity(0.08) : Color.clear)
+        .scaleEffect(isWinner ? 1.02 : 1.0)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
