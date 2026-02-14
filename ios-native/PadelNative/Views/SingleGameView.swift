@@ -33,7 +33,6 @@ struct SingleGameView: View {
     @State private var teamAScore: Int?
     @State private var teamBScore: Int?
     @State private var showExtraScores = false
-    @State private var playedAt = Date()
     @State private var isSubmitting = false
     @State private var wizardStep: SingleGameWizardStep = .teamSetup
     @State private var generatedRecap: SingleGameRecap?
@@ -100,13 +99,7 @@ struct SingleGameView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         if wizardStep == .teamSetup || wizardStep == .opponentSetup {
-                            SectionCard(title: "Matchtyp") {
-                                Picker("Matchtyp", selection: $isOneVsOne) {
-                                    Text("2 mot 2").tag(false)
-                                    Text("1 mot 1").tag(true)
-                                }
-                                .pickerStyle(.segmented)
-                            }
+                            compactMatchTypePicker
                         }
 
                         switch wizardStep {
@@ -323,9 +316,6 @@ struct SingleGameView: View {
 
             SectionCard(title: "Matchdetaljer") {
                 VStack(alignment: .leading, spacing: 12) {
-                    DatePicker("Datum & tid", selection: $playedAt)
-                        .font(.inter(.subheadline))
-
                     HStack {
                         Button("Föreslå match") {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -346,6 +336,31 @@ struct SingleGameView: View {
                 }
             }
         }
+    }
+
+    private var compactMatchTypePicker: some View {
+        HStack {
+            Text("Spelform")
+                .font(.inter(.caption, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
+
+            Spacer()
+
+            // Note for non-coders:
+            // Using a compact menu keeps this optional choice available,
+            // but gives more screen space to the player selection steps.
+            Picker("Matchtyp", selection: $isOneVsOne) {
+                Text("2 mot 2").tag(false)
+                Text("1 mot 1").tag(true)
+            }
+            .pickerStyle(.menu)
+            .font(.inter(.subheadline, weight: .bold))
+            .tint(AppColors.brandPrimary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(AppColors.textSecondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private var opponentSetupSection: some View {
@@ -752,7 +767,6 @@ struct SingleGameView: View {
         teamBPlayer2Id = nil
         teamAScore = nil
         teamBScore = nil
-        playedAt = Date()
         fairnessLabel = nil
         wizardStep = .teamSetup
         if keepMatchType {
