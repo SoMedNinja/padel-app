@@ -41,6 +41,7 @@ struct SingleGameView: View {
     @State private var fairnessLabel: String?
     @State private var showSuccessState = false
     @State private var matchmakerPool: Set<UUID> = []
+    @State private var previousWizardStepBeforeMatchmaker: SingleGameWizardStep = .teamSetup
 
     @State private var playerSearchText = ""
 
@@ -123,7 +124,15 @@ struct SingleGameView: View {
 
                         if !showSuccessState {
                             HStack(spacing: 16) {
-                                if wizardStep != .teamSetup && wizardStep != .matchmaker {
+                                if wizardStep == .matchmaker {
+                                    Button("Tillbaka till flödet") {
+                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                        wizardStep = previousWizardStepBeforeMatchmaker
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .font(.inter(.subheadline, weight: .bold))
+                                    .disabled(isSubmitting)
+                                } else if wizardStep != .teamSetup {
                                     Button("Tillbaka") {
                                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                         previousStep()
@@ -155,6 +164,14 @@ struct SingleGameView: View {
                                     .buttonStyle(PrimaryButtonStyle())
                                     .disabled(isSubmitting || !isStepValid)
                                 }
+
+                                Button("Återställ") {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    resetFormForNextEntry(keepMatchType: true)
+                                }
+                                .buttonStyle(.bordered)
+                                .font(.inter(.subheadline, weight: .bold))
+                                .disabled(isSubmitting)
                             }
                             .padding(.top, 10)
                         }
@@ -239,7 +256,6 @@ struct SingleGameView: View {
                         guard mostlyHorizontal else { return }
                         guard value.translation.width < -70 else { return }
                         guard wizardStep != .teamSetup else { return }
-                        guard wizardStep != .matchmaker else { return }
                         previousStep()
                     }
             )
@@ -321,6 +337,7 @@ struct SingleGameView: View {
 
                         Button("Matchmaker") {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            previousWizardStepBeforeMatchmaker = wizardStep
                             wizardStep = .matchmaker
                         }
                         .buttonStyle(.bordered)
@@ -647,6 +664,10 @@ struct SingleGameView: View {
     }
 
     private func previousStep() {
+        if wizardStep == .matchmaker {
+            wizardStep = previousWizardStepBeforeMatchmaker
+            return
+        }
         guard let previous = SingleGameWizardStep(rawValue: wizardStep.rawValue - 1) else { return }
         wizardStep = previous
     }
