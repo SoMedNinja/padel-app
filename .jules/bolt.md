@@ -109,3 +109,19 @@
 ## 2026-06-20 - [Array.from Performance in Virtualized Lists]
 **Learning:** `Array.from({ length: N }, ...)` is significantly slower than a manual `for` loop for large $ because of the overhead of creating the array-like object and the internal iterator. In virtualized lists that re-calculate offsets on every frame/scroll, this can lead to jank.
 **Action:** Use `new Array(itemCount)` followed by a `for` loop for generating large data arrays in performance-critical hooks.
+
+## 2026-06-25 - [O(N) Sort Order Validation in Swift]
+**Learning:** Calling `.sorted()` on already sorted arrays in Swift still incurs (N \log N)$ complexity and closure overhead. Using a linear (N)$ check for both ascending and descending order allows skipping the sort or using the much faster `.reversed()` ((N)$ and type-wrapped) for descending inputs.
+**Action:** Implement a dual-direction sort check before performing expensive array sorts on chronological datasets.
+
+## 2026-06-25 - [UUID Parsing Overhead in Hot Loops]
+**Learning:** Repeatedly calling `UUID(uuidString:)` for the same player IDs across thousands of matches adds measurable latency. Caching both successful and failed (nil) results in a local `[String: UUID?]` map significantly improves throughput in batch stats calculations.
+**Action:** Use a local dictionary-based cache for UUID parsing in any loop processing large datasets of string-based identifiers.
+
+## 2026-06-25 - [SwiftUI Property Memoization in AppViewModel]
+**Learning:** Computed properties on `@ObservedObject` that perform (N)$ or (P)$ work (like filtering, mapping, or sorting) can lead to UI jank as they are re-evaluated on every view refresh.
+**Action:** Convert expensive computed properties into `@Published` stored properties that are updated only when the source data (`matches`, `players`) actually changes.
+
+## 2026-06-25 - [Active Player Filtering in Rolling Windows]
+**Learning:** Iterating over all players in every step of a rolling 30-day window ((D \times P)$) is wasteful when most players are inactive in that period.
+**Action:** Maintain a set of "active" player IDs within the window and only iterate over those IDs for daily winner calculations.
