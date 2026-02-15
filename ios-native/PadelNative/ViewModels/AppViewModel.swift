@@ -428,10 +428,11 @@ final class AppViewModel: ObservableObject {
     private(set) var currentIdentity: AuthIdentity?
 
     private let authService = AuthService()
-    private let apiClient = SupabaseRESTClient()
+    private let apiClient: SupabaseRESTClient
+    private let tournamentDataLoader: TournamentDataLoading
     private lazy var bootstrapService = AppBootstrapService(apiClient: apiClient)
-    private let appVersionService = AppVersionService()
-    private let notificationService = NotificationService()
+    private let appVersionService: AppVersionService
+    private let notificationService: NotificationServicing
     private let biometricAuthService = BiometricAuthService()
     private var liveSyncTask: Task<Void, Never>?
     private var liveSyncDebounceTask: Task<Void, Never>?
@@ -467,7 +468,7 @@ final class AppViewModel: ObservableObject {
         return formatter
     }()
 
-    private let dismissalStore = UserDefaults.standard
+    private let dismissalStore: UserDefaults
     private let dismissedHighlightIdKey = "dashboard.dismissedHighlightMatchId"
     private let dismissedHighlightDateKeyStore = "dashboard.dismissedHighlightDate"
     private let dismissedRecentMatchIdKey = "dashboard.dismissedRecentMatchId"
@@ -476,7 +477,18 @@ final class AppViewModel: ObservableObject {
     private let scheduleNotificationsEnabledKey = "settings.scheduleNotificationsEnabled"
     private let biometricLockEnabledKey = "settings.biometricLockEnabled"
 
-    init() {
+    init(
+        apiClient: SupabaseRESTClient = SupabaseRESTClient(),
+        tournamentDataLoader: TournamentDataLoading? = nil,
+        appVersionService: AppVersionService = AppVersionService(),
+        notificationService: NotificationServicing = NotificationService(),
+        dismissalStore: UserDefaults = .standard
+    ) {
+        self.apiClient = apiClient
+        self.tournamentDataLoader = tournamentDataLoader ?? SupabaseTournamentDataLoader(apiClient: apiClient)
+        self.appVersionService = appVersionService
+        self.notificationService = notificationService
+        self.dismissalStore = dismissalStore
         dismissedHighlightMatchId = Self.uuidValue(from: dismissalStore, key: dismissedHighlightIdKey)
         dismissedHighlightDateKey = dismissalStore.string(forKey: dismissedHighlightDateKeyStore)
         dismissedRecentMatchId = Self.uuidValue(from: dismissalStore, key: dismissedRecentMatchIdKey)
@@ -787,6 +799,21 @@ final class AppViewModel: ObservableObject {
         // Exiting guest mode returns the app to the normal login flow.
         isGuestMode = false
     }
+
+
+#if DEBUG
+    // Note for non-coders:
+    // This helper is only compiled in debug/test builds so automated tests can
+    // set a fake signed-in identity without calling real auth services.
+    func injectIdentityForTests(_ identity: AuthIdentity?) {
+        currentIdentity = identity
+        signedInEmail = identity?.email
+        isAuthenticated = identity != nil
+        if identity == nil {
+            isGuestMode = false
+        }
+    }
+#endif
 
     private func applySignedInState(identity: AuthIdentity) {
         isAuthenticated = true
@@ -3111,6 +3138,23 @@ final class AppViewModel: ObservableObject {
     }
 
 
+    // Note for non-coders:
+    // We convert technical transport errors into a shorter, friendlier message
+    // so users know whether to retry immediately or check their internet.
+    func mapNetworkError(_ error: Error) -> String {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet:
+                return "No internet connection. Please reconnect and retry."
+            case .timedOut:
+                return "Server took too long to respond. Please retry."
+            default:
+                return "Network error (\(urlError.code.rawValue)). Please retry."
+            }
+        }
+        return error.localizedDescription
+    }
+
 
     func loadTournamentData(silently: Bool = false) async {
         if !silently {
@@ -3123,7 +3167,7 @@ final class AppViewModel: ObservableObject {
         }
 
         do {
-            let allTournaments = try await apiClient.fetchTournaments()
+            let allTournaments = try await tournamentDataLoader.fetchTournaments()
             tournaments = allTournaments
 
             if selectedTournamentId == nil {
@@ -3139,9 +3183,9 @@ final class AppViewModel: ObservableObject {
             activeTournament = tournament
 
             if let tournament {
-                async let roundsTask = apiClient.fetchTournamentRounds(tournamentId: tournament.id)
-                async let standingsTask = apiClient.fetchTournamentStandings(tournamentId: tournament.id)
-                async let participantsTask = apiClient.fetchTournamentParticipants(tournamentId: tournament.id)
+                async let roundsTask = tournamentDataLoader.fetchTournamentRounds(tournamentId: tournament.id)
+                async let standingsTask = tournamentDataLoader.fetchTournamentStandings(tournamentId: tournament.id)
+                async let participantsTask = tournamentDataLoader.fetchTournamentParticipants(tournamentId: tournament.id)
                 let rounds = try await roundsTask
                 let standingRows = try await standingsTask
                 tournamentParticipants = try await participantsTask
@@ -3153,7 +3197,7 @@ final class AppViewModel: ObservableObject {
                 tournamentStandings = []
             }
 
-            tournamentHistoryResults = try await apiClient.fetchCompletedTournamentResults()
+            tournamentHistoryResults = try await tournamentDataLoader.fetchCompletedTournamentResults()
             tournamentStatusMessage = nil
             tournamentActionErrorMessage = nil
             updateLiveActivity()
@@ -3161,7 +3205,7 @@ final class AppViewModel: ObservableObject {
             // Note for non-coders:
             // If the network call fails, we keep any on-screen tournament data intact
             // and show a message so users know they can try a manual refresh.
-            tournamentStatusMessage = "Could not load tournament data: \(error.localizedDescription)"
+            tournamentStatusMessage = "Could not load tournament data: \(mapNetworkError(error))"
         }
     }
 

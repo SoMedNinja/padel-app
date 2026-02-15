@@ -34,6 +34,14 @@ struct PadelNativeApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = true
 
+    private var isUITestMode: Bool {
+        ProcessInfo.processInfo.arguments.contains("UI_TEST_MODE")
+    }
+
+    private var uiTestScenario: String? {
+        ProcessInfo.processInfo.environment["UI_TEST_SCENARIO"]
+    }
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -100,19 +108,36 @@ struct PadelNativeApp: App {
             }
             .environmentObject(appViewModel)
             .task {
-                // Minimum splash duration to ensure animation finishes
-                try? await Task.sleep(nanoseconds: 2_800_000_000)
+                if !isUITestMode {
+                    // Minimum splash duration to ensure animation finishes
+                    try? await Task.sleep(nanoseconds: 2_800_000_000)
+                }
                 withAnimation(.easeInOut(duration: 0.5)) {
                     showSplash = false
                 }
             }
             .task {
+                if isUITestMode {
+                    appViewModel.isCheckingSession = false
+                    appViewModel.continueAsGuest()
+                    if uiTestScenario == "session-recovery-failed" {
+                        appViewModel.isGuestMode = false
+                        appViewModel.hasRecoveryFailed = true
+                        appViewModel.sessionRecoveryError = "Injected UI test recovery failure"
+                    }
+                    if let rawDeepLink = ProcessInfo.processInfo.environment["UI_TEST_DEEP_LINK"], let url = URL(string: rawDeepLink) {
+                        appViewModel.handleIncomingURL(url)
+                    }
+                    return
+                }
                 await appViewModel.restoreSession()
             }
             .task {
+                guard !isUITestMode else { return }
                 await appViewModel.prepareNativeCapabilities()
             }
             .task(id: appViewModel.isAuthenticated || appViewModel.isGuestMode) {
+                guard !isUITestMode else { return }
                 if appViewModel.isAuthenticated || appViewModel.isGuestMode {
                     await appViewModel.bootstrap()
                 }
