@@ -64,7 +64,7 @@ export const editableEducationTopics: EditableEducationTopic[] = [
         question: "Vad är kärnan i Mexicana?",
         answers: [
           { text: "Ett långt slutspel", isCorrect: false },
-          { text: "Frekvent rotation av spelare", isCorrect: true },
+          { text: "Frekvent rotation av spelare, med mål att ha jämna matcher", isCorrect: true },
           { text: "Spel utan poäng", isCorrect: false },
         ],
       },
@@ -110,7 +110,7 @@ export const editableEducationTopics: EditableEducationTopic[] = [
         question: "Vad avgör oftast placeringen i Americano?",
         answers: [
           { text: "Högsta smashhastighet", isCorrect: false },
-          { text: "Totala poäng", isCorrect: true },
+          { text: "Totala poäng, med mål att rotera spelare", isCorrect: true },
           { text: "Första matchens resultat", isCorrect: false },
         ],
       },
@@ -248,8 +248,8 @@ export const editableEducationTopics: EditableEducationTopic[] = [
         question: "Vad gäller på egen sida när du slår bollen?",
         answers: [
           { text: "Bollen måste gå direkt över nät utan väggträff", isCorrect: false },
-          { text: "Bollen får ta egen vägg (glas/galler) efter studs i golvet", isCorrect: true },
-          { text: "Bollen får ta egen vägg även utan studs i golvet", isCorrect: false },
+          { text: "Bollen får ta eget glas", isCorrect: true },
+          { text: "Bollen får ta eget galler", isCorrect: false },
         ],
       },
     ],
