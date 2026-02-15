@@ -9,6 +9,8 @@ import { makeNameToIdMap } from "../utils/profileMap";
 import { profileService } from "../services/profileService";
 import { educationTopics } from "../content/educationTopics";
 import { readCompletedQuizMap } from "../utils/educationQuiz";
+import { padelPuzzles } from "../content/padelPuzzles";
+import { readFirstPerfectPuzzlePlayer, readPuzzleAnswerMap } from "../utils/padelPuzzle";
 import {
   Box,
   Typography,
@@ -76,6 +78,85 @@ const buildEducationBadges = (userId: string | null | undefined): Badge[] => {
   });
 };
 
+const buildPuzzleBadges = (
+  userId: string | null | undefined,
+  profiles: Array<{ id: string; name: string }>,
+): { earned: Badge[]; locked: Badge[]; otherUnique: Badge[] } => {
+  if (!userId) return { earned: [], locked: [], otherUnique: [] };
+
+  const answersByQuestionId = readPuzzleAnswerMap(userId);
+  const totalCorrect = Object.values(answersByQuestionId).filter((record) => record.isCorrect).length;
+  const totalPuzzleCount = padelPuzzles.length;
+  const firstPerfect = readFirstPerfectPuzzlePlayer();
+  const firstPerfectOwner = firstPerfect
+    ? profiles.find((profile) => String(profile.id) === String(firstPerfect.userId))
+    : null;
+
+  const thresholdBadges: Badge[] = [
+    {
+      id: "padel-quiz-correct-10",
+      icon: "🎯",
+      tier: "I",
+      title: "Quizsäker 10",
+      description: "Få 10 korrekta svar i Padel Quiz.",
+      earned: totalCorrect >= 10,
+      group: "Padel Quiz",
+      groupOrder: 28,
+      progress: { current: Math.min(totalCorrect, 10), target: 10 },
+    },
+    {
+      id: "padel-quiz-correct-15",
+      icon: "🧠",
+      tier: "II",
+      title: "Quizmästare 15",
+      description: "Få 15 korrekta svar i Padel Quiz.",
+      earned: totalCorrect >= 15,
+      group: "Padel Quiz",
+      groupOrder: 28,
+      progress: { current: Math.min(totalCorrect, 15), target: 15 },
+    },
+  ];
+
+  // Note for non-coders: this unique merit has one owner at a time in this app data,
+  // and represents who first reached all puzzle scenarios with correct answers.
+  const uniqueFirstPerfectBadge: Badge = {
+    id: "padel-quiz-first-perfect",
+    icon: "🥇",
+    tier: "Unique",
+    title: "Först till alla rätt",
+    description: "Personen som nådde alla Quiz-scenarion rätt först.",
+    earned: Boolean(firstPerfect?.userId && String(firstPerfect.userId) === String(userId)),
+    group: "Padel Quiz",
+    groupOrder: 28,
+    progress: null,
+    holderId:
+      firstPerfect?.userId && String(firstPerfect.userId) !== String(userId)
+        ? firstPerfect.userId
+        : undefined,
+    holderValue:
+      firstPerfect?.userId && String(firstPerfect.userId) !== String(userId)
+        ? firstPerfectOwner?.name ?? "Annan spelare"
+        : undefined,
+    meta: firstPerfect
+      ? `Satt ${new Date(firstPerfect.achievedAt).toLocaleDateString("sv-SE")}`
+      : `Ingen ägare ännu — första spelaren som når ${totalPuzzleCount} rätt tar meriten.`,
+  };
+
+  const earned = [...thresholdBadges.filter((badge) => badge.earned)];
+  const locked = [...thresholdBadges.filter((badge) => !badge.earned)];
+  const otherUnique: Badge[] = [];
+
+  if (uniqueFirstPerfectBadge.earned) {
+    earned.push(uniqueFirstPerfectBadge);
+  } else if (uniqueFirstPerfectBadge.holderId) {
+    otherUnique.push(uniqueFirstPerfectBadge);
+  } else {
+    locked.push(uniqueFirstPerfectBadge);
+  }
+
+  return { earned, locked, otherUnique };
+};
+
 export default function MeritsSection({
   user,
   profiles = [],
@@ -133,17 +214,27 @@ export default function MeritsSection({
     [user?.id]
   );
 
+  const puzzleBadges = useMemo(
+    () => buildPuzzleBadges(user?.id, profiles),
+    [user?.id, profiles]
+  );
+
   const mergedEarnedBadges = useMemo(
-    () => [...badgeSummary.earnedBadges, ...educationBadges.filter((badge) => badge.earned)],
-    [badgeSummary.earnedBadges, educationBadges]
+    () => [...badgeSummary.earnedBadges, ...educationBadges.filter((badge) => badge.earned), ...puzzleBadges.earned],
+    [badgeSummary.earnedBadges, educationBadges, puzzleBadges.earned]
+  );
+
+  const mergedOtherUniqueBadges = useMemo(
+    () => [...badgeSummary.otherUniqueBadges, ...puzzleBadges.otherUnique],
+    [badgeSummary.otherUniqueBadges, puzzleBadges.otherUnique]
   );
 
   const mergedLockedBadges = useMemo(
-    () => [...badgeSummary.lockedBadges, ...educationBadges.filter((badge) => !badge.earned)],
-    [badgeSummary.lockedBadges, educationBadges]
+    () => [...badgeSummary.lockedBadges, ...educationBadges.filter((badge) => !badge.earned), ...puzzleBadges.locked],
+    [badgeSummary.lockedBadges, educationBadges, puzzleBadges.locked]
   );
 
-  const mergedTotalBadges = badgeSummary.totalBadges + educationBadges.length;
+  const mergedTotalBadges = badgeSummary.totalBadges + educationBadges.length + puzzleBadges.earned.length + puzzleBadges.locked.length + puzzleBadges.otherUnique.length;
   const mergedTotalEarned = mergedEarnedBadges.length;
 
   const earnedBadgeGroups = useMemo(
@@ -236,7 +327,7 @@ export default function MeritsSection({
           )}
         </Box>
 
-        {badgeSummary.otherUniqueBadges?.length > 0 && (
+        {mergedOtherUniqueBadges?.length > 0 && (
           <Box sx={{ mb: 6 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Unika meriter som kan byta ägare</Typography>
@@ -250,7 +341,7 @@ export default function MeritsSection({
 
             {isOtherExpanded && (
               <Grid container spacing={1.5}>
-                {badgeSummary.otherUniqueBadges.map((badge: any) => {
+                {mergedOtherUniqueBadges.map((badge: any) => {
                   const holder = profiles.find((p: any) => String(p.id) === String(badge.holderId));
                   return (
                     <Grid key={badge.id} size={{ xs: 6, sm: 4, md: 4 }}>
