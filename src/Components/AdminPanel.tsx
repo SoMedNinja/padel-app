@@ -229,7 +229,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
         />
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Card variant="outlined" sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+          <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
                 <PeopleIcon />
@@ -242,7 +242,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
           </Card>
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Card variant="outlined" sx={{ bgcolor: stats.pending > 0 ? 'warning.light' : 'success.light', color: stats.pending > 0 ? 'warning.contrastText' : 'success.contrastText' }}>
+          <Card sx={{ bgcolor: stats.pending > 0 ? 'warning.light' : 'success.light', color: stats.pending > 0 ? 'warning.contrastText' : 'success.contrastText' }}>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
                 {stats.pending > 0 ? <PendingIcon /> : <ApproveIcon />}
@@ -255,7 +255,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
           </Card>
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <Card variant="outlined">
+          <Card>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'primary.main', color: '#fff' }}>
                 <AdminIcon />
@@ -269,7 +269,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
         </Grid>
       </Grid>
 
-      <Card variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden' }}>
+      <Card sx={{ overflow: 'hidden' }}>
         <TableContainer sx={{ overflow: 'auto' }}>
           <Table sx={{ minWidth: 800 }}>
             <TableHead sx={{ bgcolor: 'grey.50' }}>

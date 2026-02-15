@@ -298,7 +298,7 @@ export default function Heatmap({
   };
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+    <Card sx={{ overflow: 'hidden' }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Lagkombinationer</Typography>

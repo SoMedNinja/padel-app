@@ -81,7 +81,7 @@ export default function ActiveRound({
 
   if (!activeTournament || activeTournament.status !== "in_progress") {
     return (
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <Card>
         <CardContent>
           <Typography variant="body2" color="text.secondary">
             Välj en turnering och starta den för att registrera ronder.
@@ -94,7 +94,7 @@ export default function ActiveRound({
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12, md: 6 }}>
-        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+        <Card>
           <CardContent>
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
               Spela ronder
@@ -429,7 +429,7 @@ export default function ActiveRound({
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
-        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+        <Card>
           <CardContent>
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
               Poängställning

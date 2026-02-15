@@ -73,7 +73,7 @@ export default function MVP({
 
   if (!mvp) {
     return (
-      <Card variant="outlined" sx={{ textAlign: 'center', borderRadius: 3, bgcolor: 'background.paper' }}>
+      <Card sx={{ textAlign: 'center' }}>
         <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
             {titleEmoji} {title}
@@ -98,7 +98,7 @@ export default function MVP({
   const winPct = Math.round(mvp.winRate * 100);
 
   return (
-    <Card variant="outlined" sx={{ textAlign: 'center', borderRadius: 3, bgcolor: 'background.paper', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+    <Card sx={{ textAlign: 'center' }}>
       <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
           {titleEmoji} {title}

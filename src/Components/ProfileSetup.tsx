@@ -168,7 +168,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <Card>
         <CardContent sx={{ p: 4 }}>
           <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 2 }}>
             {steps.map((label) => (

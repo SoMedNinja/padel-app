@@ -65,7 +65,7 @@ export default function TournamentConfig({
   // which prevents confusion when someone hasn't logged in yet.
 
   const rosterCard = activeTournament && activeTournament.status === "draft" && (
-    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+    <Card>
       <CardContent>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
           Deltagare ({participants.length})
@@ -170,7 +170,7 @@ export default function TournamentConfig({
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12, md: activeTournament?.status === "draft" ? 6 : 12 }}>
-        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+        <Card>
           <CardContent>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>

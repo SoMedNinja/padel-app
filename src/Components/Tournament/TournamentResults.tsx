@@ -45,7 +45,7 @@ export default function TournamentResults({
 }: TournamentResultsProps) {
   if (!activeTournament || activeTournament.status !== "completed") {
     return (
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <Card>
         <CardContent>
           <Typography variant="body2" color="text.secondary">
             Slutför en turnering för att se resultat här.
@@ -56,7 +56,7 @@ export default function TournamentResults({
   }
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3 }}>
+    <Card>
       <CardContent>
         <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
           Resultat
