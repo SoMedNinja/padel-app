@@ -29,11 +29,12 @@ struct PendingWriteSyncBanner: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                 VStack(alignment: .leading, spacing: 3) {
+                    let fallbackErrorMessage = "Kontrollera internet och försök igen."
                     Text(hasConflict ? "Konflikt kräver åtgärd" : "Synkningen behöver hjälp")
                         .font(.footnote.weight(.semibold))
                     // Note for non-coders:
                     // Failed means your data is still saved locally, but auto-sync paused after repeated failures or a conflict.
-                    Text("\(snapshot.failedCount) ändring(ar) väntar på manuell hantering. \(snapshot.lastError ?? \"Kontrollera internet och försök igen.\")")
+                    Text("\(snapshot.failedCount) ändring(ar) väntar på manuell hantering. \(snapshot.lastError ?? fallbackErrorMessage)")
                         .font(.caption)
                 }
                 Spacer(minLength: 0)
