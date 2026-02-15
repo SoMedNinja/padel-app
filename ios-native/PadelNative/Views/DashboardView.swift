@@ -33,6 +33,10 @@ struct DashboardView: View {
     @State private var pullProgress: CGFloat = 0
     @State private var heatmapSortKey: String = "games"
     @State private var heatmapSortAscending: Bool = false
+    @State private var lastErrorNoticeMessage: String?
+    @State private var lastTournamentNoticeId: UUID?
+    @State private var lastScheduledNoticeId: UUID?
+    @State private var lastRecentNoticeId: UUID?
 
     var body: some View {
         NavigationStack {
@@ -90,6 +94,26 @@ struct DashboardView: View {
             .padelLiquidGlassChrome()
             .task {
                 viewModel.syncHighlightDismissalWindow()
+            }
+            .onChange(of: viewModel.lastErrorMessage) { _, error in
+                guard let error, error != lastErrorNoticeMessage else { return }
+                lastErrorNoticeMessage = error
+                FeedbackService.shared.notify(.warning)
+            }
+            .onChange(of: viewModel.activeTournamentNotice?.id) { _, id in
+                guard let id, id != lastTournamentNoticeId else { return }
+                lastTournamentNoticeId = id
+                FeedbackService.shared.impact(.success)
+            }
+            .onChange(of: viewModel.nextScheduledGameNotice?.id) { _, id in
+                guard let id, id != lastScheduledNoticeId else { return }
+                lastScheduledNoticeId = id
+                FeedbackService.shared.notify(.warning)
+            }
+            .onChange(of: viewModel.latestRecentMatch?.id) { _, id in
+                guard let id, id != lastRecentNoticeId else { return }
+                lastRecentNoticeId = id
+                FeedbackService.shared.notify(.success)
             }
         }
     }
@@ -184,7 +208,7 @@ struct DashboardView: View {
     private var dashboardNoticeSections: some View {
         VStack(spacing: 12) {
             if let error = viewModel.lastErrorMessage {
-                AppAlert(severity: .warning) {
+                AppAlert(severity: .warning, isAnimated: true) {
                     Text("Varning vid datahämtning")
                         .font(.inter(.headline, weight: .bold))
                     Text(error)
@@ -202,8 +226,10 @@ struct DashboardView: View {
                     Text("\(notice.name) är live nu.")
                         .font(.inter(.subheadline))
                         .foregroundStyle(AppColors.textSecondary)
-                    Button("Visa turnering") {
+                    Button {
                         viewModel.openTournamentTab()
+                    } label: {
+                        Label("Visa turnering", systemImage: "trophy.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -212,7 +238,7 @@ struct DashboardView: View {
             }
 
             if let upcoming = viewModel.nextScheduledGameNotice {
-                AppAlert(severity: .info, icon: "timer", onClose: {
+                AppAlert(severity: .info, icon: "timer", isAnimated: true, onClose: {
                     viewModel.dismissScheduledGameNotice()
                 }) {
                     Text("Uppkommande bokning")
@@ -222,8 +248,10 @@ struct DashboardView: View {
                     Text(dateFormatter.string(from: upcoming.startsAt))
                         .font(.inter(.caption))
                         .foregroundStyle(AppColors.textSecondary)
-                    Button("Se schema") {
+                    Button {
                         viewModel.openScheduleTab()
+                    } label: {
+                        Label("Se schema", systemImage: "calendar")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -232,7 +260,7 @@ struct DashboardView: View {
             }
 
             if let recent = viewModel.latestRecentMatch {
-                AppAlert(severity: .success, icon: "timer", onClose: {
+                AppAlert(severity: .success, icon: "timer", isAnimated: true, onClose: {
                     viewModel.dismissRecentMatchNotice()
                 }) {
                     Text("Nytt resultat!")
@@ -242,8 +270,10 @@ struct DashboardView: View {
                     Text("Resultat: \(recent.teamAScore)–\(recent.teamBScore)")
                         .font(.inter(.subheadline, weight: .semibold))
 
-                    Button("Se alla") {
+                    Button {
                         viewModel.openHistoryTab()
+                    } label: {
+                        Label("Se alla", systemImage: "clock.arrow.circlepath")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)

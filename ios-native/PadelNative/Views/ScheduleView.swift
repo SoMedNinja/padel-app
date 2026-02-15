@@ -17,6 +17,7 @@ struct ScheduleView: View {
     @State private var localCalendarStatus: String?
     @State private var showCalendarInviteForm = false
     @State private var pullProgress: CGFloat = 0
+    @State private var inviteSendAnimationTick = 0
 
     private let calendarService = CalendarService()
 
@@ -503,7 +504,7 @@ struct ScheduleView: View {
                             }
                         }
 
-                        Button(viewModel.isScheduleActionRunning ? "Skickar…" : "Skicka kalenderinbjudan") {
+                        Button {
                             Task {
                                 localCalendarStatus = nil
                                 await viewModel.sendCalendarInvite(
@@ -517,6 +518,20 @@ struct ScheduleView: View {
                                     title: inviteTitle.isEmpty ? nil : inviteTitle
                                 )
 
+                                if viewModel.scheduleErrorMessage == nil {
+                                    // Note for non-coders:
+                                    // Feedback only fires after the invite is actually sent (completed action).
+                                    // This avoids noisy vibration on every tap.
+                                    if inviteAction == "cancel" {
+                                        FeedbackService.shared.notify(.destructive)
+                                    } else {
+                                        FeedbackService.shared.notify(.success)
+                                    }
+                                    inviteSendAnimationTick += 1
+                                } else {
+                                    FeedbackService.shared.notify(.warning)
+                                }
+
                                 guard addToLocalCalendar, inviteAction != "cancel" else { return }
                                 do {
                                     try await calendarService.upsertLocalEvent(
@@ -527,10 +542,15 @@ struct ScheduleView: View {
                                         location: inviteLocation.isEmpty ? nil : inviteLocation
                                     )
                                     localCalendarStatus = "Lokal kalenderpost skapad."
+                                    FeedbackService.shared.impact(.success)
                                 } catch {
                                     localCalendarStatus = "Kunde inte spara: \(error.localizedDescription)"
+                                    FeedbackService.shared.notify(.warning)
                                 }
                             }
+                        } label: {
+                            Label(viewModel.isScheduleActionRunning ? "Skickar…" : "Skicka kalenderinbjudan", systemImage: "paperplane.circle.fill")
+                                .symbolEffect(.bounce, value: inviteSendAnimationTick)
                         }
                         .buttonStyle(PrimaryButtonStyle())
                         .disabled(selectedInvitees.isEmpty || inviteEndTimeValue <= inviteStartTimeValue)
