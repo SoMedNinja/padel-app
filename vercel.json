@@ -43,6 +43,18 @@
   ],
   "rewrites": [
     {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/grabbarnas-serie",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/history",
+      "destination": "/index.html"
+    },
+    {
       "source": "/schema",
       "destination": "/index.html"
     },
@@ -51,11 +63,27 @@
       "destination": "/index.html"
     },
     {
+      "source": "/tournament",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/mexicana",
+      "destination": "/index.html"
+    },
+    {
       "source": "/single-game",
       "destination": "/index.html"
     },
     {
       "source": "/match/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/offline",
       "destination": "/index.html"
     },
     {
