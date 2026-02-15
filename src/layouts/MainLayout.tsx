@@ -147,7 +147,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
         pb: { xs: 8, sm: 0 },
       }}
     >
-      <Container maxWidth="lg" sx={{ pt: 1, display: "flex", justifyContent: "flex-end", gap: 1 }}>
+      {/* Note for non-coders: desktop keeps this normal top row, but on phones we use a floating button to avoid reserving extra vertical space. */}
+      <Container
+        maxWidth="lg"
+        sx={{
+          pt: 1,
+          display: { xs: "none", sm: "flex" },
+          justifyContent: "flex-end",
+          gap: 1,
+        }}
+      >
         <IconButton
           edge="end"
           color="primary"
@@ -167,6 +176,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </IconButton>
       </Container>
 
+      <IconButton
+        color="primary"
+        aria-label="fler alternativ"
+        onClick={handleOverflowOpen}
+        sx={{
+          display: { xs: "inline-flex", sm: "none" },
+          position: "fixed",
+          right: 12,
+          top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+          zIndex: 1201,
+        }}
+      >
+        <MoreVertIcon />
+      </IconButton>
+
       <SideMenu
         isMenuOpen={isMenuOpen}
         closeMenu={closeMenu}
@@ -176,34 +200,22 @@ export default function MainLayout({ children }: MainLayoutProps) {
         onOpenPermissionGuide={() => requestOpenPermissionGuide("menu")}
       />
 
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
+      <Container
+        maxWidth="lg"
+        sx={{
+          mt: { xs: 0.5, sm: 2 },
+          // Note for non-coders: only visible banners become real DOM elements,
+          // so this selector adds spacing only between banners that actually show.
+          '& > * + *': { mt: 2 },
+        }}
+      >
         <SupabaseConfigBanner />
-      </Container>
-
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
         {/* Note for non-coders: this banner distinguishes "must update now" from "good to update soon" using server policy rules. */}
         <AppVersionPolicyBanner />
-      </Container>
-
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
         {/* Note for non-coders: this card helps people install the web app like a normal phone app. */}
         <InstallPrompt />
-      </Container>
-
-      {isStandaloneApp && (
-        <PostInstallChecklist
-          isStandalone={isStandaloneApp}
-          // Note for non-coders: guests can browse, but this step only completes when a real account session exists.
-          isSignedIn={Boolean(user) && !hasGuestAccess}
-        />
-      )}
-
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
         <MatchSyncStatusBanner />
-      </Container>
-
-      {hasGuestAccess && (
-        <Container maxWidth="lg" sx={{ mt: 2 }}>
+        {hasGuestAccess && (
           <Alert
             severity="warning"
             action={(
@@ -216,7 +228,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
             {/* Note for non-coders: this button exits guest mode so the login screen can open. */}
             Utforska statistik, men inga ändringar sparas.
           </Alert>
-        </Container>
+        )}
+      </Container>
+
+      {isStandaloneApp && (
+        <PostInstallChecklist
+          isStandalone={isStandaloneApp}
+          // Note for non-coders: guests can browse, but this step only completes when a real account session exists.
+          isSignedIn={Boolean(user) && !hasGuestAccess}
+        />
       )}
 
       <Box component="main" sx={{ flexGrow: 1 }}>
