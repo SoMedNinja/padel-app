@@ -1,49 +1,39 @@
 # Shared capability matrix (Web + iOS)
 
-This document is the canonical matrix for permission semantics.
+This project now uses one canonical machine-readable file: `docs/permissions-capability-matrix.json`.
 
-- Shape: `capability -> state -> { explanation, action_label }`
-- States: `allowed`, `blocked`, `limited`, `action_needed`
+- It defines **capability + state + explanation + action label**.
+- It also keeps localization explicit for **Swedish (`sv`)** and **English (`en`)**.
+- Generated outputs:
+  - `src/shared/permissionCapabilityMatrix.ts` (web defaults to Swedish)
+  - `ios-native/PadelNative/Models/SharedPermissionsState.swift` (iOS defaults to English)
 
-## Matrix
+## Localization strategy (explicit)
 
-| Capability | State | User-facing explanation | Action label |
-|---|---|---|---|
-| notifications | allowed | Allowed: reminders and admin updates can be delivered. | Retry check |
-| notifications | blocked | Blocked: notifications are off for this app. Open system/browser settings and allow notifications. | Open Settings |
-| notifications | limited | Limited: only partial notification surfaces are available on this device/browser. | Open Settings |
-| notifications | action_needed | Action needed: grant notification permission to receive reminders. | Request |
-| background_refresh | allowed | Allowed: background delivery/refresh is available. | Retry check |
-| background_refresh | blocked | Blocked: background activity is disabled in system settings. | Open Settings |
-| background_refresh | limited | Limited: background behavior depends on browser or OS constraints. | Open Settings |
-| background_refresh | action_needed | Action needed: enable background activity support, then retry. | Open Settings |
-| biometric_passkey | allowed | Allowed: biometric/passkey features are ready to use. | Retry check |
-| biometric_passkey | blocked | Blocked: biometric/passkey usage is disabled in system settings. | Open Settings |
-| biometric_passkey | limited | Limited: this device/browser does not fully support biometric or passkey features. | Open Settings |
-| biometric_passkey | action_needed | Action needed: enable biometric/passkey and confirm setup. | Request |
-| calendar | allowed | Allowed: calendar access is available for saving matches. | Retry check |
-| calendar | blocked | Blocked: calendar permission is denied. Open settings and allow calendar access. | Open Settings |
-| calendar | limited | Limited: web cannot directly toggle OS calendar permission. | Open calendar settings |
-| calendar | action_needed | Action needed: grant calendar access to save matches automatically. | Request |
+- The source JSON has `supported_locales` and `default_locale_by_client`.
+- Current defaults:
+  - Web: `sv`
+  - iOS: `en`
+- Every capability/state pair must include both `sv` and `en` for:
+  - `explanation`
+  - `action_label`
 
-## Cross-platform parity note
+## Translator workflow
 
-Use this exact sentence on both clients:
+> Note for non-coders: translators only need to touch one JSON file; scripts update app code automatically.
 
-> Platform differences: web can request Notifications, but background behavior depends on service workers/browser policies and calendar permission cannot be toggled directly; iOS can request Notifications and Calendar, while Background App Refresh and biometric availability depend on iOS Settings/device support.
+1. Open `docs/permissions-capability-matrix.json`.
+2. Update text under both `sv` and `en` where needed.
+3. Run generator:
+   - `npm run permissions:generate`
+4. Run sync check:
+   - `npm run permissions:check`
+5. Commit the source JSON and generated files together.
+
+## CI parity check
+
+CI runs `npm run permissions:check` and fails if generated files are out of sync with the JSON source.
 
 ## Non-coder note
 
-The matrix keeps wording stable so users get the same explanation and next-step action on web and iOS, even when the underlying OS APIs are different.
-
-
-## Shared troubleshooting by state
-
-Use this section when a capability shows one of the four shared states. The goal is to give exact next steps with platform-specific wording while preserving the same state terminology.
-
-| State | iOS exact user action | Web exact user action |
-|---|---|---|
-| `allowed` | Tap **Retry check** to refresh status and confirm nothing regressed in iOS Settings. | Tap **Retry check** to re-run permission checks and verify push/service-worker readiness. |
-| `blocked` | Tap **Open Settings** and enable the blocked permission in iOS Settings for PadelNative, then return and retry. | Tap **Open Settings** and allow the blocked permission in browser/site settings for this app, then refresh or retry. |
-| `limited` | Tap **Open Settings** and review device restrictions/support limits (for example Background App Refresh restrictions or unavailable biometrics). | Tap **Open Settings** and review browser/site constraints (for example HTTPS/PWA/service-worker limitations); if calendar is limited, use **Open calendar settings**. |
-| `action_needed` | Tap **Request** when available (Notifications/Calendar/Biometric setup) to prompt iOS permission flow, or follow **Open Settings** when the capability requires settings-level enablement. | Tap **Request** when browser permission can be prompted (Notifications); otherwise follow the shown action to finish setup (for example service-worker/background setup). |
+This setup avoids copy/paste drift across platforms: we edit one source file and generate both app outputs from it.
