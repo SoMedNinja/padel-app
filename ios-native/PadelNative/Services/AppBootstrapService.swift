@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 struct AppBootstrapSnapshot {
     let players: [Player]
@@ -112,6 +115,36 @@ struct AppBootstrapService {
                 return .failure(error)
             }
             return .failure(error)
+        }
+    }
+
+    // Note for non-coders:
+    // Background refresh keeps key schedule screens current even when the app isn't open.
+    // We limit this to schedule + polls because those directly affect reminders and widgets.
+    @discardableResult
+    func performBackgroundMaintenance(notificationService: NotificationServicing = NotificationService()) async -> Bool {
+        do {
+            async let scheduleTask = apiClient.fetchSchedule()
+            async let pollsTask = apiClient.fetchAvailabilityPolls()
+
+            let latestSchedule = try await scheduleTask
+            _ = try await pollsTask
+
+            // Note for non-coders:
+            // Rebuilding reminders from fresh schedule data prevents stale local notifications.
+            await notificationService.scheduleUpcomingGameReminders(latestSchedule)
+
+            // Note for non-coders:
+            // If a widget extension is installed, this asks it to re-read shared data/timelines.
+            #if canImport(WidgetKit)
+            if #available(iOS 14.0, *) {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+            #endif
+
+            return true
+        } catch {
+            return false
         }
     }
 }

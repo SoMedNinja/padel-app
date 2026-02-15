@@ -1,4 +1,5 @@
 import Foundation
+import BackgroundTasks
 import UserNotifications
 import UIKit
 
@@ -416,6 +417,9 @@ final class AppViewModel: ObservableObject {
     @Published var appStoreUpdateURL: URL?
     @Published var isUpdateRequired = false
 
+    static let backgroundRefreshTaskIdentifier = "com.padelnative.refresh"
+    static let backgroundMaintenanceTaskIdentifier = "com.padelnative.maintenance"
+
     // Note for non-coders:
     // These values mirror the web app's "dismiss this notice on this device" behavior.
     @Published private(set) var dismissedHighlightMatchId: UUID?
@@ -532,7 +536,84 @@ final class AppViewModel: ObservableObject {
             await notificationService.scheduleUpcomingGameReminders(schedule)
         }
 
+        scheduleBackgroundRefreshTasksIfPossible()
+
         await checkForAppUpdate()
+    }
+
+    // Note for non-coders:
+    // iOS can run these tasks in the background to keep schedule/reminders/widgets fresh.
+    // If iOS does not allow scheduling (simulator, settings, or unsupported environment),
+    // we keep working with normal in-app refresh as a safe fallback.
+    static func registerBackgroundTaskHandlers() {
+        guard #available(iOS 13.0, *) else { return }
+
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: backgroundRefreshTaskIdentifier, using: nil) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            handleBackgroundTask(refreshTask)
+        }
+
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: backgroundMaintenanceTaskIdentifier, using: nil) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            handleBackgroundTask(refreshTask)
+        }
+    }
+
+    static func scheduleBackgroundRefreshRequests() -> Bool {
+        guard #available(iOS 13.0, *) else { return false }
+
+        let refreshRequest = BGAppRefreshTaskRequest(identifier: backgroundRefreshTaskIdentifier)
+        refreshRequest.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60)
+
+        let maintenanceRequest = BGAppRefreshTaskRequest(identifier: backgroundMaintenanceTaskIdentifier)
+        maintenanceRequest.earliestBeginDate = Date(timeIntervalSinceNow: 120 * 60)
+
+        do {
+            try BGTaskScheduler.shared.submit(refreshRequest)
+            try BGTaskScheduler.shared.submit(maintenanceRequest)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private static func handleBackgroundTask(_ task: BGAppRefreshTask) {
+        // Note for non-coders:
+        // We re-schedule the next run immediately, so refresh continues automatically over time.
+        scheduleBackgroundRefreshRequests()
+
+        let backgroundWork = Task {
+            let service = AppBootstrapService(apiClient: SupabaseRESTClient())
+            let success = await service.performBackgroundMaintenance()
+            task.setTaskCompleted(success: success)
+        }
+
+        task.expirationHandler = {
+            backgroundWork.cancel()
+        }
+    }
+
+    func scheduleBackgroundRefreshTasksIfPossible() {
+        let didSchedule = Self.scheduleBackgroundRefreshRequests()
+
+        guard !didSchedule else { return }
+
+        // Note for non-coders:
+        // Safe fallback: if iOS background scheduling is unavailable, we still do an immediate
+        // lightweight refresh while the app is active so reminders and widgets stay up to date.
+        Task { [weak self] in
+            guard let self else { return }
+            let success = await self.bootstrapService.performBackgroundMaintenance(notificationService: self.notificationService)
+            if !success {
+                // We keep this silent to avoid noisy warnings for temporary network hiccups.
+            }
+        }
     }
 
     // Note for non-coders:
