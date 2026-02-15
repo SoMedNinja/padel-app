@@ -426,7 +426,7 @@ struct SettingsView: View {
         switch viewModel.calendarPermissionStatus {
         case .fullAccess, .writeOnly, .authorized:
             return .allowed
-        case .denied:
+        case .denied, .restricted:
             return .blocked
         case .notDetermined:
             return .actionNeeded
