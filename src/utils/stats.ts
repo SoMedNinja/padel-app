@@ -4,8 +4,14 @@ import { GUEST_ID } from "./guest";
 
 const normalizeTeam = (team: any): string[] => {
   if (Array.isArray(team)) {
-    // Optimization: avoid filter(Boolean) if array is already clean
-    for (let i = 0; i < team.length; i++) {
+    // Optimization: if it is already an array of 2 strings (most common for padel),
+    // we can return it directly to avoid the loop if we trust the data source.
+    // For general safety, we still check, but we can do it faster.
+    const len = team.length;
+    if (len === 2 && typeof team[0] === 'string' && typeof team[1] === 'string' && team[0] && team[1]) {
+      return team;
+    }
+    for (let i = 0; i < len; i++) {
       if (!team[i]) return team.filter(Boolean);
     }
     return team;
@@ -175,7 +181,7 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
           if (isDescending) break;
           continue;
         }
-        if (!eloDeltaByMatch[m.id]?.[playerId]) continue;
+        if (eloDeltaByMatch[m.id]?.[playerId] === undefined) continue;
 
         // Optimization: use direct indexed access instead of includes() + find()
         // for small team arrays (max 2 players).
@@ -269,7 +275,7 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
           if (isDescending) break;
           continue;
         }
-        if (!eloDeltaByMatch[m.id]?.[playerId]) continue;
+        if (eloDeltaByMatch[m.id]?.[playerId] === undefined) continue;
 
         // Optimization: use direct indexed access instead of includes()
         const isT1 = m.team1_ids[0] === playerId || m.team1_ids[1] === playerId;

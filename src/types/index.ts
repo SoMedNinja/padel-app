@@ -60,6 +60,7 @@ export interface PlayerStats {
   streak?: string;
   trend?: string;
   bestPartner?: BestPartner | null;
+  eloHistory?: number[];
 }
 
 export interface EloHistoryEntry {

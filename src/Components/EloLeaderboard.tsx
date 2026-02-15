@@ -101,21 +101,28 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
       processTeam(m.team2_ids, !team1Won);
     }
 
-    return players.map(player => {
+    const finalPlayers: PlayerStats[] = [];
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
       const s = playerStatsMap.get(player.id) || { wins: 0, losses: 0, recentResults: [] };
 
-      // Optimization: Pre-calculate streak and trend once per data change
-      const streakRaw = getStreak(s.recentResults);
-      const streak = streakRaw.replace("W", "V").replace("L", "F");
+      // Optimization: use the built-in Swedish parameter to avoid manual string replacements.
+      const streak = getStreak(s.recentResults, true);
 
-      // Extract ELO history for sparkline (last 10 matches)
-      const eloHistory = player.history ? player.history.slice(-10).map(h => h.elo) : [];
-      // Always include current ELO as the last point if it's not already there
+      // Optimization: avoid redundant mapping and slicing where possible.
+      const history = player.history || [];
+      const hLen = history.length;
+      const eloHistory: number[] = [];
+      const startIdx = Math.max(0, hLen - 10);
+      for (let j = startIdx; j < hLen; j++) {
+        eloHistory.push(history[j].elo);
+      }
+
       if (player.elo && (eloHistory.length === 0 || eloHistory[eloHistory.length - 1] !== player.elo)) {
         eloHistory.push(player.elo);
       }
 
-      return {
+      finalPlayers.push({
         ...player,
         wins: s.wins,
         losses: s.losses,
@@ -123,8 +130,10 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
         recentResults: s.recentResults.slice(-5),
         streak,
         eloHistory,
-      };
-    });
+      });
+    }
+
+    return finalPlayers;
   }, [matches, players, isFiltered]);
 
   const hasUnknownPlayers = useMemo(() => mergedPlayers.some(player => !player.name || player.name === "Okänd"), [mergedPlayers]);
@@ -339,9 +348,9 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{(p as any).streak || "—"}</TableCell>
+                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.streak || "—"}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>
-                      <Sparkline data={(p as any).eloHistory || []} />
+                      <Sparkline data={p.eloHistory || []} />
                     </TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
                   </TableRow>
