@@ -293,31 +293,25 @@ struct HistoryView: View {
     }
 
     private func shareMatch(_ match: Match) {
-        let score = scoreLabel(match)
-        let lines = [
-            "Matchresultat",
-            "",
-            "\(match.teamAName) vs \(match.teamBName)",
-            score,
-            "",
-            "Spelad: \(formatter.string(from: match.playedAt))"
-        ]
-
-        let fileURL = try? ShareCardService.createShareImageFile(
-            title: "Padel Match",
-            bodyLines: lines,
-            fileNamePrefix: "match-history"
-        )
-
-        let text = """
-        🎾 Matchresultat:
-        \(match.teamAName) vs \(match.teamBName)
-        \(score)
+        let fallbackText = """
+        \(match.shareTitle)
+        \(match.shareSummary)
         """
 
-        var items: [Any] = [text]
-        if let fileURL = fileURL {
-            items.insert(fileURL, at: 0)
+        let cardURL = try? match.createShareCardImage(title: "Padel Match", fileNamePrefix: "match-history")
+
+        // Note for non-coders:
+        // This source gives modern apps a rich preview card, but still sends plain text everywhere.
+        let richTextSource = MatchShareActivityItemSource(
+            text: fallbackText,
+            title: match.shareTitle,
+            cardImageURL: cardURL,
+            metadataURL: URL(string: "https://padelnative.app/match/\(match.id.uuidString.lowercased())")!
+        )
+
+        var items: [Any] = [richTextSource]
+        if let cardURL {
+            items.append(cardURL)
         }
 
         let av = UIActivityViewController(activityItems: items, applicationActivities: nil)

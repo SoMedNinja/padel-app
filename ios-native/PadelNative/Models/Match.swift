@@ -140,25 +140,57 @@ struct Match: Identifiable, Codable {
 
 extension Match: Transferable {
     static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: \.shareText)
+
         DataRepresentation(exportedContentType: .text) { match in
             match.shareText.data(using: .utf8) ?? Data()
         }
 
         // Suggestion 6: Adding image support for rich previews
         DataRepresentation(exportedContentType: .png) { match in
-            let lines = [
-                "\(match.teamAName) vs \(match.teamBName)",
-                "Resultat: \(match.teamAScore)-\(match.teamBScore)"
-            ]
-            if let url = try? ShareCardService.createShareImageFile(title: "Padel Match", bodyLines: lines, fileNamePrefix: "match") {
-                return try Data(contentsOf: url)
+            guard let url = try? match.createShareCardImage(title: match.shareTitle, fileNamePrefix: "match") else {
+                return Data()
             }
-            return Data()
+            return try Data(contentsOf: url)
+        }
+        .suggestedFileName { match in
+            "padel-match-\(match.id.uuidString.lowercased())"
         }
     }
 
-    var shareText: String {
-        let scoreLabel = (scoreType ?? "sets") == "points" ? "Poäng" : "Set"
-        return "🎾 Padel Matchresultat:\n\(teamAName) vs \(teamBName)\n\(scoreLabel): \(teamAScore)-\(teamBScore)"
+    var shareTitle: String {
+        "🎾 \(teamAName) vs \(teamBName)"
     }
+
+    var shareSummary: String {
+        "Resultat: \(teamAScore)-\(teamBScore) • \(Self.shareDateFormatter.string(from: playedAt))"
+    }
+
+    var shareText: String {
+        "\(shareTitle)\n\(shareSummary)"
+    }
+
+    // Note for non-coders:
+    // A share card is the branded image attached to chats/mail so the match looks visual.
+    func createShareCardImage(title: String? = nil, fileNamePrefix: String = "match") throws -> URL {
+        let lines = [
+            "\(teamAName) vs \(teamBName)",
+            "Resultat: \(teamAScore)-\(teamBScore)",
+            "Spelad: \(Self.shareDateFormatter.string(from: playedAt))"
+        ]
+
+        return try ShareCardService.createShareImageFile(
+            title: title ?? shareTitle,
+            bodyLines: lines,
+            fileNamePrefix: fileNamePrefix
+        )
+    }
+
+    private static let shareDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = AppConfig.swedishLocale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
