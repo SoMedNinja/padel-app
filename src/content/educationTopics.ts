@@ -11,8 +11,8 @@ export interface EducationArticleIllustration {
   caption: string;
 }
 
-// Note for non-coders: every article now mixes one "real" photo URL (from a free image source)
-// and one custom illustration so learners get both realism and clear tactical diagrams.
+// Note for non-coders: we only use local image files from /public/education.
+// This avoids broken images when external image services change links or block hotlinking.
 
 export interface EducationTopic {
   id: string;
@@ -44,9 +44,9 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "https://source.unsplash.com/1600x900/?padel,tournament,players",
+        src: "/education/movement-positions.svg",
         alt: "Padelspelare i en social turnering",
-        caption: "Realbild (gratis källa): social padelturnering med roterande lagkänsla.",
+        caption: "Lokal illustration: social turneringskänsla med rörelse och rotation.",
       },
       {
         src: "/education/mexicana-rotation.svg",
@@ -84,9 +84,9 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "https://source.unsplash.com/1600x900/?padel,score,competition",
+        src: "/education/offense-positions.svg",
         alt: "Padelmatch där poängräkning är i fokus",
-        caption: "Realbild (gratis källa): tävlingskänsla och poängfokus i Americano-format.",
+        caption: "Lokal illustration: tävlingskänsla och poängfokus i Americano-format.",
       },
       {
         src: "/education/americano-scoreboard.svg",
@@ -118,9 +118,9 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "https://source.unsplash.com/1600x900/?padel,forehand,backhand,volley",
+        src: "/education/rules-serve.svg",
         alt: "Padelspelare som demonstrerar olika slag under spel",
-        caption: "Realbild (gratis källa): spelsekvens som visar flera slagtyper i matchtempo.",
+        caption: "Lokal illustration: spelsekvens som visar flera slagtyper i matchtempo.",
       },
       {
         src: "/education/padel-shots.svg",
@@ -158,9 +158,9 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "https://source.unsplash.com/1600x900/?padel,footwork,movement",
+        src: "/education/defense-reset.svg",
         alt: "Padelspelare i rörelse mot nätet",
-        caption: "Realbild (gratis källa): fotarbete och synkad förflyttning mellan partners.",
+        caption: "Lokal illustration: fotarbete och synkad förflyttning mellan partners.",
       },
       {
         src: "/education/movement-positions.svg",
@@ -198,9 +198,9 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "https://source.unsplash.com/1600x900/?padel,serve,rules",
+        src: "/education/americano-scoreboard.svg",
         alt: "Padelspelare som utför en underhandsserve",
-        caption: "Realbild (gratis källa): servesituation med fokus på teknik och regler.",
+        caption: "Lokal illustration: servesituation med fokus på teknik och regler.",
       },
       {
         src: "/education/rules-serve.svg",
@@ -238,9 +238,9 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "https://source.unsplash.com/1600x900/?padel,attack,net",
+        src: "/education/padel-shots.svg",
         alt: "Padelspelare pressar framme vid nät",
-        caption: "Realbild (gratis källa): offensivt nätspel som sätter press på motståndarna.",
+        caption: "Lokal illustration: offensivt nätspel som sätter press på motståndarna.",
       },
       {
         src: "/education/offense-positions.svg",
@@ -272,9 +272,9 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "https://source.unsplash.com/1600x900/?padel,defense,lob",
+        src: "/education/mexicana-rotation.svg",
         alt: "Padelspelare i defensiv position som förbereder en lobb",
-        caption: "Realbild (gratis källa): defensivt läge där lobben används för att vinna tid.",
+        caption: "Lokal illustration: defensivt läge där lobben används för att vinna tid.",
       },
       {
         src: "/education/defense-reset.svg",
