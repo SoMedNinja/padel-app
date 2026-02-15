@@ -1,6 +1,7 @@
 import { assertEdgeFunctionAnonKey, buildEdgeFunctionAuthHeaders, supabase } from "../supabaseClient";
 import { AvailabilityPoll, AvailabilityPollDay, AvailabilityScheduledGame, AvailabilitySlot } from "../types";
 import { requireAdmin } from "./authUtils";
+import { buildScheduleVoteRequest } from "./contract/contractTransforms";
 
 interface CreatePollInput {
   weekYear: number;
@@ -306,12 +307,20 @@ export const availabilityService = {
 
     const normalized = slotPreferences && slotPreferences.length > 0 ? slotPreferences : null;
 
+    const contractVote = normalized
+      ? buildScheduleVoteRequest({
+          poll_day_id: day.id,
+          profile_id: currentUser.id,
+          slot_preferences: normalized,
+        })
+      : null;
+
     const { error } = await supabase.from("availability_votes").upsert(
       {
         poll_day_id: day.id,
         profile_id: currentUser.id,
         slot: normalized && normalized.length === 1 ? normalized[0] : null,
-        slot_preferences: normalized,
+        slot_preferences: contractVote?.slot_preferences ?? null,
       },
       { onConflict: "poll_day_id,profile_id" },
     );

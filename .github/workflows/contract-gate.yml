@@ -1,0 +1,34 @@
+name: Contract Gate
+
+on:
+  pull_request:
+    paths:
+      - "contracts/**"
+      - "src/**"
+      - "ios-native/**"
+      - "scripts/check-contract-sync.mjs"
+      - "scripts/generate-contract-models.mjs"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches: [ main ]
+    paths:
+      - "contracts/**"
+      - "src/**"
+      - "ios-native/**"
+      - "scripts/check-contract-sync.mjs"
+      - "scripts/generate-contract-models.mjs"
+      - "package.json"
+      - "package-lock.json"
+
+jobs:
+  contract-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run contract:check
+      - run: npm run test -- src/services/contract/contractTransforms.test.ts

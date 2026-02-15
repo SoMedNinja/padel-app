@@ -1,6 +1,7 @@
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter } from "../types";
 import { checkIsAdmin, ensureAuthSessionReady, requireAdmin } from "./authUtils";
+import { buildMatchCreateRequest } from "./contract/contractTransforms";
 
 const getDateRange = (filter: MatchFilter) => {
   if (filter.type === "last7") {
@@ -90,9 +91,20 @@ export const matchService = {
     }
 
     const cleanMatch = (m: any) => {
+      const contractMatch = buildMatchCreateRequest({
+        ...m,
+        created_by: currentUser.id,
+      });
+
       // Security: strip sensitive metadata fields to prevent spoofing or accidental overwrites.
       // We also remove created_by to ensure it's always set to the trusted currentUser.id.
-      const { id: _id, created_at: _created_at, created_by: _created_by, ...rest } = m;
+      const {
+        id: _id,
+        created_at: _created_at,
+        created_by: _created_by,
+        match_mode: _match_mode,
+        ...rest
+      } = contractMatch;
       return {
         ...rest,
         created_by: currentUser.id,
