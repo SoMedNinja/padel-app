@@ -720,54 +720,75 @@ struct ProfileView: View {
     @ViewBuilder
     private func trendChartContent(dataset: ComparisonChartDataset) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let index = chartSelectionIndex,
-               let point = dataset.points.first(where: { $0.id == index }) {
-                tooltip(point: point, playerIds: dataset.playerIds)
-            } else {
-                Text("Dra över grafen för detaljer. Tooltipen ligger kvar tills du väljer en ny punkt.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             let points = dataset.points
             let eloDomain = viewModel.eloDomain(for: points, players: dataset.playerIds)
+            let xDomain = (points.first?.id ?? 0)...(points.last?.id ?? 0)
 
-            Chart {
-                if primaryMetric == .elo || secondaryMetric == .elo {
-                    ForEach(dataset.playerIds, id: \.self) { pid in
-                        let label = viewModel.chartDisplayName(for: pid)
-                        let color = colorForSeries(name: label, index: dataset.playerIds.firstIndex(of: pid) ?? 0)
+            ZStack(alignment: .topLeading) {
+                Chart {
+                    if primaryMetric == .elo || secondaryMetric == .elo {
+                        ForEach(dataset.playerIds, id: \.self) { pid in
+                            let label = viewModel.chartDisplayName(for: pid)
+                            let color = colorForSeries(name: label, index: dataset.playerIds.firstIndex(of: pid) ?? 0)
+                            ForEach(points) { point in
+                                if let elo = point.elos[pid] {
+                                    LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Serie", label))
+                                        .foregroundStyle(color)
+                                        .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                                }
+                            }
+                        }
+                    }
+
+                    if primaryMetric == .winRate || secondaryMetric == .winRate,
+                       let currentId = viewModel.currentPlayer?.id {
                         ForEach(points) { point in
-                            if let elo = point.elos[pid] {
-                                LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Serie", label))
-                                    .foregroundStyle(color)
-                                    .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                            if let rate = point.winRates[currentId] {
+                                LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: eloDomain)))
+                                    .foregroundStyle(.mint)
+                                    .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
+                                    .symbol(.circle)
+                                    .symbolSize(24)
+                            }
+                        }
+                    }
+
+                    if let selected = chartSelectionIndex {
+                        RuleMark(x: .value("Vald", selected))
+                            .foregroundStyle(.secondary.opacity(0.35))
+                    }
+                }
+                .frame(height: 280)
+                .chartYScale(domain: eloDomain)
+                // Note for non-coders:
+                // We remove the chart's end padding so the latest data point touches the right edge.
+                .chartXScale(domain: xDomain, range: .plotDimension(startPadding: 6, endPadding: 0))
+                .chartXSelection(value: $chartSelectionIndex)
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                        if let index = value.as(Int.self),
+                           let point = points.first(where: { $0.id == index }) {
+                            AxisGridLine()
+                            AxisValueLabel {
+                                Text(point.date, format: .dateTime.month(.abbreviated))
                             }
                         }
                     }
                 }
 
-                if primaryMetric == .winRate || secondaryMetric == .winRate,
-                   let currentId = viewModel.currentPlayer?.id {
-                    ForEach(points) { point in
-                        if let rate = point.winRates[currentId] {
-                            LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: eloDomain)))
-                                .foregroundStyle(.mint)
-                                .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
-                                .symbol(.circle)
-                                .symbolSize(24)
-                        }
+                Group {
+                    if let point = selectedPoint(from: points) {
+                        tooltip(point: point, playerIds: dataset.playerIds)
+                    } else {
+                        Text("Dra över grafen för detaljer")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
-
-                if let selected = chartSelectionIndex {
-                    RuleMark(x: .value("Vald", selected))
-                        .foregroundStyle(.secondary.opacity(0.35))
-                }
+                .padding(8)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .padding(8)
             }
-            .frame(height: 280)
-            .chartYScale(domain: eloDomain)
-            .chartXSelection(value: $chartSelectionIndex)
 
             chartLegendPills(playerIds: dataset.playerIds)
 
@@ -776,6 +797,11 @@ struct ProfileView: View {
                     .font(.caption)
             }
         }
+    }
+
+    private func selectedPoint(from points: [ComparisonMetricTimelinePoint]) -> ComparisonMetricTimelinePoint? {
+        guard let index = chartSelectionIndex else { return nil }
+        return points.first(where: { $0.id == index })
     }
 
     // Note for non-coders:
