@@ -3,9 +3,12 @@ import { toast } from "sonner";
 import {
   buildAllPlayersBadgeStats,
   buildPlayerBadges,
+  type Badge,
 } from "../utils/badges";
 import { makeNameToIdMap } from "../utils/profileMap";
 import { profileService } from "../services/profileService";
+import { educationTopics } from "../content/educationTopics";
+import { readCompletedQuizMap } from "../utils/educationQuiz";
 import {
   Box,
   Typography,
@@ -40,6 +43,37 @@ const groupBadgesByType = (badges = []) => {
   });
 
   return [...grouped.values()].sort((a, b) => a.order - b.order);
+};
+
+const buildEducationBadges = (userId: string | null | undefined): Badge[] => {
+  if (!userId) return [];
+  const completedByTopicId = readCompletedQuizMap(userId);
+
+  // Note for non-coders: this converts each training topic into a profile merit card
+  // so quiz-earned merits appear in the same place as match and tournament merits.
+  return educationTopics.map((topic) => {
+    const completion = completedByTopicId[topic.id];
+    const earned = Boolean(completion?.passed);
+    const answeredCount = completion?.correctCount ?? 0;
+
+    return {
+      id: topic.badgeId,
+      icon: topic.badgeIcon,
+      tier: "Quiz",
+      title: topic.badgeLabel,
+      description: `Klara quizet för ${topic.title}`,
+      earned,
+      group: "Utbildning",
+      groupOrder: 27,
+      meta: earned
+        ? `Klarad ${new Date(completion.answeredAt).toLocaleDateString("sv-SE")}`
+        : undefined,
+      progress: {
+        current: completion?.passed ? topic.quiz.length : answeredCount,
+        target: topic.quiz.length,
+      },
+    } satisfies Badge;
+  });
 };
 
 export default function MeritsSection({
@@ -93,13 +127,32 @@ export default function MeritsSection({
     () => buildPlayerBadges(badgeStats, allPlayerStats, user?.id),
     [badgeStats, allPlayerStats, user]
   );
+
+  const educationBadges = useMemo(
+    () => buildEducationBadges(user?.id),
+    [user?.id]
+  );
+
+  const mergedEarnedBadges = useMemo(
+    () => [...badgeSummary.earnedBadges, ...educationBadges.filter((badge) => badge.earned)],
+    [badgeSummary.earnedBadges, educationBadges]
+  );
+
+  const mergedLockedBadges = useMemo(
+    () => [...badgeSummary.lockedBadges, ...educationBadges.filter((badge) => !badge.earned)],
+    [badgeSummary.lockedBadges, educationBadges]
+  );
+
+  const mergedTotalBadges = badgeSummary.totalBadges + educationBadges.length;
+  const mergedTotalEarned = mergedEarnedBadges.length;
+
   const earnedBadgeGroups = useMemo(
-    () => groupBadgesByType(badgeSummary.earnedBadges),
-    [badgeSummary.earnedBadges]
+    () => groupBadgesByType(mergedEarnedBadges),
+    [mergedEarnedBadges]
   );
   const lockedBadgeGroups = useMemo(
-    () => groupBadgesByType(badgeSummary.lockedBadges),
-    [badgeSummary.lockedBadges]
+    () => groupBadgesByType(mergedLockedBadges),
+    [mergedLockedBadges]
   );
 
   return (
@@ -108,7 +161,7 @@ export default function MeritsSection({
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Meriter</Typography>
           <Typography variant="body2" color="text.secondary">
-            {badgeSummary.totalEarned} av {badgeSummary.totalBadges} meriter upplåsta
+            {mergedTotalEarned} av {mergedTotalBadges} meriter upplåsta
           </Typography>
         </Box>
 

@@ -12,11 +12,12 @@ export const getPullToRefreshTuning = () => {
     return {};
   }
 
-  // Note for non-coders: iOS needs a slightly longer pull distance so the full custom animation has room to appear.
+  // Note for non-coders: these values make the animation appear immediately when the user starts pulling,
+  // while still keeping enough travel distance to feel like the native iOS pull-to-refresh gesture.
   return {
-    pullDownThreshold: 72,
-    maxPullDownDistance: 132,
-    resistance: 1.1,
+    pullDownThreshold: 24,
+    maxPullDownDistance: 104,
+    resistance: 0.72,
   };
 };
 
