@@ -2,6 +2,7 @@ import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { buildWebPermissionSnapshots, ensureNotificationPermission } from "../../services/webNotificationService";
 import { SHARED_PERMISSION_CAPABILITY_LABELS, SHARED_PERMISSION_STATE_LABELS, WEB_PERMISSION_CAPABILITY_HELP } from "../../shared/permissionsCopy";
+import { SHARED_PERMISSION_PLATFORM_DIFFERENCES } from "../../shared/permissionCapabilityMatrix";
 import { PermissionStatusSnapshot } from "../../types/permissions";
 
 const CHIP_COLORS: Record<PermissionStatusSnapshot["state"], "success" | "error" | "warning" | "default"> = {
@@ -80,7 +81,7 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
       </Stack>
 
       <Alert severity="info" sx={{ mt: 2 }}>
-        Platform differences: web can request Notifications, but background behavior depends on service workers and browser rules. Calendar access cannot be toggled by the web app.
+        {SHARED_PERMISSION_PLATFORM_DIFFERENCES}
       </Alert>
     </Box>
   );

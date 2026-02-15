@@ -279,7 +279,7 @@ struct SettingsView: View {
                 if viewModel.notificationPermissionNeedsSettings {
                     VStack(alignment: .leading, spacing: 8) {
                         // Note for non-coders: this message tells exactly what to enable in iPhone Settings.
-                        Text("Blocked: notifications are turned off in iOS Settings. Open Settings → PadelNative → Notifications and enable Allow Notifications plus lock-screen/banner alerts.")
+                        Text(SharedPermissionCapability.notifications.guidance(for: .blocked) + " Open Settings → PadelNative → Notifications and enable Allow Notifications plus lock-screen/banner alerts.")
                             .font(.inter(.footnote))
                             .foregroundStyle(AppColors.warning)
 
@@ -310,42 +310,46 @@ struct SettingsView: View {
                 // Note for non-coders: each row shows one permission, a simple status chip, and one clear next step.
                 permissionRow(
                     title: SharedPermissionCapability.notifications.title,
-                    subtitle: "Match reminders and updates",
+                    subtitle: SharedPermissionCapability.notifications.subtitle,
                     state: notificationState,
                     buttonLabel: notificationActionTitle,
                     buttonSystemImage: notificationActionIcon,
-                    action: notificationAction
+                    action: notificationAction,
+                    guidance: SharedPermissionCapability.notifications.guidance(for: notificationState.sharedState)
                 )
 
                 permissionRow(
                     title: SharedPermissionCapability.backgroundRefresh.title,
-                    subtitle: "Lets iOS wake the app for periodic data refresh",
+                    subtitle: SharedPermissionCapability.backgroundRefresh.subtitle,
                     state: backgroundRefreshState,
                     buttonLabel: backgroundRefreshActionTitle,
                     buttonSystemImage: backgroundRefreshActionIcon,
-                    action: backgroundRefreshAction
+                    action: backgroundRefreshAction,
+                    guidance: SharedPermissionCapability.backgroundRefresh.guidance(for: backgroundRefreshState.sharedState)
                 )
 
                 permissionRow(
                     title: SharedPermissionCapability.calendar.title,
-                    subtitle: "Save matches to your calendar",
+                    subtitle: SharedPermissionCapability.calendar.subtitle,
                     state: calendarState,
                     buttonLabel: calendarActionTitle,
                     buttonSystemImage: calendarActionIcon,
-                    action: calendarAction
+                    action: calendarAction,
+                    guidance: SharedPermissionCapability.calendar.guidance(for: calendarState.sharedState)
                 )
 
                 permissionRow(
                     title: SharedPermissionCapability.biometricPasskey.title,
-                    subtitle: "Use Face ID / Touch ID for app lock",
+                    subtitle: SharedPermissionCapability.biometricPasskey.subtitle,
                     state: biometricState,
                     buttonLabel: biometricActionTitle,
                     buttonSystemImage: biometricActionIcon,
-                    action: biometricAction
+                    action: biometricAction,
+                    guidance: SharedPermissionCapability.biometricPasskey.guidance(for: biometricState.sharedState)
                 )
 
                 // Note for non-coders: this text explains cross-platform limits so people know why web and iOS options differ.
-                Text("Platform differences: iOS can request Calendar and Background Refresh directly. Web can request Notifications, but calendar/background behavior depends on browser support.")
+                Text(SharedPermissionCapability.platformDifferencesCopy)
                     .font(.inter(.caption))
                     .foregroundStyle(AppColors.textSecondary)
             }
@@ -385,7 +389,7 @@ struct SettingsView: View {
     }
 
 
-    private func permissionRow(title: String, subtitle: String, state: PermissionChipState, buttonLabel: String, buttonSystemImage: String, action: @escaping () -> Void) -> some View {
+    private func permissionRow(title: String, subtitle: String, state: PermissionChipState, buttonLabel: String, buttonSystemImage: String, action: @escaping () -> Void, guidance: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -394,6 +398,9 @@ struct SettingsView: View {
                         .foregroundStyle(AppColors.textPrimary)
                     Text(subtitle)
                         .font(.inter(.footnote))
+                        .foregroundStyle(AppColors.textSecondary)
+                    Text(guidance)
+                        .font(.inter(size: 11))
                         .foregroundStyle(AppColors.textSecondary)
                 }
 
@@ -595,6 +602,16 @@ private enum PermissionChipState {
         }
     }
 
+
+
+    var sharedState: SharedPermissionState {
+        switch self {
+        case .allowed: return .allowed
+        case .blocked: return .blocked
+        case .limited: return .limited
+        case .actionNeeded: return .actionNeeded
+        }
+    }
     var tint: Color {
         switch self {
         case .allowed: return AppColors.success
