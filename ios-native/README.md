@@ -28,6 +28,26 @@ This folder contains a **native iOS SwiftUI app** that mirrors the current web a
 5. Build and run.
 
 
+
+## Troubleshooting: Associated Domains signing error on Personal Team
+
+If Xcode shows an error like:
+
+- `Personal development teams ... do not support the Associated Domains capability`
+- `Provisioning profile ... doesn't include the com.apple.developer.associated-domains entitlement`
+
+this means your app is asking Apple for the Universal Links capability, but your personal free provisioning profile is not allowed to include it.
+
+Fix path in this repository:
+
+1. Keep `PadelNative/PadelNative.entitlements` without `com.apple.developer.associated-domains` during personal-team development.
+2. Regenerate project files from `ios-native` with `xcodegen generate`.
+3. Reopen `PadelNative.xcodeproj` and build again.
+
+For production Universal Links, use a paid Apple Developer Program team and re-add associated domains for that release setup.
+
+> Note for non-coders: Universal Links are special web links that can jump directly into your app. Apple treats this as an advanced capability and only includes it in eligible signing profiles.
+
 ## Troubleshooting: still cannot sign in/sign up
 
 1. In Supabase Dashboard -> **Authentication -> Providers -> Email**, ensure **Email provider is enabled**.

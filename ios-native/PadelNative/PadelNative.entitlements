@@ -2,10 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Note for non-coders: this list is what makes Universal Links work for our domain. -->
-	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>applinks:padelnative.app</string>
-	</array>
+	<!-- Note for non-coders: keep this file minimal for Personal Team development signing. -->
+	<!-- Associated Domains can be re-added for paid Apple Developer teams when Universal Links are needed. -->
 </dict>
 </plist>
