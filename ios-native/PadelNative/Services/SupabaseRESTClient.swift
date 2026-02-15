@@ -28,7 +28,7 @@ struct MatchUpdateConflictError: LocalizedError {
     }
 }
 
-struct MatchSubmission: Encodable {
+struct MatchSubmission: Codable {
     let teamAName: [String]
     let teamBName: [String]
     let teamAPlayerIds: [String?]
@@ -43,6 +43,8 @@ struct MatchSubmission: Encodable {
     let playedAt: Date
     let createdBy: UUID
     let matchMode: ContractMatchMode?
+    let clientSubmissionId: String?
+    let clientPayloadHash: String?
 
     enum CodingKeys: String, CodingKey {
         case teamAName = "team1"
@@ -59,6 +61,16 @@ struct MatchSubmission: Encodable {
         case playedAt = "created_at"
         case createdBy = "created_by"
         case matchMode = "match_mode"
+        case clientSubmissionId = "client_submission_id"
+        case clientPayloadHash = "client_payload_hash"
+    }
+}
+
+struct MatchSubmissionConflictError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? {
+        message
     }
 }
 
@@ -127,7 +139,7 @@ struct TournamentResultSubmission: Encodable {
     }
 }
 
-struct TournamentRoundCreationRequest: Encodable {
+struct TournamentRoundCreationRequest: Codable {
     let tournamentId: UUID
     let roundNumber: Int
     let team1Ids: [UUID]
@@ -145,7 +157,7 @@ struct TournamentRoundCreationRequest: Encodable {
     }
 }
 
-struct TournamentCreationRequest: Encodable {
+struct TournamentCreationRequest: Codable {
     let name: String
     let status: String
     let tournamentType: String
@@ -710,6 +722,8 @@ struct SupabaseRESTClient {
             let teamAServesFirst: Bool
             let playedAt: Date
             let createdBy: UUID
+            let clientSubmissionId: String?
+            let clientPayloadHash: String?
 
             enum CodingKeys: String, CodingKey {
                 case team1
@@ -725,6 +739,8 @@ struct SupabaseRESTClient {
                 case teamAServesFirst = "team1_serves_first"
                 case playedAt = "created_at"
                 case createdBy = "created_by"
+                case clientSubmissionId = "client_submission_id"
+                case clientPayloadHash = "client_payload_hash"
             }
         }
 
@@ -741,9 +757,50 @@ struct SupabaseRESTClient {
             sourceTournamentType: match.sourceTournamentType,
             teamAServesFirst: match.teamAServesFirst,
             playedAt: match.playedAt,
-            createdBy: contractMatch.createdBy
+            createdBy: contractMatch.createdBy,
+            clientSubmissionId: match.clientSubmissionId,
+            clientPayloadHash: match.clientPayloadHash
         )
-        try await sendPost(path: "/rest/v1/matches", body: [payload])
+
+        do {
+            try await sendPost(path: "/rest/v1/matches", body: [payload])
+        } catch let apiError as APIError {
+            guard case .requestFailed(let statusCode) = apiError,
+                    statusCode == 409,
+                  let clientSubmissionId = match.clientSubmissionId,
+                  !clientSubmissionId.isEmpty else {
+                throw apiError
+            }
+
+            let existing = try await fetchMatchSubmissionMetadata(createdBy: match.createdBy, clientSubmissionId: clientSubmissionId)
+            if let existingHash = existing?.clientPayloadHash,
+               let localHash = match.clientPayloadHash,
+               existingHash != localHash {
+                throw MatchSubmissionConflictError(message: "Konflikt upptäckt: en äldre offline-match hade annat resultat än den som redan finns sparad. Granska historiken innan du försöker igen.")
+            }
+            // Note for non-coders:
+            // If hashes match, this is just the same request retried again, so we treat it as already synced.
+            return
+        }
+    }
+
+    private struct MatchSubmissionMetadata: Decodable {
+        let clientSubmissionId: String
+        let clientPayloadHash: String?
+
+        enum CodingKeys: String, CodingKey {
+            case clientSubmissionId = "client_submission_id"
+            case clientPayloadHash = "client_payload_hash"
+        }
+    }
+
+    private func fetchMatchSubmissionMetadata(createdBy: UUID, clientSubmissionId: String) async throws -> MatchSubmissionMetadata? {
+        let safeSubmissionId = clientSubmissionId.replacingOccurrences(of: "\"", with: "")
+        let rows: [MatchSubmissionMetadata] = try await request(
+            path: "/rest/v1/matches",
+            query: "select=client_submission_id,client_payload_hash&created_by=eq.\(createdBy.uuidString)&client_submission_id=eq.\(safeSubmissionId)&limit=1"
+        )
+        return rows.first
     }
 
     func updateMatch(

@@ -403,6 +403,7 @@ final class AppViewModel: ObservableObject {
     @Published var onlyMissingVotesByPoll: [UUID: Bool] = [:]
     @Published var lastErrorMessage: String?
     @Published var statusMessage: String?
+    @Published var pendingWriteQueueSnapshot: PendingWriteQueueSnapshot = .empty
     @Published var pendingMatchConflict: MatchUpdateConflictContext?
     @Published var conflictResolutionMessage: String?
     @Published private(set) var conflictEvents: [MatchConflictEvent] = []
@@ -506,6 +507,7 @@ final class AppViewModel: ObservableObject {
 
     private let authService = AuthService()
     private let apiClient: SupabaseRESTClient
+    private let pendingWriteQueue: PendingWriteQueueService
     private let tournamentDataLoader: TournamentDataLoading
     private lazy var bootstrapService = AppBootstrapService(apiClient: apiClient)
     private let appVersionService: AppVersionService
@@ -559,6 +561,7 @@ final class AppViewModel: ObservableObject {
 
     init(
         apiClient: SupabaseRESTClient = SupabaseRESTClient(),
+        pendingWriteQueue: PendingWriteQueueService = PendingWriteQueueService(),
         tournamentDataLoader: TournamentDataLoading? = nil,
         appVersionService: AppVersionService = AppVersionService(),
         notificationService: NotificationServicing = NotificationService(),
@@ -566,6 +569,7 @@ final class AppViewModel: ObservableObject {
         dismissalStore: UserDefaults = .standard
     ) {
         self.apiClient = apiClient
+        self.pendingWriteQueue = pendingWriteQueue
         self.tournamentDataLoader = tournamentDataLoader ?? SupabaseTournamentDataLoader(apiClient: apiClient)
         self.appVersionService = appVersionService
         self.notificationService = notificationService
@@ -580,6 +584,14 @@ final class AppViewModel: ObservableObject {
         notificationPreferences = notificationService.loadNotificationPreferences(store: dismissalStore)
         notificationPreferences.enabled = areScheduleNotificationsEnabled
         isBiometricLockEnabled = dismissalStore.bool(forKey: biometricLockEnabledKey)
+        self.pendingWriteQueue.onSnapshotChange = { [weak self] snapshot in
+            self?.pendingWriteQueueSnapshot = snapshot
+        }
+        self.pendingWriteQueue.setExecutor { [weak self] payload in
+            guard let self else { return }
+            try await self.executePendingWrite(payload)
+        }
+        pendingWriteQueueSnapshot = self.pendingWriteQueue.currentSnapshot()
 
         if AppConfig.isConfigured {
             realtimeClient = SupabaseRealtimeClient(supabaseURL: AppConfig.supabaseURL, apiKey: AppConfig.supabaseAnonKey)
@@ -600,6 +612,9 @@ final class AppViewModel: ObservableObject {
                 LiveMatchActivityService.shared.restoreActiveActivityIfNeeded()
                 self.updateLiveActivity()
                 await self.refreshDevicePermissionStatuses()
+                if self.isAuthenticated && !self.isGuestMode {
+                    await self.pendingWriteQueue.flush()
+                }
             }
         }
     }
@@ -2068,6 +2083,9 @@ final class AppViewModel: ObservableObject {
         }
 
         if partial.hasAnySuccess {
+            if isAuthenticated && !isGuestMode {
+                await pendingWriteQueue.flush()
+            }
             async let tournamentTask: Void = loadTournamentData(silently: true)
             _ = await tournamentTask
             await refreshAdminProfiles(silently: true)
@@ -3772,6 +3790,84 @@ final class AppViewModel: ObservableObject {
         return error.localizedDescription
     }
 
+    private func isRetryablePendingWriteError(_ error: Error) -> Bool {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost:
+                return true
+            default:
+                return false
+            }
+        }
+
+        if let apiError = error as? APIError,
+           case .requestFailed(let code) = apiError {
+            return code == 408 || code == 429 || (500...599).contains(code)
+        }
+        return false
+    }
+
+    private func executePendingWrite(_ payload: PendingWritePayload) async throws {
+        switch payload {
+        case .submitMatch(let matchPayload):
+            try await apiClient.submitMatch(matchPayload.submission)
+        case .createTournament(let tournamentPayload):
+            _ = try await apiClient.createTournament(tournamentPayload.request)
+        case .updateTournamentStatus(let statusPayload):
+            try await apiClient.updateTournamentStatus(tournamentId: statusPayload.tournamentId, status: statusPayload.status)
+        case .saveTournamentRoundScore(let roundPayload):
+            try await apiClient.saveTournamentRoundScore(
+                roundId: roundPayload.roundId,
+                team1Score: roundPayload.team1Score,
+                team2Score: roundPayload.team2Score
+            )
+        }
+    }
+
+    func flushPendingWriteQueue() async {
+        await pendingWriteQueue.flush()
+    }
+
+    private func matchPayloadHash(
+        teamANames: [String],
+        teamBNames: [String],
+        teamAPlayerIds: [String?],
+        teamBPlayerIds: [String?],
+        teamAScore: Int,
+        teamBScore: Int,
+        scoreType: String,
+        scoreTarget: Int?,
+        sourceTournamentId: UUID?,
+        sourceTournamentType: String,
+        teamAServesFirst: Bool,
+        playedAt: Date
+    ) -> String {
+        // Note for non-coders:
+        // This fingerprint lets us detect if the same submission-id was retried
+        // with different score data, which indicates a true conflict.
+        let joined = [
+            teamANames.joined(separator: "|"),
+            teamBNames.joined(separator: "|"),
+            teamAPlayerIds.map { $0 ?? "nil" }.joined(separator: "|"),
+            teamBPlayerIds.map { $0 ?? "nil" }.joined(separator: "|"),
+            "\(teamAScore)",
+            "\(teamBScore)",
+            scoreType,
+            scoreTarget.map(String.init) ?? "nil",
+            sourceTournamentId?.uuidString ?? "nil",
+            sourceTournamentType,
+            "\(teamAServesFirst)",
+            ISO8601DateFormatter().string(from: playedAt)
+        ].joined(separator: "§")
+
+        var hash = 0
+        for scalar in joined.unicodeScalars {
+            hash = (hash << 5) - hash + Int(scalar.value)
+            hash = hash & 0x7fffffff
+        }
+        return "h\(hash)"
+    }
+
 
     func loadTournamentData(silently: Bool = false) async {
         if !silently {
@@ -3910,27 +4006,33 @@ final class AppViewModel: ObservableObject {
         isTournamentActionRunning = true
         tournamentActionErrorMessage = nil
 
+        let requestPayload = TournamentCreationRequest(
+            name: cleanName,
+            status: "draft",
+            tournamentType: tournamentType,
+            scheduledAt: scheduledAt,
+            location: location?.trimmingCharacters(in: .whitespacesAndNewlines),
+            scoreTarget: scoreTarget,
+            // Note for non-coders:
+            // The database checks who created each tournament.
+            // We send your profile ID so iOS writes pass the same security rule as web.
+            createdBy: creatorId
+        )
+
         do {
-            let created = try await apiClient.createTournament(
-                TournamentCreationRequest(
-                    name: cleanName,
-                    status: "draft",
-                    tournamentType: tournamentType,
-                    scheduledAt: scheduledAt,
-                    location: location?.trimmingCharacters(in: .whitespacesAndNewlines),
-                    scoreTarget: scoreTarget,
-                    // Note for non-coders:
-                    // The database checks who created each tournament.
-                    // We send your profile ID so iOS writes pass the same security rule as web.
-                    createdBy: creatorId
-                )
-            )
+            let created = try await apiClient.createTournament(requestPayload)
             selectedTournamentId = created.id
             tournamentStatusMessage = "Tournament created in draft mode. Choose participants before starting."
             await loadTournamentData(silently: false)
             isTournamentActionRunning = false
             return true
         } catch {
+            if isRetryablePendingWriteError(error) {
+                pendingWriteQueue.enqueue(.createTournament(PendingTournamentCreationPayload(request: requestPayload)))
+                tournamentStatusMessage = "Offline-kö aktiv: turneringen skickas när uppkopplingen är tillbaka."
+                isTournamentActionRunning = false
+                return true
+            }
             tournamentActionErrorMessage = "Could not create tournament: \(error.localizedDescription)"
         }
 
@@ -4066,6 +4168,16 @@ final class AppViewModel: ObservableObject {
             }
             await loadTournamentData(silently: false)
         } catch {
+            if isRetryablePendingWriteError(error) {
+                pendingWriteQueue.enqueue(
+                    .saveTournamentRoundScore(
+                        PendingTournamentRoundScorePayload(roundId: round.id, team1Score: team1Score, team2Score: team2Score)
+                    )
+                )
+                tournamentStatusMessage = "Offline-kö aktiv: rundans resultat synkas automatiskt senare."
+                isTournamentActionRunning = false
+                return
+            }
             tournamentActionErrorMessage = "Could not save round score: \(error.localizedDescription)"
         }
 
@@ -4166,6 +4278,16 @@ final class AppViewModel: ObservableObject {
             tournamentStatusMessage = successMessage
             await loadTournamentData(silently: false)
         } catch {
+            if isRetryablePendingWriteError(error) {
+                pendingWriteQueue.enqueue(
+                    .updateTournamentStatus(
+                        PendingTournamentStatusPayload(tournamentId: selected.id, status: status)
+                    )
+                )
+                tournamentStatusMessage = "Offline-kö aktiv: statusändringen skickas automatiskt när du är online."
+                isTournamentActionRunning = false
+                return
+            }
             if let index = tournaments.firstIndex(where: { $0.id == previousTournament.id }) {
                 tournaments[index] = previousTournament
             }
@@ -5405,6 +5527,22 @@ final class AppViewModel: ObservableObject {
         let teamANames = rawAIds.map(resolveSubmittedName)
         let teamBNames = rawBIds.map(resolveSubmittedName)
 
+        let clientSubmissionId = UUID().uuidString
+        let payloadHash = matchPayloadHash(
+            teamANames: teamANames,
+            teamBNames: teamBNames,
+            teamAPlayerIds: normalizedAIds,
+            teamBPlayerIds: normalizedBIds,
+            teamAScore: teamAScore,
+            teamBScore: teamBScore,
+            scoreType: normalizedScoreType,
+            scoreTarget: normalizedTarget,
+            sourceTournamentId: sourceTournamentId,
+            sourceTournamentType: normalizedTournamentType,
+            teamAServesFirst: teamAServesFirst,
+            playedAt: playedAt
+        )
+
         do {
             let submission = MatchSubmission(
                 teamAName: teamANames,
@@ -5423,7 +5561,9 @@ final class AppViewModel: ObservableObject {
                 // The backend only allows inserts when "created_by" matches the logged-in user.
                 // Sending this value avoids iOS-only 403 failures when saving matches.
                 createdBy: creatorId,
-                matchMode: isOneVsOne ? .oneVsOne : .twoVsTwo
+                matchMode: isOneVsOne ? .oneVsOne : .twoVsTwo,
+                clientSubmissionId: clientSubmissionId,
+                clientPayloadHash: payloadHash
             )
 
             try await apiClient.submitMatch(submission)
@@ -5459,6 +5599,29 @@ final class AppViewModel: ObservableObject {
             await bootstrap()
             return recap
         } catch {
+            if isRetryablePendingWriteError(error) {
+                let offlineSubmission = MatchSubmission(
+                    teamAName: teamANames,
+                    teamBName: teamBNames,
+                    teamAPlayerIds: normalizedAIds,
+                    teamBPlayerIds: normalizedBIds,
+                    teamAScore: teamAScore,
+                    teamBScore: teamBScore,
+                    scoreType: normalizedScoreType,
+                    scoreTarget: normalizedTarget,
+                    sourceTournamentId: sourceTournamentId,
+                    sourceTournamentType: normalizedTournamentType,
+                    teamAServesFirst: teamAServesFirst,
+                    playedAt: playedAt,
+                    createdBy: creatorId,
+                    matchMode: isOneVsOne ? .oneVsOne : .twoVsTwo,
+                    clientSubmissionId: clientSubmissionId,
+                    clientPayloadHash: payloadHash
+                )
+                pendingWriteQueue.enqueue(.submitMatch(PendingMatchSubmissionPayload(submission: offlineSubmission)))
+                statusMessage = "Offline-kö aktiv: matchen sparades lokalt och synkas automatiskt."
+                return nil
+            }
             statusMessage = "Kunde inte spara matchen: \(error.localizedDescription)"
             return nil
         }
