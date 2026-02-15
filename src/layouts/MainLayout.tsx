@@ -6,8 +6,8 @@ import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import InstallPrompt from "../Components/InstallPrompt";
-import WhatsNewDialog from "../Components/WhatsNewDialog";
 import MatchSyncStatusBanner from "../Components/Shared/MatchSyncStatusBanner";
+import AppVersionPolicyBanner from "../Components/AppVersionPolicyBanner";
 import {
   IconButton,
   Box,
@@ -143,6 +143,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       <Container maxWidth="lg" sx={{ mt: 2 }}>
         <SupabaseConfigBanner />
+      </Container>
+
+      <Container maxWidth="lg" sx={{ mt: 2 }}>
+        {/* Note for non-coders: this banner distinguishes "must update now" from "good to update soon" using server policy rules. */}
+        <AppVersionPolicyBanner />
       </Container>
 
       <Container maxWidth="lg" sx={{ mt: 2 }}>
