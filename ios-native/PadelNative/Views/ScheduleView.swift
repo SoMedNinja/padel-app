@@ -143,6 +143,7 @@ struct ScheduleView: View {
                 }
             } else {
                 ForEach(viewModel.polls) { poll in
+                    let reminder = viewModel.reminderAvailability(for: poll)
                     DisclosureGroup(isExpanded: Binding(
                         get: { expandedPolls[poll.id, default: poll.status == .open] },
                         set: { expandedPolls[poll.id] = $0 }
@@ -177,6 +178,39 @@ struct ScheduleView: View {
                     }
                     .padding()
                     .padelSurfaceCard()
+                    // Note for non-coders:
+                    // These are swipe buttons on each poll row. We only show admin-only actions
+                    // when the signed-in user has admin rights, so restricted users don't see them.
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if viewModel.canManageSchedulePolls {
+                            Button(role: .destructive) {
+                                Task { await viewModel.deleteAvailabilityPoll(poll) }
+                            } label: {
+                                Label("Radera", systemImage: "trash")
+                            }
+                            .tint(.red)
+                        }
+
+                        Button {
+                            selectedInvitePollId = poll.id
+                            selectedInviteDayId = poll.days?.first?.id
+                            showCalendarInviteForm = true
+                        } label: {
+                            Label("Snabbredigera", systemImage: "pencil")
+                        }
+                        .tint(AppColors.brandPrimary)
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        if viewModel.canManageSchedulePolls {
+                            Button {
+                                Task { await viewModel.sendAvailabilityReminder(for: poll) }
+                            } label: {
+                                Label("Påminn", systemImage: "bell.badge")
+                            }
+                            .tint(AppColors.brandPrimary)
+                            .disabled(!reminder.canSend || viewModel.isScheduleActionRunning)
+                        }
+                    }
                 }
             }
         }
