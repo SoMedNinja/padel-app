@@ -21,3 +21,12 @@ Vercel cache headers are defined in `vercel.json`:
 2. Avoid manually deleting recent deployments right after a release.
 
 **Note for non-coders:** keeping the last 1–2 deployments around is like leaving yesterday’s spare parts on the shelf in case someone still needs them.
+
+## Expected update behavior for users
+
+When a new version finishes downloading in the background, the app now shows an in-app update banner (instead of a browser confirm dialog) with two actions:
+
+- **Update now**: tells the waiting service worker to activate immediately, then the app reloads once on the new version.
+- **Later**: dismisses the banner and keeps the current session running; the new version is still ready and can be applied the next time the banner appears or when the app restarts.
+
+**Note for non-coders:** this is like seeing a “new app version is ready” card. “Update now” restarts quickly into the new version, while “Later” lets you finish what you were doing first.
