@@ -1,8 +1,13 @@
 import SwiftUI
 import UIKit
 import UserNotifications
+import os
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    // Note for non-coders:
+    // Logger writes app events to Apple's Console app with privacy controls for sensitive values.
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "PadelNative", category: "AppDelegate")
+
     // Note for non-coders:
     // We register these callbacks so iOS can hand us push-token and notification tap events.
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
@@ -13,11 +18,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         // Note for non-coders: token logging helps verify APNs wiring during development.
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        print("APNs token: \(token)")
+        logger.info("APNs token registration succeeded. token=\(token, privacy: .private(mask: .hash))")
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("APNs registration failed: \(error.localizedDescription)")
+        logger.error("APNs registration failed. error=\(error.localizedDescription, privacy: .public)")
     }
 }
 

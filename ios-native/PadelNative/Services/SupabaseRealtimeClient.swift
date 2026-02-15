@@ -1,7 +1,11 @@
 import Foundation
+import os
 
 @MainActor
 class SupabaseRealtimeClient: NSObject {
+    // Note for non-coders:
+    // We use a dedicated logger so network diagnostics are easier to filter in Apple Console.
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "PadelNative", category: "SupabaseRealtimeClient")
     private var webSocket: URLSessionWebSocketTask?
     private var isConnected = false
     private let url: URL
@@ -52,7 +56,7 @@ class SupabaseRealtimeClient: NSObject {
                 }
                 self.listen()
             case .failure(let error):
-                print("WebSocket error: \(error)")
+                self.logger.error("WebSocket receive failed. error=\(String(describing: error), privacy: .public)")
                 self.isConnected = false
             }
         }
@@ -106,7 +110,9 @@ class SupabaseRealtimeClient: NSObject {
 
         webSocket?.send(.string(text)) { error in
             if let error = error {
-                print("WebSocket send error: \(error)")
+                self.logger.error("WebSocket send failed. error=\(String(describing: error), privacy: .public)")
+            } else {
+                self.logger.debug("WebSocket message sent. topic=\(topic, privacy: .public) event=\(event, privacy: .public) ref=\(self.ref, privacy: .public)")
             }
         }
     }
@@ -115,10 +121,12 @@ class SupabaseRealtimeClient: NSObject {
 extension SupabaseRealtimeClient: URLSessionWebSocketDelegate {
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
         isConnected = true
+        logger.info("WebSocket connected. protocol=\(`protocol` ?? "none", privacy: .public)")
         joinChannel(topic: "realtime:public")
     }
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         isConnected = false
+        logger.info("WebSocket disconnected. closeCode=\(closeCode.rawValue, privacy: .public)")
     }
 }
