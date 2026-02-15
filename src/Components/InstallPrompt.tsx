@@ -10,6 +10,7 @@ import {
   hasActiveInstallPromptSnooze,
   INSTALL_PROMPT_CONFIG,
 } from "./installPromptConfig";
+import { requestOpenPermissionGuide } from "../services/permissionGuidanceService";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -134,6 +135,14 @@ export default function InstallPrompt() {
         >
           {INSTALL_PROMPT_CONFIG.copy.cadenceLabels.snooze}
         </Button>
+        <Button
+          color="inherit"
+          size="small"
+          sx={{ mt: 1, ml: 1 }}
+          onClick={() => requestOpenPermissionGuide("install_prompt")}
+        >
+          Behörighetshjälp
+        </Button>
       </Alert>
     );
   }
@@ -143,10 +152,10 @@ export default function InstallPrompt() {
       <Alert
         severity="info"
         action={(
-          <Button color="inherit" size="small" onClick={snoozeInstallPrompt}>
-            {INSTALL_PROMPT_CONFIG.copy.cadenceLabels.snooze}
-          </Button>
-        )}
+        <Button color="inherit" size="small" onClick={snoozeInstallPrompt}>
+          {INSTALL_PROMPT_CONFIG.copy.cadenceLabels.snooze}
+        </Button>
+      )}
       >
         <AlertTitle>{INSTALL_PROMPT_CONFIG.copy.iosTitle}</AlertTitle>
         <Typography variant="body2" component="div" sx={{ mb: 0.75 }}>
@@ -182,6 +191,9 @@ export default function InstallPrompt() {
             <AddBoxOutlinedIcon sx={{ fontSize: 18 }} />
           </Stack>
         </Box>
+        <Button color="inherit" size="small" sx={{ mt: 1 }} onClick={() => requestOpenPermissionGuide("install_prompt")}>
+          Behörighetshjälp
+        </Button>
       </Alert>
     );
   }

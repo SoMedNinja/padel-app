@@ -28,9 +28,10 @@ interface SideMenuProps {
   user: any;
   isGuest: boolean;
   handleAuthAction: () => void;
+  onOpenPermissionGuide: () => void;
 }
 
-export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleAuthAction }: SideMenuProps) {
+export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleAuthAction, onOpenPermissionGuide }: SideMenuProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -93,6 +94,18 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
           })}
         </List>
         <Divider sx={{ my: 1 }} />
+        <List>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => {
+                onOpenPermissionGuide();
+                closeMenu();
+              }}
+            >
+              <ListItemText primary="Behörighetshjälp" primaryTypographyProps={{ fontWeight: 600 }} />
+            </ListItemButton>
+          </ListItem>
+        </List>
         <Box sx={{ mt: 'auto', p: 1 }}>
           <Button
             fullWidth

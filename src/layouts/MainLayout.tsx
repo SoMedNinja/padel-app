@@ -9,6 +9,8 @@ import InstallPrompt from "../Components/InstallPrompt";
 import PostInstallChecklist from "../Components/PostInstallChecklist";
 import MatchSyncStatusBanner from "../Components/Shared/MatchSyncStatusBanner";
 import AppVersionPolicyBanner from "../Components/AppVersionPolicyBanner";
+import PermissionActionGuide from "../Components/Permissions/PermissionActionGuide";
+import { requestOpenPermissionGuide } from "../services/permissionGuidanceService";
 import { detectStandaloneInstallState } from "../services/webNotificationService";
 import {
   IconButton,
@@ -160,6 +162,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         user={user}
         isGuest={hasGuestAccess}
         handleAuthAction={handleAuthAction}
+        onOpenPermissionGuide={() => requestOpenPermissionGuide("menu")}
       />
 
       <Container maxWidth="lg" sx={{ mt: 2 }}>
@@ -308,6 +311,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <MenuItem
           onClick={() => {
             handleOverflowClose();
+            requestOpenPermissionGuide("menu");
+          }}
+        >
+          <ListItemText>Behörighetshjälp</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleOverflowClose();
             void handleAuthAction();
           }}
         >
@@ -324,6 +335,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
         closeMenu={closeMenu}
         isGuest={hasGuestAccess}
       />
+
+      <PermissionActionGuide />
     </Box>
   );
 }
