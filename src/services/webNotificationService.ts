@@ -398,7 +398,7 @@ function detectNotificationBrowserLimitation(isInstalledPwa: boolean): string | 
   const isSafari = /safari/.test(ua) && !/chrome|crios|fxios|edgios/.test(ua);
 
   if (isIos && isSafari && !isInstalledPwa) {
-    return "On iOS Safari, push notifications work only after adding this app to your Home Screen and opening it as an installed app.";
+    return "I iOS Safari fungerar pushnotiser först när appen har lagts till på hemskärmen och öppnas som installerad app.";
   }
 
   return null;
@@ -455,18 +455,18 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
           : "action_needed";
 
   const notificationDetail = !isSecureContext
-    ? `${sharedPermissionGuidance("notifications", "limited")} Notifications require HTTPS (secure context).`
+    ? `${sharedPermissionGuidance("notifications", "limited")} Notiser kräver HTTPS (säker kontext).`
     : !notificationSupported
-      ? `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`
+      ? `${sharedPermissionGuidance("notifications", "limited")} Den här webbläsaren stödjer inte Notification API.`
       : notificationBrowserLimitation
         ? `${sharedPermissionGuidance("notifications", "limited")} ${notificationBrowserLimitation}`
         : notificationPermission === "denied"
-          ? `${sharedPermissionGuidance("notifications", "blocked")} Browser permission is denied.`
+          ? `${sharedPermissionGuidance("notifications", "blocked")} Webbläsarbehörighet är nekad.`
           : notificationPermission === "granted" && hasPushEndpoint
-            ? `${sharedPermissionGuidance("notifications", "allowed")} Permission granted and push endpoint is fully enabled.${isInstalledPwa ? " Installed app mode detected." : ""}`
+            ? `${sharedPermissionGuidance("notifications", "allowed")} Behörighet är tillåten och push-endpoint är fullt aktiverad.${isInstalledPwa ? " Installerat appläge upptäckt." : ""}`
             : notificationPermission === "granted"
-              ? `${sharedPermissionGuidance("notifications", "action_needed")} Permission granted but push endpoint missing. Retry setup to finish endpoint registration.`
-              : `${sharedPermissionGuidance("notifications", "action_needed")} Browser permission is default.`;
+              ? `${sharedPermissionGuidance("notifications", "action_needed")} Behörighet är tillåten men push-endpoint saknas. Kör konfigurationen igen för att slutföra endpoint-registreringen.`
+              : `${sharedPermissionGuidance("notifications", "action_needed")} Webbläsarbehörigheten är standard.`;
 
   const notifications: PermissionStatusSnapshot = {
     capability: "notifications",
@@ -484,12 +484,12 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
     capability: "background_refresh",
     state: !isSecureContext ? "limited" : !swSupported ? "limited" : swReady ? "allowed" : "action_needed",
     detail: !isSecureContext
-      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers require HTTPS (secure context).`
+      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers kräver HTTPS (säker kontext).`
       : !swSupported
-      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers are not available in this browser.`
+      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers är inte tillgängliga i den här webbläsaren.`
       : swReady
-        ? `${sharedPermissionGuidance("background_refresh", "allowed")} Service worker is active${backgroundSyncSupported ? " and background sync is supported" : ", but background sync API is limited"}.`
-        : `${sharedPermissionGuidance("background_refresh", "action_needed")} ${swRegistration ? "A registration exists but is not active yet. Retry after reloading or reinstall the app." : "Service worker is not registered yet. Retry and allow installation."}`,
+        ? `${sharedPermissionGuidance("background_refresh", "allowed")} Service worker är aktiv${backgroundSyncSupported ? " och background sync stöds" : ", men API:et för background sync är begränsat"}.`
+        : `${sharedPermissionGuidance("background_refresh", "action_needed")} ${swRegistration ? "En registrering finns men är inte aktiv ännu. Försök igen efter omladdning eller ominstallation av appen." : "Service worker är inte registrerad ännu. Försök igen och tillåt installation."}`,
     actionLabel: sharedPermissionActionLabel(
       "background_refresh",
       !isSecureContext ? "limited" : !swSupported ? "limited" : swReady ? "allowed" : "action_needed"
@@ -505,10 +505,10 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
     capability: "biometric_passkey",
     state: passkeyApiSupported && passkeyPlatformSupported ? "allowed" : "limited",
     detail: passkeyApiSupported && passkeyPlatformSupported
-      ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Platform authenticator is available on this device.`
+      ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Plattformsautentiserare finns tillgänglig på enheten.`
       : passkeyApiSupported
-        ? `${sharedPermissionGuidance("biometric_passkey", "limited")} WebAuthn exists, but no platform authenticator was detected.`
-        : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey APIs are not available in this browser.`,
+        ? `${sharedPermissionGuidance("biometric_passkey", "limited")} WebAuthn finns, men ingen plattformsautentiserare hittades.`
+        : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey-API:er är inte tillgängliga i den här webbläsaren.`,
     actionLabel: sharedPermissionActionLabel("biometric_passkey", passkeyApiSupported && passkeyPlatformSupported ? "allowed" : "limited"),
     actionEnabled: true,
   };
@@ -516,7 +516,7 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
   const calendar: PermissionStatusSnapshot = {
     capability: "calendar",
     state: "limited",
-    detail: `${sharedPermissionGuidance("calendar", "limited")} Web apps cannot toggle OS calendar permission directly.`,
+    detail: `${sharedPermissionGuidance("calendar", "limited")} Webbappar kan inte slå av/på operativsystemets kalenderbehörighet direkt.`,
     actionLabel: sharedPermissionActionLabel("calendar", "limited"),
     actionEnabled: false,
   };

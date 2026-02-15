@@ -4,31 +4,32 @@ import { SHARED_PERMISSION_CAPABILITY_MATRIX } from "./permissionCapabilityMatri
 // Note for non-coders:
 // "copy" means user-facing text. Keeping one table avoids different wording in different screens.
 export const SHARED_PERMISSION_STATE_LABELS: Record<SharedPermissionState, string> = {
-  allowed: "Allowed",
-  blocked: "Blocked",
-  limited: "Limited",
-  action_needed: "Action needed",
+  allowed: "Tillåten",
+  blocked: "Blockerad",
+  limited: "Begränsad",
+  action_needed: "Åtgärd krävs",
 };
 
 export const SHARED_PERMISSION_CAPABILITY_LABELS: Record<PermissionCapability, string> = {
-  notifications: "Notifications",
-  background_refresh: "Background refresh",
-  biometric_passkey: "Biometric / passkey",
-  calendar: "Calendar",
+  notifications: "Notiser",
+  background_refresh: "Bakgrundsuppdatering",
+  biometric_passkey: "Biometri / passkey",
+  calendar: "Kalender",
 };
 
 export const WEB_PERMISSION_CAPABILITY_HELP: Record<PermissionCapability, string> = {
-  notifications: "Browser alerts for match reminders and admin updates.",
-  background_refresh: "Service worker readiness to receive pushes while the page is closed.",
-  biometric_passkey: "Whether this browser/device can use platform passkeys.",
-  calendar: "Web cannot directly toggle OS calendar permission; calendar features depend on your mail/calendar app.",
+  // Note for non-coders: these short helper texts explain each permission card in everyday Swedish.
+  notifications: "Webbläsaraviseringar för matchpåminnelser och adminuppdateringar.",
+  background_refresh: "Service worker-beredskap för att ta emot push även när sidan är stängd.",
+  biometric_passkey: "Om den här webbläsaren/enheten kan använda plattformsnycklar (passkeys).",
+  calendar: "Webben kan inte slå av/på operativsystemets kalenderbehörighet direkt; kalenderfunktioner beror på din kalenderapp.",
 };
 
 export const IOS_PERMISSION_LIMITATIONS_COPY = {
   notifications:
-    "On iPhone/iPad, notifications only work after you add the app to your Home Screen and allow alerts in iOS Settings.",
+    "På iPhone/iPad fungerar notiser först när du har lagt appen på hemskärmen och tillåtit notiser i iOS-inställningar.",
   backgroundRefresh:
-    "iOS may pause background updates to save battery. Keep the app installed on Home Screen and allow Background App Refresh in Settings.",
+    "iOS kan pausa bakgrundsuppdateringar för att spara batteri. Behåll appen på hemskärmen och tillåt Bakgrundsuppdatering i Inställningar.",
 };
 
 export function sharedPermissionGuidance(capability: PermissionCapability, state: SharedPermissionState): string {

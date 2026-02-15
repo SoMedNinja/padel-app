@@ -5,77 +5,77 @@ import { PermissionCapabilityMatrix } from "../types/permissions";
 export const SHARED_PERMISSION_CAPABILITY_MATRIX: PermissionCapabilityMatrix = {
   notifications: {
     allowed: {
-      explanation: "Allowed: reminders and admin updates can be delivered.",
-      actionLabel: "Retry check",
+      explanation: "Tillåten: påminnelser och adminuppdateringar kan levereras.",
+      actionLabel: "Kontrollera igen",
     },
     blocked: {
-      explanation: "Blocked: notifications are off for this app. Open system/browser settings and allow notifications.",
-      actionLabel: "Open Settings",
+      explanation: "Blockerad: notiser är avstängda för appen. Öppna systemets/webbläsarens inställningar och tillåt notiser.",
+      actionLabel: "Öppna inställningar",
     },
     limited: {
-      explanation: "Limited: only partial notification surfaces are available on this device/browser.",
-      actionLabel: "Open Settings",
+      explanation: "Begränsad: endast vissa notisytor är tillgängliga på den här enheten/webbläsaren.",
+      actionLabel: "Öppna inställningar",
     },
     action_needed: {
-      explanation: "Action needed: grant notification permission to receive reminders.",
-      actionLabel: "Request",
+      explanation: "Åtgärd krävs: ge notisbehörighet för att få påminnelser.",
+      actionLabel: "Begär",
     },
   },
   background_refresh: {
     allowed: {
-      explanation: "Allowed: background delivery/refresh is available.",
-      actionLabel: "Retry check",
+      explanation: "Tillåten: bakgrundsleverans/-uppdatering är tillgänglig.",
+      actionLabel: "Kontrollera igen",
     },
     blocked: {
-      explanation: "Blocked: background activity is disabled in system settings.",
-      actionLabel: "Open Settings",
+      explanation: "Blockerad: bakgrundsaktivitet är avstängd i systeminställningar.",
+      actionLabel: "Öppna inställningar",
     },
     limited: {
-      explanation: "Limited: background behavior depends on browser or OS constraints.",
-      actionLabel: "Open Settings",
+      explanation: "Begränsad: bakgrundsbeteende beror på begränsningar i webbläsare eller operativsystem.",
+      actionLabel: "Öppna inställningar",
     },
     action_needed: {
-      explanation: "Action needed: enable background activity support, then retry.",
-      actionLabel: "Open Settings",
+      explanation: "Åtgärd krävs: aktivera stöd för bakgrundsaktivitet och försök igen.",
+      actionLabel: "Öppna inställningar",
     },
   },
   biometric_passkey: {
     allowed: {
-      explanation: "Allowed: biometric/passkey features are ready to use.",
-      actionLabel: "Retry check",
+      explanation: "Tillåten: biometrisk/passkey-funktionalitet är redo att användas.",
+      actionLabel: "Kontrollera igen",
     },
     blocked: {
-      explanation: "Blocked: biometric/passkey usage is disabled in system settings.",
-      actionLabel: "Open Settings",
+      explanation: "Blockerad: användning av biometri/passkey är avstängd i systeminställningar.",
+      actionLabel: "Öppna inställningar",
     },
     limited: {
-      explanation: "Limited: this device/browser does not fully support biometric or passkey features.",
-      actionLabel: "Open Settings",
+      explanation: "Begränsad: den här enheten/webbläsaren har inte fullt stöd för biometri eller passkey.",
+      actionLabel: "Öppna inställningar",
     },
     action_needed: {
-      explanation: "Action needed: enable biometric/passkey and confirm setup.",
-      actionLabel: "Request",
+      explanation: "Åtgärd krävs: aktivera biometri/passkey och bekräfta konfigurationen.",
+      actionLabel: "Begär",
     },
   },
   calendar: {
     allowed: {
-      explanation: "Allowed: calendar access is available for saving matches.",
-      actionLabel: "Retry check",
+      explanation: "Tillåten: kalenderåtkomst finns för att spara matcher.",
+      actionLabel: "Kontrollera igen",
     },
     blocked: {
-      explanation: "Blocked: calendar permission is denied. Open settings and allow calendar access.",
-      actionLabel: "Open Settings",
+      explanation: "Blockerad: kalenderbehörighet nekas. Öppna inställningar och tillåt kalenderåtkomst.",
+      actionLabel: "Öppna inställningar",
     },
     limited: {
-      explanation: "Limited: web cannot directly toggle OS calendar permission.",
-      actionLabel: "Open calendar settings",
+      explanation: "Begränsad: webben kan inte slå av/på operativsystemets kalenderbehörighet direkt.",
+      actionLabel: "Öppna kalenderinställningar",
     },
     action_needed: {
-      explanation: "Action needed: grant calendar access to save matches automatically.",
-      actionLabel: "Request",
+      explanation: "Åtgärd krävs: ge kalenderåtkomst för att spara matcher automatiskt.",
+      actionLabel: "Begär",
     },
   },
 };
 
 export const SHARED_PERMISSION_PLATFORM_DIFFERENCES =
-  "Platform differences: web can request Notifications, but background behavior depends on service workers/browser policies and calendar permission cannot be toggled directly; iOS can request Notifications and Calendar, while Background App Refresh and biometric availability depend on iOS Settings/device support.";
+  "Plattformsskillnader: webben kan begära notisbehörighet, men bakgrundsbeteende beror på service workers/webbläsarpolicyer och kalenderbehörighet kan inte ändras direkt; iOS kan begära notis- och kalenderbehörighet, medan Bakgrundsuppdatering och biometrisk tillgänglighet beror på iOS-inställningar/enhetsstöd.";
