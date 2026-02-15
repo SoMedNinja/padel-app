@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "contract:generate": "node scripts/generate-contract-models.mjs",
-    "contract:check": "node scripts/check-contract-sync.mjs"
+    "contract:check": "node scripts/check-contract-sync.mjs",
+    "tokens:generate": "node scripts/generate-design-tokens.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -136,12 +136,13 @@ After approval:
 ## 6) Release cadence checklist (every new version)
 
 1. Update code.
-2. Increment `MARKETING_VERSION` when user-facing release changes.
-3. Increment `CURRENT_PROJECT_VERSION` for every upload attempt.
-4. Archive and upload to TestFlight.
-5. Smoke test with internal testers.
-6. Re-verify privacy manifest compliance in `PadelNative/Resources/PrivacyInfo.xcprivacy` against currently used iOS APIs (especially required-reason APIs like UserDefaults) before submission.
-7. Promote build to App Store submission.
+2. If visual styles changed, update `design/tokens.json`, run `npm run tokens:generate`, and commit the regenerated web + iOS token files together.
+3. Increment `MARKETING_VERSION` when user-facing release changes.
+4. Increment `CURRENT_PROJECT_VERSION` for every upload attempt.
+5. Archive and upload to TestFlight.
+6. Smoke test with internal testers.
+7. Re-verify privacy manifest compliance in `PadelNative/Resources/PrivacyInfo.xcprivacy` against currently used iOS APIs (especially required-reason APIs like UserDefaults) before submission.
+8. Promote build to App Store submission.
 
 > Note for non-coders: this privacy re-check is a quick "policy safety check" to prevent App Store rejection when app features change.
 
