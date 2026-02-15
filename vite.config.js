@@ -13,23 +13,25 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.png", "icon-512.png"],
+      // includeAssets keeps these files copied as-is so install icons stay available.
+      includeAssets: ["favicon.png", "icon-192.png", "icon-512.png"],
       manifest: {
+        // This web app manifest is what phones/browsers read when users install the app.
         name: "Padel Tracker",
         short_name: "Padel",
         theme_color: "#b91c1c",
         background_color: "#ffffff",
         display: "standalone",
-        start_url: "./",
+        start_url: "/",
         icons: [
           {
-            src: "icon-512.png",
-            sizes: "512x512",
+            src: "icon-192.png",
+            sizes: "192x192",
             type: "image/png",
           },
           {
             src: "icon-512.png",
-            sizes: "192x192",
+            sizes: "512x512",
             type: "image/png",
           },
         ],
