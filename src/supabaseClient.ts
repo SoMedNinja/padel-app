@@ -5,20 +5,10 @@ const envSupabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const envSupabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 const supabaseUrl = envSupabaseUrl || "";
 const supabaseAnonKey = envSupabaseAnonKey || "";
-const isPublishableKey = supabaseAnonKey.startsWith("sb_publishable_");
 
 const supabaseConfigWarning = !envSupabaseUrl || !envSupabaseAnonKey
   ? "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment."
-  : isPublishableKey
-    ? "VITE_SUPABASE_ANON_KEY uses sb_publishable_*. Use the Supabase anon public key from Project Settings -> API -> Project API keys."
-    : null;
-
-if (isPublishableKey) {
-  // Note for non-coders: this key family often causes auth confusion and 401-style failures in app features.
-  console.warn(
-    "Warning: VITE_SUPABASE_ANON_KEY is sb_publishable_*. Replace it with the anon public key from Supabase Dashboard -> Project Settings -> API."
-  );
-}
+  : null;
 
 const isSupabaseConfigured = !supabaseConfigWarning;
 const missingSupabaseMessage = supabaseConfigWarning
@@ -77,14 +67,12 @@ export const supabase: SupabaseClient = isSupabaseConfigured
   : (createMockSupabase() as unknown as SupabaseClient);
 
 
-// Note for non-coders: this guard gives a clear error if the environment key is not the project "anon public" key.
+// Note for non-coders: this guard verifies that we at least have a public app key before calling Edge Functions.
+// Supabase currently supports both legacy anon keys and newer sb_publishable_* keys for browser clients.
 export const assertEdgeFunctionAnonKey = () => {
   if (!supabaseAnonKey) {
-    throw new Error("Miljöfel: VITE_SUPABASE_ANON_KEY saknas. Lägg in Supabase anon public key i miljövariablerna.");
-  }
-  if (supabaseAnonKey.startsWith("sb_publishable_")) {
     throw new Error(
-      "Miljöfel: VITE_SUPABASE_ANON_KEY använder sb_publishable_*. Byt till Supabase anon public key i Project Settings → API.",
+      "Miljöfel: VITE_SUPABASE_ANON_KEY saknas. Lägg in Supabase public app key (anon key eller sb_publishable_*) i miljövariablerna.",
     );
   }
 };

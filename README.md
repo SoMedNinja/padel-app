@@ -12,11 +12,11 @@ Currently, two official plugins are available:
 To connect the frontend to Supabase in any environment (local, staging, production), set these variables:
 
 - `VITE_SUPABASE_URL`: your project URL from Supabase → Project Settings → API.
-- `VITE_SUPABASE_ANON_KEY`: **the anon public key**, not the publishable key.
-  - The anon key usually starts with `ey...` or contains `anon`.
-  - The publishable key starts with `sb_publishable_` and **will not work** with Edge Functions.
+- `VITE_SUPABASE_ANON_KEY`: your Supabase **public app key**. Both of these are accepted:
+  - Legacy anon key (often starts with `ey...` or includes `anon`)
+  - New publishable key (starts with `sb_publishable_`)
 
-Note for non-coders: the anon public key is safe to use in the browser because Supabase still enforces row-level security, but the publishable key is a different product key and won't authenticate the app correctly. 
+Note for non-coders: both key formats above are public browser keys (safe to expose in frontend code). Security still comes from Supabase Row Level Security policies and authenticated user tokens. 
 
 ## React Compiler
 
