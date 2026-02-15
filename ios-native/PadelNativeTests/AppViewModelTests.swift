@@ -23,6 +23,24 @@ final class AppViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testHandleIncomingUniversalScheduleURLSetsPollAndVoteDraft() {
+        let viewModel = AppViewModel()
+        viewModel.isAuthenticated = true
+        viewModel.isGuestMode = false
+        viewModel.injectIdentityForTests(AuthIdentity(profileId: UUID(), email: "member@padel.se", fullName: "Member", isAdmin: false, isRegular: true, isApproved: true))
+
+        let pollId = UUID()
+        let dayId = UUID()
+        let url = URL(string: "https://padelnative.app/schema?poll=\(pollId.uuidString)&day=\(dayId.uuidString)&slots=day")!
+
+        viewModel.handleIncomingURL(url)
+
+        XCTAssertEqual(viewModel.selectedMainTab, 3)
+        XCTAssertEqual(viewModel.deepLinkedPollId, pollId)
+        XCTAssertEqual(viewModel.deepLinkedPollDayId, dayId)
+    }
+
+    @MainActor
     func testHandleIncomingSingleGameURLRequiresAuthenticatedMember() {
         let viewModel = AppViewModel()
         viewModel.isAuthenticated = false
@@ -33,6 +51,18 @@ final class AppViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.authMessage, "Logga in för att öppna matchformuläret från en länk.")
         XCTAssertNotEqual(viewModel.selectedMainTab, 1)
+    }
+
+    @MainActor
+    func testHandleIncomingMatchShareURLOpensHistoryTab() {
+        let viewModel = AppViewModel()
+        viewModel.isAuthenticated = true
+        viewModel.isGuestMode = false
+
+        let url = URL(string: "https://padelnative.app/match/8d388ea3-bf54-45aa-ba0b-c1146caecdf8")!
+        viewModel.handleIncomingURL(url)
+
+        XCTAssertEqual(viewModel.selectedMainTab, 4)
     }
 
     @MainActor

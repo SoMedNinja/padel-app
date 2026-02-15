@@ -62,6 +62,7 @@ interface HistoryProps {
   profiles?: Profile[];
   user: any;
   allEloPlayers?: PlayerStats[];
+  highlightedMatchId?: string | null;
 }
 
 interface EditState {
@@ -85,7 +86,8 @@ export default function History({
   eloRatingByMatch = {},
   profiles = [],
   user,
-  allEloPlayers = []
+  allEloPlayers = [],
+  highlightedMatchId = null,
 }: HistoryProps) {
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
@@ -313,6 +315,7 @@ export default function History({
           const tournamentType = m.source_tournament_type || "standalone";
           const isActually1v1 = tournamentType === "standalone_1v1";
           const isUserParticipant = t1Ids.includes(user?.id) || t2Ids.includes(user?.id);
+          const isHighlighted = highlightedMatchId === m.id;
 
           const teamAEntries = t1Ids.map((id, index) => ({
             id,
@@ -369,13 +372,14 @@ export default function History({
           return (
             <Card
               key={m.id}
+              id={`match-${m.id}`}
               variant="outlined"
               sx={{
                 borderRadius: 3,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                boxShadow: isHighlighted ? 8 : '0 4px 12px rgba(0,0,0,0.04)',
                 bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'background.paper',
-                borderColor: isUserParticipant ? 'primary.light' : 'divider',
-                borderWidth: isUserParticipant ? 1.5 : 1,
+                borderColor: isHighlighted ? 'primary.main' : (isUserParticipant ? 'primary.light' : 'divider'),
+                borderWidth: isHighlighted ? 2 : (isUserParticipant ? 1.5 : 1),
               }}
             >
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>

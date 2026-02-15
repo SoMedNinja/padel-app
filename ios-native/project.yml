@@ -9,6 +9,13 @@ targets:
   PadelNative:
     type: application
     platform: iOS
+    entitlements:
+      path: PadelNative/PadelNative.entitlements
+      properties:
+        # NOTE for non-coders: this is Apple's "Associated Domains" capability.
+        # It tells iOS which website links are trusted to open directly in this app.
+        com.apple.developer.associated-domains:
+          - applinks:padelnative.app
     sources:
       - PadelNative
     settings:
@@ -37,6 +44,8 @@ targets:
         INFOPLIST_KEY_APP_STORE_URL: https://apps.apple.com/app/id0000000000
         # NOTE for non-coders: this key creates a default launch screen without additional storyboard files.
         INFOPLIST_KEY_UILaunchScreen_Generation: true
+        # NOTE for non-coders: this points Xcode to the entitlements file where Associated Domains is stored.
+        CODE_SIGN_ENTITLEMENTS: PadelNative/PadelNative.entitlements
     configFiles:
       Debug: PadelNative/Config/AppSecrets.xcconfig
       Release: PadelNative/Config/AppSecrets.xcconfig
