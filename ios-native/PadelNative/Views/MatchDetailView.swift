@@ -114,24 +114,28 @@ struct MatchDetailView: View {
                 }
 
                 if viewModel.canDeleteMatch(match) {
-                    Button("Radera match permanent") {
+                    Button(role: .destructive) {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         showDeleteConfirm = true
+                    } label: {
+                        Label("Radera match permanent", systemImage: "trash")
+                            .font(.inter(.subheadline, weight: .bold))
+                            .frame(maxWidth: .infinity)
                     }
-                    .font(.inter(.subheadline, weight: .bold))
-                    .foregroundStyle(AppColors.error)
-                    .padding()
+                    .buttonStyle(.bordered)
+                    .padding(.top, 20)
                 }
             }
             .padding()
         }
         .background(AppColors.background)
-        .alert("Radera match?", isPresented: $showDeleteConfirm) {
-            Button("Radera", role: .destructive) {
+        .confirmationDialog("Radera match?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Radera permanent", role: .destructive) {
                 Task { await viewModel.deleteMatch(match) }
             }
             Button("Avbryt", role: .cancel) { }
         } message: {
-            Text("Det här tar bort matchen permanent från databasen.")
+            Text("Det här tar bort matchen mellan \(match.teamAName) och \(match.teamBName) permanent från databasen. Detta kan inte ångras.")
         }
         .navigationTitle("Matchdetaljer")
         .padelLiquidGlassChrome()
