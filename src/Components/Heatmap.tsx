@@ -20,6 +20,7 @@ import {
   Chip,
   Stack,
   TableSortLabel,
+  Tooltip,
 } from "@mui/material";
 
 const ELO_BASELINE = 1000;
@@ -265,14 +266,6 @@ export default function Heatmap({
       if (sortKey === "winPct") {
         valA = a.winPct; valB = b.winPct;
       }
-      if (sortKey === "serveFirstWinPct") {
-        valA = a.serveFirstWinPct ?? -1;
-        valB = b.serveFirstWinPct ?? -1;
-      }
-      if (sortKey === "serveSecondWinPct") {
-        valA = a.serveSecondWinPct ?? -1;
-        valB = b.serveSecondWinPct ?? -1;
-      }
       if (sortKey === "avgElo") {
         valA = a.avgElo; valB = b.avgElo;
       }
@@ -320,18 +313,11 @@ export default function Heatmap({
         </Box>
 
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
-          <Table sx={{ minWidth: 800 }} aria-label="Lagkombinationer och statistik">
+          <Table sx={{ minWidth: 700 }} aria-label="Lagkombinationer och statistik">
             <TableHead sx={{ bgcolor: 'grey.50' }}>
               <TableRow>
-                <TableCell sortDirection={sortKey === "players" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel
-                    active={sortKey === "players"}
-                    direction={sortKey === "players" ? (asc ? "asc" : "desc") : "asc"}
-                    onClick={() => handleSort("players")}
-                    aria-label="Sortera efter lag"
-                  >
-                    Lag
-                  </TableSortLabel>
+                <TableCell sx={{ fontWeight: 700 }}>
+                  Lagkamrat
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
                   <TableSortLabel
@@ -341,16 +327,6 @@ export default function Heatmap({
                     aria-label="Sortera efter matcher"
                   >
                     Matcher
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell align="center" sortDirection={sortKey === "wins" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel
-                    active={sortKey === "wins"}
-                    direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"}
-                    onClick={() => handleSort("wins")}
-                    aria-label="Sortera efter vinster"
-                  >
-                    Vinster
                   </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
@@ -363,27 +339,11 @@ export default function Heatmap({
                     Vinst %
                   </TableSortLabel>
                 </TableCell>
-                <TableCell align="center" sortDirection={sortKey === "serveFirstWinPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel
-                    active={sortKey === "serveFirstWinPct"}
-                    direction={sortKey === "serveFirstWinPct" ? (asc ? "asc" : "desc") : "asc"}
-                    onClick={() => handleSort("serveFirstWinPct")}
-                    aria-label="Sortera efter vinstprocent vid serve"
-                  >
-                    Vinst % (servade)
-                  </TableSortLabel>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <Tooltip title="Vinstprocent vid Start-serve (S) respektive Mottagning (M)." arrow>
+                    <Box component="span">S/M %</Box>
+                  </Tooltip>
                 </TableCell>
-                <TableCell align="center" sortDirection={sortKey === "serveSecondWinPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel
-                    active={sortKey === "serveSecondWinPct"}
-                    direction={sortKey === "serveSecondWinPct" ? (asc ? "asc" : "desc") : "asc"}
-                    onClick={() => handleSort("serveSecondWinPct")}
-                    aria-label="Sortera efter vinstprocent vid mottagning"
-                  >
-                    Vinst % (mottagning)
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>Senaste 5</TableCell>
                 <TableCell align="center" sortDirection={sortKey === "avgElo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
                   <TableSortLabel
                     active={sortKey === "avgElo"}
@@ -394,6 +354,7 @@ export default function Heatmap({
                     Snitt-ELO
                   </TableSortLabel>
                 </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700 }}>Senaste 5</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -412,10 +373,9 @@ export default function Heatmap({
                     </Stack>
                   </TableCell>
                   <TableCell align="center">{r.games}</TableCell>
-                  <TableCell align="center">{r.wins}</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700 }}>{r.winPct}%</TableCell>
-                  <TableCell align="center">{r.serveFirstWinPct === null ? "-" : `${r.serveFirstWinPct}%`}</TableCell>
-                  <TableCell align="center">{r.serveSecondWinPct === null ? "-" : `${r.serveSecondWinPct}%`}</TableCell>
+                  <TableCell align="center">{`${r.serveFirstWinPct ?? 0}%/${r.serveSecondWinPct ?? 0}%`}</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>{r.avgElo}</TableCell>
                   <TableCell align="center">
                     {r.recentResults?.length ? (
                       <Stack direction="row" spacing={0.5} justifyContent="center">
@@ -433,7 +393,6 @@ export default function Heatmap({
                       "-"
                     )}
                   </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600 }}>{r.avgElo}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

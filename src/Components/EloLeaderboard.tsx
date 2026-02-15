@@ -233,7 +233,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                 component="div"
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
+                  gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
                   alignItems: 'center',
                   width: '100%',
                   minHeight: 56,
@@ -280,12 +280,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                   </TableSortLabel>
                 </TableCell>
                 <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none', cursor: 'help' }}>
-                  <Tooltip title="Antal vinster (V) eller förluster (F) i rad" arrow>
-                    <Box component="span">Streak</Box>
-                  </Tooltip>
-                </TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none', cursor: 'help' }}>
-                  <Tooltip title="Form baserat på ELO-förändring över de senaste matcherna" arrow>
+                  <Tooltip title="ELO-kurvan över dina senaste matcher" arrow>
                     <Box component="span">Form</Box>
                   </Tooltip>
                 </TableCell>
@@ -322,7 +317,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       left: 0,
                       width: '100%',
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(6, minmax(80px, 1fr))',
+                      gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
                       alignItems: 'center',
                       transform: `translateY(${virtualItem.start}px)`,
                       borderBottom: '1px solid',
@@ -348,7 +343,6 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     <TableCell component="div" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
-                    <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.streak || "—"}</TableCell>
                     <TableCell component="div" sx={{ textAlign: 'center', borderBottom: 'none' }}>
                       <Sparkline data={p.eloHistory || []} />
                     </TableCell>

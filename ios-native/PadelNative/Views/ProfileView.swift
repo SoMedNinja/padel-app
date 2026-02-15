@@ -708,11 +708,14 @@ struct ProfileView: View {
                                     LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Serie", label))
                                         .foregroundStyle(color)
                                         .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                                        .interpolationMethod(.catmullRom)
                                 }
                             }
                         }
                     }
 
+                    // Note for non-coders:
+                    // Catmull-Rom draws softer, rounded curves and we intentionally hide point dots for the win-rate series.
                     if primaryMetric == .winRate || secondaryMetric == .winRate,
                        let currentId = viewModel.currentPlayer?.id {
                         ForEach(points) { point in
@@ -720,8 +723,7 @@ struct ProfileView: View {
                                 LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: eloDomain)))
                                     .foregroundStyle(.mint)
                                     .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
-                                    .symbol(.circle)
-                                    .symbolSize(24)
+                                    .interpolationMethod(.catmullRom)
                             }
                         }
                     }

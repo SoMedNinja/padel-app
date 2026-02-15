@@ -37,7 +37,7 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
   const menuItems = [
     // Note for non-coders: this is the menu text users see for the "/" profile page.
     { text: "Profil", icon: <HomeIcon />, path: "/" },
-    { text: "Grabbarnas serie", icon: <TrophyIcon />, path: "/dashboard" },
+    { text: "Översikt", icon: <TrophyIcon />, path: "/dashboard" },
     { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
   ];
 
