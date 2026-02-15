@@ -26,7 +26,7 @@ class LiveMatchActivityService {
 
     private var currentActivity: Activity<LiveMatchAttributes>?
     private var currentMatchId: String?
-    private var latestState = LiveMatchAttributes.ContentState(teamAScore: 0, teamBScore: 0, status: Self.localizedStatusInProgress)
+    private var latestState = LiveMatchAttributes.ContentState(teamAScore: 0, teamBScore: 0, status: LiveMatchActivityService.localizedStatusInProgress)
 
     static let localizedStatusDraft = NSLocalizedString("Utkast", comment: "Live Activity status when tournament is in draft mode")
     static let localizedStatusInProgress = NSLocalizedString("Pågår", comment: "Live Activity status when tournament is currently in progress")
@@ -84,8 +84,8 @@ class LiveMatchActivityService {
 
         if let activity = currentActivity {
             guard currentMatchId == matchId else {
-                logger.info("Switching Live Activity to a new match. previousMatchId=\(currentMatchId ?? "none", privacy: .private(mask: .hash)) newMatchId=\(matchId, privacy: .private(mask: .hash))")
-                endMatchActivity(scoreA: latestState.teamAScore, scoreB: latestState.teamBScore, status: latestState.status, matchId: currentMatchId)
+                logger.info("Switching Live Activity to a new match. previousMatchId=\(self.currentMatchId ?? "none", privacy: .private(mask: .hash)) newMatchId=\(matchId, privacy: .private(mask: .hash))")
+                endMatchActivity(scoreA: latestState.teamAScore, scoreB: latestState.teamBScore, status: latestState.status, matchId: self.currentMatchId)
                 breakLoopAndStart(matchId: matchId, teamA: teamA, teamB: teamB, updatedState: updatedState)
                 return
             }
@@ -164,7 +164,7 @@ class LiveMatchActivityService {
             } else {
                 await currentActivity?.end(dismissalPolicy: .immediate)
             }
-            logger.info("Ended Live Activity. matchId=\(currentMatchId ?? "none", privacy: .private(mask: .hash))")
+            logger.info("Ended Live Activity. matchId=\(self.currentMatchId ?? "none", privacy: .private(mask: .hash))")
             currentActivity = nil
             currentMatchId = nil
             latestState = LiveMatchAttributes.ContentState(teamAScore: 0, teamBScore: 0, status: Self.localizedStatusCompleted)

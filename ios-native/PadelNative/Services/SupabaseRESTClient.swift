@@ -58,6 +58,7 @@ struct MatchSubmission: Encodable {
         case teamAServesFirst = "team1_serves_first"
         case playedAt = "created_at"
         case createdBy = "created_by"
+        case matchMode = "match_mode"
     }
 }
 
@@ -459,7 +460,6 @@ struct SupabaseRESTClient {
 
         struct PollInsertPayload: Encodable {
             let createdBy: UUID
-    let matchMode: ContractMatchMode?
             let weekYear: Int
             let weekNumber: Int
             let startDate: String
@@ -467,7 +467,6 @@ struct SupabaseRESTClient {
 
             enum CodingKeys: String, CodingKey {
                 case createdBy = "created_by"
-        case matchMode = "match_mode"
                 case weekYear = "week_year"
                 case weekNumber = "week_number"
                 case startDate = "start_date"
