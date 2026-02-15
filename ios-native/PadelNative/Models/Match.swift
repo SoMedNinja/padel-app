@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct Match: Identifiable, Codable {
     let id: UUID
+    let updatedAt: Date?
     let createdBy: UUID?
     let playedAt: Date
     let teamAName: String
@@ -23,6 +24,7 @@ struct Match: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id
+        case updatedAt = "updated_at"
         case createdBy = "created_by"
         case playedAt = "created_at"
         case teamAName = "team1"
@@ -64,6 +66,7 @@ struct Match: Identifiable, Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
         createdBy = try container.decodeIfPresent(UUID.self, forKey: .createdBy)
         playedAt = try container.decodeIfPresent(Date.self, forKey: .playedAt) ?? .distantPast
 
@@ -87,6 +90,7 @@ struct Match: Identifiable, Codable {
 
     init(
         id: UUID,
+        updatedAt: Date? = nil,
         createdBy: UUID? = nil,
         playedAt: Date,
         teamAName: String,
@@ -102,6 +106,7 @@ struct Match: Identifiable, Codable {
         teamAServesFirst: Bool? = true
     ) {
         self.id = id
+        self.updatedAt = updatedAt
         self.createdBy = createdBy
         self.playedAt = playedAt
         self.teamAName = teamAName
@@ -122,6 +127,7 @@ struct Match: Identifiable, Codable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(createdBy, forKey: .createdBy)
         try container.encode(playedAt, forKey: .playedAt)
         try container.encode(teamANames, forKey: .teamAName)

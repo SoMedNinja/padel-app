@@ -224,6 +224,14 @@ struct SingleGameView: View {
                                 .foregroundStyle(AppColors.textSecondary)
                         }
                     }
+
+                    if let conflictResolutionMessage = viewModel.conflictResolutionMessage {
+                        SectionCard(title: "Konfliktstatus") {
+                            Text(conflictResolutionMessage)
+                                .font(.inter(.footnote))
+                                .foregroundStyle(AppColors.textSecondary)
+                        }
+                    }
                 }
                 .padding()
             }
@@ -232,6 +240,17 @@ struct SingleGameView: View {
             .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 applyDeepLinkModeIfAvailable()
+            }
+            .sheet(item: Binding(
+                get: { viewModel.pendingMatchConflict },
+                set: { viewModel.pendingMatchConflict = $0 }
+            )) { conflict in
+                MatchConflictResolutionSheet(
+                    context: conflict,
+                    onOverwrite: { Task { await viewModel.resolvePendingMatchConflict(with: .overwritten) } },
+                    onDiscard: { Task { await viewModel.resolvePendingMatchConflict(with: .discarded) } },
+                    onMerge: conflict.canMerge ? { Task { await viewModel.resolvePendingMatchConflict(with: .merged) } } : nil
+                )
             }
             .navigationDestination(isPresented: $navigateToRecap) {
                 if let recap = generatedRecap {

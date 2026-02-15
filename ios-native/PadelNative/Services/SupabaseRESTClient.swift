@@ -20,6 +20,14 @@ enum APIError: LocalizedError {
     }
 }
 
+struct MatchUpdateConflictError: LocalizedError {
+    let latestMatch: Match
+
+    var errorDescription: String? {
+        "Another update was saved before your edit finished."
+    }
+}
+
 struct MatchSubmission: Encodable {
     let teamAName: [String]
     let teamBName: [String]
@@ -580,6 +588,7 @@ struct SupabaseRESTClient {
 
     func updateMatch(
         matchId: UUID,
+        expectedUpdatedAt: Date? = nil,
         playedAt: Date? = nil,
         teamAScore: Int,
         teamBScore: Int,
@@ -589,22 +598,59 @@ struct SupabaseRESTClient {
         team2: [String]? = nil,
         team1_ids: [String?]? = nil,
         team2_ids: [String?]? = nil
-    ) async throws {
-        try await sendPatch(
+    ) async throws -> Match {
+        let patch = MatchUpdatePatch(
+            playedAt: playedAt,
+            teamAScore: teamAScore,
+            teamBScore: teamBScore,
+            scoreType: scoreType,
+            scoreTarget: scoreTarget,
+            team1: team1,
+            team2: team2,
+            team1_ids: team1_ids,
+            team2_ids: team2_ids
+        )
+
+        // Note for non-coders:
+        // We include the last-known "updated_at" timestamp in the filter.
+        // If someone else already edited this row, no row matches and we flag a conflict.
+        if let expectedUpdatedAt {
+            let timestamp = Self.queryDateTimeFormatter.string(from: expectedUpdatedAt)
+            let rows: [Match] = try await sendPatchForDecodableArray(
+                path: "/rest/v1/matches",
+                query: "id=eq.\(matchId.uuidString)&updated_at=eq.\(timestamp)",
+                body: patch,
+                preferHeader: "return=representation"
+            )
+            if let updated = rows.first {
+                return updated
+            }
+
+            let latestMatch = try await fetchMatch(matchId: matchId)
+            throw MatchUpdateConflictError(latestMatch: latestMatch)
+        }
+
+        let rows: [Match] = try await sendPatchForDecodableArray(
             path: "/rest/v1/matches",
             query: "id=eq.\(matchId.uuidString)",
-            body: MatchUpdatePatch(
-                playedAt: playedAt,
-                teamAScore: teamAScore,
-                teamBScore: teamBScore,
-                scoreType: scoreType,
-                scoreTarget: scoreTarget,
-                team1: team1,
-                team2: team2,
-                team1_ids: team1_ids,
-                team2_ids: team2_ids
-            )
+            body: patch,
+            preferHeader: "return=representation"
         )
+        guard let updated = rows.first else {
+            throw APIError.requestFailed(statusCode: -1)
+        }
+        return updated
+    }
+
+    func fetchMatch(matchId: UUID) async throws -> Match {
+        let rows: [Match] = try await request(
+            path: "/rest/v1/matches",
+            query: "select=*&id=eq.\(matchId.uuidString)&limit=1"
+        )
+        guard let match = rows.first else {
+            throw APIError.requestFailed(statusCode: 404)
+        }
+        return match
     }
 
     // Note for non-coders:
@@ -1059,7 +1105,8 @@ struct SupabaseRESTClient {
 
     private func sendPatch<T: Encodable>(path: String, query: String, body: T) async throws {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
-        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(query)") else {
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(encodedQuery)") else {
             throw APIError.badURL
         }
 
@@ -1098,7 +1145,8 @@ struct SupabaseRESTClient {
 
     private func sendDelete(path: String, query: String) async throws {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
-        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(query)") else {
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(encodedQuery)") else {
             throw APIError.badURL
         }
 
@@ -1159,6 +1207,31 @@ struct SupabaseRESTClient {
         preferHeader: String
     ) async throws -> [T] {
         let data = try await sendPostForData(path: path, body: body, preferHeader: preferHeader)
+        return try decoder.decode([T].self, from: data)
+    }
+
+    private func sendPatchForDecodableArray<T: Decodable, Body: Encodable>(
+        path: String,
+        query: String,
+        body: Body,
+        preferHeader: String
+    ) async throws -> [T] {
+        guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)?\(encodedQuery)") else {
+            throw APIError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue(AppConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        let bearerToken = AuthService().currentAccessToken() ?? AppConfig.supabaseAnonKey
+        request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(preferHeader, forHTTPHeaderField: "Prefer")
+        request.httpBody = try encoder.encode(body)
+
+        let data = try await performForData(request)
         return try decoder.decode([T].self, from: data)
     }
 }
@@ -1236,6 +1309,12 @@ private extension SupabaseRESTClient {
     static let isoDateTimeFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static let queryDateTimeFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 }

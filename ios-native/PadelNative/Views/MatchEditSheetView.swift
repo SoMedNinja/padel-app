@@ -58,7 +58,9 @@ struct MatchEditSheetView: View {
                                 teamBPlayerIds: [teamBPlayer1Id, teamBPlayer2Id]
                             )
                             isSaving = false
-                            dismiss()
+                            if viewModel.pendingMatchConflict == nil {
+                                dismiss()
+                            }
                         }
                     } label: {
                         if isSaving {

@@ -322,6 +322,56 @@ struct SingleGameRecap {
     }
 }
 
+
+struct MatchUpdateDraft {
+    let baseMatch: Match
+    let playedAt: Date
+    let teamAScore: Int
+    let teamBScore: Int
+    let scoreType: String
+    let scoreTarget: Int?
+    let teamAPlayerIds: [String?]
+    let teamBPlayerIds: [String?]
+
+    // Note for non-coders:
+    // This creates a readable summary so users can compare what they changed
+    // with what was already saved on the server by someone else.
+    func summary() -> String {
+        let timestamp = AppViewModel.uiDateTimeFormatter.string(from: playedAt)
+        return "Score \(teamAScore)-\(teamBScore) • \(timestamp)"
+    }
+}
+
+struct MatchConflictEvent: Identifiable {
+    enum Resolution: String {
+        case detected
+        case overwritten
+        case discarded
+        case merged
+        case mergeBlocked
+    }
+
+    let id = UUID()
+    let matchId: UUID
+    let recordedAt: Date
+    let resolution: Resolution
+    let details: String
+}
+
+struct MatchUpdateConflictContext: Identifiable {
+    let id = UUID()
+    let localDraft: MatchUpdateDraft
+    let latestServerMatch: Match
+
+    var matchId: UUID { localDraft.baseMatch.id }
+
+    var canMerge: Bool {
+        let localChangedScore = localDraft.teamAScore != localDraft.baseMatch.teamAScore || localDraft.teamBScore != localDraft.baseMatch.teamBScore
+        let serverChangedScore = latestServerMatch.teamAScore != localDraft.baseMatch.teamAScore || latestServerMatch.teamBScore != localDraft.baseMatch.teamBScore
+        return localChangedScore && !serverChangedScore
+    }
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     private enum LiveSyncScope: Hashable {
@@ -344,6 +394,9 @@ final class AppViewModel: ObservableObject {
     @Published var onlyMissingVotesByPoll: [UUID: Bool] = [:]
     @Published var lastErrorMessage: String?
     @Published var statusMessage: String?
+    @Published var pendingMatchConflict: MatchUpdateConflictContext?
+    @Published var conflictResolutionMessage: String?
+    @Published private(set) var conflictEvents: [MatchConflictEvent] = []
     @Published var isAuthenticated = false
     @Published var isGuestMode = false
     @Published var isAuthenticating = false
@@ -466,7 +519,7 @@ final class AppViewModel: ObservableObject {
         return formatter
     }()
 
-    private static let uiDateTimeFormatter: DateFormatter = {
+    static let uiDateTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = AppConfig.swedishLocale
         formatter.dateStyle = .medium
@@ -2903,33 +2956,112 @@ final class AppViewModel: ObservableObject {
         scoreType: String,
         scoreTarget: Int?,
         teamAPlayerIds: [String?]? = nil,
-        teamBPlayerIds: [String?]? = nil
+        teamBPlayerIds: [String?]? = nil,
+        expectedUpdatedAt: Date? = nil
     ) async {
         guard canUseAdmin else {
             statusMessage = "Endast admin kan ändra matcher i iOS-appen just nu."
             return
         }
 
-        let team1 = teamAPlayerIds?.map { resolvePlayerName(playerId: $0) }
-        let team2 = teamBPlayerIds?.map { resolvePlayerName(playerId: $0) }
+        // Note for non-coders:
+        // We save the exact values the user edited so we can compare against
+        // the latest server row if someone else updated the same match first.
+        let localDraft = MatchUpdateDraft(
+            baseMatch: match,
+            playedAt: playedAt,
+            teamAScore: teamAScore,
+            teamBScore: teamBScore,
+            scoreType: scoreType,
+            scoreTarget: scoreTarget,
+            teamAPlayerIds: teamAPlayerIds ?? match.teamAPlayerIds,
+            teamBPlayerIds: teamBPlayerIds ?? match.teamBPlayerIds
+        )
+
+        await submitMatchUpdate(draft: localDraft, expectedUpdatedAt: expectedUpdatedAt ?? match.updatedAt)
+    }
+
+    func resolvePendingMatchConflict(with resolution: MatchConflictEvent.Resolution) async {
+        guard let conflict = pendingMatchConflict else { return }
+
+        switch resolution {
+        case .overwritten:
+            recordConflictEvent(matchId: conflict.matchId, resolution: .overwritten, details: "User forced overwrite with local values.")
+            await submitMatchUpdate(draft: conflict.localDraft, expectedUpdatedAt: nil)
+            pendingMatchConflict = nil
+        case .discarded:
+            pendingMatchConflict = nil
+            conflictResolutionMessage = "Dina lokala ändringar kasserades och senaste serverversion används."
+            recordConflictEvent(matchId: conflict.matchId, resolution: .discarded, details: "User discarded pending edits.")
+            await bootstrap()
+        case .merged:
+            guard conflict.canMerge else {
+                conflictResolutionMessage = "Sammanfogning gick inte eftersom både lokalt och servern ändrade samma fält."
+                recordConflictEvent(matchId: conflict.matchId, resolution: .mergeBlocked, details: "Merge blocked due to overlapping score edits.")
+                return
+            }
+
+            let mergedDraft = MatchUpdateDraft(
+                baseMatch: conflict.latestServerMatch,
+                playedAt: conflict.latestServerMatch.playedAt,
+                teamAScore: conflict.localDraft.teamAScore,
+                teamBScore: conflict.localDraft.teamBScore,
+                scoreType: conflict.localDraft.scoreType,
+                scoreTarget: conflict.localDraft.scoreTarget,
+                teamAPlayerIds: conflict.latestServerMatch.teamAPlayerIds,
+                teamBPlayerIds: conflict.latestServerMatch.teamBPlayerIds
+            )
+            recordConflictEvent(matchId: conflict.matchId, resolution: .merged, details: "Merged non-overlapping edits and retried update.")
+            await submitMatchUpdate(draft: mergedDraft, expectedUpdatedAt: conflict.latestServerMatch.updatedAt)
+            pendingMatchConflict = nil
+        case .detected, .mergeBlocked:
+            return
+        }
+    }
+
+    // Note for non-coders:
+    // "expectedUpdatedAt" is our safety checkpoint (optimistic locking).
+    // If the server timestamp no longer matches, we stop and ask the user how to resolve the conflict.
+    private func submitMatchUpdate(draft: MatchUpdateDraft, expectedUpdatedAt: Date?) async {
+        let team1 = draft.teamAPlayerIds.map { resolvePlayerName(playerId: $0) }
+        let team2 = draft.teamBPlayerIds.map { resolvePlayerName(playerId: $0) }
 
         do {
-            try await apiClient.updateMatch(
-                matchId: match.id,
-                playedAt: playedAt,
-                teamAScore: teamAScore,
-                teamBScore: teamBScore,
-                scoreType: scoreType,
-                scoreTarget: scoreTarget,
+            _ = try await apiClient.updateMatch(
+                matchId: draft.baseMatch.id,
+                expectedUpdatedAt: expectedUpdatedAt,
+                playedAt: draft.playedAt,
+                teamAScore: draft.teamAScore,
+                teamBScore: draft.teamBScore,
+                scoreType: draft.scoreType,
+                scoreTarget: draft.scoreTarget,
                 team1: team1,
                 team2: team2,
-                team1_ids: teamAPlayerIds,
-                team2_ids: teamBPlayerIds
+                team1_ids: draft.teamAPlayerIds,
+                team2_ids: draft.teamBPlayerIds
             )
+            pendingMatchConflict = nil
             await bootstrap()
+            conflictResolutionMessage = expectedUpdatedAt == nil ? "Konflikt löst: serverversionen ersattes med dina ändringar." : "Match uppdaterad utan konflikt."
             statusMessage = "Match uppdaterad."
+        } catch let conflict as MatchUpdateConflictError {
+            let context = MatchUpdateConflictContext(localDraft: draft, latestServerMatch: conflict.latestMatch)
+            pendingMatchConflict = context
+            conflictResolutionMessage = nil
+            statusMessage = "Konflikt upptäckt. Välj hur du vill lösa den."
+            recordConflictEvent(matchId: draft.baseMatch.id, resolution: .detected, details: "Server row changed before PATCH completed.")
         } catch {
             statusMessage = "Kunde inte uppdatera matchen: \(error.localizedDescription)"
+        }
+    }
+
+    private func recordConflictEvent(matchId: UUID, resolution: MatchConflictEvent.Resolution, details: String) {
+        conflictEvents.insert(
+            MatchConflictEvent(matchId: matchId, recordedAt: Date(), resolution: resolution, details: details),
+            at: 0
+        )
+        if conflictEvents.count > 40 {
+            conflictEvents.removeLast(conflictEvents.count - 40)
         }
     }
 
