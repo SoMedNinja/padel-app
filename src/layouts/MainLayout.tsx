@@ -135,7 +135,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', pb: { xs: 8, sm: 0 } }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        // Note for non-coders: 100vh works everywhere, and 100dvh improves phone/PWA behavior when browser bars appear or hide.
+        minHeight: '100vh',
+        '@supports (height: 100dvh)': {
+          minHeight: '100dvh',
+        },
+        pb: { xs: 8, sm: 0 },
+      }}
+    >
       <Container maxWidth="lg" sx={{ pt: 1, display: "flex", justifyContent: "flex-end", gap: 1 }}>
         <IconButton
           edge="end"
