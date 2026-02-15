@@ -3,6 +3,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import AppUpdateBanner from "./Components/Shared/AppUpdateBanner";
 import {
+  PwaUpdateState,
   loadNotificationPreferencesWithSync,
   registerPushServiceWorker,
   setupPwaUpdateUX,
@@ -25,7 +26,7 @@ function normalizeOpenRouteMessage(routeCandidate: unknown): string | null {
 }
 
 export default function RootApp() {
-  const [isUpdateAvailable, setIsUpdateAvailable] = React.useState(false);
+  const [pendingUpdateState, setPendingUpdateState] = React.useState<PwaUpdateState | null>(null);
   const updateServiceWorkerRef = React.useRef<() => void>(() => {});
 
   React.useEffect(() => {
@@ -35,8 +36,8 @@ export default function RootApp() {
     matchService.initMutationQueue();
 
     // Note for non-coders: this wires service-worker updates into an in-app banner instead of a browser pop-up.
-    updateServiceWorkerRef.current = setupPwaUpdateUX(() => {
-      setIsUpdateAvailable(true);
+    updateServiceWorkerRef.current = setupPwaUpdateUX((updateState) => {
+      setPendingUpdateState(updateState);
     });
 
     void (async () => {
@@ -63,10 +64,11 @@ export default function RootApp() {
   return (
     <>
       <AppUpdateBanner
-        open={isUpdateAvailable}
-        onLater={() => setIsUpdateAvailable(false)}
+        open={Boolean(pendingUpdateState)}
+        urgency={pendingUpdateState?.urgency ?? "optional"}
+        onLater={() => setPendingUpdateState(null)}
         onUpdateNow={() => {
-          setIsUpdateAvailable(false);
+          setPendingUpdateState(null);
           updateServiceWorkerRef.current();
         }}
       />

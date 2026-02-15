@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, Typography } from "@mui/material";
+import { getCurrentWebAppVersion } from "../services/appVersionService";
 import {
-  findCurrentRelease,
   getLastSeenHighlightsVersion,
   loadReleaseHighlights,
   markHighlightsVersionAsSeen,
+  resolveCurrentRelease,
   type ReleaseHighlight,
 } from "../services/releaseHighlightsService";
 
@@ -18,11 +19,16 @@ export default function WhatsNewDialog() {
 
     void (async () => {
       const payload = await loadReleaseHighlights();
-      const currentRelease = findCurrentRelease(payload);
+      const lastSeenVersion = getLastSeenHighlightsVersion();
+      const currentRelease = resolveCurrentRelease(payload, getCurrentWebAppVersion(), lastSeenVersion);
       if (!isMounted || !currentRelease) return;
 
-      const lastSeenVersion = getLastSeenHighlightsVersion();
-      if (lastSeenVersion === currentRelease.appVersion) return;
+      if (currentRelease.shouldStoreAsSeenWithoutDialog) {
+        markHighlightsVersionAsSeen(currentRelease.appVersion);
+        return;
+      }
+
+      if (!currentRelease.shouldShowDialog) return;
 
       setRelease(currentRelease.release);
       setAppVersion(currentRelease.appVersion);

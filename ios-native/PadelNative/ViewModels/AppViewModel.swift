@@ -739,11 +739,11 @@ final class AppViewModel: ObservableObject {
         case .updateRecommended(let policy):
             appStoreUpdateURL = policy.appStoreURL
             isUpdateRequired = false
-            appVersionMessage = "En ny appversion finns tillgänglig. Uppdatera gärna för senaste förbättringar."
+            appVersionMessage = policy.releaseNotes ?? "En ny version finns. Uppdatera gärna snart för bättre stabilitet och nya förbättringar."
         case .updateRequired(let policy):
             appStoreUpdateURL = policy.appStoreURL
             isUpdateRequired = true
-            appVersionMessage = "Din appversion är för gammal för den här miljön. Uppdatera appen för att fortsätta säkert."
+            appVersionMessage = policy.releaseNotes ?? "Din appversion är för gammal för den här miljön. Uppdatera nu för att fortsätta säkert."
         }
 
         prepareVersionHighlightsIfNeeded(currentVersion: currentVersion)
@@ -773,8 +773,12 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        let releases = appVersionService.bundledVersionHighlights()
-        guard let release = releases.first(where: { $0.version == normalizedCurrent }) else {
+        let highlights = appVersionService.bundledVersionHighlights()
+        guard let release = appVersionService.resolveCurrentVersionHighlight(
+            currentVersion: normalizedCurrent,
+            releases: highlights.releases,
+            payloadCurrentVersion: highlights.currentVersion
+        ) else {
             dismissalStore.set(normalizedCurrent, forKey: lastSeenAppVersionKey)
             pendingVersionHighlights = nil
             return
@@ -798,7 +802,8 @@ final class AppViewModel: ObservableObject {
     // Note for non-coders:
     // This lets users open the latest "what's new" notes manually from Settings.
     func showLatestVersionHighlights() {
-        guard let latest = appVersionService.bundledVersionHighlights().first else {
+        let highlights = appVersionService.bundledVersionHighlights()
+        guard let latest = highlights.releases.first else {
             return
         }
 
