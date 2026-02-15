@@ -437,17 +437,22 @@ struct DashboardView: View {
             fileNamePrefix: "highlight"
         )
 
-        let text = """
-        🎾 Match Highlight: \(highlight.title)
-
+        let fallbackText = """
+        🎾 \(highlight.title)
         \(highlight.description)
-
-        \(match.teamAName) \(match.teamAScore)–\(match.teamBScore) \(match.teamBName)
+        \(match.shareSummary)
         """
 
-        var items: [Any] = [text]
+        let richTextSource = MatchShareActivityItemSource(
+            text: fallbackText,
+            title: "🎾 \(highlight.title)",
+            cardImageURL: fileURL,
+            metadataURL: URL(string: "https://padelnative.app/highlight/\(match.id.uuidString.lowercased())")!
+        )
+
+        var items: [Any] = [richTextSource]
         if let fileURL = fileURL {
-            items.insert(fileURL, at: 0)
+            items.append(fileURL)
         }
 
         let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
