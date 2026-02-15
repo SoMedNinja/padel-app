@@ -19,13 +19,11 @@ struct NotificationQuietHours: Codable {
     private static let defaultEndHour = 7
     private static let defaultEnabled = false
 
-    static var `default`: NotificationQuietHours {
-        NotificationQuietHours(
-            enabled: Self.defaultEnabled,
-            startHour: Self.defaultStartHour,
-            endHour: Self.defaultEndHour
-        )
-    }
+    static let `default` = NotificationQuietHours(
+        enabled: defaultEnabled,
+        startHour: defaultStartHour,
+        endHour: defaultEndHour
+    )
 
     enum CodingKeys: String, CodingKey {
         case enabled
@@ -76,14 +74,12 @@ struct NotificationPreferences: Codable {
         .adminAnnouncement,
     ]
 
-    static var `default`: NotificationPreferences {
-        NotificationPreferences(
-            enabled: Self.defaultEnabled,
-            eventToggles: Self.defaultEventToggles,
-            quietHours: .default,
-            normalize: false
-        )
-    }
+    static let `default` = NotificationPreferences(
+        enabled: defaultEnabled,
+        eventToggles: defaultEventToggles,
+        quietHours: .default,
+        normalize: false
+    )
 
     enum CodingKeys: String, CodingKey {
         case enabled
@@ -106,7 +102,7 @@ struct NotificationPreferences: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let decodedEnabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.default.enabled
+        let decodedEnabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.defaultEnabled
         let decodedToggles = try container.decodeIfPresent([String: Bool].self, forKey: .eventToggles) ?? [:]
         let decodedQuietHours = try container.decodeIfPresent(NotificationQuietHours.self, forKey: .quietHours) ?? .default
         self.init(enabled: decodedEnabled, eventToggles: decodedToggles, quietHours: decodedQuietHours)
