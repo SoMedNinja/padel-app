@@ -210,7 +210,7 @@ struct SettingsView: View {
                         .foregroundStyle(AppColors.textSecondary)
                 }
 
-                Toggle("Påminn om kommande matcher", isOn: Binding(
+                Toggle("Tillåt notiser", isOn: Binding(
                     get: { viewModel.areScheduleNotificationsEnabled },
                     set: { enabled in
                         Task { await viewModel.setScheduleNotificationsEnabled(enabled) }
@@ -221,10 +221,10 @@ struct SettingsView: View {
                 // Note for non-coders:
                 // These switches let users choose exactly which event categories should notify them.
                 eventToggleRow(title: "Ny schemalagd match", eventType: .scheduledMatchNew)
-                eventToggleRow(title: "Påminnelse om poll", eventType: .availabilityPollReminder)
-                eventToggleRow(title: "Admin-meddelande", eventType: .adminAnnouncement)
+                eventToggleRow(title: "Påminnelse om tillgänglighetspoll", eventType: .availabilityPollReminder)
+                eventToggleRow(title: "Adminmeddelanden", eventType: .adminAnnouncement)
 
-                Toggle("Tysta timmar", isOn: Binding(
+                Toggle("Aktivera tysta timmar", isOn: Binding(
                     get: { viewModel.notificationPreferences.quietHours.enabled },
                     set: { enabled in
                         Task {
@@ -237,6 +237,10 @@ struct SettingsView: View {
                     }
                 ))
                 .font(.inter(.subheadline))
+
+                Text("Tysta timmar pausar notiser mellan start och slut. Exempel: 22 till 07 stoppar nattnotiser.")
+                    .font(.inter(.footnote))
+                    .foregroundStyle(AppColors.textSecondary)
 
                 if viewModel.notificationPreferences.quietHours.enabled {
                     HStack(spacing: 12) {

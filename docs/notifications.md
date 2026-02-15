@@ -37,6 +37,30 @@ This document defines the cross-client notification contract used by:
 - `metadata` (optional): string map for client-side context.
 - `sentAtIso` (optional): server timestamp in ISO-8601 format.
 
+## Shared preferences UX spec (web + iOS)
+
+Use the same labels, order, defaults, and helper copy on both clients.
+
+### Master toggle
+
+- **Label:** `Tillåt notiser`
+- **Default:** `true`
+- **Behavior:** when off, mute all event types and stop active delivery.
+
+### Event toggles (exact order)
+
+1. `scheduled_match_new` → **Ny schemalagd match** (default `true`)
+2. `availability_poll_reminder` → **Påminnelse om tillgänglighetspoll** (default `true`)
+3. `admin_announcement` → **Adminmeddelanden** (default `true`)
+
+### Quiet hours controls
+
+- **Toggle label:** `Aktivera tysta timmar`
+- **Helper text:** `Tysta timmar pausar notiser mellan start och slut. Exempel: 22 till 07 stoppar nattnotiser.`
+- **Default:** disabled (`false`), start `22`, end `07`.
+
+> Note for non-coders: this keeps the settings screen predictable across web and iPhone so you do not need to relearn the same controls.
+
 ## Preference model (both clients)
 
 ```json
@@ -55,6 +79,23 @@ This document defines the cross-client notification contract used by:
 }
 ```
 
+## Canonical persistence contract (`notification_preferences.preferences`)
+
+Both clients must persist this exact JSON shape:
+
+- Top-level keys: `enabled`, `eventToggles`, `quietHours`
+- `eventToggles` keys: `scheduled_match_new`, `availability_poll_reminder`, `admin_announcement`
+- `quietHours` keys: `enabled`, `startHour`, `endHour`
+
+Validation rules implemented in both clients:
+
+1. Normalize incoming data from local cache and backend before use.
+2. Backfill missing keys with defaults (migration-safe for old rows).
+3. Clamp quiet-hour values to integer `0...23` with fallback defaults.
+4. Persist only the canonical key set (drop unknown keys).
+
+> Note for non-coders: old database rows can miss fields after app updates. "Migration-safe parser guards" mean the app fills missing pieces automatically instead of crashing.
+
 ## Delivery rules
 
 1. If `enabled=false`, all notifications are muted.
@@ -69,6 +110,7 @@ This document defines the cross-client notification contract used by:
 1. Run Supabase migrations so `public.notification_preferences` and `public.push_subscriptions` exist with RLS policies.
 2. Verify each signed-in user can only read/write their own rows (admins can assist with support/debugging).
 3. Schedule periodic cleanup using `select public.revoke_stale_push_subscriptions(90);` (for example via Supabase cron).
+4. No schema expansion is required for this preference-alignment rollout because `preferences` is already JSONB; ship client normalization first, then monitor logs for parse fallbacks.
 
 > Note for non-coders: a migration is a versioned database change script. Running it creates the new table and safety rules automatically.
 

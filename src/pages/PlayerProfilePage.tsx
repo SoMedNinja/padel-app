@@ -15,7 +15,7 @@ import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } 
 import { useEloStats } from "../hooks/useEloStats";
 import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
-import { NotificationEventType, NotificationPreferences } from "../types/notifications";
+import { NOTIFICATION_EVENT_TYPES, NotificationEventType, NotificationPreferences } from "../types/notifications";
 import {
   ensureNotificationPermission,
   loadNotificationPreferences,
@@ -29,7 +29,7 @@ import { requestOpenPermissionGuide } from "../services/permissionGuidanceServic
 const EVENT_LABELS: Record<NotificationEventType, string> = {
   scheduled_match_new: "Ny schemalagd match",
   availability_poll_reminder: "Påminnelse om tillgänglighetspoll",
-  admin_announcement: "Admin-meddelanden",
+  admin_announcement: "Adminmeddelanden",
 };
 
 // Note for non-coders: keeping this text in one constant ensures the PWA tab title and section heading always use the same Swedish translation.
@@ -263,7 +263,7 @@ export default function PlayerProfilePage() {
                   <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>{NOTIFICATION_SETTINGS_LABEL}</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {/* Note for non-coders: this is where users decide which alerts they want to receive on web and in the service worker push channel. */}
-                    Slå av/på notiser per händelsetyp och välj tysta timmar för när mobilen inte ska plinga.
+                    Slå av/på notiser per händelsetyp. Tysta timmar pausar leverans mellan vald start- och sluttid.
                   </Typography>
 
                   <Button size="small" sx={{ mb: 2 }} onClick={() => requestOpenPermissionGuide("settings")}>
@@ -276,12 +276,12 @@ export default function PlayerProfilePage() {
 
                   <FormControlLabel
                     control={<Switch checked={notificationPrefs.enabled} onChange={(_, checked) => void handleMasterNotificationsToggle(checked)} />}
-                    label="Tillåt notiser på webben"
+                    label="Tillåt notiser"
                   />
 
                   <Divider sx={{ my: 2 }} />
 
-                  {Object.entries(EVENT_LABELS).map(([eventType, label]) => (
+                  {NOTIFICATION_EVENT_TYPES.map((eventType) => (
                     <FormControlLabel
                       key={eventType}
                       control={
@@ -300,11 +300,15 @@ export default function PlayerProfilePage() {
                           disabled={!notificationPrefs.enabled}
                         />
                       }
-                      label={label}
+                      label={EVENT_LABELS[eventType]}
                     />
                   ))}
 
                   <Divider sx={{ my: 2 }} />
+
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: -1, mb: 1 }}>
+                    Tysta timmar pausar notiser mellan start och slut. Exempel: 22 till 07 stoppar nattnotiser.
+                  </Typography>
 
                   <FormControlLabel
                     control={

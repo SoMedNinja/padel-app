@@ -3,6 +3,7 @@ import {
   NotificationEventPayload,
   NotificationEventType,
   NotificationPreferences,
+  normalizeNotificationPreferencesForPersistence,
 } from "../types/notifications";
 import { sharedPermissionActionLabel, sharedPermissionGuidance } from "../shared/permissionsCopy";
 import { UpdateUrgency } from "../shared/updateStates";
@@ -24,20 +25,6 @@ type NotificationPreferenceRow = {
   preferences: NotificationPreferences;
 };
 
-function mergePreferences(preferences: Partial<NotificationPreferences> | null | undefined): NotificationPreferences {
-  return {
-    ...DEFAULT_NOTIFICATION_PREFERENCES,
-    ...(preferences ?? {}),
-    eventToggles: {
-      ...DEFAULT_NOTIFICATION_PREFERENCES.eventToggles,
-      ...(preferences?.eventToggles ?? {}),
-    },
-    quietHours: {
-      ...DEFAULT_NOTIFICATION_PREFERENCES.quietHours,
-      ...(preferences?.quietHours ?? {}),
-    },
-  };
-}
 
 function readRawLocalPreferences(): string | null {
   try {
@@ -152,14 +139,15 @@ export function loadNotificationPreferences(): NotificationPreferences {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_NOTIFICATION_PREFERENCES;
-    return mergePreferences(JSON.parse(raw) as NotificationPreferences);
+    return normalizeNotificationPreferencesForPersistence(JSON.parse(raw) as unknown);
   } catch {
     return DEFAULT_NOTIFICATION_PREFERENCES;
   }
 }
 
 export function saveNotificationPreferences(preferences: NotificationPreferences): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+  const normalized = normalizeNotificationPreferencesForPersistence(preferences);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
 }
 
 // Note for non-coders:
@@ -172,16 +160,17 @@ async function fetchBackendPreferences(userId: string): Promise<NotificationPref
     .maybeSingle<NotificationPreferenceRow>();
 
   if (error) throw error;
-  return data?.preferences ? mergePreferences(data.preferences) : null;
+  return data?.preferences ? normalizeNotificationPreferencesForPersistence(data.preferences) : null;
 }
 
 async function saveBackendPreferences(userId: string, preferences: NotificationPreferences): Promise<void> {
+  const normalized = normalizeNotificationPreferencesForPersistence(preferences);
   const { error } = await supabase
     .from(NOTIFICATION_PREFERENCES_TABLE)
     .upsert(
       {
         profile_id: userId,
-        preferences,
+        preferences: normalized,
       },
       { onConflict: "profile_id" }
     );
@@ -225,13 +214,14 @@ export async function loadNotificationPreferencesWithSync(): Promise<Notificatio
 }
 
 export async function saveNotificationPreferencesWithSync(preferences: NotificationPreferences): Promise<void> {
-  saveNotificationPreferences(preferences);
+  const normalized = normalizeNotificationPreferencesForPersistence(preferences);
+  saveNotificationPreferences(normalized);
 
   try {
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user?.id;
     if (userId) {
-      await saveBackendPreferences(userId, preferences);
+      await saveBackendPreferences(userId, normalized);
     }
   } catch {
     // Note for non-coders:
@@ -240,13 +230,13 @@ export async function saveNotificationPreferencesWithSync(preferences: Notificat
 
   // Note for non-coders:
   // Turning notifications off also revokes this browser endpoint from backend delivery lists.
-  if (!preferences.enabled) {
+  if (!normalized.enabled) {
     await unsubscribeFromPushNotifications();
   } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
     await syncCurrentPushSubscriptionWithBackend();
   }
 
-  await syncPreferencesToServiceWorker(preferences);
+  await syncPreferencesToServiceWorker(normalized);
 }
 
 export function isQuietHoursActive(preferences: NotificationPreferences, now = new Date()): boolean {
@@ -286,12 +276,14 @@ export async function ensureNotificationPermission(): Promise<NotificationPermis
 export async function registerPushServiceWorker(preferences: NotificationPreferences): Promise<ServiceWorkerRegistration | null> {
   if (!("serviceWorker" in navigator)) return null;
 
+  const normalized = normalizeNotificationPreferencesForPersistence(preferences);
+
   // Note for non-coders:
   // We reuse the same service worker registration so offline app caching and push notifications stay in one place.
   let registration = await navigator.serviceWorker.getRegistration(SW_PATH);
   registration ??= await navigator.serviceWorker.register(SW_PATH);
   await navigator.serviceWorker.ready;
-  await syncPreferencesToServiceWorker(preferences);
+  await syncPreferencesToServiceWorker(normalized);
   await syncCurrentPushSubscriptionWithBackend(registration);
   return registration;
 }
