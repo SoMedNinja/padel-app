@@ -132,7 +132,8 @@ struct AppBootstrapService {
 
             // Note for non-coders:
             // Rebuilding reminders from fresh schedule data prevents stale local notifications.
-            await notificationService.scheduleUpcomingGameReminders(latestSchedule)
+            let prefs = notificationService.loadNotificationPreferences(store: .standard)
+            await notificationService.scheduleUpcomingGameReminders(latestSchedule, preferences: prefs)
 
             // Note for non-coders:
             // If a widget extension is installed, this asks it to re-read shared data/timelines.
