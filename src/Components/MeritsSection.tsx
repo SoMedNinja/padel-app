@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   buildAllPlayersBadgeStats,
@@ -10,7 +10,8 @@ import { profileService } from "../services/profileService";
 import { educationTopics } from "../content/educationTopics";
 import { readCompletedQuizMap } from "../utils/educationQuiz";
 import { padelPuzzles } from "../content/padelPuzzles";
-import { readFirstPerfectPuzzlePlayer, readPuzzleAnswerMap } from "../utils/padelPuzzle";
+import { readPuzzleAnswerMap } from "../utils/padelPuzzle";
+import { puzzleMeritService, type FirstPerfectPuzzleMeritRecord } from "../services/puzzleMeritService";
 import {
   Box,
   Typography,
@@ -81,15 +82,15 @@ const buildEducationBadges = (userId: string | null | undefined): Badge[] => {
 const buildPuzzleBadges = (
   userId: string | null | undefined,
   profiles: Array<{ id: string; name: string }>,
+  firstPerfect: FirstPerfectPuzzleMeritRecord | null,
 ): { earned: Badge[]; locked: Badge[]; otherUnique: Badge[] } => {
   if (!userId) return { earned: [], locked: [], otherUnique: [] };
 
   const answersByQuestionId = readPuzzleAnswerMap(userId);
   const totalCorrect = Object.values(answersByQuestionId).filter((record) => record.isCorrect).length;
   const totalPuzzleCount = padelPuzzles.length;
-  const firstPerfect = readFirstPerfectPuzzlePlayer();
   const firstPerfectOwner = firstPerfect
-    ? profiles.find((profile) => String(profile.id) === String(firstPerfect.userId))
+    ? profiles.find((profile) => String(profile.id) === String(firstPerfect.user_id))
     : null;
 
   const thresholdBadges: Badge[] = [
@@ -125,20 +126,20 @@ const buildPuzzleBadges = (
     tier: "Unique",
     title: "Först till alla rätt",
     description: "Personen som nådde alla Quiz-scenarion rätt först.",
-    earned: Boolean(firstPerfect?.userId && String(firstPerfect.userId) === String(userId)),
+    earned: Boolean(firstPerfect?.user_id && String(firstPerfect.user_id) === String(userId)),
     group: "Padel Quiz",
     groupOrder: 28,
     progress: null,
     holderId:
-      firstPerfect?.userId && String(firstPerfect.userId) !== String(userId)
-        ? firstPerfect.userId
+      firstPerfect?.user_id && String(firstPerfect.user_id) !== String(userId)
+        ? firstPerfect.user_id
         : undefined,
     holderValue:
-      firstPerfect?.userId && String(firstPerfect.userId) !== String(userId)
+      firstPerfect?.user_id && String(firstPerfect.user_id) !== String(userId)
         ? firstPerfectOwner?.name ?? "Annan spelare"
         : undefined,
     meta: firstPerfect
-      ? `Satt ${new Date(firstPerfect.achievedAt).toLocaleDateString("sv-SE")}`
+      ? `Satt ${new Date(firstPerfect.achieved_at).toLocaleDateString("sv-SE")}`
       : `Ingen ägare ännu — första spelaren som når ${totalPuzzleCount} rätt tar meriten.`,
   };
 
@@ -177,6 +178,24 @@ export default function MeritsSection({
     playerProfile?.featured_badge_id || null
   );
   const [savingBadgeId, setSavingBadgeId] = useState(null);
+  const [firstPerfectRecord, setFirstPerfectRecord] = useState<FirstPerfectPuzzleMeritRecord | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Note for non-coders: we fetch the unique merit owner from Supabase,
+    // so every player sees the same global winner on every device.
+    puzzleMeritService.getFirstPerfectPlayer()
+      .then((record) => {
+        if (!cancelled) setFirstPerfectRecord(record);
+      })
+      .catch((error) => {
+        console.error("Could not load first-perfect puzzle merit", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleBadgeSelection = async (badgeId) => {
     if (!user?.id) return;
@@ -215,8 +234,8 @@ export default function MeritsSection({
   );
 
   const puzzleBadges = useMemo(
-    () => buildPuzzleBadges(user?.id, profiles),
-    [user?.id, profiles]
+    () => buildPuzzleBadges(user?.id, profiles, firstPerfectRecord),
+    [user?.id, profiles, firstPerfectRecord]
   );
 
   const mergedEarnedBadges = useMemo(
