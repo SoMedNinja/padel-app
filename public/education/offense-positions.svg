@@ -1,0 +1,9 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
+  <rect width='800' height='420' fill='#fff7ed'/>
+  <rect x='120' y='60' width='560' height='300' fill='#fed7aa' stroke='#9a3412' stroke-width='4'/>
+  <line x1='120' y1='210' x2='680' y2='210' stroke='#9a3412' stroke-width='3'/>
+  <circle cx='280' cy='170' r='18' fill='#ea580c'/><circle cx='520' cy='170' r='18' fill='#ea580c'/>
+  <circle cx='250' cy='290' r='10' fill='#0f172a'/><circle cx='400' cy='290' r='10' fill='#0f172a'/><circle cx='550' cy='290' r='10' fill='#0f172a'/>
+  <text x='215' y='320' font-size='20' fill='#7c2d12' font-family='Arial'>Målområden: hörn • mitt • fötter</text>
+  <text x='30' y='42' font-size='28' fill='#0f172a' font-family='Arial'>Offensiv nätposition</text>
+</svg>

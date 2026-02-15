@@ -1,0 +1,11 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
+  <rect width='800' height='420' fill='#f8fafc'/>
+  <text x='40' y='46' font-size='28' fill='#0f172a' font-family='Arial'>Americano scoreboard</text>
+  <rect x='60' y='80' width='680' height='290' rx='14' fill='white' stroke='#cbd5e1'/>
+  <g font-family='Arial' font-size='22' fill='#1e293b'>
+    <text x='95' y='130'>Spelare</text><text x='360' y='130'>R1</text><text x='430' y='130'>R2</text><text x='500' y='130'>R3</text><text x='590' y='130'>Total</text>
+    <text x='95' y='185'>Lisa</text><text x='365' y='185'>7</text><text x='435' y='185'>6</text><text x='505' y='185'>8</text><text x='595' y='185' fill='#16a34a'>21</text>
+    <text x='95' y='235'>Ali</text><text x='365' y='235'>5</text><text x='435' y='235'>7</text><text x='505' y='235'>6</text><text x='595' y='235'>18</text>
+    <text x='95' y='285'>Mira</text><text x='365' y='285'>6</text><text x='435' y='285'>4</text><text x='505' y='285'>7</text><text x='595' y='285'>17</text>
+  </g>
+</svg>
