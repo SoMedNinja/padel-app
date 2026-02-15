@@ -166,6 +166,28 @@ After approval:
 
 ---
 
+
+## 6.1) Pre-ship identity lock checklist (must pass)
+
+> Note for non-coders: Universal Links are strict identity checks. Apple only opens the app from a web link when all IDs match exactly character-for-character.
+
+Before every TestFlight/App Store submission, verify these three items together:
+
+1. **AASA appID matches Apple app identity exactly**
+   - Check `public/.well-known/apple-app-site-association` -> `applinks.details[0].appID`.
+   - It must equal: `TEAM_ID.PRODUCT_BUNDLE_IDENTIFIER` (example format: `AB12C34DEF.se.robban.padelnative`).
+2. **Bundle identifier matches production app record**
+   - Check `ios-native/project.yml` -> `PRODUCT_BUNDLE_IDENTIFIER`.
+   - Confirm the same value is set in App Store Connect -> My Apps -> App Information -> Bundle ID.
+3. **App Store URL points to the real app listing**
+   - Check `ios-native/project.yml` -> `INFOPLIST_KEY_APP_STORE_URL`.
+   - URL must use the real numeric App Store app id (`https://apps.apple.com/app/id##########`).
+
+Why Universal Links fail when IDs do not match exactly:
+- Apple treats each app as a unique identity pair: **Team ID + Bundle ID**.
+- Your website trust file (AASA) must declare that exact pair.
+- If one character is different (uppercase/lowercase, typo, wrong app id, wrong team), iOS cannot prove trust and opens Safari instead of your app.
+
 ## 7) Common failure points + fixes
 
 - **"Invalid Bundle" / identifier mismatch**

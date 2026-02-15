@@ -21,6 +21,7 @@ targets:
         # NOTE for non-coders: this must be globally unique on Apple systems.
         # Replace with your own identifier if your org/team naming differs.
         PRODUCT_BUNDLE_IDENTIFIER: se.robban.padelnative
+        # NOTE for non-coders: this must exactly match the production App Store Connect Bundle ID or installs/links can break.
         PRODUCT_NAME: PadelNative
         SWIFT_VERSION: 5.0
         # NOTE for non-coders: this tells Xcode to create the app's Info.plist file automatically during build.
@@ -42,7 +43,8 @@ targets:
         # when server-config lookup is unavailable.
         INFOPLIST_KEY_MINIMUM_SUPPORTED_VERSION: 1.0.0
         INFOPLIST_KEY_LATEST_AVAILABLE_VERSION: 1.0.0
-        INFOPLIST_KEY_APP_STORE_URL: https://apps.apple.com/app/id0000000000
+        INFOPLIST_KEY_APP_STORE_URL: https://apps.apple.com/app/idAPP_STORE_ID
+        # NOTE for non-coders: replace idAPP_STORE_ID with your app's real App Store numeric ID from App Store Connect.
         # NOTE for non-coders: this key creates a default launch screen without additional storyboard files.
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         # NOTE for non-coders: this points Xcode to the entitlements file where Associated Domains is stored.
