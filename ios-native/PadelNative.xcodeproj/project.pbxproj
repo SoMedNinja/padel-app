@@ -365,7 +365,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PadelNative/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Padel Native";
+				INFOPLIST_KEY_CFBundleDisplayName = "Grabbarnas Paddel app";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID används för att låsa upp appen snabbare och säkert.";
 				INFOPLIST_KEY_SUPABASE_ANON_KEY = "$(SUPABASE_ANON_KEY)";
@@ -398,7 +398,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PadelNative/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Padel Native";
+				INFOPLIST_KEY_CFBundleDisplayName = "Grabbarnas Paddel app";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID används för att låsa upp appen snabbare och säkert.";
 				INFOPLIST_KEY_SUPABASE_ANON_KEY = "$(SUPABASE_ANON_KEY)";
