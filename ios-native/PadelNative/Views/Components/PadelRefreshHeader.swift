@@ -2,8 +2,13 @@ import SwiftUI
 
 // Note for non-coders: this shared config keeps pull-to-refresh timing and pull distance consistent across iOS screens.
 enum PullToRefreshBehavior {
-    static let triggerThreshold: CGFloat = 72
+    static let triggerThreshold: CGFloat = 64
     static let minimumRefreshDurationNanoseconds: UInt64 = 900_000_000
+
+    // Note for non-coders: some iPhones report a negative starting scroll offset; we subtract that baseline so the animation appears as soon as you pull.
+    static func normalizedOffset(_ offset: CGFloat, baseline: CGFloat?) -> CGFloat {
+        max(0, offset - (baseline ?? offset))
+    }
 
     static func progress(for offset: CGFloat) -> CGFloat {
         let normalized = max(0, min(1.0, offset / triggerThreshold))
@@ -12,6 +17,7 @@ enum PullToRefreshBehavior {
         return pow(normalized, 0.9)
     }
 
+    @MainActor
     static func performRefresh(
         isPullRefreshing: Binding<Bool>,
         action: @escaping () async -> Void

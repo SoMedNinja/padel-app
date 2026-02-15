@@ -19,6 +19,7 @@ struct ScheduleView: View {
     @State private var showCalendarInviteForm = false
     @State private var pullProgress: CGFloat = 0
     @State private var isPullRefreshing = false
+    @State private var pullOffsetBaseline: CGFloat?
     @State private var inviteSendAnimationTick = 0
     @State private var calendarPermissionStatus: EKAuthorizationStatus = .notDetermined
 
@@ -59,7 +60,13 @@ struct ScheduleView: View {
             .padelLiquidGlassChrome()
             .coordinateSpace(name: "padelScroll")
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                pullProgress = PullToRefreshBehavior.progress(for: offset)
+                if !isPullRefreshing,
+                   pullOffsetBaseline == nil || offset < (pullOffsetBaseline ?? offset) {
+                    pullOffsetBaseline = offset
+                }
+
+                let normalizedOffset = PullToRefreshBehavior.normalizedOffset(offset, baseline: pullOffsetBaseline)
+                pullProgress = PullToRefreshBehavior.progress(for: normalizedOffset)
             }
             .task {
                 await viewModel.refreshScheduleData()
