@@ -2105,6 +2105,7 @@ final class AppViewModel: ObservableObject {
     private enum DeepLinkRoute: Equatable {
         case schedule(pollId: UUID?, dayId: UUID?, slots: [AvailabilitySlot])
         case singleGame(mode: String?)
+        case match(matchId: UUID?)
     }
 
     // Note for non-coders:
@@ -2115,12 +2116,23 @@ final class AppViewModel: ObservableObject {
             return .failure("Länken kunde inte läsas.")
         }
 
-        let routeSource = (components.host ?? components.path)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            .lowercased()
+        // Note for non-coders:
+        // Universal links (https://padelnative.app/...) store route names in the URL path,
+        // while custom links (padelnative://schedule...) store them in the host.
+        // We normalize both formats into the same route string so one parser can handle both.
+        let isWebLink = ["http", "https"].contains((components.scheme ?? "").lowercased())
+        let hostPart = components.host?.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased() ?? ""
+        let pathPart = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
+        let routeSource = isWebLink ? pathPart : ([hostPart, pathPart].filter { !$0.isEmpty }.joined(separator: "/"))
         let items = components.queryItems ?? []
 
-        if routeSource.contains("schedule") {
+        let pathSegments = routeSource
+            .split(separator: "/")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        let routeName = pathSegments.first ?? ""
+
+        if routeName == "schema" || routeName == "schedule" {
             let allowedNames: Set<String> = ["poll", "pollid", "day", "dayid", "slots"]
             let unknownNames = items
                 .map { $0.name.lowercased() }
@@ -2160,7 +2172,7 @@ final class AppViewModel: ObservableObject {
             return .success(.schedule(pollId: pollId, dayId: dayId, slots: slots))
         }
 
-        if routeSource.contains("single-game") || routeSource.contains("singlegame") {
+        if routeName == "single-game" || routeName == "singlegame" {
             let allowedNames: Set<String> = ["mode"]
             let unknownNames = items
                 .map { $0.name.lowercased() }
@@ -2177,6 +2189,16 @@ final class AppViewModel: ObservableObject {
             }
 
             return .success(.singleGame(mode: nil))
+        }
+
+        if routeName == "match" {
+            let pathMatchId = pathSegments.count > 1 ? pathSegments[1] : nil
+            let queryMatchId = items.first(where: { ["id", "match", "matchid"].contains($0.name.lowercased()) })?.value
+            let parsedMatch = parseOptionalUUID(pathMatchId ?? queryMatchId)
+            guard parsedMatch.isValid else {
+                return .failure("Länken innehåller ett ogiltigt match-id.")
+            }
+            return .success(.match(matchId: parsedMatch.value))
         }
 
         return .failure("Länken matchar ingen känd sida i appen.")
@@ -2214,6 +2236,11 @@ final class AppViewModel: ObservableObject {
 
             selectedMainTab = 1
             deepLinkedSingleGameMode = mode
+
+        case .match:
+            // Note for non-coders: match share links open the history tab so users land
+            // in the same area where match summaries and details are shown.
+            openHistoryTab()
         }
     }
 

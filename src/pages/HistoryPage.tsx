@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
 import EmptyState from "../Components/Shared/EmptyState";
@@ -17,8 +17,10 @@ import { invalidateMatchData, invalidateProfileData } from "../data/queryInvalid
 export default function HistoryPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const { matchFilter, setMatchFilter, user, isGuest } = useStore();
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const highlightMatchId = searchParams.get("match");
 
   const {
     allMatches,
@@ -35,6 +37,27 @@ export default function HistoryPage() {
     () => filterMatches(allMatches, matchFilter),
     [allMatches, matchFilter]
   );
+
+  useEffect(() => {
+    if (!highlightMatchId) return;
+
+    // Note for non-coders: shared links should ignore any old saved filters,
+    // otherwise a recipient could miss the target match by accident.
+    if (matchFilter.type !== "all") {
+      setMatchFilter({ type: "all" });
+    }
+  }, [highlightMatchId, matchFilter.type, setMatchFilter]);
+
+  useEffect(() => {
+    if (!highlightMatchId || filteredMatches.length === 0) return;
+
+    // Note for non-coders: if someone opened a shared /match/<id> link, we jump to
+    // that specific card so the browser fallback feels like a direct deep link.
+    const element = document.getElementById(`match-${highlightMatchId}`);
+    if (!element) return;
+
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [filteredMatches.length, highlightMatchId]);
 
   useEffect(() => {
     // Note for non-coders: we watch how far the page is scrolled to show a "back to top" button.
@@ -95,6 +118,7 @@ export default function HistoryPage() {
               profiles={profiles}
               user={isGuest ? null : user}
               allEloPlayers={eloPlayers}
+              highlightedMatchId={highlightMatchId}
             />
           )}
         </Box>
