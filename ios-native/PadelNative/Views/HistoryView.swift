@@ -25,6 +25,13 @@ struct HistoryView: View {
                     ScrollOffsetTracker()
                     PadelRefreshHeader(isRefreshing: viewModel.isHistoryLoading && !viewModel.historyMatches.isEmpty, pullProgress: pullProgress)
                     filterSection
+                    if let conflictResolutionMessage = viewModel.conflictResolutionMessage {
+                        SectionCard(title: "Konfliktstatus") {
+                            Text(conflictResolutionMessage)
+                                .font(.inter(.footnote))
+                                .foregroundStyle(AppColors.textSecondary)
+                        }
+                    }
                     matchesSection
                 }
                 .padding(.horizontal)
@@ -64,6 +71,17 @@ struct HistoryView: View {
             .sheet(item: $editingMatch) { match in
                 MatchEditSheetView(match: match)
                     .environmentObject(viewModel)
+            }
+            .sheet(item: Binding(
+                get: { viewModel.pendingMatchConflict },
+                set: { viewModel.pendingMatchConflict = $0 }
+            )) { conflict in
+                MatchConflictResolutionSheet(
+                    context: conflict,
+                    onOverwrite: { Task { await viewModel.resolvePendingMatchConflict(with: .overwritten) } },
+                    onDiscard: { Task { await viewModel.resolvePendingMatchConflict(with: .discarded) } },
+                    onMerge: conflict.canMerge ? { Task { await viewModel.resolvePendingMatchConflict(with: .merged) } } : nil
+                )
             }
             .confirmationDialog("Radera match?", isPresented: Binding(
                 get: { matchToDelete != nil },

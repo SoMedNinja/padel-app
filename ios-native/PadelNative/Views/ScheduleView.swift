@@ -102,12 +102,23 @@ struct ScheduleView: View {
             .refreshable {
                 await viewModel.refreshScheduleData()
             }
+            .sheet(item: Binding(
+                get: { viewModel.pendingMatchConflict },
+                set: { viewModel.pendingMatchConflict = $0 }
+            )) { conflict in
+                MatchConflictResolutionSheet(
+                    context: conflict,
+                    onOverwrite: { Task { await viewModel.resolvePendingMatchConflict(with: .overwritten) } },
+                    onDiscard: { Task { await viewModel.resolvePendingMatchConflict(with: .discarded) } },
+                    onMerge: conflict.canMerge ? { Task { await viewModel.resolvePendingMatchConflict(with: .merged) } } : nil
+                )
+            }
         }
     }
 
     @ViewBuilder
     private var statusSection: some View {
-        if (viewModel.isScheduleLoading && viewModel.polls.isEmpty) || viewModel.scheduleErrorMessage != nil || viewModel.scheduleActionMessage != nil || viewModel.deepLinkedPollDayId != nil {
+        if (viewModel.isScheduleLoading && viewModel.polls.isEmpty) || viewModel.scheduleErrorMessage != nil || viewModel.scheduleActionMessage != nil || viewModel.deepLinkedPollDayId != nil || viewModel.conflictResolutionMessage != nil {
             SectionCard(title: "Status") {
                 VStack(alignment: .leading, spacing: 8) {
                     if let deepDay = viewModel.deepLinkedPollDayId {
@@ -131,6 +142,12 @@ struct ScheduleView: View {
                         Label(message, systemImage: "checkmark.circle.fill")
                             .font(.inter(.body))
                             .foregroundStyle(AppColors.success)
+                    }
+
+                    if let conflictResolutionMessage = viewModel.conflictResolutionMessage {
+                        Label(conflictResolutionMessage, systemImage: "arrow.triangle.2.circlepath.circle.fill")
+                            .font(.inter(.body))
+                            .foregroundStyle(AppColors.textSecondary)
                     }
                 }
             }
