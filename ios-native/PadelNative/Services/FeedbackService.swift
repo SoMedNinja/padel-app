@@ -54,4 +54,4 @@ final class FeedbackService {
     }
 }
 
-private extension FeedbackService.ActionType: CaseIterable {}
+extension FeedbackService.ActionType: CaseIterable {}

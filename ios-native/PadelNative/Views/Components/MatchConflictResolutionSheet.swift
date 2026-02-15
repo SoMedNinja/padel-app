@@ -52,7 +52,7 @@ struct MatchConflictResolutionSheet: View {
     // Note for non-coders:
     // We translate raw player IDs into readable labels so users can compare teams quickly.
     private func readableTeam(_ ids: [String?]) -> String {
-        let cleaned = ids.compactMap { id in
+        let cleaned = ids.compactMap { id -> String? in
             guard let id else { return nil }
             return id == "guest" ? "Gäst" : String(id.prefix(6)) + "…"
         }

@@ -247,7 +247,7 @@ struct ProfileView: View {
                     Text(message)
                         .foregroundStyle(.red)
                         .font(.caption)
-                case .empty(let _):
+                case .empty:
                     VStack(alignment: .leading, spacing: 12) {
                         Text(profileTrendEmptyReason)
                             .foregroundStyle(.secondary)
@@ -320,10 +320,10 @@ struct ProfileView: View {
                 }
             }
             .pickerStyle(.menu)
-            .onChange(of: primaryMetric) { newValue in
+            .onChange(of: primaryMetric) { _, newValue in
                 if secondaryMetric == newValue { secondaryMetric = newValue == .elo ? .winRate : .elo }
             }
-            .onChange(of: secondaryMetric) { newValue in
+            .onChange(of: secondaryMetric) { _, newValue in
                 if primaryMetric == newValue { primaryMetric = newValue == .elo ? .winRate : .elo }
             }
         }

@@ -526,7 +526,7 @@ final class AppViewModel: ObservableObject {
         return formatter
     }()
 
-    static let uiDateTimeFormatter: DateFormatter = {
+    nonisolated(unsafe) static let uiDateTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = AppConfig.swedishLocale
         formatter.dateStyle = .medium
@@ -582,10 +582,10 @@ final class AppViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            LiveMatchActivityService.shared.restoreActiveActivityIfNeeded()
-            self.updateLiveActivity()
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                LiveMatchActivityService.shared.restoreActiveActivityIfNeeded()
+                self.updateLiveActivity()
                 await self.refreshDevicePermissionStatuses()
             }
         }
@@ -656,7 +656,7 @@ final class AppViewModel: ObservableObject {
     private static func handleBackgroundTask(_ task: BGAppRefreshTask) {
         // Note for non-coders:
         // We re-schedule the next run immediately, so refresh continues automatically over time.
-        scheduleBackgroundRefreshRequests()
+        _ = scheduleBackgroundRefreshRequests()
 
         let backgroundWork = Task {
             let service = AppBootstrapService(apiClient: SupabaseRESTClient())
@@ -783,7 +783,7 @@ final class AppViewModel: ObservableObject {
 
 
     var notificationPermissionNeedsSettings: Bool {
-        notificationPermissionStatus == .denied || notificationPermissionStatus == .restricted
+        notificationPermissionStatus == .denied
     }
 
     // Note for non-coders:
@@ -825,7 +825,7 @@ final class AppViewModel: ObservableObject {
         if enabled {
             notificationPermissionStatus = await notificationService.currentStatus()
 
-            if notificationPermissionStatus == .denied || notificationPermissionStatus == .restricted {
+            if notificationPermissionStatus == .denied {
                 areScheduleNotificationsEnabled = false
                 dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
                 statusMessage = "Action needed: Notifications are blocked. Open iOS Settings and allow notifications for PadelNative."
@@ -1864,7 +1864,7 @@ final class AppViewModel: ObservableObject {
             guard let cutoff = calendar.date(byAdding: .day, value: -30, to: now) else { return source }
             return source.filter { $0.playedAt >= cutoff && $0.playedAt <= now }
         case .custom:
-            let range = dashboardCustomDateRange
+            let range = globalCustomDateRange
             return source.filter { $0.playedAt >= range.start && $0.playedAt <= range.end }
         }
     }
@@ -2142,6 +2142,12 @@ final class AppViewModel: ObservableObject {
         selectedMainTab = 3
     }
 
+    private struct DeepLinkParseError: LocalizedError {
+        let message: String
+
+        var errorDescription: String? { message }
+    }
+
     private enum DeepLinkRoute: Equatable {
         case schedule(pollId: UUID?, dayId: UUID?, slots: [AvailabilitySlot])
         case singleGame(mode: String?)
@@ -2151,9 +2157,9 @@ final class AppViewModel: ObservableObject {
     // Note for non-coders:
     // This parser turns raw URL text into a small "route enum", so we can validate everything once
     // and keep the actual navigation logic simple and safe.
-    private func parseDeepLink(_ url: URL) -> Result<DeepLinkRoute, String> {
+    private func parseDeepLink(_ url: URL) -> Result<DeepLinkRoute, DeepLinkParseError> {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return .failure("Länken kunde inte läsas.")
+            return .failure(DeepLinkParseError(message: "Länken kunde inte läsas."))
         }
 
         // Note for non-coders:
@@ -2178,7 +2184,7 @@ final class AppViewModel: ObservableObject {
                 .map { $0.name.lowercased() }
                 .filter { !allowedNames.contains($0) }
             if let unexpected = unknownNames.first {
-                return .failure("Länken har en okänd parameter: \(unexpected).")
+                return .failure(DeepLinkParseError(message: "Länken har en okänd parameter: \(unexpected)."))
             }
 
             let pollValue = items.first(where: { ["pollid", "poll"].contains($0.name.lowercased()) })?.value
@@ -2187,7 +2193,7 @@ final class AppViewModel: ObservableObject {
             let parsedPoll = parseOptionalUUID(pollValue)
             let parsedDay = parseOptionalUUID(dayValue)
             guard parsedPoll.isValid, parsedDay.isValid else {
-                return .failure("Länken innehåller ogiltiga schema-id:n.")
+                return .failure(DeepLinkParseError(message: "Länken innehåller ogiltiga schema-id:n."))
             }
 
             let pollId = parsedPoll.value
@@ -2201,7 +2207,7 @@ final class AppViewModel: ObservableObject {
                     .filter { !$0.isEmpty }
                 let parsedSlots = slotValues.compactMap(AvailabilitySlot.init(rawValue:))
                 guard parsedSlots.count == slotValues.count else {
-                    return .failure("Länken innehåller ett okänt tidsintervall i slots.")
+                    return .failure(DeepLinkParseError(message: "Länken innehåller ett okänt tidsintervall i slots."))
                 }
                 slots = parsedSlots
             } else {
@@ -2218,12 +2224,12 @@ final class AppViewModel: ObservableObject {
                 .map { $0.name.lowercased() }
                 .filter { !allowedNames.contains($0) }
             if let unexpected = unknownNames.first {
-                return .failure("Länken har en okänd parameter: \(unexpected).")
+                return .failure(DeepLinkParseError(message: "Länken har en okänd parameter: \(unexpected)."))
             }
 
             if let mode = items.first(where: { $0.name.lowercased() == "mode" })?.value?.lowercased() {
                 guard ["1v1", "2v2"].contains(mode) else {
-                    return .failure("Länken innehåller ett ogiltigt spelläge.")
+                    return .failure(DeepLinkParseError(message: "Länken innehåller ett ogiltigt spelläge."))
                 }
                 return .success(.singleGame(mode: mode))
             }
@@ -2236,12 +2242,12 @@ final class AppViewModel: ObservableObject {
             let queryMatchId = items.first(where: { ["id", "match", "matchid"].contains($0.name.lowercased()) })?.value
             let parsedMatch = parseOptionalUUID(pathMatchId ?? queryMatchId)
             guard parsedMatch.isValid else {
-                return .failure("Länken innehåller ett ogiltigt match-id.")
+                return .failure(DeepLinkParseError(message: "Länken innehåller ett ogiltigt match-id."))
             }
             return .success(.match(matchId: parsedMatch.value))
         }
 
-        return .failure("Länken matchar ingen känd sida i appen.")
+        return .failure(DeepLinkParseError(message: "Länken matchar ingen känd sida i appen."))
     }
 
     // Note for non-coders:
@@ -2250,8 +2256,8 @@ final class AppViewModel: ObservableObject {
         switch parseDeepLink(url) {
         case let .success(route):
             applyDeepLinkRoute(route)
-        case let .failure(message):
-            showDeepLinkFallbackBanner(message)
+        case let .failure(error):
+            showDeepLinkFallbackBanner(error.message)
         }
     }
 
@@ -5275,7 +5281,8 @@ final class AppViewModel: ObservableObject {
                 // Note for non-coders:
                 // The backend only allows inserts when "created_by" matches the logged-in user.
                 // Sending this value avoids iOS-only 403 failures when saving matches.
-                createdBy: creatorId
+                createdBy: creatorId,
+                matchMode: isOneVsOne ? .oneVsOne : .twoVsTwo
             )
 
             try await apiClient.submitMatch(submission)

@@ -91,7 +91,7 @@ struct NotificationService {
 
     // Note for non-coders:
     // APNs registration gives iOS a channel for remote push notifications.
-    func registerForRemoteNotifications() {
+    @MainActor func registerForRemoteNotifications() {
         UIApplication.shared.registerForRemoteNotifications()
     }
 

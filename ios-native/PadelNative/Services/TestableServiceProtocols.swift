@@ -8,7 +8,7 @@ import EventKit
 protocol NotificationServicing {
     func currentStatus() async -> UNAuthorizationStatus
     func requestAuthorization() async throws -> Bool
-    func registerForRemoteNotifications()
+    @MainActor func registerForRemoteNotifications()
     func scheduleUpcomingGameReminders(_ entries: [ScheduleEntry], preferences: NotificationPreferences) async
     func clearScheduledGameReminders() async
     func saveNotificationPreferences(_ preferences: NotificationPreferences, store: UserDefaults)

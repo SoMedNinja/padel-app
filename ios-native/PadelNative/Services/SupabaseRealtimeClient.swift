@@ -1,8 +1,7 @@
 import Foundation
 import os
 
-@MainActor
-class SupabaseRealtimeClient: NSObject {
+final class SupabaseRealtimeClient: NSObject {
     // Note for non-coders:
     // We use a dedicated logger so network diagnostics are easier to filter in Apple Console.
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "PadelNative", category: "SupabaseRealtimeClient")

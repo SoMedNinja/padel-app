@@ -413,7 +413,7 @@ struct SettingsView: View {
         switch viewModel.notificationPermissionStatus {
         case .authorized, .provisional, .ephemeral:
             return .allowed
-        case .denied, .restricted:
+        case .denied:
             return .blocked
         case .notDetermined:
             return .actionNeeded
@@ -426,7 +426,7 @@ struct SettingsView: View {
         switch viewModel.calendarPermissionStatus {
         case .fullAccess, .writeOnly, .authorized:
             return .allowed
-        case .denied, .restricted:
+        case .denied:
             return .blocked
         case .notDetermined:
             return .actionNeeded
