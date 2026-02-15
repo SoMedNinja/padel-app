@@ -6,6 +6,7 @@ struct MatchSuccessCeremonyView: View {
 
     @State private var step = 0
     @State private var showDeltas = false
+    @State private var animateSuccessSymbol = false
 
     private var teamAWon: Bool { recap.teamAScore > recap.teamBScore }
 
@@ -16,7 +17,7 @@ struct MatchSuccessCeremonyView: View {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 80))
                         .foregroundStyle(AppColors.success)
-                        .symbolEffect(.bounce, value: step)
+                        .symbolEffect(.bounce, value: animateSuccessSymbol)
 
                     Text("MATCH SPARAD")
                         .font(.inter(.title, weight: .black))
@@ -82,18 +83,19 @@ struct MatchSuccessCeremonyView: View {
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: AppColors.shadowColor, radius: 20)
         .onAppear {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            // Note for non-coders:
+            // We only vibrate here when the save flow is complete, not on every button tap.
+            FeedbackService.shared.notify(.success)
+            animateSuccessSymbol.toggle()
             withAnimation(.spring(duration: 0.6)) {
                 step = 0
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                 withAnimation(.spring(duration: 0.6)) {
                     step = 1
                 }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 withAnimation(.easeInOut(duration: 0.5)) {
                     step = 2
                 }

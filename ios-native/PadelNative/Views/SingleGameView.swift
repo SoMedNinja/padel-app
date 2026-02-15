@@ -756,6 +756,9 @@ struct SingleGameView: View {
 
             guard let teamAScore, let teamBScore else {
                 viewModel.statusMessage = "Välj resultat för båda lagen innan du sparar."
+                // Note for non-coders:
+                // This warning vibration only happens if the save cannot complete.
+                FeedbackService.shared.notify(.warning)
                 return
             }
 
@@ -771,7 +774,10 @@ struct SingleGameView: View {
                 teamAServesFirst: true
             )
 
-            guard let recap else { return }
+            guard let recap else {
+                FeedbackService.shared.notify(.warning)
+                return
+            }
             generatedRecap = recap
             withAnimation(.spring) {
                 showSuccessState = true
