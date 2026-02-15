@@ -35,8 +35,8 @@ export const SHARED_PERMISSION_CAPABILITY_MATRIX: PermissionCapabilityMatrix = {
       actionLabel: "Open Settings",
     },
     action_needed: {
-      explanation: "Action needed: install or reactivate background support, then retry check.",
-      actionLabel: "Retry install check",
+      explanation: "Action needed: enable background activity support, then retry.",
+      actionLabel: "Open Settings",
     },
   },
   biometric_passkey: {

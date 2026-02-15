@@ -309,6 +309,10 @@ struct SettingsView: View {
     private var devicePermissionsSection: some View {
         SectionCard(title: "Centralized permissions panel") {
             VStack(alignment: .leading, spacing: 14) {
+                Text("Same state model on every client: Allowed, Blocked, Limited, or Action needed.")
+                    .font(.inter(.caption))
+                    .foregroundStyle(AppColors.textSecondary)
+
                 // Note for non-coders: each row shows one permission, a simple status chip, and one clear next step.
                 permissionRow(
                     title: SharedPermissionCapability.notifications.title,
