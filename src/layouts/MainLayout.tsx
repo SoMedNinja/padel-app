@@ -6,6 +6,7 @@ import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import InstallPrompt from "../Components/InstallPrompt";
+import WhatsNewDialog from "../Components/WhatsNewDialog";
 import MatchSyncStatusBanner from "../Components/Shared/MatchSyncStatusBanner";
 import {
   IconButton,
