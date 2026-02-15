@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "ABCDE12345.com.example.padelnative",
+        "appID": "TEAM_ID.se.robban.padelnative",
         "paths": [
           "/schema*",
           "/schedule*",
