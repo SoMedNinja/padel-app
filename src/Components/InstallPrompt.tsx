@@ -4,17 +4,17 @@ import IosShareIcon from "@mui/icons-material/IosShare";
 import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useStore } from "../store/useStore";
-import { isIosSafariBrowser } from "../utils/platform";
+import { getPlatformIntent } from "../utils/platform";
+import {
+  getInstallPromptVisibility,
+  hasActiveInstallPromptSnooze,
+  INSTALL_PROMPT_CONFIG,
+} from "./installPromptConfig";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
-
-const INSTALL_PROMPT_SNOOZE_UNTIL_KEY = "install-prompt-snooze-until";
-const INSTALL_PROMPT_SESSIONS_KEY = "install-prompt-session-count";
-const SNOOZE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
-const REPEATED_SESSION_THRESHOLD = 3;
 
 const isRunningStandalone = () => {
   if (typeof window === "undefined") return false;
@@ -28,37 +28,40 @@ const isRunningStandalone = () => {
 
 export default function InstallPrompt() {
   const isGuest = useStore((state) => state.isGuest);
+  const platformIntent = useMemo(() => getPlatformIntent(), []);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isSnoozed, setIsSnoozed] = useState(false);
-  const [isFirstVisit, setIsFirstVisit] = useState(false);
-  const [hasRepeatedSessions, setHasRepeatedSessions] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0);
 
-  const showIosInstructions = useMemo(
-    () => isIosSafariBrowser() && (isGuest || isFirstVisit || hasRepeatedSessions),
-    [hasRepeatedSessions, isFirstVisit, isGuest]
+  const visibility = useMemo(
+    () => getInstallPromptVisibility({
+      platformIntent,
+      isGuest,
+      sessionCount,
+      hasActiveSnooze: isSnoozed,
+      isInstalled,
+      hasDeferredPrompt: deferredPrompt !== null,
+    }),
+    [deferredPrompt, isGuest, isInstalled, isSnoozed, platformIntent, sessionCount]
   );
 
   const snoozeInstallPrompt = () => {
-    const nextVisibleAt = Date.now() + SNOOZE_DURATION_MS;
-    localStorage.setItem(INSTALL_PROMPT_SNOOZE_UNTIL_KEY, String(nextVisibleAt));
+    const nextVisibleAt = Date.now() + INSTALL_PROMPT_CONFIG.snoozeDurationMs;
+    localStorage.setItem(INSTALL_PROMPT_CONFIG.storage.snoozeUntilKey, String(nextVisibleAt));
     setIsSnoozed(true);
   };
 
   useEffect(() => {
     setIsInstalled(isRunningStandalone());
 
-    const now = Date.now();
-    const snoozeUntilRaw = localStorage.getItem(INSTALL_PROMPT_SNOOZE_UNTIL_KEY);
-    const snoozeUntil = snoozeUntilRaw ? Number(snoozeUntilRaw) : 0;
-    const hasActiveSnooze = Number.isFinite(snoozeUntil) && snoozeUntil > now;
-    setIsSnoozed(hasActiveSnooze);
+    const snoozeUntilRaw = localStorage.getItem(INSTALL_PROMPT_CONFIG.storage.snoozeUntilKey);
+    setIsSnoozed(hasActiveInstallPromptSnooze(snoozeUntilRaw));
 
     // Note for non-coders: this session counter helps us avoid nagging every single visit.
-    const sessionCount = Number(localStorage.getItem(INSTALL_PROMPT_SESSIONS_KEY) ?? "0") + 1;
-    localStorage.setItem(INSTALL_PROMPT_SESSIONS_KEY, String(sessionCount));
-    setIsFirstVisit(sessionCount <= 1);
-    setHasRepeatedSessions(sessionCount >= REPEATED_SESSION_THRESHOLD);
+    const nextSessionCount = Number(localStorage.getItem(INSTALL_PROMPT_CONFIG.storage.sessionCountKey) ?? "0") + 1;
+    localStorage.setItem(INSTALL_PROMPT_CONFIG.storage.sessionCountKey, String(nextSessionCount));
+    setSessionCount(nextSessionCount);
 
     const mediaQuery = window.matchMedia("(display-mode: standalone)");
 
@@ -95,7 +98,7 @@ export default function InstallPrompt() {
     return null;
   }
 
-  if (deferredPrompt) {
+  if (visibility.showBrowserInstallPrompt && deferredPrompt) {
     return (
       <Alert
         severity="info"
@@ -121,40 +124,43 @@ export default function InstallPrompt() {
           </Button>
         )}
       >
-        <AlertTitle>Installera appen</AlertTitle>
-        Lägg till appen på hemskärmen för snabbare åtkomst och en mer app-lik upplevelse.
+        <AlertTitle>{INSTALL_PROMPT_CONFIG.copy.browserTitle}</AlertTitle>
+        {INSTALL_PROMPT_CONFIG.copy.valueProposition}
         <Button
           color="inherit"
           size="small"
           sx={{ mt: 1 }}
           onClick={snoozeInstallPrompt}
         >
-          Påminn mig om 7 dagar
+          {INSTALL_PROMPT_CONFIG.copy.cadenceLabels.snooze}
         </Button>
       </Alert>
     );
   }
 
-  if (showIosInstructions) {
+  if (visibility.showIosInstallInstructions) {
     return (
       <Alert
         severity="info"
         action={(
           <Button color="inherit" size="small" onClick={snoozeInstallPrompt}>
-            Senare
+            {INSTALL_PROMPT_CONFIG.copy.cadenceLabels.snooze}
           </Button>
         )}
       >
-        <AlertTitle>Installera på iPhone/iPad</AlertTitle>
+        <AlertTitle>{INSTALL_PROMPT_CONFIG.copy.iosTitle}</AlertTitle>
+        <Typography variant="body2" component="div" sx={{ mb: 0.75 }}>
+          {INSTALL_PROMPT_CONFIG.copy.valueProposition}
+        </Typography>
         <Typography variant="body2" component="div">
-          Safari stödjer inte den automatiska installationsknappen. Gör så här:
+          {INSTALL_PROMPT_CONFIG.copy.iosManualIntro}
         </Typography>
         <Box component="ol" sx={{ mt: 1, mb: 0, pl: 2.5 }}>
           <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
-            Tryck på Dela <IosShareIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
+            {INSTALL_PROMPT_CONFIG.copy.iosManualSteps[0]} <IosShareIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
           </Typography>
           <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
-            Välj Lägg till på hemskärmen <AddBoxOutlinedIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
+            {INSTALL_PROMPT_CONFIG.copy.iosManualSteps[1]} <AddBoxOutlinedIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
           </Typography>
         </Box>
         <Box
