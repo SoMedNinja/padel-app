@@ -6,6 +6,7 @@ struct RivalryView: View {
 
     @State private var mode: String = "against"
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
 
     private var summary: RivalrySummary? {
         if mode == "against" {
@@ -23,7 +24,7 @@ struct RivalryView: View {
         ScrollView {
             VStack(spacing: 24) {
                 ScrollOffsetTracker()
-                PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.matches.isEmpty, pullProgress: pullProgress)
+                PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
 
                 Picker("Läge", selection: $mode) {
                     Text("Möten").tag("against")
@@ -41,11 +42,12 @@ struct RivalryView: View {
         .background(AppColors.background)
         .coordinateSpace(name: "padelScroll")
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-            let threshold: CGFloat = 80
-            pullProgress = max(0, min(1.0, offset / threshold))
+            pullProgress = PullToRefreshBehavior.progress(for: offset)
         }
         .refreshable {
-            await viewModel.bootstrap()
+            await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                await viewModel.bootstrap()
+            }
         }
         .navigationTitle("Head-to-head")
         .padelLiquidGlassChrome()

@@ -30,6 +30,7 @@ struct ProfileView: View {
     @State private var compareWithIds: Set<UUID> = []
     @State private var selectedMeritSection: String = "earned"
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
     @State private var chartSelectionIndex: Int?
     @State private var profileTimeRange: TrendChartTimeRange = .days90
     @State private var primaryMetric: TrendChartMetric = .elo
@@ -48,7 +49,7 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     ScrollOffsetTracker()
-                    PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.players.isEmpty, pullProgress: pullProgress)
+                    PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
 
                     if let current = viewModel.currentPlayer {
                         headerSection(current)
@@ -66,11 +67,12 @@ struct ProfileView: View {
             .background(AppColors.background)
             .coordinateSpace(name: "padelScroll")
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                let threshold: CGFloat = 80
-                pullProgress = max(0, min(1.0, offset / threshold))
+                pullProgress = PullToRefreshBehavior.progress(for: offset)
             }
             .refreshable {
-                await viewModel.bootstrap()
+                await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                    await viewModel.bootstrap()
+                }
             }
             .navigationTitle(LocalizedStringKey("profile.title"))
             .navigationBarTitleDisplayMode(.inline)

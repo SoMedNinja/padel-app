@@ -3,6 +3,7 @@ import SwiftUI
 struct MoreView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
     @State private var isDeepLinkedAdminActive = false
 
     var body: some View {
@@ -10,7 +11,7 @@ struct MoreView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     ScrollOffsetTracker()
-                    PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.players.isEmpty, pullProgress: pullProgress)
+                    PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
 
                     VStack(spacing: 0) {
                         moreLink(title: "Historik", icon: "clock.arrow.circlepath") {
@@ -50,11 +51,12 @@ struct MoreView: View {
             .background(AppColors.background)
             .coordinateSpace(name: "padelScroll")
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                let threshold: CGFloat = 80
-                pullProgress = max(0, min(1.0, offset / threshold))
+                pullProgress = PullToRefreshBehavior.progress(for: offset)
             }
             .refreshable {
-                await viewModel.bootstrap()
+                await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                    await viewModel.bootstrap()
+                }
             }
             .onChange(of: viewModel.shouldOpenAdminFromDeepLink) { _, shouldOpenAdmin in
                 guard shouldOpenAdmin else { return }

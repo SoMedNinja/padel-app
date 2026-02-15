@@ -27,6 +27,7 @@ struct TournamentView: View {
     @State private var showDeleteConfirmation = false
     @State private var lastAutoPanelKey = ""
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
     @State private var selectedShareVariant: ShareCardService.Variant = .classic
 
     private let scoreTargetOptions = [16, 21, 24, 31]
@@ -45,7 +46,7 @@ struct TournamentView: View {
         let baseContent = ScrollView {
             VStack(spacing: 20) {
                 ScrollOffsetTracker()
-                PadelRefreshHeader(isRefreshing: viewModel.isTournamentLoading && !viewModel.tournaments.isEmpty, pullProgress: pullProgress)
+                PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
                 tournamentPicker
 
                 SectionCard(title: "Turnering") {
@@ -79,8 +80,7 @@ struct TournamentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .coordinateSpace(name: "padelScroll")
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-            let threshold: CGFloat = 80
-            pullProgress = max(0, min(1.0, offset / threshold))
+            pullProgress = PullToRefreshBehavior.progress(for: offset)
         }
 
         // Note for non-coders:
@@ -102,7 +102,9 @@ struct TournamentView: View {
     private func attachDataLoadingBehaviors<Content: View>(to content: Content) -> some View {
         content
             .refreshable {
-                await viewModel.loadTournamentData()
+                await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                    await viewModel.loadTournamentData()
+                }
             }
             .task {
                 if viewModel.tournaments.isEmpty {
