@@ -10,6 +10,8 @@ Apple calls this **Universal Links**. They require cooperation between:
 - the website host (to publish trust metadata), and
 - the web router (to keep equivalent browser routes alive).
 
+Think of this as a “routing contract”: if a URL is shared publicly, both iOS and web must know what to do with it.
+
 ## Ownership setup completed
 
 ### 1) iOS app claims the domain
@@ -29,10 +31,35 @@ Apple calls this **Universal Links**. They require cooperation between:
 > `TEAM_ID.BUNDLE_IDENTIFIER` in production.
 
 ### 3) Browser/PWA equivalents kept working
-- Added SPA rewrites for `/schema`, `/schedule`, `/single-game`, `/match/:id`.
-- Added web route `/schema` that temporarily redirects to canonical `/schedule`.
-- Added web route `/match/:matchId` that redirects to `/history?match=<id>`.
-- History now auto-scrolls/highlights the requested match card.
+- Vercel SPA rewrites now cover every client-side route in `src/AppRoutes.tsx`, including canonical pages and legacy aliases.
+- React route `/schema` redirects to canonical `/schedule`.
+- React route `/match/:matchId` redirects to history and highlights the target match.
+
+## Routing contract (source of truth)
+
+### Contract rule
+Any path declared in `src/AppRoutes.tsx` that is meant to render in the browser must have a matching Vercel rewrite to `/index.html` (except `/`, which is the document root already).
+
+Non-coder note: this is needed so direct opens like typing `padelnative.app/history` in the address bar still load the app first, then let React show the right screen.
+
+### Route alignment table
+
+| React route path (`src/AppRoutes.tsx`) | Purpose | Vercel rewrite required? | Rewritten source |
+| --- | --- | --- | --- |
+| `/` | Profile home | No (served directly) | n/a |
+| `/dashboard` | Dashboard view | Yes | `/dashboard` |
+| `/grabbarnas-serie` | Legacy alias to dashboard | Yes | `/grabbarnas-serie` |
+| `/history` | Match history | Yes | `/history` |
+| `/schedule` | Canonical schedule route | Yes | `/schedule` |
+| `/schema` | Legacy alias to schedule | Yes | `/schema` |
+| `/tournament` | Tournament page | Yes | `/tournament` |
+| `/profile` | Legacy alias to `/` | Yes | `/profile` |
+| `/mexicana` | Legacy alias to tournament | Yes | `/mexicana` |
+| `/single-game` | Single game page | Yes | `/single-game` |
+| `/match/:matchId` | Match deep link | Yes (dynamic) | `/match/(.*)` |
+| `/offline` | Offline fallback page | Yes | `/offline` |
+| `/admin` | Admin page | Yes | `/admin` |
+| `/admin/email` | Admin email sub-route | Yes | `/admin/email` |
 
 ## Fallback behavior hierarchy
 
@@ -65,3 +92,12 @@ Apple calls this **Universal Links**. They require cooperation between:
   3. Remove `/schema` redirect/parser support after usage reaches near-zero.
 
 > Note for non-coders: this avoids “broken old links” while the team gradually moves everyone to one stable URL.
+
+## QA checklist (deep-link regression)
+
+Use this quick checklist whenever routing or link ownership changes:
+- [ ] Open route directly in browser (example: paste `/dashboard`, `/history`, `/tournament`, `/match/<id>`).
+- [ ] Open same destination from a push notification link.
+- [ ] Open same destination from a homescreen shortcut.
+
+Passing all three confirms both deep-link ownership and SPA fallback behavior are still aligned.
