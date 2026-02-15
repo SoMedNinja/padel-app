@@ -127,7 +127,7 @@ enum SharedPermissionGeneratedCopy {
                 ),
                 .actionNeeded: SharedPermissionSemanticCopy(
                     explanation: "Åtgärd krävs: ge notisbehörighet för att få påminnelser.",
-                    actionLabel: "Begär"
+                    actionLabel: "Kör konfiguration igen"
                 )
             ],
             .backgroundRefresh: [
@@ -201,7 +201,7 @@ enum SharedPermissionGeneratedCopy {
                 ),
                 .actionNeeded: SharedPermissionSemanticCopy(
                     explanation: "Action needed: grant notification permission to receive reminders.",
-                    actionLabel: "Request"
+                    actionLabel: "Run setup again"
                 )
             ],
             .backgroundRefresh: [

@@ -64,7 +64,7 @@ export const SHARED_PERMISSION_CAPABILITY_MATRIX_BY_LOCALE = {
       },
       "action_needed": {
         "explanation": "Åtgärd krävs: ge notisbehörighet för att få påminnelser.",
-        "actionLabel": "Begär"
+        "actionLabel": "Kör konfiguration igen"
       }
     },
     "background_refresh": {
@@ -138,7 +138,7 @@ export const SHARED_PERMISSION_CAPABILITY_MATRIX_BY_LOCALE = {
       },
       "action_needed": {
         "explanation": "Action needed: grant notification permission to receive reminders.",
-        "actionLabel": "Request"
+        "actionLabel": "Run setup again"
       }
     },
     "background_refresh": {
@@ -221,7 +221,7 @@ export const SHARED_PERMISSION_CAPABILITY_MATRIX: PermissionCapabilityMatrix = {
     },
     "action_needed": {
       "explanation": "Åtgärd krävs: ge notisbehörighet för att få påminnelser.",
-      "actionLabel": "Begär"
+      "actionLabel": "Kör konfiguration igen"
     }
   },
   "background_refresh": {

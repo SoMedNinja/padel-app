@@ -457,7 +457,7 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
           : notificationPermission === "granted" && hasPushEndpoint
             ? `${sharedPermissionGuidance("notifications", "allowed")} Behörighet är tillåten och push-endpoint är fullt aktiverad.${isInstalledPwa ? " Installerat appläge upptäckt." : ""}`
             : notificationPermission === "granted"
-              ? `${sharedPermissionGuidance("notifications", "action_needed")} Behörighet är tillåten men push-endpoint saknas. Kör konfigurationen igen för att slutföra endpoint-registreringen.`
+              ? `${sharedPermissionGuidance("notifications", "action_needed")} Behörighet är tillåten men push-endpoint saknas. Tryck på "Kör konfiguration igen" för att slutföra endpoint-registreringen.`
               : `${sharedPermissionGuidance("notifications", "action_needed")} Webbläsarbehörigheten är standard.`;
 
   const notifications: PermissionStatusSnapshot = {
