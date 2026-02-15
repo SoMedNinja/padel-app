@@ -19,7 +19,7 @@ struct ScheduleView: View {
     @State private var pullProgress: CGFloat = 0
     @State private var inviteSendAnimationTick = 0
 
-    private let calendarService = CalendarService()
+    private let calendarService: CalendarServicing
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -59,6 +59,11 @@ struct ScheduleView: View {
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
+
+
+    init(calendarService: CalendarServicing = CalendarService()) {
+        self.calendarService = calendarService
+    }
 
     var body: some View {
         NavigationStack {
