@@ -40,6 +40,7 @@ interface HeatmapProps {
 
 interface Combo {
   players: string[];
+  playerIds: string[];
   games: number;
   wins: number;
   serveFirstGames: number;
@@ -174,6 +175,13 @@ export default function Heatmap({
         if (!data.resolved.length || data.hasGuest || data.hasUnknown) return;
 
         const resolvedPlayers = data.resolved;
+        // Note for non-coders: we also keep player IDs so "my combinations" can be filtered safely
+        // even if two players happen to share the same display name.
+        const teamPlayerIds = (
+          data === t1 ? m.team1_ids : m.team2_ids
+        )
+          ?.filter((id): id is string => Boolean(id))
+          .map((id) => id.toLowerCase()) ?? [];
 
         // Optimization: For 2 players (padel), manual swap is ~10x faster than .sort()
         // and avoids intermediate array allocation.
@@ -188,6 +196,7 @@ export default function Heatmap({
         if (!comboMap[key]) {
           comboMap[key] = {
             players: sortedPair,
+            playerIds: teamPlayerIds,
             games: 0,
             wins: 0,
             serveFirstGames: 0,
@@ -247,16 +256,13 @@ export default function Heatmap({
   const filteredRows = useMemo(() => {
     let rows = allRows;
     if (currentUserOnly) {
-      const currentProfile = profiles.find(p => p.id === currentUserOnly);
-      const currentName = currentProfile ? getProfileDisplayName(currentProfile) : null;
-      if (currentName) {
-        rows = rows.filter(r => r.players.includes(currentName));
-      }
+      const currentUserId = currentUserOnly.toLowerCase();
+      rows = rows.filter(r => r.playerIds.includes(currentUserId));
     } else if (playerFilter !== "all") {
       rows = rows.filter(r => r.players.includes(playerFilter));
     }
     return rows;
-  }, [allRows, currentUserOnly, playerFilter, profiles]);
+  }, [allRows, currentUserOnly, playerFilter]);
 
   // Optimization: Memoize sorted rows
   const rows = useMemo(() => {
