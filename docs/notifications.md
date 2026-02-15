@@ -66,8 +66,9 @@ This document defines the cross-client notification contract used by:
 
 ## Database migration checklist
 
-1. Run Supabase migrations so `public.notification_preferences` exists with RLS policies.
-2. Verify each signed-in user can only read/write their own row (admins can assist with support/debugging).
+1. Run Supabase migrations so `public.notification_preferences` and `public.push_subscriptions` exist with RLS policies.
+2. Verify each signed-in user can only read/write their own rows (admins can assist with support/debugging).
+3. Schedule periodic cleanup using `select public.revoke_stale_push_subscriptions(90);` (for example via Supabase cron).
 
 > Note for non-coders: a migration is a versioned database change script. Running it creates the new table and safety rules automatically.
 
@@ -75,5 +76,19 @@ This document defines the cross-client notification contract used by:
 
 - Web stores preferences in backend table `notification_preferences` (`profile_id`, `preferences`) and mirrors to service-worker cache storage; `localStorage` is offline fallback only.
 - iOS stores preferences in backend table `notification_preferences` (`profile_id`, `preferences`) and mirrors to `UserDefaults`; `UserDefaults` is offline fallback only.
+- Both clients also upsert device endpoints in `push_subscriptions` (`platform`, `device_token`, `profile_id`, `subscription`, `last_seen_at`).
+- Revoking/unsubscribing marks `push_subscriptions.revoked_at` so delivery systems can skip inactive endpoints.
 - First sign-in migrates existing local/browser preferences to backend if no backend row exists yet.
 - iOS local schedule reminders currently map to `scheduled_match_new` semantics for parity.
+
+
+## Push subscription lifecycle
+
+- **iOS:** APNs token receipt stores token locally, then upserts `push_subscriptions` when a signed-in profile is available.
+- **Web:** when browser notification permission is granted, current `PushSubscription` metadata is synced to `push_subscriptions`.
+- **Unsubscribe/revoke:**
+  - Web unsubscribe flow calls backend revoke + browser `subscription.unsubscribe()`.
+  - iOS sign-out and manual notification disable flow revokes the stored APNs token mapping.
+- **Stale cleanup:** run `revoke_stale_push_subscriptions` routinely (e.g. nightly) to revoke endpoints that have not been seen recently.
+
+> Note for non-coders: `last_seen_at` is a "last check-in" timestamp for a device token. If a token has not checked in for a long time, cleanup marks it inactive.

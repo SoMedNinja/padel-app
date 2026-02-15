@@ -9,6 +9,8 @@ import { supabase } from "../supabaseClient";
 const STORAGE_KEY = "settings.notificationPreferences.v1";
 const SW_PATH = "/sw.js";
 const NOTIFICATION_PREFERENCES_TABLE = "notification_preferences";
+const PUSH_SUBSCRIPTIONS_TABLE = "push_subscriptions";
+const WEB_PUSH_PLATFORM = "web";
 
 type NotificationPreferenceRow = {
   profile_id: string;
@@ -40,6 +42,71 @@ function readRawLocalPreferences(): string | null {
 
 function hasStoredLocalPreferences(): boolean {
   return Boolean(readRawLocalPreferences());
+}
+
+function resolveWebPushDeviceToken(subscription: PushSubscription): string {
+  return subscription.endpoint;
+}
+
+function serializeWebPushSubscription(subscription: PushSubscription): Record<string, unknown> {
+  return subscription.toJSON() as Record<string, unknown>;
+}
+
+async function upsertBackendPushSubscription(userId: string, subscription: PushSubscription): Promise<void> {
+  const { error } = await supabase.from(PUSH_SUBSCRIPTIONS_TABLE).upsert(
+    {
+      profile_id: userId,
+      platform: WEB_PUSH_PLATFORM,
+      device_token: resolveWebPushDeviceToken(subscription),
+      subscription: serializeWebPushSubscription(subscription),
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      revoked_at: null,
+      last_seen_at: new Date().toISOString(),
+    },
+    { onConflict: "profile_id,platform,device_token" }
+  );
+
+  if (error) throw error;
+}
+
+async function revokeBackendPushSubscription(subscription: PushSubscription): Promise<void> {
+  const { error } = await supabase.rpc("revoke_push_subscription", {
+    p_platform: WEB_PUSH_PLATFORM,
+    p_device_token: resolveWebPushDeviceToken(subscription),
+  });
+
+  if (error) throw error;
+}
+
+async function revokeAllWebPushSubscriptionsForCurrentUser(): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  const userId = data.session?.user?.id;
+  if (!userId) return;
+
+  const { error } = await supabase
+    .from(PUSH_SUBSCRIPTIONS_TABLE)
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("profile_id", userId)
+    .eq("platform", WEB_PUSH_PLATFORM)
+    .is("revoked_at", null);
+
+  if (error) throw error;
+}
+
+async function syncCurrentPushSubscriptionWithBackend(): Promise<void> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  if (typeof window === "undefined" || !("PushManager" in window)) return;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+
+  const { data } = await supabase.auth.getSession();
+  const userId = data.session?.user?.id;
+  if (!userId) return;
+
+  const registration = await navigator.serviceWorker.ready;
+  const existingSubscription = await registration.pushManager.getSubscription();
+  if (!existingSubscription) return;
+
+  await upsertBackendPushSubscription(userId, existingSubscription);
 }
 
 // Note for non-coders:
@@ -134,6 +201,14 @@ export async function saveNotificationPreferencesWithSync(preferences: Notificat
     // Backend save can fail when offline; local storage still keeps your latest choice.
   }
 
+  // Note for non-coders:
+  // Turning notifications off also revokes this browser endpoint from backend delivery lists.
+  if (!preferences.enabled) {
+    await unsubscribeFromPushNotifications();
+  } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    await syncCurrentPushSubscriptionWithBackend();
+  }
+
   await syncPreferencesToServiceWorker(preferences);
 }
 
@@ -155,8 +230,20 @@ export function canDeliverEvent(payload: NotificationEventPayload, preferences: 
 
 export async function ensureNotificationPermission(): Promise<NotificationPermission> {
   if (!("Notification" in window)) return "denied";
-  if (Notification.permission === "granted") return "granted";
-  return Notification.requestPermission();
+  if (Notification.permission === "granted") {
+    await syncCurrentPushSubscriptionWithBackend();
+    return "granted";
+  }
+
+  const permission = await Notification.requestPermission();
+
+  if (permission === "granted") {
+    await syncCurrentPushSubscriptionWithBackend();
+  } else if (permission === "denied") {
+    await revokeAllWebPushSubscriptionsForCurrentUser();
+  }
+
+  return permission;
 }
 
 export async function registerPushServiceWorker(preferences: NotificationPreferences): Promise<ServiceWorkerRegistration | null> {
@@ -168,6 +255,7 @@ export async function registerPushServiceWorker(preferences: NotificationPrefere
   registration ??= await navigator.serviceWorker.register(SW_PATH);
   await navigator.serviceWorker.ready;
   await syncPreferencesToServiceWorker(preferences);
+  await syncCurrentPushSubscriptionWithBackend();
   return registration;
 }
 
@@ -219,6 +307,26 @@ export async function syncPreferencesToServiceWorker(preferences: NotificationPr
     type: "SYNC_NOTIFICATION_PREFERENCES",
     preferences,
   });
+}
+
+// Note for non-coders:
+// This unsubscribes the browser endpoint and marks it revoked in backend so future pushes stop.
+export async function unsubscribeFromPushNotifications(): Promise<void> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator) || typeof window === "undefined" || !("PushManager" in window)) {
+    await revokeAllWebPushSubscriptionsForCurrentUser();
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+  const existingSubscription = await registration.pushManager.getSubscription();
+
+  if (!existingSubscription) {
+    await revokeAllWebPushSubscriptionsForCurrentUser();
+    return;
+  }
+
+  await revokeBackendPushSubscription(existingSubscription);
+  await existingSubscription.unsubscribe();
 }
 
 export async function updateEventToggle(

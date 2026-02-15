@@ -247,6 +247,36 @@ private struct NotificationPreferencesUpsertPayload: Encodable {
     }
 }
 
+private struct PushSubscriptionUpsertPayload: Encodable {
+    let profileId: UUID
+    let platform: String
+    let deviceToken: String
+    let subscription: [String: String]?
+    let userAgent: String?
+    let lastSeenAt: Date
+    let revokedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case profileId = "profile_id"
+        case platform
+        case deviceToken = "device_token"
+        case subscription
+        case userAgent = "user_agent"
+        case lastSeenAt = "last_seen_at"
+        case revokedAt = "revoked_at"
+    }
+}
+
+private struct RevokePushSubscriptionPayload: Encodable {
+    let platform: String
+    let deviceToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case platform = "p_platform"
+        case deviceToken = "p_device_token"
+    }
+}
+
 private struct ProfileUpdatePatch: Encodable {
     let fullName: String?
     let profileName: String?
@@ -336,6 +366,41 @@ struct SupabaseRESTClient {
             path: "/rest/v1/notification_preferences?on_conflict=profile_id",
             body: payload,
             preferHeader: "resolution=merge-duplicates,return=minimal"
+        )
+    }
+
+    // Note for non-coders:
+    // This stores one push destination for this user/device pair and refreshes last_seen_at each time.
+    func upsertPushSubscription(
+        profileId: UUID,
+        platform: String,
+        deviceToken: String,
+        subscription: [String: String]? = nil,
+        userAgent: String? = nil
+    ) async throws {
+        let payload = [PushSubscriptionUpsertPayload(
+            profileId: profileId,
+            platform: platform,
+            deviceToken: deviceToken,
+            subscription: subscription,
+            userAgent: userAgent,
+            lastSeenAt: .now,
+            revokedAt: nil
+        )]
+
+        try await sendPost(
+            path: "/rest/v1/push_subscriptions?on_conflict=profile_id,platform,device_token",
+            body: payload,
+            preferHeader: "resolution=merge-duplicates,return=minimal"
+        )
+    }
+
+    // Note for non-coders:
+    // Revoking marks a token as inactive, which stops delivery for this exact endpoint.
+    func revokePushSubscription(platform: String, deviceToken: String) async throws {
+        try await sendPost(
+            path: "/rest/v1/rpc/revoke_push_subscription",
+            body: RevokePushSubscriptionPayload(platform: platform, deviceToken: deviceToken)
         )
     }
 
