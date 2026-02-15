@@ -28,6 +28,7 @@ struct TournamentView: View {
     @State private var lastAutoPanelKey = ""
     @State private var pullProgress: CGFloat = 0
     @State private var isPullRefreshing = false
+    @State private var pullOffsetBaseline: CGFloat?
     @State private var selectedShareVariant: ShareCardService.Variant = .classic
 
     private let scoreTargetOptions = [16, 21, 24, 31]
@@ -80,7 +81,13 @@ struct TournamentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .coordinateSpace(name: "padelScroll")
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-            pullProgress = PullToRefreshBehavior.progress(for: offset)
+            if !isPullRefreshing,
+               pullOffsetBaseline == nil || offset < (pullOffsetBaseline ?? offset) {
+                pullOffsetBaseline = offset
+            }
+
+            let normalizedOffset = PullToRefreshBehavior.normalizedOffset(offset, baseline: pullOffsetBaseline)
+            pullProgress = PullToRefreshBehavior.progress(for: normalizedOffset)
         }
 
         // Note for non-coders:

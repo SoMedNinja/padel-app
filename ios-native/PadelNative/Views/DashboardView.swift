@@ -28,6 +28,7 @@ struct DashboardView: View {
     @State private var showScrollToTop = false
     @State private var pullProgress: CGFloat = 0
     @State private var isPullRefreshing = false
+    @State private var pullOffsetBaseline: CGFloat?
     @State private var heatmapSortKey: String = "games"
     @State private var heatmapSortAscending: Bool = false
     @State private var lastErrorNoticeMessage: String?
@@ -58,7 +59,13 @@ struct DashboardView: View {
                     .background(AppColors.background)
                     .coordinateSpace(name: "padelScroll")
                     .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                        pullProgress = PullToRefreshBehavior.progress(for: offset)
+                        if !isPullRefreshing,
+                           pullOffsetBaseline == nil || offset < (pullOffsetBaseline ?? offset) {
+                            pullOffsetBaseline = offset
+                        }
+
+                        let normalizedOffset = PullToRefreshBehavior.normalizedOffset(offset, baseline: pullOffsetBaseline)
+                        pullProgress = PullToRefreshBehavior.progress(for: normalizedOffset)
                     }
                     .refreshable {
                         await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {

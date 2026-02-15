@@ -31,6 +31,7 @@ struct ProfileView: View {
     @State private var selectedMeritSection: String = "earned"
     @State private var pullProgress: CGFloat = 0
     @State private var isPullRefreshing = false
+    @State private var pullOffsetBaseline: CGFloat?
     @State private var chartSelectionIndex: Int?
     @State private var profileTimeRange: TrendChartTimeRange = .days90
     @State private var primaryMetric: TrendChartMetric = .elo
@@ -67,7 +68,13 @@ struct ProfileView: View {
             .background(AppColors.background)
             .coordinateSpace(name: "padelScroll")
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                pullProgress = PullToRefreshBehavior.progress(for: offset)
+                if !isPullRefreshing,
+                   pullOffsetBaseline == nil || offset < (pullOffsetBaseline ?? offset) {
+                    pullOffsetBaseline = offset
+                }
+
+                let normalizedOffset = PullToRefreshBehavior.normalizedOffset(offset, baseline: pullOffsetBaseline)
+                pullProgress = PullToRefreshBehavior.progress(for: normalizedOffset)
             }
             .refreshable {
                 await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
