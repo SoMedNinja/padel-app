@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HeatmapSectionView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let combos: [HeatmapCombo]
     let title: String
     @Binding var sortKey: String
@@ -22,66 +23,126 @@ struct HeatmapSectionView: View {
 
     var body: some View {
         SectionCard(title: title) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 0) {
-                        headerCell(title: "Lagkamrat", width: 130, alignment: .leading)
-                        sortableHeader(title: "Matcher", key: "games", width: 70)
-                        sortableHeader(title: "Vinst %", key: "winPct", width: 70)
-                        headerCell(title: "S/M %", width: 80, help: "Vinstprocent vid Start-serve (S) respektive Mottagning (M).")
-                        sortableHeader(title: "Snitt-ELO", key: "avgElo", width: 80)
-                        headerCell(title: "Senaste 5", width: 110)
-                    }
-                    .padding(.vertical, 10)
-                    .background(AppColors.background)
-
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) {
                     ForEach(sortedCombos) { combo in
-                        let otherPlayers = combo.players.filter { $0 != (currentPlayerName ?? "") }
-                        let otherNames = otherPlayers.joined(separator: " & ")
-
+                        accessibleComboCard(combo)
+                    }
+                }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 0) {
-                            Text(otherNames.isEmpty ? "Singles" : otherNames)
-                                .font(.inter(.subheadline, weight: .semibold))
-                                .frame(width: 130, alignment: .leading)
-                                .lineLimit(1)
-
-                            Text("\(combo.games)")
-                                .font(.inter(.subheadline))
-                                .frame(width: 70)
-
-                            Text("\(combo.winPct)%")
-                                .font(.inter(.subheadline, weight: .bold))
-                                .foregroundStyle(combo.winPct >= 50 ? AppColors.success : AppColors.textPrimary)
-                                .frame(width: 70)
-
-                            Text("\(combo.serveFirstWinPct ?? 0)%/\(combo.serveSecondWinPct ?? 0)%")
-                                .font(.inter(size: 10).monospacedDigit())
-                                .foregroundStyle(AppColors.textSecondary)
-                                .frame(width: 80)
-
-                            Text("\(combo.avgElo)")
-                                .font(.inter(.subheadline))
-                                .frame(width: 80)
-
-                            HStack(spacing: 4) {
-                                ForEach(Array(combo.recentResults.enumerated()), id: \.offset) { _, res in
-                                    Text(res)
-                                        .font(.inter(size: 9, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 18, height: 18)
-                                        .background(res == "V" ? AppColors.success : AppColors.error)
-                                        .clipShape(Circle())
-                                }
-                            }
-                            .frame(width: 110)
+                            headerCell(title: "Lagkamrat", width: 130, alignment: .leading)
+                            sortableHeader(title: "Matcher", key: "games", width: 70)
+                            sortableHeader(title: "Vinst %", key: "winPct", width: 70)
+                            headerCell(title: "S/M %", width: 80, help: "Vinstprocent vid Start-serve (S) respektive Mottagning (M).")
+                            sortableHeader(title: "Snitt-ELO", key: "avgElo", width: 80)
+                            headerCell(title: "Senaste 5", width: 110)
                         }
                         .padding(.vertical, 10)
-                        Divider()
-                            .background(AppColors.borderSubtle)
+                        .background(AppColors.background)
+
+                        ForEach(sortedCombos) { combo in
+                            let otherPlayers = combo.players.filter { $0 != (currentPlayerName ?? "") }
+                            let otherNames = otherPlayers.joined(separator: " & ")
+
+                            HStack(spacing: 0) {
+                                Text(otherNames.isEmpty ? "Singles" : otherNames)
+                                    .font(.inter(.subheadline, weight: .semibold))
+                                    .frame(width: 130, alignment: .leading)
+                                    .lineLimit(1)
+
+                                Text("\(combo.games)")
+                                    .font(.inter(.subheadline))
+                                    .frame(width: 70)
+
+                                Text("\(combo.winPct)%")
+                                    .font(.inter(.subheadline, weight: .bold))
+                                    .foregroundStyle(combo.winPct >= 50 ? AppColors.success : AppColors.textPrimary)
+                                    .frame(width: 70)
+
+                                Text("\(combo.serveFirstWinPct ?? 0)%/\(combo.serveSecondWinPct ?? 0)%")
+                                    .font(.inter(size: 10).monospacedDigit())
+                                    .foregroundStyle(AppColors.textSecondary)
+                                    .frame(width: 80)
+
+                                Text("\(combo.avgElo)")
+                                    .font(.inter(.subheadline))
+                                    .frame(width: 80)
+
+                                HStack(spacing: 4) {
+                                    ForEach(Array(combo.recentResults.enumerated()), id: \.offset) { _, res in
+                                        Text(res)
+                                            .font(.inter(size: 9, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .frame(width: 18, height: 18)
+                                            .background(res == "V" ? AppColors.success : AppColors.error)
+                                            .clipShape(Circle())
+                                    }
+                                }
+                                .frame(width: 110)
+                            }
+                            .padding(.vertical, 10)
+                            Divider()
+                                .background(AppColors.borderSubtle)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private func accessibleComboCard(_ combo: HeatmapCombo) -> some View {
+        let otherPlayers = combo.players.filter { $0 != (currentPlayerName ?? "") }
+        let otherNames = otherPlayers.joined(separator: " & ")
+
+        // Note for non-coders:
+        // This card version spells out each metric on its own row so large text remains readable.
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(otherNames.isEmpty ? "Singles" : otherNames)
+                .font(.inter(.subheadline, weight: .bold))
+                .lineLimit(3)
+
+            HStack {
+                metric(label: "Matcher", value: "\(combo.games)")
+                metric(label: "Vinst %", value: "\(combo.winPct)%", emphasize: combo.winPct >= 50)
+                metric(label: "Snitt-ELO", value: "\(combo.avgElo)")
+            }
+
+            Text("S/M: \(combo.serveFirstWinPct ?? 0)% / \(combo.serveSecondWinPct ?? 0)%")
+                .font(.inter(.caption))
+                .foregroundStyle(AppColors.textSecondary)
+
+            HStack(spacing: 4) {
+                Text("Senaste 5:")
+                    .font(.inter(.caption2, weight: .bold))
+                    .foregroundStyle(AppColors.textSecondary)
+                ForEach(Array(combo.recentResults.enumerated()), id: \.offset) { _, res in
+                    Text(res)
+                        .font(.inter(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 18, height: 18)
+                        .background(res == "V" ? AppColors.success : AppColors.error)
+                        .clipShape(Circle())
+                }
+            }
+        }
+        .padding(12)
+        .background(AppColors.background)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func metric(label: String, value: String, emphasize: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.inter(.caption2, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
+            Text(value)
+                .font(.inter(.subheadline, weight: .semibold))
+                .foregroundStyle(emphasize ? AppColors.success : AppColors.textPrimary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func sortableHeader(title: String, key: String, width: CGFloat) -> some View {

@@ -3,6 +3,7 @@ import UIKit
 
 struct HistoryView: View {
     @EnvironmentObject private var viewModel: AppViewModel
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var showAdvancedFilters = false
     @State private var editingMatch: Match?
@@ -197,27 +198,32 @@ struct HistoryView: View {
                     }
                 }
 
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .center, spacing: 4) {
-                        Text(scoreLabel(match))
-                            .font(.inter(.title3, weight: .black))
-                            .foregroundStyle(AppColors.textPrimary)
-                        Text(match.scoreType == "points" ? "poäng" : "set")
-                            .font(.inter(.caption2, weight: .bold))
-                            .foregroundStyle(AppColors.textSecondary)
-                            .textCase(.uppercase)
-                    }
-                    .frame(width: 80)
-
-                    Rectangle()
-                        .fill(AppColors.borderSubtle)
-                        .frame(width: 1)
-                        .frame(maxHeight: .infinity)
-
+                if dynamicTypeSize.isAccessibilitySize {
+                    // Note for non-coders:
+                    // Large accessibility text needs vertical flow, so we place score above teams
+                    // instead of squeezing all content into one horizontal row.
                     VStack(alignment: .leading, spacing: 12) {
+                        scoreSummary(match)
+                        Divider().background(AppColors.borderSubtle.opacity(0.5))
                         teamDisplay(names: match.teamANames, ids: match.teamAPlayerIds, match: match, isTeamA: true)
                         Divider().background(AppColors.borderSubtle.opacity(0.5))
                         teamDisplay(names: match.teamBNames, ids: match.teamBPlayerIds, match: match, isTeamA: false)
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 12) {
+                        scoreSummary(match)
+                            .frame(width: 80)
+
+                        Rectangle()
+                            .fill(AppColors.borderSubtle)
+                            .frame(width: 1)
+                            .frame(maxHeight: .infinity)
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            teamDisplay(names: match.teamANames, ids: match.teamAPlayerIds, match: match, isTeamA: true)
+                            Divider().background(AppColors.borderSubtle.opacity(0.5))
+                            teamDisplay(names: match.teamBNames, ids: match.teamBPlayerIds, match: match, isTeamA: false)
+                        }
                     }
                 }
             }
@@ -279,7 +285,7 @@ struct HistoryView: View {
                     Text(row.name)
                         .font(.inter(.subheadline, weight: isWinner ? .bold : .medium))
                         .foregroundStyle(isWinner ? AppColors.textPrimary : AppColors.textSecondary)
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
 
                     Spacer()
 
@@ -290,6 +296,18 @@ struct HistoryView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func scoreSummary(_ match: Match) -> some View {
+        VStack(alignment: .center, spacing: 4) {
+            Text(scoreLabel(match))
+                .font(.inter(.title3, weight: .black))
+                .foregroundStyle(AppColors.textPrimary)
+            Text(match.scoreType == "points" ? "poäng" : "set")
+                .font(.inter(.caption2, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
+                .textCase(.uppercase)
         }
     }
 

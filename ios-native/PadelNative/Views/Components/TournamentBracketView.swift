@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TournamentBracketView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let rounds: [TournamentRound]
     let playerResolver: (UUID) -> String
 
@@ -91,11 +92,12 @@ struct TournamentBracketView: View {
                 .foregroundStyle(Color.accentColor)
 
             VStack(spacing: 8) {
-                HStack {
+                HStack(alignment: .top) {
                     Text(team1Names)
                         .font(.subheadline.weight(t1Won ? .black : .semibold))
                         .foregroundStyle(t1Won ? Color.accentColor : .primary)
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                        .layoutPriority(1)
                     Spacer()
                     Text(isPlayed ? "\(t1Score)" : "—")
                         .font(.subheadline.weight(.bold))
@@ -107,11 +109,12 @@ struct TournamentBracketView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
 
-                HStack {
+                HStack(alignment: .top) {
                     Text(team2Names)
                         .font(.subheadline.weight(t2Won ? .black : .semibold))
                         .foregroundStyle(t2Won ? Color.accentColor : .primary)
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                        .layoutPriority(1)
                     Spacer()
                     Text(isPlayed ? "\(t2Score)" : "—")
                         .font(.subheadline.weight(.bold))
@@ -128,12 +131,12 @@ struct TournamentBracketView: View {
                     Text(restingNames)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 4 : 2)
                 }
             }
         }
         .padding()
-        .frame(width: 240)
+        .frame(width: dynamicTypeSize.isAccessibilitySize ? 280 : 240)
         .background(isPlayed ? Color.accentColor.opacity(0.05) : Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
