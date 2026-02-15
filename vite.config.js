@@ -12,7 +12,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // Note for non-coders:
+      // injectManifest lets us keep one canonical service worker file where offline caching + push logic live together.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
+      registerType: "prompt",
       // includeAssets keeps these files copied as-is so install icons stay available.
       includeAssets: ["favicon.png", "icon-192.png", "icon-512.png"],
       manifest: {
