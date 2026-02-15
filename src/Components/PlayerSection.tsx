@@ -976,10 +976,7 @@ export default function PlayerSection({
   if (mode === "chart") {
     return (
       <Card
-        variant="outlined"
         sx={{
-          borderRadius: 3,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
           ...(isEloChartFullscreen && {
             position: 'fixed',
             inset: 0,
@@ -1143,7 +1140,7 @@ export default function PlayerSection({
   }
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+    <Card>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center', mb: 4 }}>
           <Avatar
@@ -1526,7 +1523,7 @@ export function HeadToHeadSection({
   );
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+    <Card>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Typography variant="h5" sx={{ fontWeight: 800, mb: 4 }}>Head-to-head</Typography>
 

@@ -89,7 +89,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: radius.xl,
-          boxShadow: '0 8px 18px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 5px 10px rgba(0, 0, 0, 0.08)',
           border: `1px solid ${semantic.borderSubtle}`,
         },
       },

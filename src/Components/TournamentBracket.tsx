@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { idsToNames } from '../utils/profileMap';
 import { Profile, TournamentRound } from '../types';
-import { Box, Typography, Paper, Stack } from '@mui/material';
+import { Box, Typography, Paper, Stack, IconButton, Tooltip } from '@mui/material';
+import {
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+  RestartAlt as ResetIcon
+} from '@mui/icons-material';
+import { motion } from 'framer-motion';
 
 interface TournamentBracketProps {
   rounds: TournamentRound[];
@@ -10,20 +16,67 @@ interface TournamentBracketProps {
 }
 
 export default function TournamentBracket({ rounds, profileMap }: TournamentBracketProps) {
+  const [zoom, setZoom] = useState(1);
+
   if (!rounds || rounds.length === 0) {
     return <Typography color="text.secondary">Inga ronder har skapats än.</Typography>;
   }
 
   const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number);
 
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 2));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.5));
+  const handleReset = () => setZoom(1);
+
   return (
     <Box sx={{ mb: 4 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Turneringsöversikt</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>Turneringsöversikt</Typography>
+        <Stack direction="row" spacing={0.5}>
+          <Tooltip title="Zooma ut">
+            <IconButton size="small" onClick={handleZoomOut} disabled={zoom <= 0.5} aria-label="Zooma ut">
+              <ZoomOutIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Återställ">
+            <IconButton size="small" onClick={handleReset} disabled={zoom === 1} aria-label="Återställ zoom">
+              <ResetIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Zooma in">
+            <IconButton size="small" onClick={handleZoomIn} disabled={zoom >= 2} aria-label="Zooma in">
+              <ZoomInIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Box>
+
       <Box
         role="region"
         aria-label="Turneringsschema"
-        sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}
+        sx={{
+          position: 'relative',
+          overflow: 'auto',
+          bgcolor: 'background.paper',
+          borderRadius: 3,
+          border: 1,
+          borderColor: 'divider',
+          p: 2,
+          minHeight: 200,
+          cursor: zoom !== 1 ? 'grab' : 'default',
+          '&:active': { cursor: zoom !== 1 ? 'grabbing' : 'default' }
+        }}
       >
+        <motion.div
+          animate={{ scale: zoom }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          style={{
+            display: 'flex',
+            gap: 16,
+            transformOrigin: 'left center',
+            width: 'max-content'
+          }}
+        >
         {sortedRounds.map((round) => {
           const isPlayed = round.team1_score !== null && round.team2_score !== null && round.team1_score !== undefined && round.team2_score !== undefined;
           const t1Won = isPlayed && (round.team1_score ?? 0) > (round.team2_score ?? 0);
@@ -75,7 +128,11 @@ export default function TournamentBracket({ rounds, profileMap }: TournamentBrac
             </Paper>
           );
         })}
+        </motion.div>
       </Box>
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+        Använd reglagen eller scrolla för att se alla ronder.
+      </Typography>
     </Box>
   );
 }

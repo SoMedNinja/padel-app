@@ -103,7 +103,7 @@ export default function MeritsSection({
   );
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+    <Card>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Meriter</Typography>

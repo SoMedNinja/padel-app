@@ -283,7 +283,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
   return (
     <Container maxWidth="xs" sx={{ py: 8 }}>
       <SupabaseConfigBanner />
-      <Card variant="outlined" sx={{ borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
+      <Card>
         <CardContent sx={{ p: 4 }}>
           <Typography variant="h5" align="center" sx={{ mb: 4, fontWeight: 800, color: 'primary.main' }}>
             {isSignup ? "Skapa konto" : "Logga in"}

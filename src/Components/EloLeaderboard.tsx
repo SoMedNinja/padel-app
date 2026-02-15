@@ -187,7 +187,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
   };
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+    <Card sx={{ overflow: 'hidden' }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>ELO-topplista</Typography>
@@ -244,7 +244,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "name"}
                     direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("name")}
-                    aria-label="Sortera efter spelare"
+                    aria-label="Spelare"
+                    title={sortKey === "name" ? (asc ? "Sorterat stigande" : "Sorterat fallande") : "Tryck för att sortera efter spelare"}
                   >
                     Spelare
                   </TableSortLabel>
@@ -254,7 +255,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "elo"}
                     direction={sortKey === "elo" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("elo")}
-                    aria-label="Sortera efter ELO"
+                    aria-label="ELO"
+                    title={sortKey === "elo" ? (asc ? "Sorterat stigande" : "Sorterat fallande") : "Tryck för att sortera efter ELO"}
                   >
                     ELO
                   </TableSortLabel>
@@ -264,7 +266,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "games"}
                     direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("games")}
-                    aria-label="Sortera efter matcher"
+                    aria-label="Matcher"
+                    title={sortKey === "games" ? (asc ? "Sorterat stigande" : "Sorterat fallande") : "Tryck för att sortera efter matcher"}
                   >
                     Matcher
                   </TableSortLabel>
@@ -274,7 +277,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "wins"}
                     direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("wins")}
-                    aria-label="Sortera efter vinster"
+                    aria-label="Vinster"
+                    title={sortKey === "wins" ? (asc ? "Sorterat stigande" : "Sorterat fallande") : "Tryck för att sortera efter vinster"}
                   >
                     Vinster
                   </TableSortLabel>
@@ -294,7 +298,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "winPct"}
                     direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("winPct")}
-                    aria-label="Sortera efter vinstprocent"
+                    aria-label="Vinstprocent"
+                    title={sortKey === "winPct" ? (asc ? "Sorterat stigande" : "Sorterat fallande") : "Tryck för att sortera efter vinstprocent"}
                   >
                     Vinst %
                   </TableSortLabel>
@@ -314,6 +319,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     ref={measureElement(virtualItem.index)}
                     data-index={virtualItem.index}
                     aria-rowindex={virtualItem.index + 1}
+                    aria-label={`${virtualItem.index + 1}. ${p.name}, ${Math.round(p.elo)} ELO. ${p.wins + p.losses} matcher, ${p.wins} vinster, ${winPct(p.wins, p.losses)} procent vinst.`}
                     hover
                     onClick={() => handlePlayerClick(p)}
                     sx={{

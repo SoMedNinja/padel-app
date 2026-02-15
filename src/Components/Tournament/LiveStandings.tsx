@@ -43,7 +43,7 @@ export default function LiveStandings({
 
   return (
     <Stack spacing={3}>
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
             Live view
@@ -64,7 +64,7 @@ export default function LiveStandings({
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 7 }}>
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                 Turneringsöversikt
@@ -91,7 +91,7 @@ export default function LiveStandings({
         </Grid>
 
         <Grid size={{ xs: 12, md: 5 }}>
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                 Topplista (snabb vy)

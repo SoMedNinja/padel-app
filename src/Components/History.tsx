@@ -45,6 +45,7 @@ import {
   Close as CloseIcon,
 } from "@mui/icons-material";
 import { formatDate } from "../utils/format";
+import EloBreakdown from "./Shared/EloBreakdown";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -373,10 +374,8 @@ export default function History({
             <Card
               key={m.id}
               id={`match-${m.id}`}
-              variant="outlined"
               sx={{
-                borderRadius: 3,
-                boxShadow: isHighlighted ? 8 : '0 4px 12px rgba(0,0,0,0.04)',
+                boxShadow: isHighlighted ? 8 : undefined,
                 bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'background.paper',
                 borderColor: isHighlighted ? 'primary.main' : (isUserParticipant ? 'primary.light' : 'divider'),
                 borderWidth: isHighlighted ? 2 : (isUserParticipant ? 1.5 : 1),
@@ -527,27 +526,22 @@ export default function History({
                           }
 
                           return (
-                            <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
-                              <ListItemText
-                                primary={entry.name}
-                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                secondaryTypographyProps={{ variant: 'caption' }}
-                              />
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                  {formatDelta(delta)}
-                                </Typography>
-                                {explanation && (
-                                  <Tooltip title={<Box component="pre" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{explanation}</Box>} arrow>
-                                    <InfoIcon
-                                      sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }}
-                                      aria-label="ELO-förklaring"
-                                    />
-                                  </Tooltip>
-                                )}
-                              </Stack>
-                            </ListItem>
+                            <Box key={`${m.id}-team1-${entry.name}`} sx={{ mb: 1 }}>
+                              <ListItem disableGutters sx={{ py: 0.5 }}>
+                                <ListItemText
+                                  primary={entry.name}
+                                  secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                  secondaryTypographyProps={{ variant: 'caption' }}
+                                />
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                    {formatDelta(delta)}
+                                  </Typography>
+                                </Stack>
+                              </ListItem>
+                              {explanation && <EloBreakdown explanation={explanation} />}
+                            </Box>
                           );
                         })}
                       </List>
@@ -598,27 +592,22 @@ export default function History({
                           }
 
                           return (
-                            <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
-                              <ListItemText
-                                primary={entry.name}
-                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                secondaryTypographyProps={{ variant: 'caption' }}
-                              />
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                  {formatDelta(delta)}
-                                </Typography>
-                                {explanation && (
-                                  <Tooltip title={<Box component="pre" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{explanation}</Box>} arrow>
-                                    <InfoIcon
-                                      sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }}
-                                      aria-label="ELO-förklaring"
-                                    />
-                                  </Tooltip>
-                                )}
-                              </Stack>
-                            </ListItem>
+                            <Box key={`${m.id}-team2-${entry.name}`} sx={{ mb: 1 }}>
+                              <ListItem disableGutters sx={{ py: 0.5 }}>
+                                <ListItemText
+                                  primary={entry.name}
+                                  secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                  secondaryTypographyProps={{ variant: 'caption' }}
+                                />
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                                    {formatDelta(delta)}
+                                  </Typography>
+                                </Stack>
+                              </ListItem>
+                              {explanation && <EloBreakdown explanation={explanation} />}
+                            </Box>
                           );
                         })}
                       </List>
