@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import UIKit
 
 struct ProfileEloPoint: Identifiable {
     let id: UUID
@@ -384,6 +385,7 @@ final class AppViewModel: ObservableObject {
     private var liveSyncDebounceTask: Task<Void, Never>?
     private var liveUpdateBannerTask: Task<Void, Never>?
     private var scheduleMessageClearTask: Task<Void, Never>?
+    private var foregroundObserver: NSObjectProtocol?
     private var lastGlobalLiveMarker: SupabaseRESTClient.GlobalLiveMarker?
     private var lastFullLiveSyncAt: Date?
     private var consecutiveLiveProbeFailures = 0
@@ -438,6 +440,22 @@ final class AppViewModel: ObservableObject {
                     await self?.performFullLiveRefresh()
                 }
             }
+        }
+
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            LiveMatchActivityService.shared.restoreActiveActivityIfNeeded()
+            self.updateLiveActivity()
+        }
+    }
+
+    deinit {
+        if let foregroundObserver {
+            NotificationCenter.default.removeObserver(foregroundObserver)
         }
     }
 
@@ -1951,21 +1969,35 @@ final class AppViewModel: ObservableObject {
     }
 
     private func updateLiveActivity() {
-        if let tournament = activeTournamentNotice {
-            // For tournament, we show current standings or top players as "score" in a simplified way
-            let topA = tournamentStandings.first?.playerName ?? tournament.name
-            let topB = tournamentStandings.dropFirst().first?.playerName ?? "Padel"
-            let scoreA = tournamentStandings.first?.pointsFor ?? 0
-            let scoreB = tournamentStandings.dropFirst().first?.pointsFor ?? 0
+        guard let tournament = activeTournament else {
+            LiveMatchActivityService.shared.endMatchActivity()
+            return
+        }
 
+        // Note for non-coders:
+        // We reuse standings points as a simple "live score" for the lock-screen card.
+        let topA = tournamentStandings.first?.playerName ?? tournament.name
+        let topB = tournamentStandings.dropFirst().first?.playerName ?? "Padel"
+        let scoreA = tournamentStandings.first?.pointsFor ?? 0
+        let scoreB = tournamentStandings.dropFirst().first?.pointsFor ?? 0
+        let localizedStatus = LiveMatchActivityService.shared.localizedStatus(for: tournament.status)
+
+        if tournament.status == "draft" || tournament.status == "in_progress" {
             LiveMatchActivityService.shared.startOrUpdateMatchActivity(
+                matchId: tournament.id.uuidString,
                 teamA: topA,
                 teamB: topB,
                 scoreA: scoreA,
-                scoreB: scoreB
+                scoreB: scoreB,
+                status: localizedStatus
             )
         } else {
-            LiveMatchActivityService.shared.endMatchActivity()
+            LiveMatchActivityService.shared.endMatchActivity(
+                scoreA: scoreA,
+                scoreB: scoreB,
+                status: localizedStatus,
+                matchId: tournament.id.uuidString
+            )
         }
     }
 
@@ -2981,6 +3013,7 @@ final class AppViewModel: ObservableObject {
             tournamentHistoryResults = try await apiClient.fetchCompletedTournamentResults()
             tournamentStatusMessage = nil
             tournamentActionErrorMessage = nil
+            updateLiveActivity()
         } catch {
             // Note for non-coders:
             // If the network call fails, we keep any on-screen tournament data intact
@@ -3191,6 +3224,14 @@ final class AppViewModel: ObservableObject {
         do {
             try await apiClient.saveTournamentRoundScore(roundId: round.id, team1Score: team1Score, team2Score: team2Score)
             tournamentStatusMessage = "Round \(round.roundNumber) score saved."
+            if let tournament = activeTournament {
+                LiveMatchActivityService.shared.updateMatchActivity(
+                    matchId: tournament.id.uuidString,
+                    scoreA: team1Score,
+                    scoreB: team2Score,
+                    status: LiveMatchActivityService.shared.localizedStatus(for: tournament.status)
+                )
+            }
             await loadTournamentData(silently: false)
         } catch {
             tournamentActionErrorMessage = "Could not save round score: \(error.localizedDescription)"
@@ -3228,6 +3269,15 @@ final class AppViewModel: ObservableObject {
             }
             try await apiClient.saveTournamentStandings(submissions)
             try await apiClient.completeTournament(tournamentId: tournament.id)
+            let localizedCompletedStatus = LiveMatchActivityService.shared.localizedStatus(for: "completed")
+            let finalScoreA = tournamentStandings.first?.pointsFor ?? 0
+            let finalScoreB = tournamentStandings.dropFirst().first?.pointsFor ?? 0
+            LiveMatchActivityService.shared.endMatchActivity(
+                scoreA: finalScoreA,
+                scoreB: finalScoreB,
+                status: localizedCompletedStatus,
+                matchId: tournament.id.uuidString
+            )
             tournamentStatusMessage = "Tournament completed and standings saved."
             await loadTournamentData(silently: false)
         } catch {
@@ -3268,6 +3318,19 @@ final class AppViewModel: ObservableObject {
 
         do {
             try await apiClient.updateTournamentStatus(tournamentId: selected.id, status: status)
+            if status == "abandoned" || status == "cancelled" {
+                let localizedStatus = LiveMatchActivityService.shared.localizedStatus(for: status)
+                let scoreA = tournamentStandings.first?.pointsFor ?? 0
+                let scoreB = tournamentStandings.dropFirst().first?.pointsFor ?? 0
+                LiveMatchActivityService.shared.endMatchActivity(
+                    scoreA: scoreA,
+                    scoreB: scoreB,
+                    status: localizedStatus,
+                    matchId: selected.id.uuidString
+                )
+            } else {
+                updateLiveActivity()
+            }
             tournamentStatusMessage = successMessage
             await loadTournamentData(silently: false)
         } catch {
