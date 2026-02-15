@@ -39,4 +39,12 @@ final class NotificationPreferencesContractTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         XCTAssertEqual(Set(object.keys), Set(["enabled", "eventToggles", "quietHours"]))
     }
+
+    func testQuietHoursInvalidHoursFallbackToDefaults() {
+        let quietHours = NotificationQuietHours(enabled: true, startHour: -1, endHour: 99)
+
+        XCTAssertEqual(quietHours.startHour, 22)
+        XCTAssertEqual(quietHours.endHour, 7)
+    }
+
 }
