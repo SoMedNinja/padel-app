@@ -1,0 +1,14 @@
+{
+  "currentVersion": "0.0.0",
+  "releases": [
+    {
+      "version": "0.0.0",
+      "title": "Vad är nytt",
+      "changes": [
+        "Nu ser du nyheter direkt i appen när en ny version finns.",
+        "Nyhetsrutan visas bara en gång per version.",
+        "Små förbättringar för en stabilare upplevelse."
+      ]
+    }
+  ]
+}

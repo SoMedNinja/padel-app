@@ -6,6 +6,7 @@ import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import InstallPrompt from "../Components/InstallPrompt";
+import WhatsNewDialog from "../Components/WhatsNewDialog";
 import {
   IconButton,
   Box,
@@ -147,6 +148,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
         {/* Note for non-coders: this card helps people install the web app like a normal phone app. */}
         <InstallPrompt />
       </Container>
+
+      {/* Note for non-coders: this popup explains what changed after an update, and it appears only once per version. */}
+      <WhatsNewDialog />
 
       {hasGuestAccess && (
         <Container maxWidth="lg" sx={{ mt: 2 }}>
