@@ -26,6 +26,21 @@ const queryClient = new QueryClient({
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Failed to find the root element");
 
+function normalizeOpenRouteMessage(routeCandidate: unknown): string | null {
+  // Note for non-coders: this keeps notification route handoffs inside this app and avoids malformed links.
+  if (typeof routeCandidate !== "string") return null;
+  const trimmedRoute = routeCandidate.trim();
+  if (!trimmedRoute) return null;
+
+  try {
+    const parsedRoute = new URL(trimmedRoute, window.location.origin);
+    if (parsedRoute.origin !== window.location.origin) return null;
+    return `${parsedRoute.pathname}${parsedRoute.search}${parsedRoute.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 if (typeof window !== "undefined") {
   // Note for non-coders: this starts the service worker early so push alerts and offline caching both work in the background.
   const updateServiceWorker = setupPwaUpdateUX(() => {
@@ -42,8 +57,11 @@ if (typeof window !== "undefined") {
   })();
 
   navigator.serviceWorker?.addEventListener("message", (event) => {
-    if (event.data?.type === "OPEN_ROUTE" && typeof event.data.route === "string") {
-      window.location.assign(event.data.route);
+    if (event.data?.type === "OPEN_ROUTE") {
+      const routeToOpen = normalizeOpenRouteMessage(event.data.route);
+      if (routeToOpen) {
+        window.location.assign(routeToOpen);
+      }
     }
   });
 }
