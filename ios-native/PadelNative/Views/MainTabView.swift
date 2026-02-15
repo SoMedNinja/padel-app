@@ -41,10 +41,17 @@ struct MainTabView: View {
                 .tag(4)
         }
         .overlay(alignment: .top) {
+            let syncSnapshot = viewModel.pendingWriteQueueSnapshot
+            let showSyncBanner = syncSnapshot.status != .synced || syncSnapshot.pendingCount > 0 || syncSnapshot.failedCount > 0
             if (viewModel.liveUpdateBanner != nil && viewModel.liveUpdateBanner?.isEmpty == false) ||
                 viewModel.isGuestMode ||
-                viewModel.appVersionMessage != nil {
+                viewModel.appVersionMessage != nil ||
+                showSyncBanner {
                 VStack(spacing: 8) {
+                    if showSyncBanner {
+                        PendingWriteSyncBanner()
+                    }
+
                     if let updateBanner = viewModel.liveUpdateBanner, !updateBanner.isEmpty {
                         Text(updateBanner)
                             .font(.footnote.weight(.semibold))
