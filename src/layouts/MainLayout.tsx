@@ -6,6 +6,7 @@ import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import InstallPrompt from "../Components/InstallPrompt";
+import MatchSyncStatusBanner from "../Components/Shared/MatchSyncStatusBanner";
 import {
   IconButton,
   Box,
@@ -146,6 +147,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Container maxWidth="lg" sx={{ mt: 2 }}>
         {/* Note for non-coders: this card helps people install the web app like a normal phone app. */}
         <InstallPrompt />
+      </Container>
+
+      <Container maxWidth="lg" sx={{ mt: 2 }}>
+        <MatchSyncStatusBanner />
       </Container>
 
       {hasGuestAccess && (

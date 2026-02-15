@@ -484,7 +484,15 @@ export default function MexicanaTournament({
       }));
 
     try {
-      await matchService.createMatch(matchPayload);
+      const matchSyncResult = await matchService.createMatch(matchPayload);
+      if (matchSyncResult.status === "conflict") {
+        toast.error(matchSyncResult.message);
+        setIsSaving(false);
+        return;
+      }
+      if (matchSyncResult.status === "pending") {
+        toast.warning(matchSyncResult.message);
+      }
     } catch (matchError: any) {
       showRetryToast(getActionErrorMessage(matchError, "Kunde inte synka matcher."), () => void completeTournament());
       setIsSaving(false);

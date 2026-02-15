@@ -341,8 +341,9 @@ export default function MatchForm({
     }
 
     setIsSubmitting(true);
+    let createResult;
     try {
-      await matchService.createMatch({
+      createResult = await matchService.createMatch({
         team1: team1Names,
         team2: team2Names,
         team1_ids: team1IdsForDb,
@@ -356,6 +357,12 @@ export default function MatchForm({
         team1_serves_first: nextServeFirst,
         created_by: user.id,
       });
+
+      if (createResult.status === "conflict") {
+        toast.error(createResult.message);
+        setIsSubmitting(false);
+        return;
+      }
     } catch (error: any) {
       toast.error(error.message || "Kunde inte spara matchen.");
       setIsSubmitting(false);
@@ -381,7 +388,12 @@ export default function MatchForm({
     setIsCeremonyActive(true);
     setShowRecap(true);
     setIsSubmitting(false);
-    toast.success(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
+    if (createResult?.status === "pending") {
+      // Note for non-coders: pending means we stored your match safely on this device until internet comes back.
+      toast.warning(`${createResult.message} (${team1Label} vs ${team2Label})`);
+    } else {
+      toast.success(`Match sparad: ${team1Label} vs ${team2Label} (${scoreA}–${scoreB})`);
+    }
   };
 
   const suggestBalancedMatch = () => {
