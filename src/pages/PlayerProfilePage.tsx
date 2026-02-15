@@ -24,6 +24,7 @@ import {
   syncPreferencesToServiceWorker,
 } from "../services/webNotificationService";
 import WebPermissionsPanel from "../Components/Permissions/WebPermissionsPanel";
+import { requestOpenPermissionGuide } from "../services/permissionGuidanceService";
 
 const EVENT_LABELS: Record<NotificationEventType, string> = {
   scheduled_match_new: "Ny schemalagd match",
@@ -261,6 +262,10 @@ export default function PlayerProfilePage() {
                     {/* Note for non-coders: this is where users decide which alerts they want to receive on web and in the service worker push channel. */}
                     Slå av/på notiser per händelsetyp och välj tysta timmar för när mobilen inte ska plinga.
                   </Typography>
+
+                  <Button size="small" sx={{ mb: 2 }} onClick={() => requestOpenPermissionGuide("settings")}>
+                    Steg-för-steg: behörighetshjälp
+                  </Button>
 
                   <WebPermissionsPanel onNotificationPermissionChanged={async () => {
                     await syncPreferencesToServiceWorker(notificationPrefs);

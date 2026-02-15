@@ -8,6 +8,7 @@ import {
 } from "../services/appVersionService";
 import { UpdateUrgency } from "../shared/updateStates";
 import { UPDATE_PROMPT_CONFIG } from "./updatePromptConfig";
+import { requestOpenPermissionGuide } from "../services/permissionGuidanceService";
 
 export default function AppVersionPolicyBanner() {
   const [versionState, setVersionState] = useState<AppVersionState>({ kind: "upToDate" });
@@ -57,6 +58,9 @@ export default function AppVersionPolicyBanner() {
           {versionState.policy.latestAvailableVersion ? ` • Senaste version: ${versionState.policy.latestAvailableVersion}` : ""}
         </Typography>
       </Box>
+      <Button size="small" sx={{ mt: 0.75 }} onClick={() => requestOpenPermissionGuide("version_banner")}>
+        Need help enabling notifications after update?
+      </Button>
     </Alert>
   );
 }
