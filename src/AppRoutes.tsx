@@ -42,6 +42,7 @@ export default function AppRoutes() {
         {!isGuest && <Route path="/single-game" element={<PageWrapper><SingleGamePage /></PageWrapper>} />}
         <Route path="/match/:matchId" element={<PageWrapper><MatchShareRedirectPage /></PageWrapper>} />
         {isAdmin && <Route path="/admin" element={<PageWrapper><AdminPage /></PageWrapper>} />}
+        {isAdmin && <Route path="/admin/email" element={<PageWrapper><AdminPage /></PageWrapper>} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>

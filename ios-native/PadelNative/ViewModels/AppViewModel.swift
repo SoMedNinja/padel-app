@@ -431,6 +431,10 @@ final class AppViewModel: ObservableObject {
     @Published var adminEmailPreviewText: String?
     @Published var adminEmailPreviewHTML: String?
     @Published var adminEmailStatusMessage: String?
+    // Note for non-coders: when a deep link asks for Admin > Email, we store that section name
+    // briefly so the Admin screen can open the matching segment automatically.
+    @Published var deepLinkedAdminSection: String?
+    @Published var shouldOpenAdminFromDeepLink = false
     @Published var liveUpdateBanner: String?
     @Published var globalFilter: DashboardMatchFilter = .all
     @Published var globalCustomStartDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
@@ -2152,6 +2156,13 @@ final class AppViewModel: ObservableObject {
         case schedule(pollId: UUID?, dayId: UUID?, slots: [AvailabilitySlot])
         case singleGame(mode: String?)
         case match(matchId: UUID?)
+        case admin(section: AdminDeepLinkSection?)
+    }
+
+    private enum AdminDeepLinkSection: String, Equatable {
+        case users
+        case reports
+        case emails
     }
 
     // Note for non-coders:
@@ -2247,6 +2258,26 @@ final class AppViewModel: ObservableObject {
             return .success(.match(matchId: parsedMatch.value))
         }
 
+        if routeName == "admin" {
+            let section = pathSegments.count > 1 ? pathSegments[1] : nil
+            guard let section else {
+                return .success(.admin(section: nil))
+            }
+
+            // Note for non-coders: both "email" and "emails" should work,
+            // so links remain forgiving when written by different tools.
+            switch section {
+            case "email", "emails":
+                return .success(.admin(section: .emails))
+            case "users":
+                return .success(.admin(section: .users))
+            case "reports":
+                return .success(.admin(section: .reports))
+            default:
+                return .failure(DeepLinkParseError(message: "Länken innehåller en okänd admin-sektion."))
+            }
+        }
+
         return .failure(DeepLinkParseError(message: "Länken matchar ingen känd sida i appen."))
     }
 
@@ -2287,7 +2318,28 @@ final class AppViewModel: ObservableObject {
             // Note for non-coders: match share links open the history tab so users land
             // in the same area where match summaries and details are shown.
             openHistoryTab()
+
+        case let .admin(section):
+            guard canUseAdmin else {
+                authMessage = "Admin-behörighet krävs för att öppna den här länken."
+                return
+            }
+
+            selectedMainTab = 4
+            deepLinkedAdminSection = section?.rawValue
+            shouldOpenAdminFromDeepLink = true
         }
+    }
+
+    // Note for non-coders: this works like a one-time ticket.
+    // The Admin screen reads it once, then we clear it to avoid repeated jumps.
+    func consumeDeepLinkedAdminSection() -> String? {
+        defer { deepLinkedAdminSection = nil }
+        return deepLinkedAdminSection
+    }
+
+    func consumeOpenAdminFromDeepLinkFlag() {
+        shouldOpenAdminFromDeepLink = false
     }
 
     private func parseOptionalUUID(_ rawValue: String?) -> (isValid: Bool, value: UUID?) {
