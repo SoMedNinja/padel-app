@@ -27,15 +27,15 @@ interface WebPermissionsPanelProps {
 function notificationSettingsGuidance(): string {
   const ua = navigator.userAgent.toLowerCase();
   if (/iphone|ipad|ipod/.test(ua)) {
-    return "Open iOS Settings > Notifications > this app, then allow notifications. If using Safari, add this app to Home Screen first.";
+    return "Öppna iOS-inställningar > Notiser > den här appen och tillåt notiser. Om du använder Safari behöver du först lägga appen på hemskärmen.";
   }
   if (/firefox/.test(ua)) {
-    return "Open Firefox Site Settings, find Notifications for this site, and switch to Allow.";
+    return "Öppna Firefox webbplatsinställningar, hitta Notiser för den här sidan och byt till Tillåt.";
   }
   if (/edg\//.test(ua) || /edgios/.test(ua)) {
-    return "Open Edge site permissions, set Notifications to Allow, then refresh this page.";
+    return "Öppna webbplatsbehörigheter i Edge, sätt Notiser till Tillåt och uppdatera sidan.";
   }
-  return "Open your browser's site settings for this page and set Notifications to Allow, then refresh.";
+  return "Öppna webbläsarens webbplatsinställningar för sidan, sätt Notiser till Tillåt och uppdatera.";
 }
 
 export default function WebPermissionsPanel({ onNotificationPermissionChanged }: WebPermissionsPanelProps) {
@@ -47,9 +47,9 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
   );
 
   const formatTimestamp = (iso: string | null): string => {
-    if (!iso) return "Not yet";
+    if (!iso) return "Inte ännu";
     const parsed = new Date(iso);
-    return Number.isNaN(parsed.getTime()) ? "Not yet" : parsed.toLocaleString();
+    return Number.isNaN(parsed.getTime()) ? "Inte ännu" : parsed.toLocaleString();
   };
 
   const reloadSnapshots = async () => {
@@ -79,34 +79,34 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
 
     await ensureNotificationPermission();
     await onNotificationPermissionChanged();
-    setActionMessage("Notification check retried. If permission is granted, push setup will complete automatically.");
+    setActionMessage("Notiskontrollen kördes igen. Om behörighet är tillåten slutförs push-konfigurationen automatiskt.");
   };
 
   const handleBackgroundRefreshAction = async () => {
     if (!("serviceWorker" in navigator)) {
-      setActionMessage("This browser does not support service workers, so background refresh cannot be enabled here.");
+      setActionMessage("Den här webbläsaren stödjer inte service workers, så bakgrundsuppdatering kan inte aktiveras här.");
       return;
     }
 
     const existingRegistration = await navigator.serviceWorker.getRegistration("/sw.js");
     if (!existingRegistration) {
       await registerPushServiceWorker(loadNotificationPreferences());
-      setActionMessage("Service worker install was retried. Keep this tab open for a few seconds, then retry check.");
+      setActionMessage("Installationen av service worker kördes igen. Låt fliken vara öppen några sekunder och testa sedan kontrollen igen.");
       return;
     }
 
     await existingRegistration.update();
     if (!existingRegistration.active) {
-      setActionMessage("Service worker exists but is not active yet. Reload the app (or reinstall PWA on iOS) and retry.");
+      setActionMessage("Service worker finns men är inte aktiv ännu. Ladda om appen (eller installera om PWA på iOS) och testa igen.");
       return;
     }
 
-    setActionMessage("Background refresh check retried. Service worker is active.");
+    setActionMessage("Kontrollen för bakgrundsuppdatering kördes igen. Service worker är aktiv.");
   };
 
   const handlePasskeyAction = async () => {
     if (!("PublicKeyCredential" in window)) {
-      setActionMessage("This browser does not expose WebAuthn APIs, so platform passkeys are unavailable.");
+      setActionMessage("Den här webbläsaren exponerar inte WebAuthn-API:er, så plattformsnycklar (passkeys) är inte tillgängliga.");
       return;
     }
 
@@ -117,8 +117,8 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
 
     setActionMessage(
       hasPlatformAuthenticator
-        ? "Platform authenticator detected. You can continue with passkey setup on this device."
-        : "WebAuthn is present, but no platform authenticator is currently available. Check device lock-screen/biometrics settings."
+        ? "En plattformsautentiserare hittades. Du kan fortsätta med passkey-konfiguration på enheten."
+        : "WebAuthn finns, men ingen plattformsautentiserare är tillgänglig just nu. Kontrollera enhetens låsskärm/biometriska inställningar."
     );
   };
 
@@ -136,18 +136,18 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
 
   return (
     <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2, mb: 2 }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Centralized permissions panel</Typography>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Samlad panel för behörigheter</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {/* Note for non-coders: this panel translates technical browser APIs into the same state words used on iOS. */}
-        Same state model on every client: Allowed, Blocked, Limited, or Action needed.
+        Samma statusmodell i alla klienter: Tillåten, Blockerad, Begränsad eller Åtgärd krävs.
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
         {/* Note for non-coders: this is the exact time the app most recently re-ran all permission checks. */}
-        Last checked: {formatTimestamp(lastCheckedAt)}
+        Senast kontrollerad: {formatTimestamp(lastCheckedAt)}
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
         {/* Note for non-coders: this only updates when push is fully ready (permission + endpoint). */}
-        Last successful push setup: {formatTimestamp(lastSuccessfulPushSetupAt)}
+        Senaste lyckade push-konfiguration: {formatTimestamp(lastSuccessfulPushSetupAt)}
       </Typography>
 
       <Stack spacing={1.5}>
