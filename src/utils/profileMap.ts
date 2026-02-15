@@ -3,6 +3,19 @@ import { GUEST_ID, GUEST_NAME } from "./guest";
 
 export const getProfileDisplayName = (p: Profile) => p.name || "Okänd";
 
+const normalizeName = (name: string) => name.trim().toLowerCase();
+// Note for non-coders: historical matches may store guest names with slightly different spelling/casing.
+// We keep a small alias list so old data still resolves to the same "guest" player consistently.
+const GUEST_NAME_ALIASES = new Set([
+  normalizeName(GUEST_NAME),
+  normalizeName("gäst"),
+  normalizeName("gästspelare"),
+  normalizeName("guest"),
+  normalizeName("guest player"),
+]);
+
+const isGuestName = (name: string) => GUEST_NAME_ALIASES.has(normalizeName(name));
+
 export const makeProfileMap = (profiles: Profile[]) => {
   const map = new Map<string, Profile>();
   profiles.forEach(p => map.set(p.id, p));
@@ -11,7 +24,11 @@ export const makeProfileMap = (profiles: Profile[]) => {
 
 export const makeNameToIdMap = (profiles: Profile[]) => {
   const map = new Map<string, string>();
-  profiles.forEach(p => map.set(getProfileDisplayName(p), p.id));
+  profiles.forEach((p) => {
+    const displayName = getProfileDisplayName(p);
+    map.set(displayName, p.id);
+    map.set(normalizeName(displayName), p.id);
+  });
   return map;
 };
 
@@ -35,8 +52,12 @@ export const resolveTeamIds = (
   } else if (typeof names === "string") {
     nameArray = names.split(",").map(n => n.trim()).filter(Boolean);
   }
-
-  return nameArray.map(name => nameToIdMap.get(name) || (name === GUEST_NAME ? GUEST_ID : null));
+  return nameArray.map((name) => {
+    const normalizedName = normalizeName(name);
+    return nameToIdMap.get(name)
+      || nameToIdMap.get(normalizedName)
+      || (isGuestName(name) ? GUEST_ID : null);
+  });
 };
 
 export const idsToNames = (ids: (string | null)[], profileMap: Map<string, Profile>): string[] => {
