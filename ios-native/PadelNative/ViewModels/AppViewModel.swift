@@ -416,6 +416,7 @@ final class AppViewModel: ObservableObject {
     @Published var appVersionMessage: String?
     @Published var appStoreUpdateURL: URL?
     @Published var isUpdateRequired = false
+    @Published var deepLinkFallbackBanner: String?
 
     static let backgroundRefreshTaskIdentifier = "com.padelnative.refresh"
     static let backgroundMaintenanceTaskIdentifier = "com.padelnative.maintenance"
@@ -441,6 +442,7 @@ final class AppViewModel: ObservableObject {
     private var liveSyncTask: Task<Void, Never>?
     private var liveSyncDebounceTask: Task<Void, Never>?
     private var liveUpdateBannerTask: Task<Void, Never>?
+    private var deepLinkBannerTask: Task<Void, Never>?
     private var scheduleMessageClearTask: Task<Void, Never>?
     private var foregroundObserver: NSObjectProtocol?
     private var lastGlobalLiveMarker: SupabaseRESTClient.GlobalLiveMarker?
@@ -1925,50 +1927,134 @@ final class AppViewModel: ObservableObject {
         selectedMainTab = 3
     }
 
+    private enum DeepLinkRoute: Equatable {
+        case schedule(pollId: UUID?, dayId: UUID?, slots: [AvailabilitySlot])
+        case singleGame(mode: String?)
+    }
+
+    // Note for non-coders:
+    // This parser turns raw URL text into a small "route enum", so we can validate everything once
+    // and keep the actual navigation logic simple and safe.
+    private func parseDeepLink(_ url: URL) -> Result<DeepLinkRoute, String> {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return .failure("Länken kunde inte läsas.")
+        }
+
+        let routeSource = (components.host ?? components.path)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .lowercased()
+        let items = components.queryItems ?? []
+
+        if routeSource.contains("schedule") {
+            let allowedNames: Set<String> = ["poll", "pollid", "day", "dayid", "slots"]
+            let unknownNames = items
+                .map { $0.name.lowercased() }
+                .filter { !allowedNames.contains($0) }
+            if let unexpected = unknownNames.first {
+                return .failure("Länken har en okänd parameter: \(unexpected).")
+            }
+
+            let pollValue = items.first(where: { ["pollid", "poll"].contains($0.name.lowercased()) })?.value
+            let dayValue = items.first(where: { ["dayid", "day"].contains($0.name.lowercased()) })?.value
+
+            let parsedPoll = parseOptionalUUID(pollValue)
+            let parsedDay = parseOptionalUUID(dayValue)
+            guard parsedPoll.isValid, parsedDay.isValid else {
+                return .failure("Länken innehåller ogiltiga schema-id:n.")
+            }
+
+            let pollId = parsedPoll.value
+            let dayId = parsedDay.value
+
+            let slots: [AvailabilitySlot]
+            if let slotsRaw = items.first(where: { $0.name.lowercased() == "slots" })?.value {
+                let slotValues = slotsRaw
+                    .split(separator: ",")
+                    .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                let parsedSlots = slotValues.compactMap(AvailabilitySlot.init(rawValue:))
+                guard parsedSlots.count == slotValues.count else {
+                    return .failure("Länken innehåller ett okänt tidsintervall i slots.")
+                }
+                slots = parsedSlots
+            } else {
+                // Note for non-coders: no slots means "all day", matching web behavior.
+                slots = []
+            }
+
+            return .success(.schedule(pollId: pollId, dayId: dayId, slots: slots))
+        }
+
+        if routeSource.contains("single-game") || routeSource.contains("singlegame") {
+            let allowedNames: Set<String> = ["mode"]
+            let unknownNames = items
+                .map { $0.name.lowercased() }
+                .filter { !allowedNames.contains($0) }
+            if let unexpected = unknownNames.first {
+                return .failure("Länken har en okänd parameter: \(unexpected).")
+            }
+
+            if let mode = items.first(where: { $0.name.lowercased() == "mode" })?.value?.lowercased() {
+                guard ["1v1", "2v2"].contains(mode) else {
+                    return .failure("Länken innehåller ett ogiltigt spelläge.")
+                }
+                return .success(.singleGame(mode: mode))
+            }
+
+            return .success(.singleGame(mode: nil))
+        }
+
+        return .failure("Länken matchar ingen känd sida i appen.")
+    }
+
     // Note for non-coders:
     // This reads links for schedule votes and single-game mode so the app can open the right tool directly.
     func handleIncomingURL(_ url: URL) {
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
-        let hostOrPath = (components.host ?? components.path).lowercased()
-        let items = components.queryItems ?? []
+        switch parseDeepLink(url) {
+        case let .success(route):
+            applyDeepLinkRoute(route)
+        case let .failure(message):
+            showDeepLinkFallbackBanner(message)
+        }
+    }
 
-        if hostOrPath.contains("schedule") {
+    private func applyDeepLinkRoute(_ route: DeepLinkRoute) {
+        switch route {
+        case let .schedule(pollId, dayId, slots):
             openScheduleTab()
+            deepLinkedPollId = pollId
+            deepLinkedPollDayId = dayId
+            deepLinkedVoteSlots = slots
+            hasPendingDeepLinkedVote = dayId != nil
 
-            if let pollIdString = items.first(where: { $0.name == "pollId" || $0.name == "poll" })?.value,
-               let pollId = UUID(uuidString: pollIdString) {
-                deepLinkedPollId = pollId
-            }
-            if let dayIdString = items.first(where: { $0.name == "dayId" || $0.name == "day" })?.value,
-               let dayId = UUID(uuidString: dayIdString) {
-                deepLinkedPollDayId = dayId
-            }
-
-            if let slotsRaw = items.first(where: { $0.name == "slots" })?.value {
-                deepLinkedVoteSlots = slotsRaw
-                    .split(separator: ",")
-                    .compactMap { AvailabilitySlot(rawValue: String($0).trimmingCharacters(in: .whitespacesAndNewlines)) }
-            } else {
-                // Note for non-coders: no slots means "all day" just like web deep links.
-                deepLinkedVoteSlots = []
-            }
-
-            hasPendingDeepLinkedVote = deepLinkedPollDayId != nil
-            if deepLinkedPollId == nil && deepLinkedPollDayId == nil {
+            if pollId == nil && dayId == nil {
                 setScheduleActionMessage("Länken öppnade schemafliken, men saknade omröstningsdetaljer.")
             }
-            return
-        }
 
-        if hostOrPath.contains("single-game") || hostOrPath.contains("singlegame") {
+        case let .singleGame(mode):
             guard canUseSingleGame else {
                 authMessage = "Logga in för att öppna matchformuläret från en länk."
                 return
             }
 
             selectedMainTab = 1
-            if let mode = items.first(where: { $0.name == "mode" })?.value {
-                deepLinkedSingleGameMode = mode.lowercased()
+            deepLinkedSingleGameMode = mode
+        }
+    }
+
+    private func parseOptionalUUID(_ rawValue: String?) -> (isValid: Bool, value: UUID?) {
+        guard let rawValue else { return (true, nil) }
+        guard let parsed = UUID(uuidString: rawValue) else { return (false, nil) }
+        return (true, parsed)
+    }
+
+    private func showDeepLinkFallbackBanner(_ reason: String) {
+        deepLinkBannerTask?.cancel()
+        deepLinkFallbackBanner = "Vi kunde inte öppna länken. \(reason)"
+        deepLinkBannerTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            await MainActor.run {
+                self?.deepLinkFallbackBanner = nil
             }
         }
     }
