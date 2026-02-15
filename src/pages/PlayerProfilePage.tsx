@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import PlayerSection from "../Components/PlayerSection";
 import MeritsSection from "../Components/MeritsSection";
-import Heatmap from "../Components/Heatmap";
 import FilterBar from "../Components/FilterBar";
 import { useStore } from "../store/useStore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -209,7 +208,6 @@ export default function PlayerProfilePage() {
               >
                 <Tab label="Översikt" />
                 <Tab label="ELO-Trend" />
-                <Tab label="Lagkamrater" />
                 <Tab label="Meriter" />
                 <Tab label="Notiser" />
               </Tabs>
@@ -245,18 +243,6 @@ export default function PlayerProfilePage() {
               )}
 
               {activeTab === 2 && (
-                <Box id="team-combos" component="section">
-                  {/* Note for non-coders: the global filter updates match stats, but we keep all-time ELO for Snitt-ELO. */}
-                  <Heatmap
-                    matches={filteredMatches}
-                    profiles={profiles}
-                    allEloPlayers={eloPlayers}
-                    currentUserOnly={user?.id}
-                  />
-                </Box>
-              )}
-
-              {activeTab === 3 && (
                 <Box id="meriter" component="section">
                   <MeritsSection
                     user={userWithAdmin}
@@ -268,7 +254,7 @@ export default function PlayerProfilePage() {
                 </Box>
               )}
 
-              {activeTab === 4 && (
+              {activeTab === 3 && (
                 <Box id="notifications" component="section" sx={{ p: 2, bgcolor: "background.paper", borderRadius: 2 }}>
                   <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Notifieringsinställningar</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
