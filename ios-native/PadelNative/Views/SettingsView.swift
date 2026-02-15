@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import UserNotifications
+import EventKit
 
 struct SettingsView: View {
     @EnvironmentObject private var viewModel: AppViewModel
@@ -21,7 +23,8 @@ struct SettingsView: View {
                     if let current = viewModel.currentPlayer {
                         profileSection(current)
                         accountSection
-                        permissionsSection(current)
+                        devicePermissionsSection
+                        accessSection(current)
                     } else if viewModel.isGuestMode {
                         guestModeSection
                     }
@@ -61,7 +64,7 @@ struct SettingsView: View {
                 await viewModel.bootstrap()
             }
             .task {
-                await viewModel.refreshNotificationPermissionStatus()
+                await viewModel.refreshDevicePermissionStatuses()
             }
             .navigationTitle("Inställningar")
             .navigationBarTitleDisplayMode(.inline)
@@ -230,7 +233,41 @@ struct SettingsView: View {
         }
     }
 
-    private func permissionsSection(_ current: Player) -> some View {
+    private var devicePermissionsSection: some View {
+        SectionCard(title: "Permissions") {
+            VStack(alignment: .leading, spacing: 14) {
+                // Note for non-coders: each row shows one permission, a simple status chip, and one clear next step.
+                permissionRow(
+                    title: "Notifications",
+                    subtitle: "Match reminders and updates",
+                    state: notificationState,
+                    buttonLabel: notificationActionTitle,
+                    buttonSystemImage: notificationActionIcon,
+                    action: notificationAction
+                )
+
+                permissionRow(
+                    title: "Calendar",
+                    subtitle: "Save matches to your calendar",
+                    state: calendarState,
+                    buttonLabel: calendarActionTitle,
+                    buttonSystemImage: calendarActionIcon,
+                    action: calendarAction
+                )
+
+                permissionRow(
+                    title: "Biometric lock",
+                    subtitle: "Use Face ID / Touch ID for app lock",
+                    state: biometricState,
+                    buttonLabel: biometricActionTitle,
+                    buttonSystemImage: biometricActionIcon,
+                    action: biometricAction
+                )
+            }
+        }
+    }
+
+    private func accessSection(_ current: Player) -> some View {
         SectionCard(title: "Behörigheter") {
             VStack(alignment: .leading, spacing: 12) {
                 Label(current.isRegular ? "Åtkomst till schema: JA" : "Åtkomst till schema: NEJ", systemImage: current.isRegular ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -246,6 +283,146 @@ struct SettingsView: View {
                 }
             }
             .font(.inter(.subheadline, weight: .semibold))
+        }
+    }
+
+
+
+    private func permissionRow(title: String, subtitle: String, state: PermissionChipState, buttonLabel: String, buttonSystemImage: String, action: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.inter(.subheadline, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
+                    Text(subtitle)
+                        .font(.inter(.footnote))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+
+                Spacer()
+                StatusChip(title: state.title, tint: state.tint)
+            }
+
+            Button(action: action) {
+                Label(buttonLabel, systemImage: buttonSystemImage)
+                    .font(.inter(.footnote, weight: .bold))
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private var notificationState: PermissionChipState {
+        switch viewModel.notificationPermissionStatus {
+        case .authorized, .provisional, .ephemeral:
+            return .allowed
+        case .denied, .restricted:
+            return .denied
+        case .notDetermined:
+            return .notRequested
+        @unknown default:
+            return .notRequested
+        }
+    }
+
+    private var calendarState: PermissionChipState {
+        switch viewModel.calendarPermissionStatus {
+        case .fullAccess, .writeOnly, .authorized:
+            return .allowed
+        case .denied, .restricted:
+            return .denied
+        case .notDetermined:
+            return .notRequested
+        @unknown default:
+            return .notRequested
+        }
+    }
+
+    private var biometricState: PermissionChipState {
+        if viewModel.isBiometricLockEnabled {
+            return .allowed
+        }
+        return viewModel.isBiometricAvailable ? .notRequested : .denied
+    }
+
+    private var notificationActionTitle: String {
+        switch notificationState {
+        case .notRequested: return "Request"
+        case .denied: return "Open Settings"
+        case .allowed: return "Retry check"
+        }
+    }
+
+    private var notificationActionIcon: String {
+        switch notificationState {
+        case .notRequested: return "bell.badge"
+        case .denied: return "gearshape"
+        case .allowed: return "arrow.clockwise"
+        }
+    }
+
+    private var calendarActionTitle: String {
+        switch calendarState {
+        case .notRequested: return "Request"
+        case .denied: return "Open Settings"
+        case .allowed: return "Retry check"
+        }
+    }
+
+    private var calendarActionIcon: String {
+        switch calendarState {
+        case .notRequested: return "calendar.badge.plus"
+        case .denied: return "gearshape"
+        case .allowed: return "arrow.clockwise"
+        }
+    }
+
+    private var biometricActionTitle: String {
+        switch biometricState {
+        case .notRequested: return "Request"
+        case .denied: return "Open Settings"
+        case .allowed: return "Retry check"
+        }
+    }
+
+    private var biometricActionIcon: String {
+        switch biometricState {
+        case .notRequested: return "faceid"
+        case .denied: return "gearshape"
+        case .allowed: return "arrow.clockwise"
+        }
+    }
+
+    private func notificationAction() {
+        switch notificationState {
+        case .notRequested:
+            Task { await viewModel.setScheduleNotificationsEnabled(true) }
+        case .denied:
+            viewModel.openSystemSettings()
+        case .allowed:
+            Task { await viewModel.refreshNotificationPermissionStatus() }
+        }
+    }
+
+    private func calendarAction() {
+        switch calendarState {
+        case .notRequested:
+            Task { await viewModel.requestCalendarPermission() }
+        case .denied:
+            viewModel.openSystemSettings()
+        case .allowed:
+            Task { await viewModel.refreshDevicePermissionStatuses() }
+        }
+    }
+
+    private func biometricAction() {
+        switch biometricState {
+        case .notRequested:
+            Task { await viewModel.setBiometricLockEnabled(true) }
+        case .denied:
+            viewModel.openSystemSettings()
+        case .allowed:
+            Task { await viewModel.refreshDevicePermissionStatuses() }
         }
     }
 
@@ -265,6 +442,28 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
+        }
+    }
+}
+
+private enum PermissionChipState {
+    case allowed
+    case denied
+    case notRequested
+
+    var title: String {
+        switch self {
+        case .allowed: return "Allowed"
+        case .denied: return "Denied"
+        case .notRequested: return "Not requested"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .allowed: return AppColors.success
+        case .denied: return AppColors.error
+        case .notRequested: return AppColors.textSecondary
         }
     }
 }
