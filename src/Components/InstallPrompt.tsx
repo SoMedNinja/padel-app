@@ -1,24 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, AlertTitle, Box, Button, Typography } from "@mui/material";
+import { Alert, AlertTitle, Box, Button, Stack, Typography } from "@mui/material";
 import IosShareIcon from "@mui/icons-material/IosShare";
 import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
-import { isIosDevice } from "../utils/platform";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { useStore } from "../store/useStore";
+import { isIosSafariBrowser } from "../utils/platform";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-const isIosSafari = () => {
-  if (typeof navigator === "undefined") return false;
-
-  const userAgent = navigator.userAgent;
-  const isSafariEngine = /Safari/i.test(userAgent);
-  const isOtherIosBrowser = /CriOS|FxiOS|EdgiOS|OPiOS/i.test(userAgent);
-
-  // Note for non-coders: iOS browsers all use Safari's engine, so we exclude known non-Safari apps by name.
-  return isIosDevice() && isSafariEngine && !isOtherIosBrowser;
-};
+const INSTALL_PROMPT_SNOOZE_UNTIL_KEY = "install-prompt-snooze-until";
+const INSTALL_PROMPT_SESSIONS_KEY = "install-prompt-session-count";
+const SNOOZE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+const REPEATED_SESSION_THRESHOLD = 3;
 
 const isRunningStandalone = () => {
   if (typeof window === "undefined") return false;
@@ -31,13 +27,38 @@ const isRunningStandalone = () => {
 };
 
 export default function InstallPrompt() {
+  const isGuest = useStore((state) => state.isGuest);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isSnoozed, setIsSnoozed] = useState(false);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const [hasRepeatedSessions, setHasRepeatedSessions] = useState(false);
 
-  const showIosInstructions = useMemo(() => isIosSafari(), []);
+  const showIosInstructions = useMemo(
+    () => isIosSafariBrowser() && (isGuest || isFirstVisit || hasRepeatedSessions),
+    [hasRepeatedSessions, isFirstVisit, isGuest]
+  );
+
+  const snoozeInstallPrompt = () => {
+    const nextVisibleAt = Date.now() + SNOOZE_DURATION_MS;
+    localStorage.setItem(INSTALL_PROMPT_SNOOZE_UNTIL_KEY, String(nextVisibleAt));
+    setIsSnoozed(true);
+  };
 
   useEffect(() => {
     setIsInstalled(isRunningStandalone());
+
+    const now = Date.now();
+    const snoozeUntilRaw = localStorage.getItem(INSTALL_PROMPT_SNOOZE_UNTIL_KEY);
+    const snoozeUntil = snoozeUntilRaw ? Number(snoozeUntilRaw) : 0;
+    const hasActiveSnooze = Number.isFinite(snoozeUntil) && snoozeUntil > now;
+    setIsSnoozed(hasActiveSnooze);
+
+    // Note for non-coders: this session counter helps us avoid nagging every single visit.
+    const sessionCount = Number(localStorage.getItem(INSTALL_PROMPT_SESSIONS_KEY) ?? "0") + 1;
+    localStorage.setItem(INSTALL_PROMPT_SESSIONS_KEY, String(sessionCount));
+    setIsFirstVisit(sessionCount <= 1);
+    setHasRepeatedSessions(sessionCount >= REPEATED_SESSION_THRESHOLD);
 
     const mediaQuery = window.matchMedia("(display-mode: standalone)");
 
@@ -70,6 +91,10 @@ export default function InstallPrompt() {
     return null;
   }
 
+  if (isSnoozed) {
+    return null;
+  }
+
   if (deferredPrompt) {
     return (
       <Alert
@@ -83,10 +108,12 @@ export default function InstallPrompt() {
               await deferredPrompt.prompt();
               const choiceResult = await deferredPrompt.userChoice;
 
-              // Note for non-coders: if users close the browser install popup, we keep showing this card for later.
               if (choiceResult.outcome === "accepted") {
                 setDeferredPrompt(null);
                 setIsInstalled(true);
+              } else {
+                // Note for non-coders: when users dismiss install, we pause this reminder for a week.
+                snoozeInstallPrompt();
               }
             }}
           >
@@ -96,13 +123,28 @@ export default function InstallPrompt() {
       >
         <AlertTitle>Installera appen</AlertTitle>
         Lägg till appen på hemskärmen för snabbare åtkomst och en mer app-lik upplevelse.
+        <Button
+          color="inherit"
+          size="small"
+          sx={{ mt: 1 }}
+          onClick={snoozeInstallPrompt}
+        >
+          Påminn mig om 7 dagar
+        </Button>
       </Alert>
     );
   }
 
   if (showIosInstructions) {
     return (
-      <Alert severity="info">
+      <Alert
+        severity="info"
+        action={(
+          <Button color="inherit" size="small" onClick={snoozeInstallPrompt}>
+            Senare
+          </Button>
+        )}
+      >
         <AlertTitle>Installera på iPhone/iPad</AlertTitle>
         <Typography variant="body2" component="div">
           Safari stödjer inte den automatiska installationsknappen. Gör så här:
@@ -114,6 +156,25 @@ export default function InstallPrompt() {
           <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
             Välj Lägg till på hemskärmen <AddBoxOutlinedIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
           </Typography>
+        </Box>
+        <Box
+          sx={{
+            mt: 1.5,
+            px: 1,
+            py: 0.75,
+            borderRadius: 1,
+            border: "1px dashed",
+            borderColor: "info.main",
+          }}
+        >
+          <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
+            Mini-guide: dela-menyn till hemskärm
+          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.75}>
+            <IosShareIcon sx={{ fontSize: 18 }} />
+            <ArrowForwardIcon sx={{ fontSize: 14, opacity: 0.7 }} />
+            <AddBoxOutlinedIcon sx={{ fontSize: 18 }} />
+          </Stack>
         </Box>
       </Alert>
     );
