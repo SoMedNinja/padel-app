@@ -11,6 +11,9 @@ export interface EducationArticleIllustration {
   caption: string;
 }
 
+// Note for non-coders: every article now mixes one "real" photo URL (from a free image source)
+// and one custom illustration so learners get both realism and clear tactical diagrams.
+
 export interface EducationTopic {
   id: string;
   title: string;
@@ -40,6 +43,11 @@ export const educationTopics: EducationTopic[] = [
       "För att lyckas i Mexicana lönar det sig att spela enkelt, kommunicera tidigt och undvika onödiga chansslag. Stabilitet över många korta matcher brukar ge bättre slutplacering än enstaka spektakulära poäng.",
     ],
     articleIllustrations: [
+      {
+        src: "https://source.unsplash.com/1600x900/?padel,tournament,players",
+        alt: "Padelspelare i en social turnering",
+        caption: "Realbild (gratis källa): social padelturnering med roterande lagkänsla.",
+      },
       {
         src: "/education/mexicana-rotation.svg",
         alt: "Diagram över hur spelare roterar mellan banor i Mexicana",
@@ -76,6 +84,11 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
+        src: "https://source.unsplash.com/1600x900/?padel,score,competition",
+        alt: "Padelmatch där poängräkning är i fokus",
+        caption: "Realbild (gratis källa): tävlingskänsla och poängfokus i Americano-format.",
+      },
+      {
         src: "/education/americano-scoreboard.svg",
         alt: "Poängtavla för Americano med flera rundor",
         caption: "Poäng summeras löpande över alla rundor i Americano.",
@@ -104,6 +117,11 @@ export const educationTopics: EducationTopic[] = [
       "Bandeja är ett kontrollerat overheadslag med skuren boll som ofta spelas mot hörn eller mitt för att behålla nätposition. Vibora är mer aggressiv och sidospinnad, men kräver timing. Målet med båda slagen är oftast kontroll och initiativ, inte maximal kraft.",
     ],
     articleIllustrations: [
+      {
+        src: "https://source.unsplash.com/1600x900/?padel,forehand,backhand,volley",
+        alt: "Padelspelare som demonstrerar olika slag under spel",
+        caption: "Realbild (gratis källa): spelsekvens som visar flera slagtyper i matchtempo.",
+      },
       {
         src: "/education/padel-shots.svg",
         alt: "Illustration av lobb, volley, bandeja och vibora",
@@ -140,6 +158,11 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
+        src: "https://source.unsplash.com/1600x900/?padel,footwork,movement",
+        alt: "Padelspelare i rörelse mot nätet",
+        caption: "Realbild (gratis källa): fotarbete och synkad förflyttning mellan partners.",
+      },
+      {
         src: "/education/movement-positions.svg",
         alt: "Spelarpositioner i rörelse med pilar för lagets förflyttning",
         caption: "Paren flyttar synkroniserat framåt, bakåt och i sidled.",
@@ -174,6 +197,11 @@ export const educationTopics: EducationTopic[] = [
       "Poängsystemet följer normalt tennis med 15, 30, 40 och game. Vid 40–40 spelas avgörande boll eller fördelssystem beroende på lokala regler. Känn också till sidbyte, nätberöring och vad som gäller vid boll i galler.",
     ],
     articleIllustrations: [
+      {
+        src: "https://source.unsplash.com/1600x900/?padel,serve,rules",
+        alt: "Padelspelare som utför en underhandsserve",
+        caption: "Realbild (gratis källa): servesituation med fokus på teknik och regler.",
+      },
       {
         src: "/education/rules-serve.svg",
         alt: "Padelbana med serveruta och studs före serve",
@@ -210,6 +238,11 @@ export const educationTopics: EducationTopic[] = [
     ],
     articleIllustrations: [
       {
+        src: "https://source.unsplash.com/1600x900/?padel,attack,net",
+        alt: "Padelspelare pressar framme vid nät",
+        caption: "Realbild (gratis källa): offensivt nätspel som sätter press på motståndarna.",
+      },
+      {
         src: "/education/offense-positions.svg",
         alt: "Padelbana som visar offensiva nätpositioner och målområden",
         caption: "Offensiva positioner vid nät med fokus på hörn, mitt och fötter.",
@@ -238,6 +271,11 @@ export const educationTopics: EducationTopic[] = [
       "Lobben är nyckeln för att växla från försvar till anfall. En hög, djup lobb flyttar motståndarna bakåt och ger ditt lag tid att gå fram tillsammans. Tålamod, kommunikation och rätt höjd är grunden i ett starkt försvarsspel.",
     ],
     articleIllustrations: [
+      {
+        src: "https://source.unsplash.com/1600x900/?padel,defense,lob",
+        alt: "Padelspelare i defensiv position som förbereder en lobb",
+        caption: "Realbild (gratis källa): defensivt läge där lobben används för att vinna tid.",
+      },
       {
         src: "/education/defense-reset.svg",
         alt: "Defensiv position med lobb för att återta nätet",
