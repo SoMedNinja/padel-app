@@ -18,11 +18,11 @@ import { useStore } from "../store/useStore";
 import { getPuzzlesByDifficulty, padelPuzzles, puzzleDifficulties, type PadelPuzzle } from "../content/padelPuzzles";
 import type { PuzzleDifficulty } from "../content/padelPuzzlesEditable";
 import {
-  claimFirstPerfectPuzzlePlayer,
   puzzleStorageKeyForUser,
   readPuzzleAnswerMap,
   type PadelPuzzleAnswerRecord,
 } from "../utils/padelPuzzle";
+import { puzzleMeritService } from "../services/puzzleMeritService";
 
 const difficultyLabels: Record<PuzzleDifficulty, string> = {
   easy: "Easy",
@@ -102,7 +102,9 @@ export default function PuzzlesPage() {
 
   useEffect(() => {
     if (!user?.id || !hasAnsweredAllPuzzles) return;
-    claimFirstPerfectPuzzlePlayer(user.id);
+    puzzleMeritService.claimFirstPerfectPlayer(user.id).catch((error) => {
+      console.error("Could not claim first-perfect puzzle merit", error);
+    });
   }, [hasAnsweredAllPuzzles, user?.id]);
 
   const handleDifficultyChange = (_: MouseEvent<HTMLElement>, value: PuzzleDifficulty | null) => {

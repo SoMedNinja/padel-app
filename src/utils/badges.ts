@@ -282,6 +282,7 @@ const UNIQUE_BADGE_DEFINITIONS = [
   { id: "hard-times", icon: "🩹", title: "Otursprenumerant", description: "Flest förluster totalt", group: "Unika Meriter", groupOrder: 0 },
   { id: "most-generous", icon: "💝", title: "Generös", description: "Flest förlorade set totalt", group: "Unika Meriter", groupOrder: 0 },
   { id: "cold-streak-pro", icon: "❄️", title: "Isvind", description: "Längst förluststreak", group: "Unika Meriter", groupOrder: 0 },
+  { id: "padel-quiz-first-perfect", icon: "🥇", title: "Först till alla rätt", description: "Personen som nådde alla Quiz-scenarion rätt först.", group: "Padel Quiz", groupOrder: 28 },
 ];
 
 const BADGE_ICON_MAP = BADGE_DEFINITIONS.reduce((acc, def) => {
