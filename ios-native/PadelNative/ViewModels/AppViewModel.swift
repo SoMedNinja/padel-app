@@ -334,11 +334,19 @@ struct MatchUpdateDraft {
     let teamAPlayerIds: [String?]
     let teamBPlayerIds: [String?]
 
+    private static let summaryDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = AppConfig.swedishLocale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     // Note for non-coders:
     // This creates a readable summary so users can compare what they changed
     // with what was already saved on the server by someone else.
     func summary() -> String {
-        let timestamp = AppViewModel.uiDateTimeFormatter.string(from: playedAt)
+        let timestamp = Self.summaryDateFormatter.string(from: playedAt)
         return "Score \(teamAScore)-\(teamBScore) • \(timestamp)"
     }
 }

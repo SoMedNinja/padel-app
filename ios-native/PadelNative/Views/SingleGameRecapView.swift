@@ -27,15 +27,17 @@ struct SingleGameRecapView: View {
 
                     shareVariantPicker
 
-                    if let imageURL = recapShareImageURL() {
-                        ShareLink(item: imageURL) {
-                            Label("Dela recap-bild", systemImage: "photo.on.rectangle")
-                                .font(.inter(.caption, weight: .bold))
+                    Group {
+                        if let imageURL = recapShareImageURL() {
+                            ShareLink(item: imageURL) {
+                                Label("Dela recap-bild", systemImage: "photo.on.rectangle")
+                                    .font(.inter(.caption, weight: .bold))
+                            }
+                        } else {
+                            Text("Kunde inte skapa recap-bilden just nu.")
+                                .font(.inter(.caption))
+                                .foregroundStyle(AppColors.textSecondary)
                         }
-                    } else {
-                        Text("Kunde inte skapa recap-bilden just nu.")
-                            .font(.inter(.caption))
-                            .foregroundStyle(AppColors.textSecondary)
                     }
                     .padding(.top, 8)
                 }
