@@ -1,3 +1,5 @@
+import { compareVersions } from "./appVersionService";
+
 export interface ReleaseHighlight {
   version: string;
   title: string;
@@ -35,11 +37,40 @@ export function markHighlightsVersionAsSeen(version: string): void {
   localStorage.setItem(LAST_SEEN_VERSION_STORAGE_KEY, version);
 }
 
-export function findCurrentRelease(
+export interface CurrentReleaseResolution {
+  appVersion: string;
+  release: ReleaseHighlight;
+  shouldShowDialog: boolean;
+  shouldStoreAsSeenWithoutDialog: boolean;
+}
+
+export function resolveCurrentRelease(
   payload: ReleaseHighlightsPayload | null,
-): { appVersion: string; release: ReleaseHighlight } | null {
+  currentAppVersion: string,
+  lastSeenVersion: string | null,
+): CurrentReleaseResolution | null {
   if (!payload?.releases?.length) return null;
-  const appVersion = payload.currentVersion ?? payload.releases[0].version;
-  const release = payload.releases.find((item) => item.version === appVersion) ?? payload.releases[0];
-  return { appVersion, release };
+
+  const targetVersion = payload.currentVersion ?? currentAppVersion ?? payload.releases[0].version;
+  const release = payload.releases.find((item) => item.version === targetVersion) ?? payload.releases[0];
+
+  // Note for non-coders:
+  // On first install we set a baseline silently (no popup), so people only see "what's new" after a real update.
+  if (!lastSeenVersion) {
+    return {
+      appVersion: targetVersion,
+      release,
+      shouldShowDialog: false,
+      shouldStoreAsSeenWithoutDialog: true,
+    };
+  }
+
+  const isNewerThanLastSeen = compareVersions(targetVersion, lastSeenVersion) > 0;
+
+  return {
+    appVersion: targetVersion,
+    release,
+    shouldShowDialog: isNewerThanLastSeen,
+    shouldStoreAsSeenWithoutDialog: false,
+  };
 }

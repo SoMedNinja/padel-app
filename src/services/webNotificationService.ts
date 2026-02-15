@@ -5,6 +5,7 @@ import {
   NotificationPreferences,
 } from "../types/notifications";
 import { sharedPermissionActionLabel, sharedPermissionGuidance } from "../shared/permissionsCopy";
+import { UpdateUrgency } from "../shared/updateStates";
 import { supabase } from "../supabaseClient";
 
 const STORAGE_KEY = "settings.notificationPreferences.v1";
@@ -13,6 +14,10 @@ const NOTIFICATION_PREFERENCES_TABLE = "notification_preferences";
 const PUSH_SUBSCRIPTIONS_TABLE = "push_subscriptions";
 const WEB_PUSH_PLATFORM = "web";
 const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string | undefined;
+
+export interface PwaUpdateState {
+  urgency: UpdateUrgency;
+}
 
 type NotificationPreferenceRow = {
   profile_id: string;
@@ -291,7 +296,7 @@ export async function registerPushServiceWorker(preferences: NotificationPrefere
   return registration;
 }
 
-export function setupPwaUpdateUX(onUpdateAvailable: () => void): () => void {
+export function setupPwaUpdateUX(onUpdateAvailable: (state: PwaUpdateState) => void): () => void {
   if (!("serviceWorker" in navigator)) return () => {};
 
   let waitingWorker: ServiceWorker | null = null;
@@ -308,7 +313,7 @@ export function setupPwaUpdateUX(onUpdateAvailable: () => void): () => void {
   const trackRegistration = (registration: ServiceWorkerRegistration) => {
     const syncWaitingWorker = () => {
       waitingWorker = registration.waiting;
-      if (waitingWorker) onUpdateAvailable();
+      if (waitingWorker) onUpdateAvailable({ urgency: "optional" });
     };
 
     syncWaitingWorker();

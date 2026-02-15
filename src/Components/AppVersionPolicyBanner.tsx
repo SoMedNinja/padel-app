@@ -6,6 +6,7 @@ import {
   getCurrentWebAppVersion,
   resolveWebPolicy,
 } from "../services/appVersionService";
+import { UPDATE_STATE_CONTENT, UpdateUrgency } from "../shared/updateStates";
 
 export default function AppVersionPolicyBanner() {
   const [versionState, setVersionState] = useState<AppVersionState>({ kind: "upToDate" });
@@ -32,23 +33,20 @@ export default function AppVersionPolicyBanner() {
 
   if (versionState.kind === "upToDate") return null;
 
-  const isRequired = versionState.kind === "updateRequired";
-  const title = isRequired ? "Uppdatering krävs" : "Uppdatering rekommenderas";
-  const defaultMessage = isRequired
-    ? "Din webbapp är för gammal för den här miljön. Ladda om för att hämta den senaste säkra versionen."
-    : "En ny version av webbappen finns. Ladda om för senaste förbättringar.";
+  const urgency: UpdateUrgency = versionState.kind === "updateRequired" ? "required" : "recommended";
+  const content = UPDATE_STATE_CONTENT[urgency];
 
   return (
     <Alert
-      severity={isRequired ? "error" : "info"}
+      severity={urgency === "required" ? "error" : "info"}
       action={(
-        <Button color="inherit" size="small" variant={isRequired ? "contained" : "text"} onClick={() => window.location.reload()}>
-          Ladda om
+        <Button color="inherit" size="small" variant={urgency === "required" ? "contained" : "text"} onClick={() => window.location.reload()}>
+          {content.primaryActionLabel}
         </Button>
       )}
     >
-      <AlertTitle>{title}</AlertTitle>
-      <Typography variant="body2">{versionState.policy.releaseNotes ?? defaultMessage}</Typography>
+      <AlertTitle>{content.title}</AlertTitle>
+      <Typography variant="body2">{versionState.policy.releaseNotes ?? content.message}</Typography>
       <Box sx={{ mt: 0.75 }}>
         <Typography variant="caption" color="text.secondary">
           Minst stödd version: {versionState.policy.minimumSupportedVersion}

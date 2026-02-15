@@ -1,13 +1,17 @@
 import { Button, Paper, Stack, Typography } from "@mui/material";
+import { UPDATE_STATE_CONTENT, UpdateUrgency } from "../../shared/updateStates";
 
 type AppUpdateBannerProps = {
   open: boolean;
+  urgency: UpdateUrgency;
   onUpdateNow: () => void;
   onLater: () => void;
 };
 
-export default function AppUpdateBanner({ open, onUpdateNow, onLater }: AppUpdateBannerProps) {
+export default function AppUpdateBanner({ open, urgency, onUpdateNow, onLater }: AppUpdateBannerProps) {
   if (!open) return null;
+
+  const content = UPDATE_STATE_CONTENT[urgency];
 
   return (
     <Paper
@@ -26,20 +30,22 @@ export default function AppUpdateBanner({ open, onUpdateNow, onLater }: AppUpdat
       <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" spacing={2}>
         <div>
           <Typography variant="subtitle1" fontWeight={700}>
-            App update available
+            {content.title}
           </Typography>
           {/* Note for non-coders: this explains that pressing update reloads once so the newest app files are used. */}
           <Typography variant="body2" color="text.secondary">
-            A new version is ready. Update now to load the latest fixes.
+            {content.message}
           </Typography>
         </div>
 
         <Stack direction="row" spacing={1} justifyContent="flex-end">
-          <Button onClick={onLater} color="inherit">
-            Later
-          </Button>
+          {content.secondaryActionLabel ? (
+            <Button onClick={onLater} color="inherit">
+              {content.secondaryActionLabel}
+            </Button>
+          ) : null}
           <Button onClick={onUpdateNow} variant="contained">
-            Update now
+            {content.primaryActionLabel}
           </Button>
         </Stack>
       </Stack>

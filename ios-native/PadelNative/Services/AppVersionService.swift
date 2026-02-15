@@ -19,6 +19,12 @@ struct AppVersionHighlights: Decodable, Equatable {
     let changes: [String]
 }
 
+enum VersionUpdateUrgency: String, Equatable {
+    case optional
+    case recommended
+    case required
+}
+
 struct AppVersionHighlightsPresentation: Identifiable, Equatable {
     let id: String
     let version: String
@@ -49,7 +55,13 @@ struct AppVersionService {
     }
 
     private struct VersionHighlightsDocument: Decodable {
+        let currentVersion: String?
         let releases: [AppVersionHighlights]
+
+        enum CodingKeys: String, CodingKey {
+            case currentVersion = "currentVersion"
+            case releases
+        }
     }
 
     // Note for non-coders:
@@ -113,14 +125,14 @@ struct AppVersionService {
     // Note for non-coders:
     // This reads a simple local JSON file with release highlights so content editors can
     // update "what's new" text without changing Swift logic.
-    func bundledVersionHighlights() -> [AppVersionHighlights] {
+    func bundledVersionHighlights() -> (currentVersion: String?, releases: [AppVersionHighlights]) {
         guard let url = Bundle.main.url(forResource: "VersionHighlights", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let document = try? JSONDecoder().decode(VersionHighlightsDocument.self, from: data) else {
-            return []
+            return (nil, [])
         }
 
-        return document.releases
+        let releases = document.releases
             .compactMap { item in
                 guard let version = normalized(item.version),
                       let title = normalized(item.title) else {
@@ -137,6 +149,8 @@ struct AppVersionService {
                 return AppVersionHighlights(version: version, title: title, changes: trimmedChanges)
             }
             .sorted { compare($0.version, $1.version) > 0 }
+
+        return (normalized(document.currentVersion), releases)
     }
 
     func evaluate(currentVersion: String, policy: AppVersionPolicy) -> AppVersionState {
@@ -156,6 +170,30 @@ struct AppVersionService {
 
     func compareVersions(_ lhs: String, _ rhs: String) -> Int {
         compare(lhs, rhs)
+    }
+
+
+    func updateUrgency(for state: AppVersionState) -> VersionUpdateUrgency? {
+        switch state {
+        case .upToDate:
+            return nil
+        case .updateRecommended:
+            return .recommended
+        case .updateRequired:
+            return .required
+        }
+    }
+
+    // Note for non-coders:
+    // This keeps iOS in sync with web by using the same currentVersion + fallback rules
+    // when deciding which release highlight entry should be shown.
+    func resolveCurrentVersionHighlight(currentVersion: String, releases: [AppVersionHighlights], payloadCurrentVersion: String?) -> AppVersionHighlights? {
+        guard !releases.isEmpty else { return nil }
+
+        let normalizedCurrentVersion = normalized(currentVersion)
+        let targetVersion = normalized(payloadCurrentVersion) ?? normalizedCurrentVersion ?? releases[0].version
+
+        return releases.first(where: { $0.version == targetVersion }) ?? releases[0]
     }
 
     private func normalized(_ raw: String?) -> String? {
