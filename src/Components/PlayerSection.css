@@ -28,6 +28,7 @@
 /* Note for non-coders: iOS Safari can auto-enlarge text in browser mode,
    which changes spacing compared with the installed PWA. We lock text scaling
    for this section so both surfaces render with the same proportions. */
+.head-to-head-section,
 .head-to-head-row,
 .head-to-head-card,
 .head-to-head-vs {

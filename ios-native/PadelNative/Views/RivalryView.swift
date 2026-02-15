@@ -34,9 +34,10 @@ struct RivalryView: View {
                 .pickerStyle(.segmented)
 
                 headerSection
+                lastGameModule
                 statsGrid
-                detailedComparisonSection
                 recentResultsSection
+                detailedComparisonSection
             }
             .padding()
         }
@@ -91,37 +92,50 @@ struct RivalryView: View {
         .padelSurfaceCard()
     }
 
-    private var statsGrid: some View {
-        VStack(spacing: 16) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                statCard(title: "Matcher", value: "\(summary?.matchesPlayed ?? 0)")
-                statCard(title: "Vinst/förlust", value: "\(summary?.wins ?? 0) - \(summary?.losses ?? 0)")
-                statCard(title: "Vinst %", value: "\(Int((summary?.winRate ?? 0) * 100))%")
-                statCard(title: "Totala set", value: "\(summary?.totalSetsFor ?? 0) - \(summary?.totalSetsAgainst ?? 0)")
-
-                statCard(title: "Vinst (start-serve)", value: "\(summary?.serveFirstWins ?? 0) - \(summary?.serveFirstLosses ?? 0)")
-                statCard(title: "Vinst (mottagning)", value: "\(summary?.serveSecondWins ?? 0) - \(summary?.serveSecondLosses ?? 0)")
-
-                statCard(title: "Högsta ELO", value: "\(summary?.highestElo ?? 1000)")
-
-                if mode == "against" {
-                    statCard(title: "Vinstchans", value: "\(Int(round((summary?.winProbability ?? 0.5) * 100)))%")
-                    statCard(title: "ELO-utbyte", value: "\(summary?.eloDelta ?? 0 >= 0 ? "+" : "")\(summary?.eloDelta ?? 0)", color: (summary?.eloDelta ?? 0) >= 0 ? AppColors.success : AppColors.error)
-                }
-            }
-
-            if let last = summary?.lastMatchDate {
+    private var lastGameModule: some View {
+        Group {
+            if let summary, let last = summary.lastMatchDate {
+                // Note for non-coders: this dedicated "last game" module mirrors the web/PWA layout so the latest result appears first.
                 VStack(spacing: 6) {
-                    Text("SENASTE MÖTET")
+                    Text("SENASTE MATCH")
                         .font(.inter(.caption2, weight: .black))
                         .foregroundStyle(AppColors.textSecondary)
-                    Text("\(last, style: .date): \(summary?.lastMatchResult == "V" ? "Vinst" : "Förlust")")
+                    Text("\(last, style: .date): \(summary.lastMatchResult == "V" ? "Vinst" : "Förlust")")
                         .font(.inter(.subheadline, weight: .bold))
-                        .foregroundStyle(summary?.lastMatchResult == "V" ? AppColors.success : AppColors.error)
+                        .foregroundStyle(summary.lastMatchResult == "V" ? AppColors.success : AppColors.error)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
                 .padelSurfaceCard()
+            }
+        }
+    }
+
+    private var statsGrid: some View {
+        // Note for non-coders: keeping one fixed list gives iOS the same stat order as the PWA.
+        let orderedStats: [(title: String, value: String, color: Color)] = [
+            ("Matcher", "\(summary?.matchesPlayed ?? 0)", AppColors.textPrimary),
+            ("Vinst/förlust", "\(summary?.wins ?? 0) - \(summary?.losses ?? 0)", AppColors.textPrimary),
+            ("Vinst %", "\(Int((summary?.winRate ?? 0) * 100))%", AppColors.textPrimary),
+            ("Totala set", "\(summary?.totalSetsFor ?? 0) - \(summary?.totalSetsAgainst ?? 0)", AppColors.textPrimary),
+            ("Din vinst/förlust med start-serve", "\(summary?.serveFirstWins ?? 0) - \(summary?.serveFirstLosses ?? 0)", AppColors.textPrimary),
+            ("Din vinst/förlust utan start-serve", "\(summary?.serveSecondWins ?? 0) - \(summary?.serveSecondLosses ?? 0)", AppColors.textPrimary)
+        ]
+
+        let againstOnlyStats: [(title: String, value: String, color: Color)] = mode == "against"
+            ? [
+                ("Vinstchans", "\(Int(round((summary?.winProbability ?? 0.5) * 100)))%", AppColors.textPrimary),
+                (
+                    "ELO-utbyte",
+                    "\(summary?.eloDelta ?? 0 >= 0 ? "+" : "")\(summary?.eloDelta ?? 0)",
+                    (summary?.eloDelta ?? 0) >= 0 ? AppColors.success : AppColors.error
+                )
+            ]
+            : []
+
+        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+            ForEach(orderedStats + againstOnlyStats, id: \.title) { stat in
+                statCard(title: stat.title, value: stat.value, color: stat.color)
             }
         }
     }
@@ -137,17 +151,17 @@ struct RivalryView: View {
                     )
 
                     comparisonRow(
-                        title: "Antal kvällens MVP",
-                        myValue: "\(viewModel.currentEveningMvps)",
-                        oppValue: "\(summary.eveningMvps)"
-                    )
-
-                    comparisonRow(
                         title: "Turneringar (Gemensamma / Vinster)",
                         myValue: "\(summary.commonTournaments)",
                         oppValue: "\(summary.commonTournamentWins)",
                         myLabel: "Gemensamma",
                         oppLabel: "Dina vinster"
+                    )
+
+                    comparisonRow(
+                        title: "Antal kvällens MVP",
+                        myValue: "\(viewModel.currentEveningMvps)",
+                        oppValue: "\(summary.eveningMvps)"
                     )
                 }
             }
@@ -200,7 +214,7 @@ struct RivalryView: View {
 
     private var recentResultsSection: some View {
         VStack(alignment: .center, spacing: 12) {
-            Text("FORM (SENASTE 5)")
+            Text("SENASTE 5")
                 .font(.inter(.caption, weight: .black))
                 .foregroundStyle(AppColors.textSecondary)
 
