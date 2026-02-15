@@ -27,6 +27,7 @@ struct TournamentView: View {
     @State private var showDeleteConfirmation = false
     @State private var lastAutoPanelKey = ""
     @State private var pullProgress: CGFloat = 0
+    @State private var selectedShareVariant: ShareCardService.Variant = .classic
 
     private let scoreTargetOptions = [16, 21, 24, 31]
 
@@ -518,19 +519,19 @@ struct TournamentView: View {
         SectionCard(title: "Dela / Exportera") {
             if let exportText = viewModel.exportTextForSelectedCompletedTournament() {
                 VStack(spacing: 12) {
+                    shareVariantPicker
+
                     if let cardURL = tournamentShareImageURL(text: exportText) {
                         ShareLink(item: cardURL) {
                             Label("Dela som bild", systemImage: "photo.on.rectangle")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
+                    } else {
+                        Text("Kunde inte skapa turneringsbilden just nu.")
+                            .font(.inter(.caption))
+                            .foregroundStyle(AppColors.textSecondary)
                     }
-
-                    ShareLink(item: exportText) {
-                        Label("Dela som text", systemImage: "square.and.arrow.up")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
                 }
                 .font(.inter(.subheadline, weight: .bold))
 
@@ -551,8 +552,29 @@ struct TournamentView: View {
         return try? ShareCardService.createShareImageFile(
             title: "Tournament Summary",
             bodyLines: Array(lines),
-            fileNamePrefix: "tournament-summary"
+            fileNamePrefix: "tournament-summary",
+            variant: selectedShareVariant
         )
+    }
+
+    private var shareVariantPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Note for non-coders: this mirrors web sharing where people can cycle through 5 template variations.
+            Text("Välj bildstil")
+                .font(.inter(.caption, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
+
+            Picker("Välj bildstil", selection: $selectedShareVariant) {
+                ForEach(ShareCardService.Variant.allCases) { variant in
+                    Text(variant.title).tag(variant)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("Mall \(selectedShareVariant.rawValue + 1) av 5")
+                .font(.inter(.caption2, weight: .semibold))
+                .foregroundStyle(AppColors.textSecondary)
+        }
     }
 
     private var historicalResults: some View {

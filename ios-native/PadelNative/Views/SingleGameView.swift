@@ -39,6 +39,7 @@ struct SingleGameView: View {
     @State private var navigateToRecap = false
     @State private var fairnessLabel: String?
     @State private var showSuccessState = false
+    @State private var selectedShareVariant: ShareCardService.Variant = .classic
     @State private var matchmakerPool: Set<UUID> = []
     @State private var previousWizardStepBeforeMatchmaker: SingleGameWizardStep = .teamSetup
 
@@ -195,15 +196,17 @@ struct SingleGameView: View {
                                     .font(.inter(.subheadline))
                                     .foregroundStyle(AppColors.textSecondary)
 
+                                shareVariantPicker
+
                                 HStack(spacing: 12) {
                                     if let shareImageURL = recapShareImageURL(for: recap) {
                                         ShareLink(item: shareImageURL) {
                                             Label("Dela bild", systemImage: "photo.on.rectangle")
                                         }
-                                    }
-
-                                    ShareLink(item: recap.sharePayload) {
-                                        Label("Dela text", systemImage: "square.and.arrow.up")
+                                    } else {
+                                        Text("Kunde inte skapa recap-bilden just nu.")
+                                            .font(.inter(.caption))
+                                            .foregroundStyle(AppColors.textSecondary)
                                     }
                                 }
                                 .font(.inter(.caption, weight: .bold))
@@ -281,8 +284,29 @@ struct SingleGameView: View {
         return try? ShareCardService.createShareImageFile(
             title: "Match-sammanfattning",
             bodyLines: lines,
-            fileNamePrefix: "single-game-recap"
+            fileNamePrefix: "single-game-recap",
+            variant: selectedShareVariant
         )
+    }
+
+    private var shareVariantPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Note for non-coders: users can choose between 5 designs, just like the web/PWA share dialog.
+            Text("Välj bildstil")
+                .font(.inter(.caption, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
+
+            Picker("Välj bildstil", selection: $selectedShareVariant) {
+                ForEach(ShareCardService.Variant.allCases) { variant in
+                    Text(variant.title).tag(variant)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("Mall \(selectedShareVariant.rawValue + 1) av 5")
+                .font(.inter(.caption2, weight: .semibold))
+                .foregroundStyle(AppColors.textSecondary)
+        }
     }
 
     private var isStepValid: Bool {
