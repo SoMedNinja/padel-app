@@ -13,7 +13,17 @@ struct NotificationQuietHours: Codable {
     var startHour: Int
     var endHour: Int
 
-    static let `default` = NotificationQuietHours(enabled: false, startHour: 22, endHour: 7)
+    // Note for non-coders:
+    // These are the built-in fallback quiet-hour values used when saved data is missing or invalid.
+    private static let defaultStartHour = 22
+    private static let defaultEndHour = 7
+    private static let defaultEnabled = false
+
+    static let `default` = NotificationQuietHours(
+        enabled: Self.defaultEnabled,
+        startHour: Self.defaultStartHour,
+        endHour: Self.defaultEndHour
+    )
 
     enum CodingKeys: String, CodingKey {
         case enabled
@@ -23,20 +33,20 @@ struct NotificationQuietHours: Codable {
 
     init(enabled: Bool, startHour: Int, endHour: Int) {
         self.enabled = enabled
-        self.startHour = NotificationQuietHours.safeHour(startHour, fallback: Self.default.startHour)
-        self.endHour = NotificationQuietHours.safeHour(endHour, fallback: Self.default.endHour)
+        self.startHour = NotificationQuietHours.safeHour(startHour, fallback: Self.defaultStartHour)
+        self.endHour = NotificationQuietHours.safeHour(endHour, fallback: Self.defaultEndHour)
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.default.enabled
+        self.enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.defaultEnabled
         self.startHour = NotificationQuietHours.safeHour(
             try container.decodeIfPresent(Int.self, forKey: .startHour),
-            fallback: Self.default.startHour
+            fallback: Self.defaultStartHour
         )
         self.endHour = NotificationQuietHours.safeHour(
             try container.decodeIfPresent(Int.self, forKey: .endHour),
-            fallback: Self.default.endHour
+            fallback: Self.defaultEndHour
         )
     }
 
