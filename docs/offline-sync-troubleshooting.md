@@ -47,3 +47,25 @@ Både klienter visar samma text:
 - **Offline-kö aktiv**: data är säker lokalt, väntar på uppladdning.
 - **Synkningen behöver hjälp**: auto-försök pausade efter flera fel.
 - **Konflikt kräver åtgärd**: användaren måste granska historik innan ny synk.
+
+
+## Offline entry-flöde (deep links + fallback)
+
+När en användare öppnar appen via en notifiering eller delad länk under svag uppkoppling följer appen nu ett tydligt flöde:
+
+1. Appen försöker öppna den begärda route:n.
+2. Om route:n kräver live-data (t.ex. en specifik match) och nät saknas skickas användaren till `/offline`.
+3. Offline-sidan visar reconnect-instruktioner + knapp **"Försök igen"**.
+4. När internet är tillbaka kan användaren gå tillbaka till ursprunglig länk och ladda färsk data.
+
+> **Note for non-coders:** En "deep link" är en direktlänk till en specifik vy (inte bara startsidan), t.ex. en match i historiken.
+
+### Textflöde att använda i support
+
+- "Du är offline just nu."  
+- "Kontrollera Wi‑Fi/mobildata och dra ned för att uppdatera."  
+- "Tryck på Försök igen när anslutningen är tillbaka."  
+
+### Skärmdump: offline fallback-sida
+
+- Skärmdumpen finns bifogad i ändringsförslaget/PR för snabb supportreferens.

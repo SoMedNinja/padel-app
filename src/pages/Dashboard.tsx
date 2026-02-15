@@ -12,6 +12,7 @@ import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
 import AppAlert from "../Components/Shared/AppAlert";
 import EmptyState from "../Components/Shared/EmptyState";
+import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
 import { useStore } from "../store/useStore";
 
 import { useEloStats } from "../hooks/useEloStats";
@@ -62,7 +63,10 @@ export default function Dashboard() {
     isError: isEloError,
     error: eloError,
     eloDeltaByMatch,
-    eloRatingByMatch
+    eloRatingByMatch,
+    isFetching: isFetchingElo,
+    lastUpdatedAt: eloLastUpdatedAt,
+    hasCachedData: hasCachedEloData,
   } = useEloStats();
 
   const {
@@ -189,6 +193,12 @@ export default function Dashboard() {
     >
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box id="dashboard" component="section">
+        <DataFreshnessStatus
+          isFetching={isFetchingElo || isLoadingTournamentResults}
+          hasCachedData={hasCachedEloData || tournamentResults.length > 0}
+          hasError={hasError}
+          lastUpdatedAt={Math.max(eloLastUpdatedAt, 0)}
+        />
         {shouldShowScheduledGameNotice && upcomingScheduledGame && (
           <AppAlert
             severity="info"
