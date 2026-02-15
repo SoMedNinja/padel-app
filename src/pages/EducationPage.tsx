@@ -32,17 +32,7 @@ import {
 } from "@mui/icons-material";
 import { useStore } from "../store/useStore";
 import { educationTopics, type EducationTopic } from "../content/educationTopics";
-
-interface CompletedQuizRecord {
-  topicId: string;
-  badgeId: string;
-  badgeLabel: string;
-  badgeIcon: string;
-  answeredAt: string;
-  correctCount: number;
-  passed: boolean;
-  answers: Record<string, string>;
-}
+import { readCompletedQuizMap, storageKeyForUser, type CompletedQuizRecord } from "../utils/educationQuiz";
 
 const illustrationIcons = {
   sports_tennis: SportsTennisIcon,
@@ -53,10 +43,6 @@ const illustrationIcons = {
   north: NorthIcon,
   shield: ShieldIcon,
 } as const;
-
-function storageKeyForUser(userId: string | null | undefined) {
-  return `education-quiz-completion-v1:${userId ?? "guest"}`;
-}
 
 function TopicListView({ completedByTopicId }: { completedByTopicId: Record<string, CompletedQuizRecord> }) {
   const navigate = useNavigate();
@@ -276,34 +262,14 @@ export default function EducationPage() {
   const [completedByTopicId, setCompletedByTopicId] = useState<Record<string, CompletedQuizRecord>>({});
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(storageKeyForUser(user?.id));
-    if (!raw) {
-      setCompletedByTopicId({});
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Record<string, CompletedQuizRecord>;
-      // Note for non-coders: older saved quiz results may not have the `passed` field, so we calculate it from score.
-      const normalized = Object.fromEntries(
-        Object.entries(parsed).map(([key, value]) => [
-          key,
-          {
-            ...value,
-            passed: value.passed ?? value.correctCount === educationTopics.find((topic) => topic.id === key)?.quiz.length,
-          },
-        ]),
-      ) as Record<string, CompletedQuizRecord>;
-      setCompletedByTopicId(normalized);
-    } catch {
-      setCompletedByTopicId({});
-    }
+    setCompletedByTopicId(readCompletedQuizMap(user?.id));
   }, [user?.id]);
 
   const saveCompletion = (record: CompletedQuizRecord) => {
     setCompletedByTopicId((previous) => {
       if (previous[record.topicId]) return previous;
       const next = { ...previous, [record.topicId]: record };
+      // Note for non-coders: we save quiz progress in the browser so profile pages can reuse it instantly.
       window.localStorage.setItem(storageKeyForUser(user?.id), JSON.stringify(next));
       return next;
     });
