@@ -5,7 +5,7 @@ import { useProfiles } from "../hooks/useProfiles";
 import { useQueryClient } from "@tanstack/react-query";
 import { Profile } from "../types";
 import { Box, Button, Container, Typography } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useLocation } from "react-router-dom";
 import AppAlert from "../Components/Shared/AppAlert";
 import { invalidateProfileData } from "../data/queryInvalidation";
 
@@ -13,6 +13,9 @@ export default function AdminPage() {
   const { user } = useStore();
   const { data: profiles = [] as Profile[] } = useProfiles();
   const queryClient = useQueryClient();
+  const location = useLocation();
+  // Note for non-coders: "/admin/email" should open the Email tools directly.
+  const initialTab = location.pathname.endsWith("/email") ? 2 : 0;
 
   const handleProfileUpdate = () => {
     invalidateProfileData(queryClient);
@@ -59,6 +62,7 @@ export default function AdminPage() {
         <AdminPanel
           user={user}
           profiles={profiles}
+          initialTab={initialTab}
           onProfileUpdate={handleProfileUpdate}
           onProfileDelete={handleProfileDelete}
         />

@@ -57,6 +57,14 @@
     {
       "source": "/match/(.*)",
       "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/email",
+      "destination": "/index.html"
     }
   ]
 }

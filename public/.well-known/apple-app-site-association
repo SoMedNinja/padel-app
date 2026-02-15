@@ -8,7 +8,9 @@
           "/schema*",
           "/schedule*",
           "/single-game*",
-          "/match/*"
+          "/match/*",
+          "/admin*",
+          "/admin/email*"
         ]
       }
     ]

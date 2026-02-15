@@ -3,6 +3,7 @@ import SwiftUI
 struct MoreView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var pullProgress: CGFloat = 0
+    @State private var isDeepLinkedAdminActive = false
 
     var body: some View {
         NavigationStack {
@@ -37,6 +38,13 @@ struct MoreView: View {
                         }
                     }
                     .padelSurfaceCard()
+
+                    NavigationLink(isActive: $isDeepLinkedAdminActive) {
+                        AdminView()
+                    } label: {
+                        EmptyView()
+                    }
+                    .hidden()
                 }
                 .padding()
             }
@@ -50,6 +58,12 @@ struct MoreView: View {
             }
             .refreshable {
                 await viewModel.bootstrap()
+            }
+            .onChange(of: viewModel.shouldOpenAdminFromDeepLink) { _, shouldOpenAdmin in
+                guard shouldOpenAdmin else { return }
+                // Note for non-coders: deep links can open a screen without the user tapping it manually.
+                isDeepLinkedAdminActive = true
+                viewModel.consumeOpenAdminFromDeepLinkFlag()
             }
             .padelLiquidGlassChrome()
         }

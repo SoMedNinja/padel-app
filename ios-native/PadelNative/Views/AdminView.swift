@@ -142,6 +142,19 @@ struct AdminView: View {
             .padelLiquidGlassChrome()
             .task {
                 guard viewModel.canUseAdmin else { return }
+                // Note for non-coders: if a deep link requested a specific admin section,
+                // we read that one-time value before loading content so the right tab is visible immediately.
+                if let deepLinkedSection = viewModel.consumeDeepLinkedAdminSection() {
+                    switch deepLinkedSection {
+                    case "emails":
+                        selectedTab = .emails
+                    case "reports":
+                        selectedTab = .reports
+                    default:
+                        selectedTab = .users
+                    }
+                }
+
                 await viewModel.refreshAdminProfiles(silently: true)
                 if selectedEvening.isEmpty {
                     selectedEvening = viewModel.adminMatchEveningOptions.first ?? ""

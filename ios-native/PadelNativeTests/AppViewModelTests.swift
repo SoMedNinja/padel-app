@@ -66,6 +66,29 @@ final class AppViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testHandleIncomingAdminEmailURLOpensMoreAndEmailSection() {
+        let adminIdentity = AuthIdentity(
+            profileId: UUID(),
+            email: "admin@padel.se",
+            fullName: "Admin",
+            isAdmin: true,
+            isRegular: true,
+            isApproved: true
+        )
+        let viewModel = AppViewModel()
+        viewModel.isAuthenticated = true
+        viewModel.isGuestMode = false
+        viewModel.injectIdentityForTests(adminIdentity)
+
+        let url = URL(string: "https://padelnative.app/admin/email")!
+        viewModel.handleIncomingURL(url)
+
+        XCTAssertEqual(viewModel.selectedMainTab, 4)
+        XCTAssertEqual(viewModel.deepLinkedAdminSection, "emails")
+        XCTAssertTrue(viewModel.shouldOpenAdminFromDeepLink)
+    }
+
+    @MainActor
     func testPermissionGatingUsesIdentityRoleFallbackWhenProfileNotLoaded() {
         let regularId = UUID()
         let regularIdentity = AuthIdentity(profileId: regularId, email: "regular@padel.se", fullName: "Regular", isAdmin: false, isRegular: true, isApproved: true)

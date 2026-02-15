@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { profileService } from "../services/profileService";
 import { getProfileDisplayName } from "../utils/profileMap";
 import { stripBadgeLabelFromName } from "../utils/profileName";
@@ -46,17 +46,23 @@ import ReportsSection from "./Admin/ReportsSection";
 interface AdminPanelProps {
   user: any;
   profiles?: Profile[];
+  initialTab?: number;
   onProfileUpdate?: (profile: Profile) => void;
   onProfileDelete?: (profile: Profile) => void;
 }
 
-export default function AdminPanel({ user, profiles = [], onProfileUpdate, onProfileDelete }: AdminPanelProps) {
-  const [tab, setTab] = useState(0);
+export default function AdminPanel({ user, profiles = [], initialTab = 0, onProfileUpdate, onProfileDelete }: AdminPanelProps) {
+  // Note for non-coders: this lets URLs open a specific admin tab (for example, "/admin/email").
+  const [tab, setTab] = useState(initialTab);
   const [editNames, setEditNames] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [toggleId, setToggleId] = useState<string | null>(null);
   const [regularToggleId, setRegularToggleId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   const sortedProfiles = useMemo(() => {
     return [...profiles]
