@@ -13,6 +13,26 @@ enum AppVersionState: Equatable {
     case updateRequired(policy: AppVersionPolicy)
 }
 
+struct AppVersionHighlights: Decodable, Equatable {
+    let version: String
+    let title: String
+    let changes: [String]
+}
+
+struct AppVersionHighlightsPresentation: Identifiable, Equatable {
+    let id: String
+    let version: String
+    let title: String
+    let changes: [String]
+
+    init(version: String, title: String, changes: [String]) {
+        self.id = version
+        self.version = version
+        self.title = title
+        self.changes = changes
+    }
+}
+
 struct AppVersionService {
     private struct VersionPolicyRow: Decodable {
         let minimumVersion: String?
@@ -26,6 +46,10 @@ struct AppVersionService {
             case appStoreURL = "app_store_url"
             case releaseNotes = "release_notes"
         }
+    }
+
+    private struct VersionHighlightsDocument: Decodable {
+        let releases: [AppVersionHighlights]
     }
 
     // Note for non-coders:
@@ -86,6 +110,35 @@ struct AppVersionService {
         )
     }
 
+    // Note for non-coders:
+    // This reads a simple local JSON file with release highlights so content editors can
+    // update "what's new" text without changing Swift logic.
+    func bundledVersionHighlights() -> [AppVersionHighlights] {
+        guard let url = Bundle.main.url(forResource: "VersionHighlights", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let document = try? JSONDecoder().decode(VersionHighlightsDocument.self, from: data) else {
+            return []
+        }
+
+        return document.releases
+            .compactMap { item in
+                guard let version = normalized(item.version),
+                      let title = normalized(item.title) else {
+                    return nil
+                }
+
+                let trimmedChanges = item.changes
+                    .compactMap { normalized($0) }
+
+                guard !trimmedChanges.isEmpty else {
+                    return nil
+                }
+
+                return AppVersionHighlights(version: version, title: title, changes: trimmedChanges)
+            }
+            .sorted { compare($0.version, $1.version) > 0 }
+    }
+
     func evaluate(currentVersion: String, policy: AppVersionPolicy) -> AppVersionState {
         let normalizedCurrent = normalized(currentVersion) ?? "0"
 
@@ -99,6 +152,10 @@ struct AppVersionService {
         }
 
         return .upToDate
+    }
+
+    func compareVersions(_ lhs: String, _ rhs: String) -> Int {
+        compare(lhs, rhs)
     }
 
     private func normalized(_ raw: String?) -> String? {

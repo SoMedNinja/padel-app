@@ -98,5 +98,52 @@ struct MainTabView: View {
                 .animation(.easeInOut(duration: 0.2), value: viewModel.appVersionMessage)
             }
         }
+        .sheet(item: $viewModel.pendingVersionHighlights) { release in
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Note for non-coders: this title tells users exactly which app version the notes apply to.
+                    Text("Version \(release.version)")
+                        .font(.inter(.subheadline, weight: .bold))
+                        .foregroundStyle(AppColors.textSecondary)
+
+                    Text(release.title)
+                        .font(.inter(.title3, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(Array(release.changes.enumerated()), id: \.offset) { _, change in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(AppColors.brandPrimary)
+                                    .padding(.top, 1)
+                                Text(change)
+                                    .font(.inter(.body))
+                                    .foregroundStyle(AppColors.textPrimary)
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    Button("Stäng") {
+                        viewModel.dismissVersionHighlights()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .padding()
+                .navigationTitle("Nyheter")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Klar") {
+                            viewModel.dismissVersionHighlights()
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .interactiveDismissDisabled(true)
+        }
     }
 }

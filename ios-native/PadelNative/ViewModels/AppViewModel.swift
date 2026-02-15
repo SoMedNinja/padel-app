@@ -472,6 +472,7 @@ final class AppViewModel: ObservableObject {
     @Published var appVersionMessage: String?
     @Published var appStoreUpdateURL: URL?
     @Published var isUpdateRequired = false
+    @Published var pendingVersionHighlights: AppVersionHighlightsPresentation?
     @Published var deepLinkFallbackBanner: String?
 
     static let backgroundRefreshTaskIdentifier = "com.padelnative.refresh"
@@ -539,6 +540,7 @@ final class AppViewModel: ObservableObject {
     private let dismissedTournamentNoticeIdKey = "dashboard.dismissedTournamentNoticeId"
     private let scheduleNotificationsEnabledKey = "settings.scheduleNotificationsEnabled"
     private let biometricLockEnabledKey = "settings.biometricLockEnabled"
+    private let lastSeenAppVersionKey = "settings.lastSeenAppVersion"
 
     init(
         apiClient: SupabaseRESTClient = SupabaseRESTClient(),
@@ -693,6 +695,7 @@ final class AppViewModel: ObservableObject {
             appVersionMessage = nil
             appStoreUpdateURL = nil
             isUpdateRequired = false
+            prepareVersionHighlightsIfNeeded(currentVersion: currentVersion)
             return
         }
 
@@ -710,6 +713,68 @@ final class AppViewModel: ObservableObject {
             isUpdateRequired = true
             appVersionMessage = "Din appversion är för gammal för den här miljön. Uppdatera appen för att fortsätta säkert."
         }
+
+        prepareVersionHighlightsIfNeeded(currentVersion: currentVersion)
+    }
+
+    // Note for non-coders:
+    // We save the last app version this device has already acknowledged, so users only
+    // see "what's new" when they truly update to a newer build.
+    private func prepareVersionHighlightsIfNeeded(currentVersion: String) {
+        let normalizedCurrent = currentVersion.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedCurrent.isEmpty else {
+            pendingVersionHighlights = nil
+            return
+        }
+
+        let lastSeenVersion = dismissalStore.string(forKey: lastSeenAppVersionKey)
+        if let lastSeenVersion,
+           appVersionService.compareVersions(normalizedCurrent, lastSeenVersion) <= 0 {
+            pendingVersionHighlights = nil
+            return
+        }
+
+        // First install (no previous version): silently set baseline and avoid surprise modal.
+        guard let lastSeenVersion else {
+            dismissalStore.set(normalizedCurrent, forKey: lastSeenAppVersionKey)
+            pendingVersionHighlights = nil
+            return
+        }
+
+        let releases = appVersionService.bundledVersionHighlights()
+        guard let release = releases.first(where: { $0.version == normalizedCurrent }) else {
+            dismissalStore.set(normalizedCurrent, forKey: lastSeenAppVersionKey)
+            pendingVersionHighlights = nil
+            return
+        }
+
+        if appVersionService.compareVersions(release.version, lastSeenVersion) > 0 {
+            pendingVersionHighlights = AppVersionHighlightsPresentation(
+                version: release.version,
+                title: release.title,
+                changes: release.changes
+            )
+        }
+    }
+
+    func dismissVersionHighlights() {
+        guard let version = pendingVersionHighlights?.version else { return }
+        dismissalStore.set(version, forKey: lastSeenAppVersionKey)
+        pendingVersionHighlights = nil
+    }
+
+    // Note for non-coders:
+    // This lets users open the latest "what's new" notes manually from Settings.
+    func showLatestVersionHighlights() {
+        guard let latest = appVersionService.bundledVersionHighlights().first else {
+            return
+        }
+
+        pendingVersionHighlights = AppVersionHighlightsPresentation(
+            version: latest.version,
+            title: latest.title,
+            changes: latest.changes
+        )
     }
 
 
