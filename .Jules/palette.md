@@ -61,3 +61,7 @@
 ## 2026-06-12 - [A11y: Dynamic Sort State & Actionable Hints]
 **Learning:** VoiceOver users need to know not just that a header is sortable, but its current sort direction. Using `accessibilityValue` to announce "Sorterat stigande" or "Sorterat fallande" and `accessibilityHint` to explain the toggle action ("Tryck för att sortera efter...") makes data tables navigable for non-visual users.
 **Action:** Use `accessibilityValue` for dynamic state and `accessibilityHint` for instructions on all interactive table headers.
+
+## 2026-06-15 - [iOS UX: Tactile Constraints & Search Efficiency]
+**Learning:** Reaching a character limit in a text field is a silent failure if not accompanied by tactile feedback. A "clear" button in search bars is a standard expectation on iOS that reduces friction when resetting filters. Accessibility tools need explicit values for counters (e.g., "X av Y tecken") to provide context beyond the raw text.
+**Action:** Use `UIImpactFeedbackGenerator(style: .medium)` when character limits are hit. Always add a clear button (X) with haptics to custom search fields. Provide detailed `accessibilityValue` for all progress/count indicators.

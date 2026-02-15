@@ -441,9 +441,25 @@ struct SingleGameView: View {
 
     private func playerGrid(selection: Binding<String>, excluded: [String]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("Sök spelare...", text: $playerSearchText)
-                .textFieldStyle(.roundedBorder)
-                .font(.inter(.body))
+            HStack {
+                TextField("Sök spelare...", text: $playerSearchText)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.inter(.body))
+                    .overlay(alignment: .trailing) {
+                        if !playerSearchText.isEmpty {
+                            Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                playerSearchText = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(AppColors.textSecondary)
+                                    .padding(.trailing, 8)
+                            }
+                            .accessibilityLabel("Rensa sökning")
+                        }
+                    }
+                    .accessibilityHint("Skriv för att filtrera listan på spelare")
+            }
 
             let filteredPlayers = viewModel.players.filter {
                 (playerSearchText.isEmpty || $0.profileName.localizedCaseInsensitiveContains(playerSearchText) || $0.fullName.localizedCaseInsensitiveContains(playerSearchText))

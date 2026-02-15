@@ -133,10 +133,17 @@ struct SettingsView: View {
                                         }
                                     }
                                 }
+                                .onChange(of: viewModel.profileDisplayNameDraft) { oldValue, newValue in
+                                    if newValue.count == 50 && oldValue.count < 50 {
+                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    }
+                                }
 
                             Text("\(viewModel.profileDisplayNameDraft.count)/50")
                                 .font(.inter(size: 10))
                                 .foregroundStyle(viewModel.profileDisplayNameDraft.count > 50 ? AppColors.error : AppColors.textSecondary)
+                                .accessibilityLabel("Teckenräknare")
+                                .accessibilityValue("\(viewModel.profileDisplayNameDraft.count) av 50 tecken")
                         }
 
                         Button {
