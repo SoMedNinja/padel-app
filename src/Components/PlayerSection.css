@@ -25,6 +25,16 @@
   justify-content: center;
 }
 
+/* Note for non-coders: iOS Safari can auto-enlarge text in browser mode,
+   which changes spacing compared with the installed PWA. We lock text scaling
+   for this section so both surfaces render with the same proportions. */
+.head-to-head-row,
+.head-to-head-card,
+.head-to-head-vs {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 .head-to-head-vs {
   font-weight: 900;
   color: rgba(0, 0, 0, 0.12);
