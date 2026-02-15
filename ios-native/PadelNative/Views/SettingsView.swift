@@ -279,7 +279,7 @@ struct SettingsView: View {
                 if viewModel.notificationPermissionNeedsSettings {
                     VStack(alignment: .leading, spacing: 8) {
                         // Note for non-coders: this message tells exactly what to enable in iPhone Settings.
-                        Text("Notiser är just nu blockerade. Öppna Inställningar → PadelNative → Notiser och slå på 'Tillåt notiser' samt aviseringar på låsskärm/banners om du vill få matchpåminnelser.")
+                        Text("Blocked: notifications are turned off in iOS Settings. Open Settings → PadelNative → Notifications and enable Allow Notifications plus lock-screen/banner alerts.")
                             .font(.inter(.footnote))
                             .foregroundStyle(AppColors.warning)
 
@@ -305,11 +305,11 @@ struct SettingsView: View {
     }
 
     private var devicePermissionsSection: some View {
-        SectionCard(title: "Permissions") {
+        SectionCard(title: "Centralized permissions panel") {
             VStack(alignment: .leading, spacing: 14) {
                 // Note for non-coders: each row shows one permission, a simple status chip, and one clear next step.
                 permissionRow(
-                    title: "Notifications",
+                    title: SharedPermissionCapability.notifications.title,
                     subtitle: "Match reminders and updates",
                     state: notificationState,
                     buttonLabel: notificationActionTitle,
@@ -318,7 +318,16 @@ struct SettingsView: View {
                 )
 
                 permissionRow(
-                    title: "Calendar",
+                    title: SharedPermissionCapability.backgroundRefresh.title,
+                    subtitle: "Lets iOS wake the app for periodic data refresh",
+                    state: backgroundRefreshState,
+                    buttonLabel: backgroundRefreshActionTitle,
+                    buttonSystemImage: backgroundRefreshActionIcon,
+                    action: backgroundRefreshAction
+                )
+
+                permissionRow(
+                    title: SharedPermissionCapability.calendar.title,
                     subtitle: "Save matches to your calendar",
                     state: calendarState,
                     buttonLabel: calendarActionTitle,
@@ -327,13 +336,18 @@ struct SettingsView: View {
                 )
 
                 permissionRow(
-                    title: "Biometric lock",
+                    title: SharedPermissionCapability.biometricPasskey.title,
                     subtitle: "Use Face ID / Touch ID for app lock",
                     state: biometricState,
                     buttonLabel: biometricActionTitle,
                     buttonSystemImage: biometricActionIcon,
                     action: biometricAction
                 )
+
+                // Note for non-coders: this text explains cross-platform limits so people know why web and iOS options differ.
+                Text("Platform differences: iOS can request Calendar and Background Refresh directly. Web can request Notifications, but calendar/background behavior depends on browser support.")
+                    .font(.inter(.caption))
+                    .foregroundStyle(AppColors.textSecondary)
             }
         }
     }
@@ -400,11 +414,11 @@ struct SettingsView: View {
         case .authorized, .provisional, .ephemeral:
             return .allowed
         case .denied, .restricted:
-            return .denied
+            return .blocked
         case .notDetermined:
-            return .notRequested
+            return .actionNeeded
         @unknown default:
-            return .notRequested
+            return .actionNeeded
         }
     }
 
@@ -413,11 +427,11 @@ struct SettingsView: View {
         case .fullAccess, .writeOnly, .authorized:
             return .allowed
         case .denied, .restricted:
-            return .denied
+            return .blocked
         case .notDetermined:
-            return .notRequested
+            return .actionNeeded
         @unknown default:
-            return .notRequested
+            return .actionNeeded
         }
     }
 
@@ -425,62 +439,90 @@ struct SettingsView: View {
         if viewModel.isBiometricLockEnabled {
             return .allowed
         }
-        return viewModel.isBiometricAvailable ? .notRequested : .denied
+        return viewModel.isBiometricAvailable ? .actionNeeded : .limited
+    }
+
+
+    private var backgroundRefreshState: PermissionChipState {
+        switch viewModel.backgroundRefreshStatus {
+        case .available:
+            return .allowed
+        case .denied:
+            return .blocked
+        case .restricted:
+            return .limited
+        @unknown default:
+            return .actionNeeded
+        }
     }
 
     private var notificationActionTitle: String {
         switch notificationState {
-        case .notRequested: return "Request"
-        case .denied: return "Open Settings"
+        case .actionNeeded: return "Request"
+        case .blocked, .limited: return "Open Settings"
         case .allowed: return "Retry check"
         }
     }
 
     private var notificationActionIcon: String {
         switch notificationState {
-        case .notRequested: return "bell.badge"
-        case .denied: return "gearshape"
+        case .actionNeeded: return "bell.badge"
+        case .blocked, .limited: return "gearshape"
         case .allowed: return "arrow.clockwise"
+        }
+    }
+
+    private var backgroundRefreshActionTitle: String {
+        switch backgroundRefreshState {
+        case .actionNeeded, .blocked, .limited: return "Open Settings"
+        case .allowed: return "Retry check"
+        }
+    }
+
+    private var backgroundRefreshActionIcon: String {
+        switch backgroundRefreshState {
+        case .allowed: return "arrow.clockwise"
+        case .actionNeeded, .blocked, .limited: return "gearshape"
         }
     }
 
     private var calendarActionTitle: String {
         switch calendarState {
-        case .notRequested: return "Request"
-        case .denied: return "Open Settings"
+        case .actionNeeded: return "Request"
+        case .blocked, .limited: return "Open Settings"
         case .allowed: return "Retry check"
         }
     }
 
     private var calendarActionIcon: String {
         switch calendarState {
-        case .notRequested: return "calendar.badge.plus"
-        case .denied: return "gearshape"
+        case .actionNeeded: return "calendar.badge.plus"
+        case .blocked, .limited: return "gearshape"
         case .allowed: return "arrow.clockwise"
         }
     }
 
     private var biometricActionTitle: String {
         switch biometricState {
-        case .notRequested: return "Request"
-        case .denied: return "Open Settings"
+        case .actionNeeded: return "Request"
+        case .blocked, .limited: return "Open Settings"
         case .allowed: return "Retry check"
         }
     }
 
     private var biometricActionIcon: String {
         switch biometricState {
-        case .notRequested: return "faceid"
-        case .denied: return "gearshape"
+        case .actionNeeded: return "faceid"
+        case .blocked, .limited: return "gearshape"
         case .allowed: return "arrow.clockwise"
         }
     }
 
     private func notificationAction() {
         switch notificationState {
-        case .notRequested:
+        case .actionNeeded:
             Task { await viewModel.setScheduleNotificationsEnabled(true) }
-        case .denied:
+        case .blocked, .limited:
             viewModel.openSystemSettings()
         case .allowed:
             Task { await viewModel.refreshNotificationPermissionStatus() }
@@ -489,20 +531,29 @@ struct SettingsView: View {
 
     private func calendarAction() {
         switch calendarState {
-        case .notRequested:
+        case .actionNeeded:
             Task { await viewModel.requestCalendarPermission() }
-        case .denied:
+        case .blocked, .limited:
             viewModel.openSystemSettings()
         case .allowed:
             Task { await viewModel.refreshDevicePermissionStatuses() }
         }
     }
 
+    private func backgroundRefreshAction() {
+        switch backgroundRefreshState {
+        case .allowed:
+            Task { await viewModel.refreshDevicePermissionStatuses() }
+        case .actionNeeded, .blocked, .limited:
+            viewModel.openSystemSettings()
+        }
+    }
+
     private func biometricAction() {
         switch biometricState {
-        case .notRequested:
+        case .actionNeeded:
             Task { await viewModel.setBiometricLockEnabled(true) }
-        case .denied:
+        case .blocked, .limited:
             viewModel.openSystemSettings()
         case .allowed:
             Task { await viewModel.refreshDevicePermissionStatuses() }
@@ -531,22 +582,25 @@ struct SettingsView: View {
 
 private enum PermissionChipState {
     case allowed
-    case denied
-    case notRequested
+    case blocked
+    case limited
+    case actionNeeded
 
     var title: String {
         switch self {
-        case .allowed: return "Allowed"
-        case .denied: return "Denied"
-        case .notRequested: return "Not requested"
+        case .allowed: return SharedPermissionState.allowed.label
+        case .blocked: return SharedPermissionState.blocked.label
+        case .limited: return SharedPermissionState.limited.label
+        case .actionNeeded: return SharedPermissionState.actionNeeded.label
         }
     }
 
     var tint: Color {
         switch self {
         case .allowed: return AppColors.success
-        case .denied: return AppColors.error
-        case .notRequested: return AppColors.textSecondary
+        case .blocked: return AppColors.error
+        case .limited: return AppColors.warning
+        case .actionNeeded: return AppColors.textSecondary
         }
     }
 }

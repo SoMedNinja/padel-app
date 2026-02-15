@@ -18,6 +18,7 @@ import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
 import { NotificationEventType, NotificationPreferences } from "../types/notifications";
 import { ensureNotificationPermission, loadNotificationPreferences, saveNotificationPreferences, syncPreferencesToServiceWorker } from "../services/webNotificationService";
+import WebPermissionsPanel from "../Components/Permissions/WebPermissionsPanel";
 
 const EVENT_LABELS: Record<NotificationEventType, string> = {
   scheduled_match_new: "Ny schemalagd match",
@@ -251,6 +252,10 @@ export default function PlayerProfilePage() {
                     {/* Note for non-coders: this is where users decide which alerts they want to receive on web and in the service worker push channel. */}
                     Slå av/på notiser per händelsetyp och välj tysta timmar för när mobilen inte ska plinga.
                   </Typography>
+
+                  <WebPermissionsPanel onNotificationPermissionChanged={async () => {
+                    await syncPreferencesToServiceWorker(notificationPrefs);
+                  }} />
 
                   <FormControlLabel
                     control={<Switch checked={notificationPrefs.enabled} onChange={(_, checked) => void handleMasterNotificationsToggle(checked)} />}
