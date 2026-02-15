@@ -10,6 +10,14 @@ import {
 } from "./services/webNotificationService";
 import { matchService } from "./services/matchService";
 
+function routeNeedsLiveData(route: string): boolean {
+  // Note for non-coders: some deep links depend on server data (for example a specific shared match).
+  // When offline, we send users to a friendly fallback page instead of a blank/error state.
+  const parsed = new URL(route, window.location.origin);
+  const hasSharedMatchQuery = parsed.pathname === "/history" && parsed.searchParams.has("match");
+  return parsed.pathname.startsWith("/match/") || hasSharedMatchQuery;
+}
+
 function normalizeOpenRouteMessage(routeCandidate: unknown): string | null {
   // Note for non-coders: this keeps notification route handoffs inside this app and avoids malformed links.
   if (typeof routeCandidate !== "string") return null;
@@ -49,6 +57,12 @@ export default function RootApp() {
       if (event.data?.type === "OPEN_ROUTE") {
         const routeToOpen = normalizeOpenRouteMessage(event.data.route);
         if (routeToOpen) {
+          if (!navigator.onLine && routeNeedsLiveData(routeToOpen)) {
+            const fallbackUrl = `/offline?from=${encodeURIComponent(routeToOpen)}`;
+            window.location.assign(fallbackUrl);
+            return;
+          }
+
           window.location.assign(routeToOpen);
         }
       }

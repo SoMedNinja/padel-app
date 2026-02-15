@@ -25,6 +25,18 @@ const defaultPreferences = {
 workbox.precaching.precacheAndRoute(self.__WB_MANIFEST || []);
 workbox.precaching.cleanupOutdatedCaches();
 
+const navigationFallbackHandler = workbox.precaching.createHandlerBoundToURL("/index.html");
+
+// Note for non-coders:
+// If a page request fails (for example no network), we still return the app shell so React can show an offline-safe screen.
+workbox.routing.setCatchHandler(async ({ event }) => {
+  if (event.request.destination === "document") {
+    return navigationFallbackHandler({ event });
+  }
+
+  return Response.error();
+});
+
 // Note for non-coders:
 // Runtime caching handles files that are fetched after startup (images, API responses, pages).
 workbox.routing.registerRoute(

@@ -13,6 +13,9 @@ export interface EloStats {
   error: Error | null;
   eloDeltaByMatch: Record<string, Record<string, number>>;
   eloRatingByMatch: Record<string, Record<string, number>>;
+  isFetching: boolean;
+  lastUpdatedAt: number;
+  hasCachedData: boolean;
 }
 
 export function useEloStats(): EloStats {
@@ -42,5 +45,9 @@ export function useEloStats(): EloStats {
     error,
     eloDeltaByMatch,
     eloRatingByMatch,
+    isFetching: matchesQuery.isFetching || profilesQuery.isFetching,
+    // Note for non-coders: this timestamp helps the UI tell users when data was last confirmed by the server.
+    lastUpdatedAt: Math.max(matchesQuery.dataUpdatedAt || 0, profilesQuery.dataUpdatedAt || 0),
+    hasCachedData: allMatches.length > 0 || profiles.length > 0,
   };
 }

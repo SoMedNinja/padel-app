@@ -7,6 +7,7 @@ import SingleGamePage from "./pages/SingleGamePage";
 import PlayerProfilePage from "./pages/PlayerProfilePage";
 import SchedulePage from "./pages/SchedulePage";
 import MatchShareRedirectPage from "./pages/MatchShareRedirectPage";
+import OfflinePage from "./pages/OfflinePage";
 import { useStore } from "./store/useStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -41,6 +42,7 @@ export default function AppRoutes() {
         <Route path="/mexicana" element={<Navigate to="/tournament" replace />} />
         {!isGuest && <Route path="/single-game" element={<PageWrapper><SingleGamePage /></PageWrapper>} />}
         <Route path="/match/:matchId" element={<PageWrapper><MatchShareRedirectPage /></PageWrapper>} />
+        <Route path="/offline" element={<PageWrapper><OfflinePage /></PageWrapper>} />
         {isAdmin && <Route path="/admin" element={<PageWrapper><AdminPage /></PageWrapper>} />}
         {isAdmin && <Route path="/admin/email" element={<PageWrapper><AdminPage /></PageWrapper>} />}
         <Route path="*" element={<Navigate to="/" replace />} />

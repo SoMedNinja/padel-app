@@ -4,6 +4,7 @@ import History from "../Components/History";
 import FilterBar from "../Components/FilterBar";
 import EmptyState from "../Components/Shared/EmptyState";
 import { Box, Button, Skeleton, Stack, Container, Typography, Alert, Fab } from "@mui/material";
+import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
 import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
@@ -30,7 +31,10 @@ export default function HistoryPage() {
     error,
     eloDeltaByMatch,
     eloRatingByMatch,
-    eloPlayers
+    eloPlayers,
+    isFetching,
+    lastUpdatedAt,
+    hasCachedData,
   } = useEloStats();
 
   const filteredMatches = useMemo(
@@ -78,6 +82,19 @@ export default function HistoryPage() {
   ]);
   const pullToRefreshTuning = getPullToRefreshTuning();
 
+
+  useEffect(() => {
+    if (!highlightMatchId) return;
+    const hasHighlightedMatch = allMatches.some((match) => match.id === highlightMatchId);
+    if (isLoading || hasHighlightedMatch) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      // Note for non-coders: when a shared match link is opened offline and that match is not cached locally,
+      // we move to a dedicated fallback page with reconnect guidance.
+      const offlineTarget = `/offline?from=${encodeURIComponent(`/history?match=${highlightMatchId}`)}`;
+      navigate(offlineTarget, { replace: true });
+    }
+  }, [allMatches, highlightMatchId, isLoading, navigate]);
+
   return (
     <PullToRefresh
       // Note for non-coders: this class lets us apply iOS-specific CSS so only our custom refresh animation is shown.
@@ -92,6 +109,13 @@ export default function HistoryPage() {
           <Typography variant="h4" sx={{ mb: 3, fontWeight: 800 }}>Matchhistorik</Typography>
 
           <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+
+          <DataFreshnessStatus
+            isFetching={isFetching}
+            hasCachedData={hasCachedData}
+            hasError={isError}
+            lastUpdatedAt={lastUpdatedAt}
+          />
 
           {isError && (
             <Alert severity="error" sx={{ mb: 2 }}>

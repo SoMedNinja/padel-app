@@ -33,6 +33,7 @@ import {
 // Note for non-coders: IconButton is the small clickable icon used for menus and actions, so it must be imported here.
 import Avatar from "../Components/Avatar";
 import EmptyState from "../Components/Shared/EmptyState";
+import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
@@ -170,9 +171,14 @@ export default function SchedulePage() {
   const { user, isGuest } = useStore();
   const canAccessSchema = Boolean(user?.is_regular);
   const [searchParams] = useSearchParams();
-  const { data: polls = [], isLoading, isError, error } = useAvailabilityPolls();
+  const { data: polls = [], isLoading, isError, error, isFetching: isFetchingPolls, dataUpdatedAt: pollsUpdatedAt } = useAvailabilityPolls();
   const { data: profiles = [] } = useProfiles();
-  const { data: scheduledGames = [], isLoading: isLoadingScheduledGames } = useScheduledGames();
+  const {
+    data: scheduledGames = [],
+    isLoading: isLoadingScheduledGames,
+    isFetching: isFetchingScheduledGames,
+    dataUpdatedAt: scheduledGamesUpdatedAt,
+  } = useScheduledGames();
   const weekOptions = useMemo(() => buildUpcomingWeeks(26), []);
   const [selectedWeekKey, setSelectedWeekKey] = useState(weekOptions[1]?.key || weekOptions[0]?.key || "");
   const [expandedPolls, setExpandedPolls] = useState<Record<string, boolean>>({});
@@ -472,6 +478,12 @@ export default function SchedulePage() {
     >
       <Box component="section" sx={{ py: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Schema</Typography>
+        <DataFreshnessStatus
+          isFetching={isFetchingPolls || isFetchingScheduledGames}
+          hasCachedData={polls.length > 0 || scheduledGames.length > 0}
+          hasError={isError}
+          lastUpdatedAt={Math.max(pollsUpdatedAt || 0, scheduledGamesUpdatedAt || 0)}
+        />
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Rösta på de dagar du kan spela. Resultatet uppdateras live för alla.
         </Typography>

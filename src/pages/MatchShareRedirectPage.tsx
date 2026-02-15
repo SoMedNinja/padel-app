@@ -10,5 +10,11 @@ export default function MatchShareRedirectPage() {
     return <Navigate to="/history" replace />;
   }
 
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    // Note for non-coders: if internet is unavailable, the exact match may not exist in local cache yet.
+    // Sending users to /offline gives clear next steps instead of a confusing empty deep-link screen.
+    return <Navigate to={`/offline?from=${encodeURIComponent(`/history?match=${matchId}`)}`} replace />;
+  }
+
   return <Navigate to={`/history?match=${encodeURIComponent(matchId)}`} replace />;
 }
