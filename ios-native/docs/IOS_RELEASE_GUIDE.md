@@ -140,7 +140,10 @@ After approval:
 3. Increment `CURRENT_PROJECT_VERSION` for every upload attempt.
 4. Archive and upload to TestFlight.
 5. Smoke test with internal testers.
-6. Promote build to App Store submission.
+6. Re-verify privacy manifest compliance in `PadelNative/Resources/PrivacyInfo.xcprivacy` against currently used iOS APIs (especially required-reason APIs like UserDefaults) before submission.
+7. Promote build to App Store submission.
+
+> Note for non-coders: this privacy re-check is a quick "policy safety check" to prevent App Store rejection when app features change.
 
 ---
 
