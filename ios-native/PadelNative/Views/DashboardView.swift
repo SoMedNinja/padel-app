@@ -160,21 +160,41 @@ struct DashboardView: View {
     private var emptyState: some View {
         SectionCard(title: String(localized: "dashboard.empty.title")) {
             VStack(alignment: .leading, spacing: 16) {
-                Text(LocalizedStringKey("dashboard.empty.body"))
+                // Note for non-coders:
+                // This line explains *why* the dashboard is empty so people know whether
+                // they should change the time filter or add their first match.
+                Text(dashboardEmptyReason)
                     .font(.inter(.body))
                     .foregroundStyle(AppColors.textSecondary)
 
-                if viewModel.canUseSingleGame {
-                    Button {
-                        viewModel.selectedMainTab = 1
-                    } label: {
-                        Label(LocalizedStringKey("dashboard.empty.cta"), systemImage: "plus.square.on.square")
-                            .font(.inter(.subheadline, weight: .bold))
+                Button {
+                    viewModel.selectedMainTab = viewModel.canUseSingleGame ? 1 : 2
+                } label: {
+                    Label(dashboardPrimaryCTA, systemImage: viewModel.canUseSingleGame ? "plus.square.on.square" : "person.crop.circle")
+                        .font(.inter(.subheadline, weight: .bold))
+                }
+                .buttonStyle(.borderedProminent)
+
+                if isDashboardFilterCausedEmpty {
+                    Button("Återställ filter") {
+                        viewModel.globalFilter = .all
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                 }
             }
         }
+    }
+
+    private var isDashboardFilterCausedEmpty: Bool {
+        !viewModel.matches.isEmpty && viewModel.globalFilter != .all
+    }
+
+    private var dashboardEmptyReason: String {
+        isDashboardFilterCausedEmpty ? "Inga matcher i vald period." : "Inga matcher registrerade ännu."
+    }
+
+    private var dashboardPrimaryCTA: String {
+        viewModel.canUseSingleGame ? "Registrera match" : "Öppna profil"
     }
 
     private var dashboardContent: some View {

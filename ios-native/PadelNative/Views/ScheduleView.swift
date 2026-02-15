@@ -132,10 +132,22 @@ struct ScheduleView: View {
                 .padding(.horizontal, 4)
 
             if viewModel.polls.isEmpty {
-                SectionCard(title: "") {
-                    Text("Inga omröstningar ännu.")
-                        .font(.inter(.body))
-                        .foregroundStyle(AppColors.textSecondary)
+                SectionCard(title: "Omröstningar") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Note for non-coders:
+                        // This explains the reason first, then gives one clear next step.
+                        Text("Inga omröstningar skapade ännu.")
+                            .font(.inter(.body))
+                            .foregroundStyle(AppColors.textSecondary)
+
+                        Button {
+                            viewModel.selectedMainTab = viewModel.canUseSingleGame ? 1 : 0
+                        } label: {
+                            Label(viewModel.canUseSingleGame ? "Skapa matchförslag" : "Gå till översikt", systemImage: viewModel.canUseSingleGame ? "plus.square.on.square" : "house")
+                                .font(.inter(.subheadline, weight: .bold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
             } else {
                 ForEach(viewModel.polls) { poll in
@@ -587,9 +599,19 @@ struct ScheduleView: View {
     private var scheduledGamesSection: some View {
         SectionCard(title: "Schemalagda matcher") {
             if viewModel.schedule.isEmpty {
-                Text(LocalizedStringKey("schedule.empty_state"))
-                    .font(.inter(.body))
-                    .foregroundStyle(AppColors.textSecondary)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Inga schemalagda matcher ännu.")
+                        .font(.inter(.body))
+                        .foregroundStyle(AppColors.textSecondary)
+
+                    Button {
+                        viewModel.selectedMainTab = viewModel.canUseSingleGame ? 1 : 0
+                    } label: {
+                        Label(viewModel.canUseSingleGame ? "Registrera match" : "Gå till översikt", systemImage: viewModel.canUseSingleGame ? "plus.square.on.square" : "house")
+                            .font(.inter(.subheadline, weight: .bold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(viewModel.schedule) { game in

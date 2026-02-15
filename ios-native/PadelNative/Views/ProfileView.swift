@@ -150,9 +150,21 @@ struct ProfileView: View {
         Group {
             if viewModel.profileMatchesPlayed == 0 {
                 SectionCard(title: "Välkommen!") {
-                    Text("Du har inte registrerat några matcher ännu. Spela din första match för att få en placering på ledartavlan och låsa upp mer statistik!")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Note for non-coders:
+                        // We pair a short reason with one clear next action.
+                        Text("Inga matcher registrerade ännu för din profil.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Button {
+                            viewModel.selectedMainTab = viewModel.canUseSingleGame ? 1 : 0
+                        } label: {
+                            Label(viewModel.canUseSingleGame ? "Registrera första matchen" : "Gå till översikt", systemImage: viewModel.canUseSingleGame ? "plus.square.on.square" : "house")
+                                .font(.inter(.subheadline, weight: .bold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
             }
             performanceSection
@@ -235,11 +247,28 @@ struct ProfileView: View {
                     Text(message)
                         .foregroundStyle(.red)
                         .font(.caption)
-                case .empty(let message):
-                    Text(message)
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 24)
-                        .frame(maxWidth: .infinity)
+                case .empty(let _):
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(profileTrendEmptyReason)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Button {
+                            viewModel.selectedMainTab = viewModel.canUseSingleGame ? 1 : 0
+                        } label: {
+                            Label(viewModel.canUseSingleGame ? "Registrera match" : "Gå till översikt", systemImage: viewModel.canUseSingleGame ? "plus.square.on.square" : "house")
+                                .font(.inter(.subheadline, weight: .bold))
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        if isProfileFilterCausedEmpty {
+                            Button("Återställ filter") {
+                                viewModel.globalFilter = .all
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.vertical, 12)
                 case .ready(let dataset):
                     trendChartContent(dataset: dataset)
 
@@ -258,6 +287,15 @@ struct ProfileView: View {
         }
     }
 
+
+
+    private var isProfileFilterCausedEmpty: Bool {
+        viewModel.globalFilter != .all && viewModel.profileMatchesPlayed > 0
+    }
+
+    private var profileTrendEmptyReason: String {
+        isProfileFilterCausedEmpty ? "Inga trendpunkter i vald period." : "Ingen ELO-historik tillgänglig ännu."
+    }
     // Note for non-coders:
     // These controls let you decide which time window and two metrics to compare in one chart.
     private var metricControls: some View {

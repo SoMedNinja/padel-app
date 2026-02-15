@@ -149,18 +149,30 @@ struct HistoryView: View {
                     }
                 }
             } else if !viewModel.isHistoryLoading && viewModel.historyMatches.isEmpty {
-                SectionCard(title: "") {
+                SectionCard(title: "Matchhistorik") {
                     VStack(spacing: 16) {
-                        Text(LocalizedStringKey("history.empty_state"))
+                        // Note for non-coders:
+                        // We explain whether the filter removed results or if no matches
+                        // have been saved yet, so the next action is obvious.
+                        Text(historyEmptyReason)
                             .font(.inter(.body))
                             .foregroundStyle(AppColors.textSecondary)
 
-                        Button("Återställ filter") {
-                            viewModel.globalFilter = .all
-                            Task { await viewModel.reloadHistoryMatches() }
+                        Button {
+                            viewModel.selectedMainTab = viewModel.canUseSingleGame ? 1 : 0
+                        } label: {
+                            Label(viewModel.canUseSingleGame ? "Registrera match" : "Gå till översikt", systemImage: viewModel.canUseSingleGame ? "plus.square.on.square" : "house")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
                         .font(.inter(.subheadline, weight: .bold))
+
+                        if isHistoryFilterCausedEmpty {
+                            Button("Återställ filter") {
+                                viewModel.globalFilter = .all
+                                Task { await viewModel.reloadHistoryMatches() }
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
@@ -183,6 +195,14 @@ struct HistoryView: View {
                 }
             }
         }
+    }
+
+    private var isHistoryFilterCausedEmpty: Bool {
+        viewModel.globalFilter != .all
+    }
+
+    private var historyEmptyReason: String {
+        isHistoryFilterCausedEmpty ? "Inga matcher i vald period." : "Inga matcher sparade ännu."
     }
 
     private func matchCard(_ match: Match) -> some View {
