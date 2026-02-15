@@ -108,7 +108,8 @@ final class PendingWriteQueueService {
 
     private let storageKey = "ios-pending-write-queue-v1"
     private let maxAutoAttempts = 3
-    private let retryDelayNanoseconds: UInt64 = 12_000_000_000
+    private let baseRetryDelayNanoseconds: UInt64 = 12_000_000_000
+    private let maxRetryDelayNanoseconds: UInt64 = 60_000_000_000
 
     private let defaults: UserDefaults
     private var queue: [PendingWriteMutation] = []
@@ -149,15 +150,15 @@ final class PendingWriteQueueService {
         persistQueue()
         lastError = nil
         publishSnapshot()
-        scheduleRetry()
+        scheduleRetry(forAttempts: 0)
     }
 
     func flush() async {
         guard let executor else { return }
-        await processQueue(using: executor)
+        await processQueue(using: executor, manual: true)
     }
 
-    private func processQueue(using executor: @escaping Executor) async {
+    private func processQueue(using executor: @escaping Executor, manual: Bool = false) async {
         guard !isProcessing else { return }
         guard queue.isEmpty == false else {
             lastError = nil
@@ -170,6 +171,14 @@ final class PendingWriteQueueService {
         defer { isProcessing = false }
 
         while let current = queue.first {
+            if !manual && current.attempts >= maxAutoAttempts {
+                if lastError == nil {
+                    lastError = "Automatisk synkning pausad efter flera försök. Kontrollera anslutning eller data och tryck sedan på 'Försök igen'."
+                }
+                publishSnapshot()
+                break
+            }
+
             do {
                 try await executor(current.payload)
                 queue.removeFirst()
@@ -184,18 +193,28 @@ final class PendingWriteQueueService {
                 persistQueue()
                 lastError = error.localizedDescription
                 publishSnapshot()
-                scheduleRetry()
+                if failed.attempts < maxAutoAttempts {
+                    scheduleRetry(forAttempts: failed.attempts)
+                }
                 break
             }
         }
     }
 
-    private func scheduleRetry() {
+    private func retryDelay(for attempts: Int) -> UInt64 {
+        let exponent = max(0, attempts - 1)
+        let multiplier = UInt64(1 << exponent)
+        let candidate = baseRetryDelayNanoseconds * multiplier
+        return min(candidate, maxRetryDelayNanoseconds)
+    }
+
+    private func scheduleRetry(forAttempts attempts: Int) {
         guard let executor else { return }
         retryTask?.cancel()
+        let delay = retryDelay(for: attempts)
         retryTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: retryDelayNanoseconds)
+            try? await Task.sleep(nanoseconds: delay)
             await self.processQueue(using: executor)
         }
     }
