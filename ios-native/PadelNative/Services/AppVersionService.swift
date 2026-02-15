@@ -132,8 +132,8 @@ struct AppVersionService {
             return (nil, [])
         }
 
-        let releases = document.releases
-            .compactMap { item in
+        let releases: [AppVersionHighlights] = document.releases
+            .compactMap { (item: AppVersionHighlights) -> AppVersionHighlights? in
                 guard let version = normalized(item.version),
                       let title = normalized(item.title) else {
                     return nil
@@ -148,7 +148,9 @@ struct AppVersionService {
 
                 return AppVersionHighlights(version: version, title: title, changes: trimmedChanges)
             }
-            .sorted { compare($0.version, $1.version) > 0 }
+            .sorted { (lhs: AppVersionHighlights, rhs: AppVersionHighlights) in
+                compare(lhs.version, rhs.version) > 0
+            }
 
         return (normalized(document.currentVersion), releases)
     }
