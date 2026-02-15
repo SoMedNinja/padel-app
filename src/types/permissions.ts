@@ -10,6 +10,13 @@ export type PermissionCapability =
   | "biometric_passkey"
   | "calendar";
 
+// Note for non-coders:
+// This matrix schema says: for each capability + state, provide user guidance copy.
+export type PermissionCapabilityMatrix = Record<
+  PermissionCapability,
+  Record<SharedPermissionState, string>
+>;
+
 export interface PermissionStatusSnapshot {
   capability: PermissionCapability;
   state: SharedPermissionState;

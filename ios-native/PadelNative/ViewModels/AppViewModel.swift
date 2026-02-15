@@ -832,7 +832,7 @@ final class AppViewModel: ObservableObject {
             if notificationPermissionStatus == .denied {
                 areScheduleNotificationsEnabled = false
                 dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
-                statusMessage = "Action needed: Notifications are blocked. Open iOS Settings and allow notifications for PadelNative."
+                statusMessage = SharedPermissionCapability.notifications.guidance(for: .blocked) + " Open iOS Settings and allow notifications for PadelNative."
                 return
             }
 
@@ -841,7 +841,7 @@ final class AppViewModel: ObservableObject {
                 notificationPermissionStatus = await notificationService.currentStatus()
                 guard granted else {
                     areScheduleNotificationsEnabled = false
-                    statusMessage = "Action needed: Notifications are not allowed yet. Enable them in iOS Settings to receive reminders."
+                    statusMessage = SharedPermissionCapability.notifications.guidance(for: .actionNeeded) + " Enable them in iOS Settings to receive reminders."
                     dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
                     return
                 }
@@ -851,7 +851,7 @@ final class AppViewModel: ObservableObject {
                 await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
                 notificationService.registerForRemoteNotifications()
                 await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
-                statusMessage = "Allowed: Notifications are enabled for upcoming match reminders."
+                statusMessage = SharedPermissionCapability.notifications.guidance(for: .allowed)
             } catch {
                 areScheduleNotificationsEnabled = false
                 dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)

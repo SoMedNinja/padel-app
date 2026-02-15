@@ -4,6 +4,7 @@ import {
   NotificationEventType,
   NotificationPreferences,
 } from "../types/notifications";
+import { sharedPermissionGuidance } from "../shared/permissionsCopy";
 import { supabase } from "../supabaseClient";
 
 const STORAGE_KEY = "settings.notificationPreferences.v1";
@@ -374,8 +375,11 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
           ? "blocked"
           : "action_needed",
     detail: notificationSupported
-      ? `Browser permission is ${notificationPermission}.`
-      : "This browser does not support the Notification API.",
+      ? `${sharedPermissionGuidance(
+          "notifications",
+          notificationPermission === "granted" ? "allowed" : notificationPermission === "denied" ? "blocked" : "action_needed"
+        )} Browser permission is ${notificationPermission}.`
+      : `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`,
     actionLabel: notificationPermission === "default" ? "Request permission" : "Open browser settings",
     actionEnabled: notificationPermission !== "granted",
   };
@@ -384,10 +388,10 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
     capability: "background_refresh",
     state: !swSupported ? "limited" : swReady ? "allowed" : "action_needed",
     detail: !swSupported
-      ? "Service workers are not available in this browser."
+      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers are not available in this browser.`
       : swReady
-        ? `Service worker is active${backgroundSyncSupported ? " and background sync is supported" : ", but background sync API is limited"}.`
-        : "Service worker is not active yet.",
+        ? `${sharedPermissionGuidance("background_refresh", "allowed")} Service worker is active${backgroundSyncSupported ? " and background sync is supported" : ", but background sync API is limited"}.`
+        : `${sharedPermissionGuidance("background_refresh", "action_needed")} Service worker is not active yet.`,
     actionLabel: swReady ? "Recheck" : "Enable service worker",
     actionEnabled: true,
   };
@@ -396,8 +400,8 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
     capability: "biometric_passkey",
     state: passkeySupported ? "allowed" : "limited",
     detail: passkeySupported
-      ? "Passkey/WebAuthn APIs are available on this browser/device."
-      : "Passkey APIs are not available in this browser.",
+      ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Passkey/WebAuthn APIs are available on this browser/device.`
+      : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey APIs are not available in this browser.`,
     actionLabel: passkeySupported ? "Recheck" : "Try another browser/device",
     actionEnabled: false,
   };
@@ -405,7 +409,7 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
   const calendar: PermissionStatusSnapshot = {
     capability: "calendar",
     state: "limited",
-    detail: "Web apps cannot toggle OS calendar permission directly.",
+    detail: `${sharedPermissionGuidance("calendar", "limited")} Web apps cannot toggle OS calendar permission directly.`,
     actionLabel: "Use calendar app settings",
     actionEnabled: false,
   };
