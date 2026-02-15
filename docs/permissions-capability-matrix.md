@@ -1,18 +1,30 @@
 # Shared capability matrix (Web + iOS)
 
-This document is the canonical matrix for permission capability copy.
+This document is the canonical matrix for permission semantics.
 
-- Shape: `capability -> state -> user guidance`
+- Shape: `capability -> state -> { explanation, action_label }`
 - States: `allowed`, `blocked`, `limited`, `action_needed`
 
 ## Matrix
 
-| Capability | allowed | blocked | limited | action_needed |
-|---|---|---|---|---|
-| notifications | Allowed: reminders and admin updates can be delivered. | Blocked: notifications are off for this app. Open system/browser settings and allow notifications. | Limited: only partial notification surfaces are available on this device/browser. | Action needed: grant notification permission to receive reminders. |
-| background_refresh | Allowed: background delivery/refresh is available. | Blocked: background activity is disabled in system settings. | Limited: background behavior depends on browser or OS constraints. | Action needed: enable background activity support, then retry. |
-| biometric_passkey | Allowed: biometric/passkey features are ready to use. | Blocked: biometric/passkey usage is disabled in system settings. | Limited: this device/browser does not fully support biometric or passkey features. | Action needed: enable biometric/passkey and confirm setup. |
-| calendar | Allowed: calendar access is available for saving matches. | Blocked: calendar permission is denied. Open settings and allow calendar access. | Limited: web cannot directly toggle OS calendar permission. | Action needed: grant calendar access to save matches automatically. |
+| Capability | State | User-facing explanation | Action label |
+|---|---|---|---|
+| notifications | allowed | Allowed: reminders and admin updates can be delivered. | Retry check |
+| notifications | blocked | Blocked: notifications are off for this app. Open system/browser settings and allow notifications. | Open Settings |
+| notifications | limited | Limited: only partial notification surfaces are available on this device/browser. | Open Settings |
+| notifications | action_needed | Action needed: grant notification permission to receive reminders. | Request |
+| background_refresh | allowed | Allowed: background delivery/refresh is available. | Retry check |
+| background_refresh | blocked | Blocked: background activity is disabled in system settings. | Open Settings |
+| background_refresh | limited | Limited: background behavior depends on browser or OS constraints. | Open Settings |
+| background_refresh | action_needed | Action needed: enable background activity support, then retry. | Open Settings |
+| biometric_passkey | allowed | Allowed: biometric/passkey features are ready to use. | Retry check |
+| biometric_passkey | blocked | Blocked: biometric/passkey usage is disabled in system settings. | Open Settings |
+| biometric_passkey | limited | Limited: this device/browser does not fully support biometric or passkey features. | Open Settings |
+| biometric_passkey | action_needed | Action needed: enable biometric/passkey and confirm setup. | Request |
+| calendar | allowed | Allowed: calendar access is available for saving matches. | Retry check |
+| calendar | blocked | Blocked: calendar permission is denied. Open settings and allow calendar access. | Open Settings |
+| calendar | limited | Limited: web cannot directly toggle OS calendar permission. | Open calendar settings |
+| calendar | action_needed | Action needed: grant calendar access to save matches automatically. | Request |
 
 ## Cross-platform parity note
 
@@ -22,4 +34,4 @@ Use this exact sentence on both clients:
 
 ## Non-coder note
 
-The matrix keeps wording stable so users get the same explanation on web and iOS, even when the underlying OS APIs are different.
+The matrix keeps wording stable so users get the same explanation and next-step action on web and iOS, even when the underlying OS APIs are different.

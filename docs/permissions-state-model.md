@@ -1,6 +1,6 @@
 # Shared permissions state model (Web + iOS)
 
-The canonical capability copy now lives in `docs/permissions-capability-matrix.md` and its schema in `docs/permissions-capability-matrix.schema.json`.
+The canonical capability copy now lives in `docs/permissions-capability-matrix.md` and its schema in `docs/permissions-capability-matrix.schema.json` (including both explanation text and action labels).
 
 Shared state vocabulary remains:
 

@@ -12,9 +12,14 @@ export type PermissionCapability =
 
 // Note for non-coders:
 // This matrix schema says: for each capability + state, provide user guidance copy.
+export interface PermissionSemanticCopy {
+  explanation: string;
+  actionLabel: string;
+}
+
 export type PermissionCapabilityMatrix = Record<
   PermissionCapability,
-  Record<SharedPermissionState, string>
+  Record<SharedPermissionState, PermissionSemanticCopy>
 >;
 
 export interface PermissionStatusSnapshot {

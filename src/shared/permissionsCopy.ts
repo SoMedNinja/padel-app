@@ -25,5 +25,9 @@ export const WEB_PERMISSION_CAPABILITY_HELP: Record<PermissionCapability, string
 };
 
 export function sharedPermissionGuidance(capability: PermissionCapability, state: SharedPermissionState): string {
-  return SHARED_PERMISSION_CAPABILITY_MATRIX[capability][state];
+  return SHARED_PERMISSION_CAPABILITY_MATRIX[capability][state].explanation;
+}
+
+export function sharedPermissionActionLabel(capability: PermissionCapability, state: SharedPermissionState): string {
+  return SHARED_PERMISSION_CAPABILITY_MATRIX[capability][state].actionLabel;
 }
