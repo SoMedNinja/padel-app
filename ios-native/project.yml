@@ -11,16 +11,16 @@ targets:
     platform: iOS
     entitlements:
       path: PadelNative/PadelNative.entitlements
-      properties:
-        # NOTE for non-coders: this is Apple's "Associated Domains" capability.
-        # It tells iOS which website links are trusted to open directly in this app.
-        com.apple.developer.associated-domains:
-          - applinks:padelnative.app
+      # NOTE for non-coders: this stays empty for local/dev builds.
+      # Personal Apple teams cannot sign the "Associated Domains" capability.
+      properties: {}
     sources:
       - PadelNative
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.padelnative
+        # NOTE for non-coders: this must be globally unique on Apple systems.
+        # Replace with your own identifier if your org/team naming differs.
+        PRODUCT_BUNDLE_IDENTIFIER: se.robban.padelnative
         PRODUCT_NAME: PadelNative
         SWIFT_VERSION: 5.0
         # NOTE for non-coders: this tells Xcode to create the app's Info.plist file automatically during build.

@@ -83,6 +83,24 @@ If you prefer GUI validation:
 
 ---
 
+
+## Personal Team signing limitation (Associated Domains)
+
+If you build with a personal/free Apple team, Apple will not issue provisioning profiles containing the **Associated Domains** capability.
+
+Symptoms:
+- `Personal development teams ... do not support the Associated Domains capability`
+- `Provisioning profile ... doesn't include the com.apple.developer.associated-domains entitlement`
+
+What to do:
+1. For local device development on a personal team, keep Associated Domains disabled in entitlements.
+2. Regenerate the project (`xcodegen generate`) and rebuild.
+3. For real Universal Links in production, switch to a paid Apple Developer Program team and then enable Associated Domains for that App ID.
+
+> Note for non-coders: your app binary and your Apple signing profile must agree on every capability. If the app asks for a capability that the profile cannot grant, the build is blocked.
+
+---
+
 ## 4) Publish to TestFlight
 
 1. In Xcode, select **Any iOS Device (arm64)** target.
