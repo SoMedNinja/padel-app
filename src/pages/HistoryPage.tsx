@@ -6,7 +6,7 @@ import EmptyState from "../Components/Shared/EmptyState";
 import { Box, Button, Skeleton, Stack, Container, Typography, Alert, Fab } from "@mui/material";
 import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
-import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
+import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
 import { useStore } from "../store/useStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEloStats } from "../hooks/useEloStats";
@@ -76,6 +76,7 @@ export default function HistoryPage() {
     () => invalidateProfileData(queryClient),
     () => invalidateMatchData(queryClient),
   ]);
+  const pullToRefreshTuning = getPullToRefreshTuning();
 
   return (
     <PullToRefresh
@@ -84,6 +85,7 @@ export default function HistoryPage() {
       onRefresh={handleRefresh}
       pullingContent={<PullingContent />}
       refreshingContent={<RefreshingContent />}
+      {...pullToRefreshTuning}
     >
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Box id="history" component="section">

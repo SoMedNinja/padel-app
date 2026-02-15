@@ -45,7 +45,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import PullToRefresh from "react-simple-pull-to-refresh";
-import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
+import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
 import { useStore } from "../store/useStore";
 import { useAvailabilityPolls } from "../hooks/useAvailabilityPolls";
 import { useProfiles } from "../hooks/useProfiles";
@@ -459,6 +459,8 @@ export default function SchedulePage() {
     voteMutation.mutate({ day, slots: nextSlots });
   };
 
+  const pullToRefreshTuning = getPullToRefreshTuning();
+
   return (
     <PullToRefresh
       // Note for non-coders: this class lets us apply iOS-specific CSS so only our custom refresh animation is shown.
@@ -466,6 +468,7 @@ export default function SchedulePage() {
       onRefresh={handleRefresh}
       pullingContent={<PullingContent />}
       refreshingContent={<RefreshingContent />}
+      {...pullToRefreshTuning}
     >
       <Box component="section" sx={{ py: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Schema</Typography>

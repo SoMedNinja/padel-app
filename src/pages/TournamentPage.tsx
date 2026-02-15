@@ -3,7 +3,7 @@ import MexicanaTournament from "../Components/MexicanaTournament";
 import { useStore } from "../store/useStore";
 import { useQueryClient } from "@tanstack/react-query";
 import PullToRefresh from "react-simple-pull-to-refresh";
-import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
+import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useEloStats } from "../hooks/useEloStats";
 import { Box, Button, Skeleton, Stack, Typography, Fab } from "@mui/material";
@@ -30,6 +30,7 @@ export default function TournamentPage() {
   const handleRefresh = usePullToRefresh([
     () => invalidateTournamentData(queryClient),
   ]);
+  const pullToRefreshTuning = getPullToRefreshTuning();
 
   const hasError = isError;
   const errorMessage = error?.message || "Något gick fel när turneringsdata hämtades.";
@@ -61,6 +62,7 @@ export default function TournamentPage() {
       onRefresh={handleRefresh}
       pullingContent={<PullingContent />}
       refreshingContent={<RefreshingContent />}
+      {...pullToRefreshTuning}
     >
       <section id="mexicana" className="page-section">
         <Box sx={{ px: { xs: 2, sm: 0 }, pb: { xs: 10, sm: 4 } }}>

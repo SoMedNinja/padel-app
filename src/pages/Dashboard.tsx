@@ -9,7 +9,7 @@ import { Box, Skeleton, Stack, Container, Typography, Button, Grid, Fab } from "
 import { alpha } from "@mui/material/styles";
 import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
-import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
+import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
 import AppAlert from "../Components/Shared/AppAlert";
 import EmptyState from "../Components/Shared/EmptyState";
 import { useStore } from "../store/useStore";
@@ -109,6 +109,8 @@ export default function Dashboard() {
     () => invalidateTournamentData(queryClient),
     () => invalidateAvailabilityData(queryClient),
   ]);
+  // Note for non-coders: this adjusts pull distances on iOS so the full custom animation is visible before refresh starts.
+  const pullToRefreshTuning = getPullToRefreshTuning();
 
   const filteredMatches = useMemo(
     () => filterMatches(allMatches, matchFilter),
@@ -183,6 +185,7 @@ export default function Dashboard() {
       onRefresh={handleRefresh}
       pullingContent={<PullingContent />}
       refreshingContent={<RefreshingContent />}
+      {...pullToRefreshTuning}
     >
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box id="dashboard" component="section">
