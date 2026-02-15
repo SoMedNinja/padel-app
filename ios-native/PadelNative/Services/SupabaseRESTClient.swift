@@ -776,7 +776,7 @@ struct SupabaseRESTClient {
             if let existingHash = existing?.clientPayloadHash,
                let localHash = match.clientPayloadHash,
                existingHash != localHash {
-                throw MatchSubmissionConflictError(message: "Konflikt upptäckt: en äldre offline-match hade annat resultat än den som redan finns sparad. Granska historiken innan du försöker igen.")
+                throw MatchSubmissionConflictError(message: "Konflikt upptäckt: en offline-sparad match skiljer sig från matchen som redan synkats. Öppna historiken och avgör vilken version som gäller innan du försöker igen.")
             }
             // Note for non-coders:
             // If hashes match, this is just the same request retried again, so we treat it as already synced.

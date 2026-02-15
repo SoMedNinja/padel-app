@@ -16,6 +16,10 @@ struct PendingWriteSyncBanner: View {
         return snapshot.status != .synced || snapshot.pendingCount > 0 || snapshot.failedCount > 0
     }
 
+    private var hasConflict: Bool {
+        (viewModel.pendingWriteQueueSnapshot.lastError ?? "").localizedCaseInsensitiveContains("konflikt")
+    }
+
     @ViewBuilder
     private var content: some View {
         let snapshot = viewModel.pendingWriteQueueSnapshot
@@ -25,9 +29,11 @@ struct PendingWriteSyncBanner: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Synkningen behöver hjälp")
+                    Text(hasConflict ? "Konflikt kräver åtgärd" : "Synkningen behöver hjälp")
                         .font(.footnote.weight(.semibold))
-                    Text("\(snapshot.failedCount) ändring(ar) väntar. \(snapshot.lastError ?? "Kontrollera internet och försök igen.")")
+                    // Note for non-coders:
+                    // Failed means your data is still saved locally, but auto-sync paused after repeated failures or a conflict.
+                    Text("\(snapshot.failedCount) ändring(ar) väntar på manuell hantering. \(snapshot.lastError ?? \"Kontrollera internet och försök igen.\")")
                         .font(.caption)
                 }
                 Spacer(minLength: 0)

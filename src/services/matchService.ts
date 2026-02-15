@@ -29,6 +29,10 @@ interface MutationQueueSnapshot {
 
 const QUEUE_STORAGE_KEY = "match-mutation-queue-v1";
 const RETRYABLE_ERROR_SIGNATURES = ["failed to fetch", "network", "offline", "timeout"];
+const MAX_AUTO_RETRY_ATTEMPTS = 3;
+const BASE_RETRY_DELAY_MS = 12_000;
+const MAX_RETRY_DELAY_MS = 60_000;
+const MATCH_CONFLICT_MESSAGE = "Konflikt upptäckt: en offline-sparad match skiljer sig från matchen som redan synkats. Öppna historiken och avgör vilken version som gäller innan du försöker igen.";
 const DEFAULT_QUEUE_STATE: MutationQueueSnapshot = {
   pendingCount: 0,
   failedCount: 0,
@@ -87,18 +91,23 @@ const computeHash = (input: MatchCreateInput) => {
 
 const isOnline = () => typeof navigator === "undefined" || navigator.onLine;
 
-const scheduleQueueRetry = () => {
+const getRetryDelayMs = (attempts: number) => {
+  const delay = BASE_RETRY_DELAY_MS * Math.max(1, 2 ** Math.max(0, attempts - 1));
+  return Math.min(delay, MAX_RETRY_DELAY_MS);
+};
+
+const scheduleQueueRetry = (attempts: number) => {
   if (typeof window === "undefined") return;
   if (queueRetryTimer) window.clearTimeout(queueRetryTimer);
   queueRetryTimer = window.setTimeout(() => {
     queueRetryTimer = null;
     void processQueuedMutations();
-  }, 12_000);
+  }, getRetryDelayMs(attempts));
 };
 
 const refreshQueueStatusFromStorage = () => {
   const queue = readQueue();
-  const failedCount = queue.filter(item => item.attempts >= 3).length;
+  const failedCount = queue.filter(item => item.attempts >= MAX_AUTO_RETRY_ATTEMPTS).length;
   updateQueueState({
     pendingCount: queue.length,
     failedCount,
@@ -167,7 +176,7 @@ const detectSubmissionConflict = async (createdBy: string, payload: MatchCreateI
   });
 
   return hasConflict
-    ? "Konflikt upptäckt: en äldre offline-match hade annat resultat än den som redan finns sparad. Granska historiken innan du försöker igen."
+    ? MATCH_CONFLICT_MESSAGE
     : null;
 };
 
@@ -217,7 +226,7 @@ const enqueueMatchMutation = (matches: MatchCreateInput[]): MatchCreateResult =>
   });
   writeQueue(queue);
   refreshQueueStatusFromStorage();
-  scheduleQueueRetry();
+  scheduleQueueRetry(0);
 
   return {
     status: "pending",
@@ -225,7 +234,8 @@ const enqueueMatchMutation = (matches: MatchCreateInput[]): MatchCreateResult =>
   };
 };
 
-const processQueuedMutations = async () => {
+const processQueuedMutations = async (options: { manual?: boolean } = {}) => {
+  const { manual = false } = options;
   if (queueProcessing) return;
   if (!isOnline()) {
     refreshQueueStatusFromStorage();
@@ -243,10 +253,19 @@ const processQueuedMutations = async () => {
 
   while (mutableQueue.length) {
     const current = mutableQueue[0];
+    if (!manual && current.attempts >= MAX_AUTO_RETRY_ATTEMPTS) {
+      updateQueueState({
+        lastError: current.attempts === MAX_AUTO_RETRY_ATTEMPTS
+          ? "Automatisk synkning pausad efter flera försök. Kontrollera anslutning eller data och tryck sedan på 'Försök synka igen'."
+          : queueState.lastError,
+      });
+      break;
+    }
+
     try {
       const result = await submitMatchPayload(current.payload);
       if (result.status === "conflict") {
-        current.attempts = Math.max(current.attempts, 3);
+        current.attempts = Math.max(current.attempts, MAX_AUTO_RETRY_ATTEMPTS);
         mutableQueue[0] = current;
         writeQueue(mutableQueue);
         refreshQueueStatusFromStorage();
@@ -266,7 +285,9 @@ const processQueuedMutations = async () => {
       updateQueueState({
         lastError: error instanceof Error ? error.message : "Kunde inte synka offline-kö.",
       });
-      scheduleQueueRetry();
+      if (current.attempts < MAX_AUTO_RETRY_ATTEMPTS) {
+        scheduleQueueRetry(current.attempts);
+      }
       break;
     }
   }
@@ -323,7 +344,7 @@ export const matchService = {
   },
 
   async flushMutationQueue(): Promise<void> {
-    await processQueuedMutations();
+    await processQueuedMutations({ manual: true });
   },
 
   async getMatches(filter?: MatchFilter): Promise<Match[]> {
