@@ -46,6 +46,12 @@ struct PadelNativeApp: App {
         ProcessInfo.processInfo.environment["UI_TEST_SCENARIO"]
     }
 
+    // Note for non-coders:
+    // We keep one entry function for incoming links so UI tests and real app taps behave the same.
+    private func processIncomingDeepLink(_ url: URL) {
+        appViewModel.handleIncomingURL(url)
+    }
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -104,6 +110,25 @@ struct PadelNativeApp: App {
                     }
                 }
 
+                if let deepLinkFallbackBanner = appViewModel.deepLinkFallbackBanner {
+                    VStack {
+                        // Note for non-coders:
+                        // This small banner gives a clear explanation when a link could not be handled.
+                        Text(deepLinkFallbackBanner)
+                            .font(.footnote.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .foregroundStyle(.white)
+                            .background(Color.orange.opacity(0.95), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(.top, showSplash ? 16 : 54)
+                            .padding(.horizontal, 12)
+                        Spacer()
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(15)
+                }
+
                 if showSplash {
                     SplashScreenView()
                         .transition(.opacity)
@@ -130,7 +155,7 @@ struct PadelNativeApp: App {
                         appViewModel.sessionRecoveryError = "Injected UI test recovery failure"
                     }
                     if let rawDeepLink = ProcessInfo.processInfo.environment["UI_TEST_DEEP_LINK"], let url = URL(string: rawDeepLink) {
-                        appViewModel.handleIncomingURL(url)
+                        processIncomingDeepLink(url)
                     }
                     return
                 }
@@ -147,7 +172,7 @@ struct PadelNativeApp: App {
                 }
             }
             .onOpenURL { url in
-                appViewModel.handleIncomingURL(url)
+                processIncomingDeepLink(url)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
