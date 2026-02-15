@@ -19,6 +19,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Note for non-coders: token logging helps verify APNs wiring during development.
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         logger.info("APNs token registration succeeded. token=\(token, privacy: .private(mask: .hash))")
+
+        // Note for non-coders:
+        // After iOS gives us a token, we upsert it to backend so server pushes can target this device.
+        Task {
+            await NotificationService().handleAPNsTokenReceipt(deviceToken)
+        }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

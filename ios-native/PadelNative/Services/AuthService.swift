@@ -138,6 +138,34 @@ struct AuthService {
         (try? loadPersistedSession())?.accessToken
     }
 
+
+    // Note for non-coders:
+    // Access tokens contain the logged-in user id ("sub" claim).
+    // We decode it locally so services can map device tokens to the right profile.
+    func currentProfileId() -> UUID? {
+        guard let accessToken = currentAccessToken() else { return nil }
+        let parts = accessToken.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+
+        var payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+
+        let remainder = payload.count % 4
+        if remainder > 0 {
+            payload += String(repeating: "=", count: 4 - remainder)
+        }
+
+        guard let payloadData = Data(base64Encoded: payload),
+              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              let subject = json["sub"] as? String
+        else {
+            return nil
+        }
+
+        return UUID(uuidString: subject)
+    }
+
     func signOut(accessToken: String?) async {
         defer { clearPersistedSession() }
         let persistedAccessToken = (try? loadPersistedSession())?.accessToken

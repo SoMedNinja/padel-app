@@ -860,6 +860,7 @@ final class AppViewModel: ObservableObject {
         dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
         notificationPreferences.enabled = false
         await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
+        await notificationService.revokeStoredPushRegistration(profileId: currentIdentity?.profileId, store: dismissalStore)
         await notificationService.clearScheduledGameReminders()
         statusMessage = "Action needed: Notifications are turned off on this device."
     }
@@ -1001,8 +1002,10 @@ final class AppViewModel: ObservableObject {
     func signOut() {
         // Note for non-coders:
         // Signing out clears local state and also asks Supabase to end server session.
+        let profileIdToRevoke = currentIdentity?.profileId
         if !isGuestMode {
             Task {
+                await notificationService.revokeStoredPushRegistration(profileId: profileIdToRevoke, store: dismissalStore)
                 await authService.signOut(accessToken: nil)
             }
         }
@@ -1120,6 +1123,12 @@ final class AppViewModel: ObservableObject {
         currentIdentity = identity
         hasRecoveryFailed = false
         sessionRecoveryError = nil
+
+        // Note for non-coders:
+        // If APNs token arrived before sign-in, this retries backend registration now that we know the user id.
+        Task {
+            await notificationService.syncStoredPushRegistration(profileId: identity.profileId, store: dismissalStore)
+        }
     }
 
     // Note for non-coders:

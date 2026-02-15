@@ -72,10 +72,14 @@ struct NotificationService {
     private let center = UNUserNotificationCenter.current()
     private let schedulePrefix = "schedule.upcoming."
     private let notificationPreferencesKey = "settings.notificationPreferences"
+    private let apnsTokenKey = "settings.apnsDeviceToken"
+    private let pushPlatform = "ios"
     private let apiClient: SupabaseRESTClient
+    private let authService: AuthService
 
-    init(apiClient: SupabaseRESTClient = SupabaseRESTClient()) {
+    init(apiClient: SupabaseRESTClient = SupabaseRESTClient(), authService: AuthService = AuthService()) {
         self.apiClient = apiClient
+        self.authService = authService
     }
 
     // Note for non-coders:
@@ -93,6 +97,52 @@ struct NotificationService {
     // APNs registration gives iOS a channel for remote push notifications.
     @MainActor func registerForRemoteNotifications() {
         UIApplication.shared.registerForRemoteNotifications()
+    }
+
+
+    // Note for non-coders:
+    // iOS gives us a device token after registration. We store it and sync it to backend for this signed-in user.
+    func handleAPNsTokenReceipt(_ deviceTokenData: Data, profileId: UUID? = nil, store: UserDefaults = .standard) async {
+        let token = deviceTokenData.map { String(format: "%02.2hhx", $0) }.joined()
+        store.set(token, forKey: apnsTokenKey)
+        await upsertStoredPushToken(profileId: profileId, store: store)
+    }
+
+    // Note for non-coders:
+    // This retries backend registration using the last known APNs token (useful right after sign-in).
+    func syncStoredPushRegistration(profileId: UUID?, store: UserDefaults = .standard) async {
+        await upsertStoredPushToken(profileId: profileId, store: store)
+    }
+
+    // Note for non-coders:
+    // Revoking tells backend to stop sending remote pushes to this specific device token.
+    func revokeStoredPushRegistration(profileId: UUID?, store: UserDefaults = .standard) async {
+        guard profileId != nil || authService.currentProfileId() != nil else { return }
+        guard let token = store.string(forKey: apnsTokenKey), !token.isEmpty else { return }
+
+        do {
+            try await apiClient.revokePushSubscription(platform: pushPlatform, deviceToken: token)
+        } catch {
+            // Keep local token for a later retry if network is temporarily unavailable.
+        }
+    }
+
+    private func upsertStoredPushToken(profileId: UUID?, store: UserDefaults) async {
+        let resolvedProfileId = profileId ?? authService.currentProfileId()
+        guard let resolvedProfileId else { return }
+        guard let token = store.string(forKey: apnsTokenKey), !token.isEmpty else { return }
+
+        do {
+            try await apiClient.upsertPushSubscription(
+                profileId: resolvedProfileId,
+                platform: pushPlatform,
+                deviceToken: token,
+                subscription: ["bundle_id": Bundle.main.bundleIdentifier ?? "PadelNative"],
+                userAgent: "ios-native"
+            )
+        } catch {
+            // Token stays cached locally so we can retry later.
+        }
     }
 
     func saveNotificationPreferences(_ preferences: NotificationPreferences, store: UserDefaults = .standard) {

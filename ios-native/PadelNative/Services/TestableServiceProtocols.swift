@@ -11,6 +11,9 @@ protocol NotificationServicing {
     @MainActor func registerForRemoteNotifications()
     func scheduleUpcomingGameReminders(_ entries: [ScheduleEntry], preferences: NotificationPreferences) async
     func clearScheduledGameReminders() async
+    func handleAPNsTokenReceipt(_ deviceTokenData: Data, profileId: UUID?, store: UserDefaults) async
+    func syncStoredPushRegistration(profileId: UUID?, store: UserDefaults) async
+    func revokeStoredPushRegistration(profileId: UUID?, store: UserDefaults) async
     func saveNotificationPreferences(_ preferences: NotificationPreferences, store: UserDefaults)
     func saveNotificationPreferencesWithSync(_ preferences: NotificationPreferences, profileId: UUID?, store: UserDefaults) async
     func loadNotificationPreferences(store: UserDefaults) -> NotificationPreferences
