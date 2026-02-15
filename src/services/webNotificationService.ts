@@ -4,10 +4,43 @@ import {
   NotificationEventType,
   NotificationPreferences,
 } from "../types/notifications";
-import { PermissionStatusSnapshot } from "../types/permissions";
+import { supabase } from "../supabaseClient";
 
 const STORAGE_KEY = "settings.notificationPreferences.v1";
 const SW_PATH = "/notification-sw.js";
+const NOTIFICATION_PREFERENCES_TABLE = "notification_preferences";
+
+type NotificationPreferenceRow = {
+  profile_id: string;
+  preferences: NotificationPreferences;
+};
+
+function mergePreferences(preferences: Partial<NotificationPreferences> | null | undefined): NotificationPreferences {
+  return {
+    ...DEFAULT_NOTIFICATION_PREFERENCES,
+    ...(preferences ?? {}),
+    eventToggles: {
+      ...DEFAULT_NOTIFICATION_PREFERENCES.eventToggles,
+      ...(preferences?.eventToggles ?? {}),
+    },
+    quietHours: {
+      ...DEFAULT_NOTIFICATION_PREFERENCES.quietHours,
+      ...(preferences?.quietHours ?? {}),
+    },
+  };
+}
+
+function readRawLocalPreferences(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function hasStoredLocalPreferences(): boolean {
+  return Boolean(readRawLocalPreferences());
+}
 
 // Note for non-coders:
 // The app stores your notification choices in the browser so they persist between visits.
@@ -15,19 +48,7 @@ export function loadNotificationPreferences(): NotificationPreferences {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_NOTIFICATION_PREFERENCES;
-    const parsed = JSON.parse(raw) as NotificationPreferences;
-    return {
-      ...DEFAULT_NOTIFICATION_PREFERENCES,
-      ...parsed,
-      eventToggles: {
-        ...DEFAULT_NOTIFICATION_PREFERENCES.eventToggles,
-        ...(parsed.eventToggles ?? {}),
-      },
-      quietHours: {
-        ...DEFAULT_NOTIFICATION_PREFERENCES.quietHours,
-        ...(parsed.quietHours ?? {}),
-      },
-    };
+    return mergePreferences(JSON.parse(raw) as NotificationPreferences);
   } catch {
     return DEFAULT_NOTIFICATION_PREFERENCES;
   }
@@ -35,6 +56,85 @@ export function loadNotificationPreferences(): NotificationPreferences {
 
 export function saveNotificationPreferences(preferences: NotificationPreferences): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+}
+
+// Note for non-coders:
+// When you are signed in, we keep your notification settings in the backend so web + iOS can share one source of truth.
+async function fetchBackendPreferences(userId: string): Promise<NotificationPreferences | null> {
+  const { data, error } = await supabase
+    .from(NOTIFICATION_PREFERENCES_TABLE)
+    .select("profile_id,preferences")
+    .eq("profile_id", userId)
+    .maybeSingle<NotificationPreferenceRow>();
+
+  if (error) throw error;
+  return data?.preferences ? mergePreferences(data.preferences) : null;
+}
+
+async function saveBackendPreferences(userId: string, preferences: NotificationPreferences): Promise<void> {
+  const { error } = await supabase
+    .from(NOTIFICATION_PREFERENCES_TABLE)
+    .upsert(
+      {
+        profile_id: userId,
+        preferences,
+      },
+      { onConflict: "profile_id" }
+    );
+
+  if (error) throw error;
+}
+
+export async function loadNotificationPreferencesWithSync(): Promise<NotificationPreferences> {
+  const localFallback = loadNotificationPreferences();
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user?.id;
+    if (!userId) {
+      await syncPreferencesToServiceWorker(localFallback);
+      return localFallback;
+    }
+
+    const backendPreferences = await fetchBackendPreferences(userId);
+    if (backendPreferences) {
+      saveNotificationPreferences(backendPreferences);
+      await syncPreferencesToServiceWorker(backendPreferences);
+      return backendPreferences;
+    }
+
+    // Note for non-coders:
+    // First sign-in migration: if this browser already has settings, we upload them once to the backend.
+    if (hasStoredLocalPreferences()) {
+      await saveBackendPreferences(userId, localFallback);
+      await syncPreferencesToServiceWorker(localFallback);
+      return localFallback;
+    }
+
+    await saveBackendPreferences(userId, localFallback);
+    await syncPreferencesToServiceWorker(localFallback);
+    return localFallback;
+  } catch {
+    await syncPreferencesToServiceWorker(localFallback);
+    return localFallback;
+  }
+}
+
+export async function saveNotificationPreferencesWithSync(preferences: NotificationPreferences): Promise<void> {
+  saveNotificationPreferences(preferences);
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user?.id;
+    if (userId) {
+      await saveBackendPreferences(userId, preferences);
+    }
+  } catch {
+    // Note for non-coders:
+    // Backend save can fail when offline; local storage still keeps your latest choice.
+  }
+
+  await syncPreferencesToServiceWorker(preferences);
 }
 
 export function isQuietHoursActive(preferences: NotificationPreferences, now = new Date()): boolean {
@@ -88,8 +188,7 @@ export async function updateEventToggle(
       [eventType]: value,
     },
   };
-  saveNotificationPreferences(updated);
-  await syncPreferencesToServiceWorker(updated);
+  await saveNotificationPreferencesWithSync(updated);
   return updated;
 }
 

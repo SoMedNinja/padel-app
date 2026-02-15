@@ -844,7 +844,7 @@ final class AppViewModel: ObservableObject {
                 areScheduleNotificationsEnabled = true
                 dismissalStore.set(true, forKey: scheduleNotificationsEnabledKey)
                 notificationPreferences.enabled = true
-                notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
+                await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
                 notificationService.registerForRemoteNotifications()
                 await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
                 statusMessage = "Allowed: Notifications are enabled for upcoming match reminders."
@@ -859,7 +859,7 @@ final class AppViewModel: ObservableObject {
         areScheduleNotificationsEnabled = false
         dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
         notificationPreferences.enabled = false
-        notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
+        await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
         await notificationService.clearScheduledGameReminders()
         statusMessage = "Action needed: Notifications are turned off on this device."
     }
@@ -870,7 +870,7 @@ final class AppViewModel: ObservableObject {
     // This lets users mute one event category (for example polls) without muting everything.
     func setNotificationEventEnabled(_ eventType: NotificationEventType, enabled: Bool) async {
         notificationPreferences.eventToggles[eventType.rawValue] = enabled
-        notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
+        await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
 
         if eventType == .scheduledMatchNew {
             if enabled && areScheduleNotificationsEnabled {
@@ -885,7 +885,7 @@ final class AppViewModel: ObservableObject {
     // Quiet hours delay alerts into a daytime window so night-time pushes are avoided.
     func setNotificationQuietHours(enabled: Bool, startHour: Int, endHour: Int) async {
         notificationPreferences.quietHours = NotificationQuietHours(enabled: enabled, startHour: startHour, endHour: endHour)
-        notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
+        await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
 
         if areScheduleNotificationsEnabled {
             await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
@@ -936,6 +936,7 @@ final class AppViewModel: ObservableObject {
         do {
             let identity = try await authService.signIn(email: normalizedEmail, password: normalizedPassword)
             applySignedInState(identity: identity)
+            notificationPreferences = await notificationService.loadNotificationPreferencesWithSync(profileId: identity.profileId, store: dismissalStore)
             authMessage = nil
             await bootstrap()
         } catch {
@@ -971,6 +972,7 @@ final class AppViewModel: ObservableObject {
         do {
             let identity = try await authService.signUp(email: normalizedEmail, password: normalizedPassword, name: normalizedName)
             applySignedInState(identity: identity)
+            notificationPreferences = await notificationService.loadNotificationPreferencesWithSync(profileId: identity.profileId, store: dismissalStore)
             authMessage = nil
             await bootstrap()
         } catch {
@@ -1054,6 +1056,7 @@ final class AppViewModel: ObservableObject {
                 }
             }
             applySignedInState(identity: identity)
+            notificationPreferences = await notificationService.loadNotificationPreferencesWithSync(profileId: identity.profileId, store: dismissalStore)
             await bootstrap()
         } catch AuthServiceError.noStoredSession {
             isAuthenticated = false

@@ -167,9 +167,21 @@ private final class MockNotificationService: NotificationServicing {
         didRegisterRemote = true
     }
 
-    func scheduleUpcomingGameReminders(_ entries: [ScheduleEntry]) async {}
+    func scheduleUpcomingGameReminders(_ entries: [ScheduleEntry], preferences: NotificationPreferences) async {}
 
     func clearScheduledGameReminders() async {}
+
+    func saveNotificationPreferences(_ preferences: NotificationPreferences, store: UserDefaults) {}
+
+    func saveNotificationPreferencesWithSync(_ preferences: NotificationPreferences, profileId: UUID?, store: UserDefaults) async {}
+
+    func loadNotificationPreferences(store: UserDefaults) -> NotificationPreferences {
+        .default
+    }
+
+    func loadNotificationPreferencesWithSync(profileId: UUID?, store: UserDefaults) async -> NotificationPreferences {
+        .default
+    }
 }
 
 private final class MockTournamentDataLoader: TournamentDataLoading {

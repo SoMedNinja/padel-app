@@ -72,6 +72,11 @@ struct NotificationService {
     private let center = UNUserNotificationCenter.current()
     private let schedulePrefix = "schedule.upcoming."
     private let notificationPreferencesKey = "settings.notificationPreferences"
+    private let apiClient: SupabaseRESTClient
+
+    init(apiClient: SupabaseRESTClient = SupabaseRESTClient()) {
+        self.apiClient = apiClient
+    }
 
     // Note for non-coders:
     // This asks iOS for notification permission once. Users can change this later in Settings.
@@ -104,6 +109,59 @@ struct NotificationService {
             return .default
         }
 
+        return mergePreferences(decoded)
+    }
+
+
+    private func hasStoredLocalPreferences(store: UserDefaults) -> Bool {
+        store.data(forKey: notificationPreferencesKey) != nil
+    }
+
+    // Note for non-coders:
+    // After sign-in we fetch backend notification settings; local UserDefaults remains an offline safety copy.
+    func loadNotificationPreferencesWithSync(profileId: UUID?, store: UserDefaults = .standard) async -> NotificationPreferences {
+        let localPreferences = loadNotificationPreferences(store: store)
+
+        guard let profileId else {
+            return localPreferences
+        }
+
+        do {
+            if let backendPreferences = try await apiClient.fetchNotificationPreferences(profileId: profileId) {
+                let merged = mergePreferences(backendPreferences)
+                saveNotificationPreferences(merged, store: store)
+                return merged
+            }
+
+            if hasStoredLocalPreferences(store: store) {
+                try await apiClient.upsertNotificationPreferences(profileId: profileId, preferences: localPreferences)
+                return localPreferences
+            }
+
+            try await apiClient.upsertNotificationPreferences(profileId: profileId, preferences: localPreferences)
+            return localPreferences
+        } catch {
+            return localPreferences
+        }
+    }
+
+    // Note for non-coders:
+    // Saving writes locally first (works offline), then syncs to backend when possible.
+    func saveNotificationPreferencesWithSync(_ preferences: NotificationPreferences, profileId: UUID?, store: UserDefaults = .standard) async {
+        saveNotificationPreferences(preferences, store: store)
+
+        guard let profileId else {
+            return
+        }
+
+        do {
+            try await apiClient.upsertNotificationPreferences(profileId: profileId, preferences: preferences)
+        } catch {
+            // Keep local copy as fallback if backend call fails.
+        }
+    }
+
+    private func mergePreferences(_ decoded: NotificationPreferences) -> NotificationPreferences {
         var merged = NotificationPreferences.default
         merged.enabled = decoded.enabled
         merged.quietHours = decoded.quietHours

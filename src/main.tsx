@@ -6,7 +6,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import theme from "./theme";
 import App from "./App";
-import { loadNotificationPreferences, registerPushServiceWorker } from "./services/webNotificationService";
+import { loadNotificationPreferencesWithSync, registerPushServiceWorker } from "./services/webNotificationService";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -24,8 +24,10 @@ if (!rootElement) throw new Error("Failed to find the root element");
 
 if (typeof window !== "undefined") {
   // Note for non-coders: this starts the push service worker early so web push can arrive even when this tab is in the background.
-  const initialPreferences = loadNotificationPreferences();
-  void registerPushServiceWorker(initialPreferences);
+  void (async () => {
+    const initialPreferences = await loadNotificationPreferencesWithSync();
+    await registerPushServiceWorker(initialPreferences);
+  })();
 
   navigator.serviceWorker?.addEventListener("message", (event) => {
     if (event.data?.type === "OPEN_ROUTE" && typeof event.data.route === "string") {

@@ -225,6 +225,27 @@ private struct AdminDeactivatePatch: Encodable {
     }
 }
 
+
+private struct NotificationPreferencesRow: Decodable {
+    let profileId: UUID
+    let preferences: NotificationPreferences
+
+    enum CodingKeys: String, CodingKey {
+        case profileId = "profile_id"
+        case preferences
+    }
+}
+
+private struct NotificationPreferencesUpsertPayload: Encodable {
+    let profileId: UUID
+    let preferences: NotificationPreferences
+
+    enum CodingKeys: String, CodingKey {
+        case profileId = "profile_id"
+        case preferences
+    }
+}
+
 private struct ProfileUpdatePatch: Encodable {
     let fullName: String?
     let profileName: String?
@@ -293,6 +314,27 @@ struct SupabaseRESTClient {
         try await request(
             path: "/rest/v1/profiles",
             query: "select=id,name,is_admin,is_approved,is_regular,is_deleted&order=name.asc"
+        )
+    }
+
+    // Note for non-coders:
+    // This reads one shared notification preference record for the signed-in player.
+    func fetchNotificationPreferences(profileId: UUID) async throws -> NotificationPreferences? {
+        let rows: [NotificationPreferencesRow] = try await request(
+            path: "/rest/v1/notification_preferences",
+            query: "select=profile_id,preferences&profile_id=eq.\(profileId.uuidString)&limit=1"
+        )
+        return rows.first?.preferences
+    }
+
+    // Note for non-coders:
+    // We upsert by profile_id so each player has exactly one backend preference document.
+    func upsertNotificationPreferences(profileId: UUID, preferences: NotificationPreferences) async throws {
+        let payload = [NotificationPreferencesUpsertPayload(profileId: profileId, preferences: preferences)]
+        try await sendPost(
+            path: "/rest/v1/notification_preferences?on_conflict=profile_id",
+            body: payload,
+            preferHeader: "resolution=merge-duplicates,return=minimal"
         )
     }
 
