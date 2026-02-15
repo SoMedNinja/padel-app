@@ -67,14 +67,14 @@ export default function PermissionActionGuide() {
       },
       {
         key: "notifications",
-        title: "Allow notifications",
-        helpText: isIosSafari ? IOS_PERMISSION_LIMITATIONS_COPY.notifications : notificationSnapshot?.detail ?? "Enable browser notifications.",
+        title: "Tillåt notiser",
+        helpText: isIosSafari ? IOS_PERMISSION_LIMITATIONS_COPY.notifications : notificationSnapshot?.detail ?? "Tillåt notiser i webbläsaren.",
         done: notificationSnapshot?.state === "allowed",
       },
       {
         key: "background_refresh",
-        title: "Verify background refresh",
-        helpText: isIosSafari ? IOS_PERMISSION_LIMITATIONS_COPY.backgroundRefresh : backgroundSnapshot?.detail ?? "Keep background refresh ready.",
+        title: "Verifiera bakgrundsuppdatering",
+        helpText: isIosSafari ? IOS_PERMISSION_LIMITATIONS_COPY.backgroundRefresh : backgroundSnapshot?.detail ?? "Håll bakgrundsuppdatering redo.",
         done: backgroundSnapshot?.state === "allowed",
       },
     ];
@@ -105,17 +105,17 @@ export default function PermissionActionGuide() {
         platformIntent: installGuidanceContext.platformIntent,
         entryPoint,
       });
-      setMessage("Install step requires manual action in browser/iOS menus. Follow the instructions and then press refresh status.");
+      setMessage("Installationssteget kräver manuell åtgärd i webbläsaren eller iOS-menyerna. Följ stegen och tryck sedan på uppdatera status.");
     }
 
     if (activeStep.key === "notifications") {
       await ensureNotificationPermission();
-      setMessage("Notification permission was checked again.");
+      setMessage("Notisbehörigheten kontrollerades igen.");
     }
 
     if (activeStep.key === "background_refresh") {
       await registerPushServiceWorker(loadNotificationPreferences());
-      setMessage("Background refresh setup was retried via service worker registration.");
+      setMessage("Bakgrundsuppdateringen testades igen via registrering av service worker.");
     }
 
     const afterSnapshots = await buildWebPermissionSnapshots();
@@ -132,17 +132,17 @@ export default function PermissionActionGuide() {
 
   return (
     <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-      <DialogTitle>Permission setup guide</DialogTitle>
+      <DialogTitle>Guide för behörighetsinställning</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5}>
           <Typography variant="body2" color="text.secondary">
             {/* Note for non-coders: this explains that we show one next-best action at a time instead of a long technical list. */}
-            Opened from: {entryPoint}. We guide one action at a time so setup feels simple.
+            Öppnad från: {entryPoint}. Vi visar ett steg i taget så att inställningen blir enkel att följa.
           </Typography>
 
           <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">Progress</Typography>
+              <Typography variant="caption" color="text.secondary">Framsteg</Typography>
               <Chip label={`${completedCount}/${steps.length}`} size="small" color={completedCount === steps.length ? "success" : "primary"} />
             </Stack>
             <LinearProgress variant="determinate" value={completionRatio} />
@@ -154,16 +154,16 @@ export default function PermissionActionGuide() {
           </Alert>
 
           <Typography variant="caption" color="text.secondary">
-            Completion analytics (local): install {metrics.install.completions}/{metrics.install.attempts}, notifications {metrics.notifications.completions}/{metrics.notifications.attempts}, background {metrics.background_refresh.completions}/{metrics.background_refresh.attempts}
+            Slutförandeanalys (lokalt): installation {metrics.install.completions}/{metrics.install.attempts}, notiser {metrics.notifications.completions}/{metrics.notifications.attempts}, bakgrund {metrics.background_refresh.completions}/{metrics.background_refresh.attempts}
           </Typography>
 
           {message ? <Alert severity="info">{message}</Alert> : null}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => void refreshState()}>Refresh status</Button>
+        <Button onClick={() => void refreshState()}>Uppdatera status</Button>
         <Button variant="contained" onClick={() => void runStepAction()}>
-          {activeStep.done ? "Done" : "Do this step"}
+          {activeStep.done ? "Klart" : "Gör detta steg"}
         </Button>
       </DialogActions>
     </Dialog>

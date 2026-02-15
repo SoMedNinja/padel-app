@@ -8,7 +8,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
+  ReferenceLine,
 } from "recharts";
 import Avatar from "./Avatar";
 import Cropper, { Area } from "react-easy-crop";
@@ -972,6 +973,43 @@ export default function PlayerSection({
   };
 
   const chartPalette = ["#d32f2f", "#1976d2", "#388e3c", "#f57c00", "#7b1fa2", "#00796b"];
+  const [chartTooltipState, setChartTooltipState] = useState<{
+    label: string;
+    values: Array<{ name: string; value: number; color: string }>;
+    panelSide: "left" | "right";
+  } | null>(null);
+  const [isChartTooltipLocked, setIsChartTooltipLocked] = useState(false);
+
+  const updateChartTooltip = (state: any) => {
+    if (!state?.isTooltipActive || !state?.activeLabel) return;
+
+    const values = Array.isArray(state.activePayload)
+      ? state.activePayload
+          .map((entry: any) => ({
+            name: String(entry.name ?? ""),
+            value: Number(entry.value),
+            color: String(entry.color ?? "#1976d2"),
+          }))
+          .filter((entry: { name: string; value: number }) => entry.name && Number.isFinite(entry.value))
+      : [];
+
+    if (!values.length) return;
+
+    const chartWidth = Number(state.chartWidth) || 0;
+    const chartX = Number(state.chartX) || 0;
+    const panelSide: "left" | "right" = chartX < chartWidth * 0.5 ? "right" : "left";
+
+    setChartTooltipState({
+      label: String(state.activeLabel),
+      values,
+      panelSide,
+    });
+  };
+
+  const unlockChartTooltip = () => {
+    setIsChartTooltipLocked(false);
+    setChartTooltipState(null);
+  };
 
   if (mode === "chart") {
     return (
@@ -1099,7 +1137,7 @@ export default function PlayerSection({
             </Stack>
           </Stack>
 
-          <Box sx={{ height: isEloChartFullscreen ? 'auto' : 300, flex: isEloChartFullscreen ? 1 : 'none', minHeight: 300, width: '100%', mt: 2 }}>
+          <Box sx={{ height: isEloChartFullscreen ? 'auto' : 300, flex: isEloChartFullscreen ? 1 : 'none', minHeight: 300, width: '100%', mt: 2, position: 'relative' }}>
             {comparisonData.length ? (
               <ResponsiveContainer
                 key={isEloChartFullscreen ? 'fs' : 'normal'}
@@ -1109,15 +1147,50 @@ export default function PlayerSection({
                 minHeight={0}
                 debounce={50}
               >
-                <LineChart data={filteredComparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <LineChart
+                  data={filteredComparisonData}
+                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                  onMouseMove={(state) => {
+                    updateChartTooltip(state);
+                  }}
+                  onMouseLeave={() => {
+                    if (!isChartTooltipLocked) {
+                      setChartTooltipState(null);
+                    }
+                  }}
+                  onMouseUp={() => {
+                    if (chartTooltipState) {
+                      // Note for non-coders: releasing the finger keeps the details visible, which helps on iOS when users scroll after inspecting a point.
+                      setIsChartTooltipLocked(true);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (chartTooltipState) {
+                      setIsChartTooltipLocked(true);
+                    }
+                  }}
+                  onClick={() => {
+                    if (isChartTooltipLocked) {
+                      unlockChartTooltip();
+                    }
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
                     tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
                   />
                   <YAxis domain={comparisonYDomain} />
-                  <Tooltip labelFormatter={(value) => formatChartTimestamp(value, true)} />
-                  <Legend />
+                  <Tooltip content={() => null} cursor={{ stroke: '#d32f2f', strokeDasharray: '4 4' }} />
+                  {chartTooltipState?.label ? <Legend verticalAlign="top" align={chartTooltipState.panelSide} /> : <Legend />}
+                  {chartTooltipState?.label ? (
+                    <ReferenceLine
+                      x={chartTooltipState.label}
+                      stroke="#d32f2f"
+                      strokeDasharray="4 4"
+                      ifOverflow="extendDomain"
+                    />
+                  ) : null}
                   {comparisonNames.map((name, index) => (
                     <Line
                       key={name}
@@ -1136,6 +1209,38 @@ export default function PlayerSection({
                 Spela matcher senaste året för att se ELO-utvecklingen.
               </Typography>
             )}
+
+            {chartTooltipState ? (
+              <Paper
+                elevation={4}
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  left: chartTooltipState.panelSide === "left" ? 8 : "auto",
+                  right: chartTooltipState.panelSide === "right" ? 8 : "auto",
+                  maxWidth: 240,
+                  p: 1.25,
+                  borderRadius: 2,
+                  pointerEvents: 'none',
+                  bgcolor: 'rgba(255,255,255,0.96)',
+                }}
+              >
+                {/* Note for non-coders: this small panel is the "floating legend" that automatically jumps to the opposite side so it doesn't cover your finger/cursor. */}
+                <Typography variant="caption" sx={{ fontWeight: 800, color: 'error.main', display: 'block', mb: 0.5 }}>
+                  {formatChartTimestamp(chartTooltipState.label, true)}
+                </Typography>
+                {chartTooltipState.values.map((entry) => (
+                  <Typography key={entry.name} variant="caption" sx={{ display: 'block', color: entry.color, fontWeight: 700 }}>
+                    {entry.name}: {Math.round(entry.value)}
+                  </Typography>
+                ))}
+                {isChartTooltipLocked ? (
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>
+                    Tryck på grafen igen för att rensa.
+                  </Typography>
+                ) : null}
+              </Paper>
+            ) : null}
           </Box>
         </CardContent>
       </Card>

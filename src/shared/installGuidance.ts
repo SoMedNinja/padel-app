@@ -11,7 +11,7 @@ export const INSTALL_GUIDANCE_COPY = {
   cadenceLabels: {
     snooze: "Påminn mig om 7 dagar",
   },
-  permissionGuideInstallLabel: "Install app to Home Screen",
+  permissionGuideInstallLabel: "Installera på hemskärmen",
 } as const;
 
 export interface InstallGuidanceEligibilityInput {
@@ -70,10 +70,10 @@ export function getInstallGuidanceVisibility({
 
 export function getInstallGuidanceMessage(platformIntent: PlatformIntent): string {
   if (platformIntent === "ios_safari") {
-    return "Open Safari Share menu and choose 'Add to Home Screen' so push and background behavior work more reliably.";
+    return "Öppna Safaris delningsmeny och välj \"Lägg till på hemskärmen\" så fungerar push och bakgrundsuppdatering stabilare.";
   }
 
-  return "Install the app from your browser menu so it behaves more like a native app.";
+  return "Installera appen från webbläsarens meny så den fungerar mer som en vanlig mobilapp.";
 }
 
 export function getInstallGuidanceContext() {

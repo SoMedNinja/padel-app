@@ -13,7 +13,7 @@ export default function EmailPreviews({ currentUserId }: EmailPreviewsProps) {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <Box>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-          Emails
+          E-post
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Här kan du förhandsgranska och testa olika mailutskick innan de går ut.
@@ -26,7 +26,7 @@ export default function EmailPreviews({ currentUserId }: EmailPreviewsProps) {
         onChange={(_, nextValue) => setTab(nextValue)}
         indicatorColor="primary"
         textColor="primary"
-        aria-label="Emails-flikar"
+        aria-label="E-postflikar"
       >
         <Tab label="Veckobrev" />
         <Tab label="Turneringar" />
