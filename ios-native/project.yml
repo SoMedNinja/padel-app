@@ -22,7 +22,9 @@ targets:
         # Replace with your own identifier if your org/team naming differs.
         PRODUCT_BUNDLE_IDENTIFIER: se.robban.padelnative
         # NOTE for non-coders: this must exactly match the production App Store Connect Bundle ID or installs/links can break.
-        PRODUCT_NAME: PadelNative
+        # NOTE for non-coders: keep this human-readable product name aligned with web manifest labels,
+        # so iOS install label and PWA install label both show the same brand to users.
+        PRODUCT_NAME: Padel Native
         SWIFT_VERSION: 5.0
         # NOTE for non-coders: this tells Xcode to create the app's Info.plist file automatically during build.
         # Without it, Xcode can't package the app and code signing fails.
@@ -32,7 +34,8 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # NOTE: This controls the home-screen app label users see under the icon.
-        INFOPLIST_KEY_CFBundleDisplayName: Grabbarnas Paddel app
+        # NOTE for non-coders: this is the visible app label under the iOS home-screen icon.
+        INFOPLIST_KEY_CFBundleDisplayName: Padel Native
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.sports
         INFOPLIST_KEY_SUPABASE_URL: $(SUPABASE_URL)
         INFOPLIST_KEY_SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
