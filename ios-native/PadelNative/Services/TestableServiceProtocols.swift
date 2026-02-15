@@ -12,7 +12,9 @@ protocol NotificationServicing {
     func scheduleUpcomingGameReminders(_ entries: [ScheduleEntry], preferences: NotificationPreferences) async
     func clearScheduledGameReminders() async
     func saveNotificationPreferences(_ preferences: NotificationPreferences, store: UserDefaults)
+    func saveNotificationPreferencesWithSync(_ preferences: NotificationPreferences, profileId: UUID?, store: UserDefaults) async
     func loadNotificationPreferences(store: UserDefaults) -> NotificationPreferences
+    func loadNotificationPreferencesWithSync(profileId: UUID?, store: UserDefaults) async -> NotificationPreferences
 }
 
 extension NotificationService: NotificationServicing {}

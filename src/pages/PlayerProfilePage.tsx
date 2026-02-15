@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PlayerSection from "../Components/PlayerSection";
 import MeritsSection from "../Components/MeritsSection";
 import Heatmap from "../Components/Heatmap";
@@ -17,7 +17,7 @@ import { useEloStats } from "../hooks/useEloStats";
 import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
 import { NotificationEventType, NotificationPreferences } from "../types/notifications";
-import { ensureNotificationPermission, loadNotificationPreferences, saveNotificationPreferences, syncPreferencesToServiceWorker } from "../services/webNotificationService";
+import { ensureNotificationPermission, loadNotificationPreferences, loadNotificationPreferencesWithSync, saveNotificationPreferencesWithSync } from "../services/webNotificationService";
 
 const EVENT_LABELS: Record<NotificationEventType, string> = {
   scheduled_match_new: "Ny schemalagd match",
@@ -59,6 +59,22 @@ export default function PlayerProfilePage() {
   const [activeTab, setActiveTab] = useState(0);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(() => loadNotificationPreferences());
 
+  useEffect(() => {
+    let isMounted = true;
+
+    // Note for non-coders:
+    // After sign-in, we fetch backend preferences and merge them into this screen.
+    void loadNotificationPreferencesWithSync().then((preferences) => {
+      if (isMounted) {
+        setNotificationPrefs(preferences);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
   // Simplified handling for admin and approval state for now
   const userWithAdmin = user ? { ...user, is_admin: user.is_admin } : null;
 
@@ -83,8 +99,7 @@ export default function PlayerProfilePage() {
 
   const updateNotificationPrefs = async (nextPrefs: NotificationPreferences) => {
     setNotificationPrefs(nextPrefs);
-    saveNotificationPreferences(nextPrefs);
-    await syncPreferencesToServiceWorker(nextPrefs);
+    await saveNotificationPreferencesWithSync(nextPrefs);
   };
 
   const handleMasterNotificationsToggle = async (enabled: boolean) => {

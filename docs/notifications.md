@@ -66,6 +66,7 @@ This document defines the cross-client notification contract used by:
 
 ## Implementation notes
 
-- Web stores preferences in localStorage and syncs them into service-worker cache storage.
-- iOS stores preferences in `UserDefaults` and reuses them for local + remote delivery gating.
+- Web stores preferences in backend table `notification_preferences` (`profile_id`, `preferences`) and mirrors to service-worker cache storage; `localStorage` is offline fallback only.
+- iOS stores preferences in backend table `notification_preferences` (`profile_id`, `preferences`) and mirrors to `UserDefaults`; `UserDefaults` is offline fallback only.
+- First sign-in migrates existing local/browser preferences to backend if no backend row exists yet.
 - iOS local schedule reminders currently map to `scheduled_match_new` semantics for parity.
