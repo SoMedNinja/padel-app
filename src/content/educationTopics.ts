@@ -217,9 +217,15 @@ export const educationTopics: EducationTopic[] = [
       },
       {
         id: "rules-2",
-        question: "Vad gäller för glas på egen sida?",
-        options: ["Glas först är alltid okej", "Golvet ska träffas före glas", "Bollen får aldrig ta glas"],
-        correctAnswer: "Golvet ska träffas före glas",
+        // Note for non-coders: this question is specifically about the ball you hit yourself.
+        // Officially, your shot may not touch your own glass before it passes over the net.
+        question: "När du själv slår bollen, vad gäller på egen sida?",
+        options: [
+          "Bollen får ta eget glas om den ändå går över nät",
+          "Bollen får aldrig ta eget glas före nätpassage",
+          "Eget glas är okej direkt efter studs",
+        ],
+        correctAnswer: "Bollen får aldrig ta eget glas före nätpassage",
       },
     ],
   },
