@@ -53,3 +53,11 @@
 ## 2026-06-05 - [iOS UX: Confirmation Safety & Empty State Guidance]
 **Learning:** Destructive actions on mobile (logout, match deletion) require explicit confirmation dialogs to prevent accidental taps. Empty states that offer a clear path forward (e.g., "Registrera match" button) reduce user frustration when data is missing. In-place editors should maintain their state until async operations finish to avoid jarring UI transitions.
 **Action:** Always use `.confirmationDialog` for destructive actions. Provide helpful navigation CTAs in empty states. Use loading states (ProgressView) inside buttons to provide immediate feedback for save actions.
+
+## 2026-06-10 - [iOS UX: Search Feedback & Field Constraints]
+**Learning:** Empty search results in player grids can feel like a "dead" UI if no feedback is given. Providing a localized message ("Inga spelare hittades") and an icon confirms the search was active. Character counters for text fields with strict limits (like profile names) are essential on mobile to prevent silent input truncation and provide immediate validation feedback.
+**Action:** Always implement empty states for searchable lists. Add character counters and disabling logic to `TextFields` with `maxLength` or `minLength` constraints.
+
+## 2026-06-12 - [A11y: Dynamic Sort State & Actionable Hints]
+**Learning:** VoiceOver users need to know not just that a header is sortable, but its current sort direction. Using `accessibilityValue` to announce "Sorterat stigande" or "Sorterat fallande" and `accessibilityHint` to explain the toggle action ("Tryck för att sortera efter...") makes data tables navigable for non-visual users.
+**Action:** Use `accessibilityValue` for dynamic state and `accessibilityHint` for instructions on all interactive table headers.
