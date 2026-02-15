@@ -94,7 +94,9 @@ struct RivalryView: View {
 
     private var lastGameModule: some View {
         Group {
-            if let summary, let last = summary.lastMatchDate {
+            if let summary {
+                // Note for non-coders: `lastMatchDate` is guaranteed to exist for each rivalry summary, so we can read it directly without optional checks.
+                let last = summary.lastMatchDate
                 // Note for non-coders: this dedicated "last game" module mirrors the web/PWA layout so the latest result appears first.
                 VStack(spacing: 6) {
                     Text("SENASTE MATCH")
