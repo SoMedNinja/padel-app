@@ -1,8 +1,11 @@
+/* AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
+ * Note for non-coders: this web theme is generated from design/tokens.json
+ * so changing one token file updates web + iOS together.
+ */
+
 import { createTheme } from '@mui/material/styles';
 import { designTokens } from './generated/designTokens';
 
-// Note for non-coders: instead of hardcoding style numbers/colors here,
-// we read from shared tokens so web and iOS stay visually aligned.
 const semantic = designTokens.color.semantic;
 const radius = designTokens.radius;
 const typographyScale = designTokens.typography.scale;

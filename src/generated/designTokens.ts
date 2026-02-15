@@ -5,59 +5,59 @@
 
 export const designTokens = {
   "$schema": "https://example.com/design-tokens.schema.json",
+  "color": {
+    "semantic": {
+      "background": "#f6f7fb",
+      "borderStrong": "#f0b7b7",
+      "borderSubtle": "#ececec",
+      "highlight": "#fff5f5",
+      "info": "#0288d1",
+      "onPrimary": "#ffffff",
+      "primary": "#d32f2f",
+      "primaryStrong": "#b71c1c",
+      "secondary": "#ff8f00",
+      "success": "#2e7d32",
+      "surface": "#ffffff",
+      "surfaceMuted": "#f6f7fb",
+      "textPrimary": "#1f1f1f",
+      "textSecondary": "#6d6d6d",
+      "warning": "#ed6c02"
+    }
+  },
   "meta": {
     "description": "Note for non-coders: this file is the single source of truth for shared design values across web and iOS.",
     "version": "1.0.0"
   },
-  "color": {
-    "semantic": {
-      "primary": "#d32f2f",
-      "primaryStrong": "#b71c1c",
-      "onPrimary": "#ffffff",
-      "secondary": "#ff8f00",
-      "success": "#2e7d32",
-      "warning": "#ed6c02",
-      "info": "#0288d1",
-      "surface": "#ffffff",
-      "surfaceMuted": "#f6f7fb",
-      "background": "#f6f7fb",
-      "textPrimary": "#1f1f1f",
-      "textSecondary": "#6d6d6d",
-      "borderSubtle": "#ececec",
-      "borderStrong": "#f0b7b7",
-      "highlight": "#fff5f5"
-    }
+  "radius": {
+    "lg": 12,
+    "md": 10,
+    "pill": 999,
+    "sm": 8,
+    "xl": 14
   },
   "spacing": {
-    "xs": 4,
-    "sm": 8,
-    "md": 12,
     "lg": 16,
-    "xl": 24,
-    "xxl": 32
-  },
-  "radius": {
+    "md": 12,
     "sm": 8,
-    "md": 10,
-    "lg": 12,
-    "xl": 14,
-    "pill": 999
+    "xl": 24,
+    "xs": 4,
+    "xxl": 32
   },
   "typography": {
     "fontFamily": "\"Inter\", \"Segoe UI\", \"Roboto\", \"Helvetica Neue\", Arial, sans-serif",
     "scale": {
-      "caption": 12,
       "body": 14,
       "bodyLarge": 16,
+      "caption": 12,
+      "display": 32,
       "section": 20,
-      "title": 24,
-      "display": 32
+      "title": 24
     },
     "weight": {
-      "regular": 400,
-      "semibold": 600,
       "bold": 700,
-      "extrabold": 800
+      "extrabold": 800,
+      "regular": 400,
+      "semibold": 600
     }
   }
 } as const;
