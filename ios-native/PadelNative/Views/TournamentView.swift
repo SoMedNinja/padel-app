@@ -132,11 +132,11 @@ struct TournamentView: View {
         content
             .confirmationDialog("Starta turnering?", isPresented: $showStartConfirmation, titleVisibility: .visible) {
                 Button("Starta", role: .none) {
-                    Task { await viewModel.startSelectedTournament() }
+                    Task { await viewModel.saveRosterAndStartSelectedTournament(participantIds: Array(selectedParticipantIds)) }
                 }
                 Button("Avbryt", role: .cancel) { }
             } message: {
-                Text("Detta byter status från utkast till pågående och följer samma flöde som PWA.")
+                Text("Steg 2 av 4: roster sparas först och turneringen startas därefter, precis som i PWA.")
             }
             .confirmationDialog("Avbryt turnering?", isPresented: $showCancelConfirmation, titleVisibility: .visible) {
                 Button("Avbryt turnering", role: .destructive) {
@@ -218,34 +218,9 @@ struct TournamentView: View {
                 }
                 .pickerStyle(.segmented)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Deltagare (\(selectedParticipantIds.count))")
-                        .font(.inter(.subheadline, weight: .bold))
-
-                    ForEach(viewModel.players) { player in
-                        Button {
-                            if selectedParticipantIds.contains(player.id) {
-                                selectedParticipantIds.remove(player.id)
-                            } else {
-                                selectedParticipantIds.insert(player.id)
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: selectedParticipantIds.contains(player.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedParticipantIds.contains(player.id) ? AppColors.success : AppColors.textSecondary)
-                                Text(player.profileName)
-                                    .font(.inter(.body))
-                                    .foregroundStyle(AppColors.textPrimary)
-                                Spacer()
-                                Text("ELO \(viewModel.playerBadgeStats[player.id]?.currentElo ?? player.elo)")
-                                    .font(.inter(.caption))
-                                    .foregroundStyle(AppColors.textSecondary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 2)
-                    }
-                }
+                Text("Steg 1 av 4: skapa ett utkast med turneringsinställningar. I nästa steg väljer du roster innan start.")
+                    .font(.inter(.caption))
+                    .foregroundStyle(AppColors.textSecondary)
 
                 Toggle("Ange datum", isOn: $includeScheduledDate)
                     .font(.inter(.body))
@@ -261,8 +236,7 @@ struct TournamentView: View {
                             location: newTournamentLocation,
                             scheduledAt: includeScheduledDate ? newTournamentDate : nil,
                             scoreTarget: newTournamentScoreTarget,
-                            tournamentType: newTournamentType,
-                            participantIds: Array(selectedParticipantIds)
+                            tournamentType: newTournamentType
                         )
                         // Note for non-coders:
                         // We only clear the form after a successful save.
@@ -280,7 +254,7 @@ struct TournamentView: View {
                     }
                 }
                 .buttonStyle(PrimaryButtonStyle())
-                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament || selectedParticipantIds.count < 4)
+                .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
 
                 if let message = viewModel.tournamentStatusMessage {
                     Text(message)
@@ -326,7 +300,7 @@ struct TournamentView: View {
                     if tournament.status == "draft" {
                         Divider()
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Deltagarlista (\(selectedParticipantIds.count))")
+                            Text("Steg 2 av 4 • Deltagarlista (\(selectedParticipantIds.count))")
                                 .font(.inter(.subheadline, weight: .bold))
 
                             ForEach(viewModel.players) { player in
@@ -352,7 +326,7 @@ struct TournamentView: View {
                                 .buttonStyle(.plain)
                             }
 
-                            Button("Spara deltagarlista") {
+                            Button("Spara roster") {
                                 Task {
                                     await viewModel.replaceTournamentParticipants(
                                         tournamentId: tournament.id,
@@ -413,13 +387,13 @@ struct TournamentView: View {
     private func actionButtons(for tournament: Tournament) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if tournament.status == "draft" {
-                Button("Starta turnering") { showStartConfirmation = true }
+                Button("Spara roster och starta") { showStartConfirmation = true }
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(viewModel.isTournamentActionRunning || !viewModel.canMutateTournament)
             }
 
             if tournament.status == "in_progress" {
-                Button("Slutför turnering") {
+                Button("Spara och avsluta turnering") {
                     Task { await viewModel.completeActiveTournament() }
                 }
                 .buttonStyle(PrimaryButtonStyle())
@@ -452,8 +426,16 @@ struct TournamentView: View {
                     .foregroundStyle(AppColors.textSecondary)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
+                    Text("Steg 3 av 4: fyll i resultat. Skriv poäng för ett lag så räknas motståndaren ut automatiskt enligt poängmålet.")
+                        .font(.inter(.caption))
+                        .foregroundStyle(AppColors.textSecondary)
+
                     ForEach(viewModel.tournamentRounds) { round in
-                        RoundEditorRow(round: round, canEdit: viewModel.canMutateTournament) { team1Score, team2Score in
+                        RoundEditorRow(
+                            round: round,
+                            scoreTarget: viewModel.activeTournament?.scoreTarget ?? 24,
+                            canEdit: viewModel.canMutateTournament
+                        ) { team1Score, team2Score in
                             await viewModel.saveTournamentRound(round: round, team1Score: team1Score, team2Score: team2Score)
                         }
                         if round.id != viewModel.tournamentRounds.last?.id {
@@ -680,19 +662,21 @@ struct TournamentView: View {
 
 private struct RoundEditorRow: View {
     let round: TournamentRound
+    let scoreTarget: Int
     let canEdit: Bool
     let onSave: (Int, Int) async -> Void
 
-    @State private var team1Score: Int
-    @State private var team2Score: Int
+    @State private var team1ScoreText: String
+    @State private var team2ScoreText: String
     @State private var isSaving = false
 
-    init(round: TournamentRound, canEdit: Bool, onSave: @escaping (Int, Int) async -> Void) {
+    init(round: TournamentRound, scoreTarget: Int, canEdit: Bool, onSave: @escaping (Int, Int) async -> Void) {
         self.round = round
+        self.scoreTarget = scoreTarget
         self.canEdit = canEdit
         self.onSave = onSave
-        _team1Score = State(initialValue: round.team1Score ?? 0)
-        _team2Score = State(initialValue: round.team2Score ?? 0)
+        _team1ScoreText = State(initialValue: round.team1Score.map(String.init) ?? "")
+        _team2ScoreText = State(initialValue: round.team2Score.map(String.init) ?? "")
     }
 
     var body: some View {
@@ -709,19 +693,36 @@ private struct RoundEditorRow: View {
             HStack(spacing: 20) {
                 VStack(spacing: 4) {
                     Text("Lag 1").font(.inter(.caption2, weight: .bold))
-                    Stepper("\(team1Score)", value: $team1Score, in: 0...99)
+                    TextField("0", text: $team1ScoreText)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.center)
                         .font(.inter(.body, weight: .bold))
+                        .keyboardType(.numberPad)
+                        .onChange(of: team1ScoreText) { _, newValue in
+                            team1ScoreText = numericOnly(newValue)
+                            autoFillOpponentScore(changedTeam: .team1)
+                        }
                 }
 
                 VStack(spacing: 4) {
                     Text("Lag 2").font(.inter(.caption2, weight: .bold))
-                    Stepper("\(team2Score)", value: $team2Score, in: 0...99)
+                    TextField("0", text: $team2ScoreText)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.center)
                         .font(.inter(.body, weight: .bold))
+                        .keyboardType(.numberPad)
+                        .onChange(of: team2ScoreText) { _, newValue in
+                            team2ScoreText = numericOnly(newValue)
+                            autoFillOpponentScore(changedTeam: .team2)
+                        }
                 }
             }
 
             Button {
                 Task {
+                    guard let team1Score = Int(team1ScoreText), let team2Score = Int(team2ScoreText) else {
+                        return
+                    }
                     isSaving = true
                     defer { isSaving = false }
                     await onSave(team1Score, team2Score)
@@ -735,8 +736,37 @@ private struct RoundEditorRow: View {
             }
             .buttonStyle(.bordered)
             .font(.inter(.subheadline, weight: .bold))
-            .disabled(!canEdit || isSaving)
+            .disabled(!canEdit || isSaving || Int(team1ScoreText) == nil || Int(team2ScoreText) == nil)
         }
         .padding(.vertical, 4)
+    }
+
+    private enum ScoreTeam {
+        case team1
+        case team2
+    }
+
+    // Note for non-coders:
+    // We keep only digits so the score box behaves like free text but still saves safe numbers.
+    private func numericOnly(_ value: String) -> String {
+        let digits = value.filter(\.isNumber)
+        if digits.isEmpty { return "" }
+        if let number = Int(digits) {
+            return String(min(number, scoreTarget))
+        }
+        return ""
+    }
+
+    // Note for non-coders:
+    // In point-based games, both teams should always add up to the selected target (for example 20 + 4 = 24).
+    private func autoFillOpponentScore(changedTeam: ScoreTeam) {
+        switch changedTeam {
+        case .team1:
+            guard let team1Score = Int(team1ScoreText), team1Score >= 0, team1Score <= scoreTarget else { return }
+            team2ScoreText = String(scoreTarget - team1Score)
+        case .team2:
+            guard let team2Score = Int(team2ScoreText), team2Score >= 0, team2Score <= scoreTarget else { return }
+            team1ScoreText = String(scoreTarget - team2Score)
+        }
     }
 }

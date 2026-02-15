@@ -3849,13 +3849,47 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func saveRosterAndStartSelectedTournament(participantIds: [UUID]) async {
+        guard let tournament = activeTournament else {
+            tournamentActionErrorMessage = "Choose a tournament first."
+            return
+        }
+
+        let uniqueParticipants = Array(Set(participantIds))
+        guard uniqueParticipants.count >= 4, uniqueParticipants.count <= 8 else {
+            tournamentActionErrorMessage = "Choose 4 to 8 participants before starting."
+            return
+        }
+
+        guard canMutateTournament else {
+            tournamentActionErrorMessage = "Sign in is required to start tournaments."
+            return
+        }
+
+        isTournamentActionRunning = true
+        tournamentActionErrorMessage = nil
+
+        do {
+            // Note for non-coders:
+            // This mirrors the web flow by first saving the roster, then moving to "in progress".
+            try await apiClient.replaceTournamentParticipants(tournamentId: tournament.id, participantIds: uniqueParticipants)
+            tournamentStatusMessage = "Roster saved. Starting tournament…"
+        } catch {
+            tournamentActionErrorMessage = "Could not save roster: \(error.localizedDescription)"
+            isTournamentActionRunning = false
+            return
+        }
+
+        isTournamentActionRunning = false
+        await startSelectedTournament()
+    }
+
     func createTournament(
         name: String,
         location: String?,
         scheduledAt: Date?,
         scoreTarget: Int?,
-        tournamentType: String,
-        participantIds: [UUID]
+        tournamentType: String
     ) async -> Bool {
         guard canMutateTournament else {
             tournamentActionErrorMessage = "Sign in is required to create tournaments."
@@ -3870,11 +3904,6 @@ final class AppViewModel: ObservableObject {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanName.isEmpty {
             tournamentActionErrorMessage = "Tournament name is required."
-            return false
-        }
-
-        if participantIds.count < 4 {
-            tournamentActionErrorMessage = "Choose at least 4 participants before creating a tournament."
             return false
         }
 
@@ -3896,9 +3925,8 @@ final class AppViewModel: ObservableObject {
                     createdBy: creatorId
                 )
             )
-            try await apiClient.replaceTournamentParticipants(tournamentId: created.id, participantIds: participantIds)
             selectedTournamentId = created.id
-            tournamentStatusMessage = "Tournament created in draft mode with \(participantIds.count) participants."
+            tournamentStatusMessage = "Tournament created in draft mode. Choose participants before starting."
             await loadTournamentData(silently: false)
             isTournamentActionRunning = false
             return true
