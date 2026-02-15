@@ -3,6 +3,285 @@ import { Match, MatchFilter } from "../types";
 import { checkIsAdmin, ensureAuthSessionReady, requireAdmin } from "./authUtils";
 import { buildMatchCreateRequest } from "./contract/contractTransforms";
 
+type MatchCreateInput = any;
+
+type MatchSubmissionStatus = "synced" | "pending" | "failed" | "conflict";
+
+export interface MatchCreateResult {
+  status: MatchSubmissionStatus;
+  message: string;
+}
+
+interface QueuedMatchMutation {
+  queueId: string;
+  createdAt: string;
+  attempts: number;
+  payload: MatchCreateInput[];
+}
+
+interface MutationQueueSnapshot {
+  pendingCount: number;
+  failedCount: number;
+  status: "synced" | "pending" | "failed";
+  lastError: string | null;
+  lastSyncedAt: string | null;
+}
+
+const QUEUE_STORAGE_KEY = "match-mutation-queue-v1";
+const RETRYABLE_ERROR_SIGNATURES = ["failed to fetch", "network", "offline", "timeout"];
+const DEFAULT_QUEUE_STATE: MutationQueueSnapshot = {
+  pendingCount: 0,
+  failedCount: 0,
+  status: "synced",
+  lastError: null,
+  lastSyncedAt: null,
+};
+
+let queueState: MutationQueueSnapshot = { ...DEFAULT_QUEUE_STATE };
+const queueSubscribers = new Set<(state: MutationQueueSnapshot) => void>();
+let queueProcessing = false;
+let queueRetryTimer: number | null = null;
+let onlineListenerInstalled = false;
+
+const notifyQueueSubscribers = () => {
+  for (const subscriber of queueSubscribers) {
+    subscriber(queueState);
+  }
+};
+
+const updateQueueState = (next: Partial<MutationQueueSnapshot>) => {
+  queueState = { ...queueState, ...next };
+  notifyQueueSubscribers();
+};
+
+const canUseBrowserStorage = () => typeof window !== "undefined" && typeof localStorage !== "undefined";
+
+const readQueue = (): QueuedMatchMutation[] => {
+  if (!canUseBrowserStorage()) return [];
+  try {
+    const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeQueue = (queue: QueuedMatchMutation[]) => {
+  if (!canUseBrowserStorage()) return;
+  localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+};
+
+const computeHash = (input: MatchCreateInput) => {
+  // Note for non-coders: this turns the payload into a deterministic "fingerprint" so retries can
+  // verify whether an older queued request would overwrite newer data.
+  const normalized = JSON.stringify(input, Object.keys(input).sort());
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash << 5) - hash + normalized.charCodeAt(i);
+    hash |= 0;
+  }
+  return `h${Math.abs(hash)}`;
+};
+
+const isOnline = () => typeof navigator === "undefined" || navigator.onLine;
+
+const scheduleQueueRetry = () => {
+  if (typeof window === "undefined") return;
+  if (queueRetryTimer) window.clearTimeout(queueRetryTimer);
+  queueRetryTimer = window.setTimeout(() => {
+    queueRetryTimer = null;
+    void processQueuedMutations();
+  }, 12_000);
+};
+
+const refreshQueueStatusFromStorage = () => {
+  const queue = readQueue();
+  const failedCount = queue.filter(item => item.attempts >= 3).length;
+  updateQueueState({
+    pendingCount: queue.length,
+    failedCount,
+    status: failedCount > 0 ? "failed" : queue.length > 0 ? "pending" : "synced",
+  });
+};
+
+const isRetryableMutationError = (error: unknown) => {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return RETRYABLE_ERROR_SIGNATURES.some(signature => message.includes(signature));
+};
+
+const enrichMatchPayload = (match: MatchCreateInput, userId: string) => {
+  const contractMatch = buildMatchCreateRequest({ ...match, created_by: userId });
+  const {
+    id: _id,
+    created_at: _created_at,
+    created_by: _created_by,
+    match_mode: _match_mode,
+    ...rest
+  } = contractMatch;
+
+  const clientSubmissionId =
+    typeof rest.client_submission_id === "string" && rest.client_submission_id.trim().length
+      ? rest.client_submission_id
+      : (typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `local-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+  return {
+    ...rest,
+    created_by: userId,
+    client_submission_id: clientSubmissionId,
+    client_payload_hash: computeHash(rest),
+  };
+};
+
+const detectSubmissionConflict = async (createdBy: string, payload: MatchCreateInput[]) => {
+  const submissionIds = payload
+    .map(item => item.client_submission_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+  if (!submissionIds.length) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("matches")
+    .select("client_submission_id, client_payload_hash")
+    .eq("created_by", createdBy)
+    .in("client_submission_id", submissionIds);
+
+  if (error || !data?.length) {
+    return null;
+  }
+
+  const existingById = new Map<string, string | null>(
+    data.map((row: any) => [row.client_submission_id, row.client_payload_hash ?? null])
+  );
+
+  const hasConflict = payload.some(item => {
+    const submissionId = item.client_submission_id;
+    if (typeof submissionId !== "string" || !existingById.has(submissionId)) return false;
+    const existingHash = existingById.get(submissionId);
+    return existingHash && existingHash !== item.client_payload_hash;
+  });
+
+  return hasConflict
+    ? "Konflikt upptäckt: en äldre offline-match hade annat resultat än den som redan finns sparad. Granska historiken innan du försöker igen."
+    : null;
+};
+
+const submitMatchPayload = async (payload: MatchCreateInput[]): Promise<MatchCreateResult> => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const currentUser = sessionData.session?.user;
+
+  if (!currentUser) {
+    throw new Error("Du måste vara inloggad för att registrera en match.");
+  }
+
+  const normalizedPayload = payload.map(item => enrichMatchPayload(item, currentUser.id));
+
+  const { error } = await supabase.from("matches").insert(normalizedPayload);
+
+  if (!error) {
+    return {
+      status: "synced",
+      message: "Matchen är synkad.",
+    };
+  }
+
+  if (error.code === "23505") {
+    const conflictMessage = await detectSubmissionConflict(currentUser.id, normalizedPayload);
+    if (conflictMessage) {
+      return { status: "conflict", message: conflictMessage };
+    }
+
+    return {
+      status: "synced",
+      message: "Matchen var redan synkad från en tidigare uppladdning.",
+    };
+  }
+
+  throw error;
+};
+
+const enqueueMatchMutation = (matches: MatchCreateInput[]): MatchCreateResult => {
+  const queue = readQueue();
+  queue.push({
+    queueId: (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `queue-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    createdAt: new Date().toISOString(),
+    attempts: 0,
+    payload: matches,
+  });
+  writeQueue(queue);
+  refreshQueueStatusFromStorage();
+  scheduleQueueRetry();
+
+  return {
+    status: "pending",
+    message: "Matchen sparades lokalt och skickas automatiskt när du är online.",
+  };
+};
+
+const processQueuedMutations = async () => {
+  if (queueProcessing) return;
+  if (!isOnline()) {
+    refreshQueueStatusFromStorage();
+    return;
+  }
+
+  const queue = readQueue();
+  if (!queue.length) {
+    updateQueueState({ status: "synced", pendingCount: 0, failedCount: 0, lastError: null, lastSyncedAt: new Date().toISOString() });
+    return;
+  }
+
+  queueProcessing = true;
+  const mutableQueue = [...queue];
+
+  while (mutableQueue.length) {
+    const current = mutableQueue[0];
+    try {
+      const result = await submitMatchPayload(current.payload);
+      if (result.status === "conflict") {
+        current.attempts = Math.max(current.attempts, 3);
+        mutableQueue[0] = current;
+        writeQueue(mutableQueue);
+        refreshQueueStatusFromStorage();
+        updateQueueState({ lastError: result.message });
+        break;
+      }
+
+      mutableQueue.shift();
+      writeQueue(mutableQueue);
+      refreshQueueStatusFromStorage();
+      updateQueueState({ lastSyncedAt: new Date().toISOString(), lastError: null });
+    } catch (error) {
+      current.attempts += 1;
+      mutableQueue[0] = current;
+      writeQueue(mutableQueue);
+      refreshQueueStatusFromStorage();
+      updateQueueState({
+        lastError: error instanceof Error ? error.message : "Kunde inte synka offline-kö.",
+      });
+      scheduleQueueRetry();
+      break;
+    }
+  }
+
+  queueProcessing = false;
+};
+
+const installOnlineListenerIfNeeded = () => {
+  if (onlineListenerInstalled || typeof window === "undefined") return;
+  onlineListenerInstalled = true;
+  window.addEventListener("online", () => {
+    void processQueuedMutations();
+  });
+};
+
 const getDateRange = (filter: MatchFilter) => {
   if (filter.type === "last7") {
     const start = new Date();
@@ -25,6 +304,28 @@ const getDateRange = (filter: MatchFilter) => {
 };
 
 export const matchService = {
+  initMutationQueue(): void {
+    installOnlineListenerIfNeeded();
+    refreshQueueStatusFromStorage();
+    void processQueuedMutations();
+  },
+
+  subscribeToMutationQueue(listener: (state: MutationQueueSnapshot) => void): () => void {
+    queueSubscribers.add(listener);
+    listener(queueState);
+    return () => {
+      queueSubscribers.delete(listener);
+    };
+  },
+
+  getMutationQueueState(): MutationQueueSnapshot {
+    return queueState;
+  },
+
+  async flushMutationQueue(): Promise<void> {
+    await processQueuedMutations();
+  },
+
   async getMatches(filter?: MatchFilter): Promise<Match[]> {
     await ensureAuthSessionReady();
     let query = supabase
@@ -55,7 +356,9 @@ export const matchService = {
     return (data || []) as Match[];
   },
 
-  async createMatch(match: any): Promise<void> {
+  async createMatch(match: MatchCreateInput): Promise<MatchCreateResult> {
+    const matches = Array.isArray(match) ? match : [match];
+
     const { data: sessionData } = await supabase.auth.getSession();
     const currentUser = sessionData.session?.user;
 
@@ -63,7 +366,6 @@ export const matchService = {
       throw new Error("Du måste vara inloggad för att registrera en match.");
     }
 
-    const matches = Array.isArray(match) ? match : [match];
     for (const m of matches) {
       if (m.team1_sets !== undefined && (typeof m.team1_sets !== "number" || m.team1_sets < 0)) {
         throw new Error("Ogiltigt resultat för Lag 1");
@@ -72,7 +374,6 @@ export const matchService = {
         throw new Error("Ogiltigt resultat för Lag 2");
       }
 
-      // Security enhancement: validate input lengths to prevent database bloat and UI breakage.
       const validateNames = (names: any, teamLabel: string) => {
         if (Array.isArray(names)) {
           for (const name of names) {
@@ -90,37 +391,21 @@ export const matchService = {
       }
     }
 
-    const cleanMatch = (m: any) => {
-      const contractMatch = buildMatchCreateRequest({
-        ...m,
-        created_by: currentUser.id,
-      });
+    const sanitizedMatches = matches.map(item => ({ ...item, created_by: currentUser.id }));
 
-      // Security: strip sensitive metadata fields to prevent spoofing or accidental overwrites.
-      // We also remove created_by to ensure it's always set to the trusted currentUser.id.
-      const {
-        id: _id,
-        created_at: _created_at,
-        created_by: _created_by,
-        match_mode: _match_mode,
-        ...rest
-      } = contractMatch;
-      return {
-        ...rest,
-        created_by: currentUser.id,
-      };
-    };
+    if (!isOnline()) {
+      return enqueueMatchMutation(sanitizedMatches);
+    }
 
-    // Note for non-coders: if we save many matches at once, we need to attach the user ID to each item,
-    // not just the whole list. Otherwise the database thinks the list indices (0, 1, 2...) are column names.
-    const matchToInsert = Array.isArray(match)
-      ? match.map(cleanMatch)
-      : cleanMatch(match);
-
-    const { error } = await supabase
-      .from("matches")
-      .insert(matchToInsert);
-    if (error) throw error;
+    try {
+      const result = await submitMatchPayload(sanitizedMatches);
+      return result;
+    } catch (error) {
+      if (isRetryableMutationError(error)) {
+        return enqueueMatchMutation(sanitizedMatches);
+      }
+      throw error;
+    }
   },
 
   async updateMatch(matchId: string, updates: any): Promise<void> {
@@ -133,7 +418,6 @@ export const matchService = {
       throw new Error("Ogiltigt resultat för Lag 2");
     }
 
-    // Security: strip sensitive metadata fields that should not be manually updated
     const filteredUpdates = { ...updates };
     delete filteredUpdates.id;
     delete filteredUpdates.created_at;
@@ -173,5 +457,4 @@ export const matchService = {
       .eq("source_tournament_id", tournamentId);
     if (error) throw error;
   },
-
 };

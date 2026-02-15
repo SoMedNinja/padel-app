@@ -7,6 +7,7 @@ import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import InstallPrompt from "../Components/InstallPrompt";
 import WhatsNewDialog from "../Components/WhatsNewDialog";
+import MatchSyncStatusBanner from "../Components/Shared/MatchSyncStatusBanner";
 import {
   IconButton,
   Box,
@@ -149,8 +150,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <InstallPrompt />
       </Container>
 
-      {/* Note for non-coders: this popup explains what changed after an update, and it appears only once per version. */}
-      <WhatsNewDialog />
+      <Container maxWidth="lg" sx={{ mt: 2 }}>
+        <MatchSyncStatusBanner />
+      </Container>
 
       {hasGuestAccess && (
         <Container maxWidth="lg" sx={{ mt: 2 }}>
