@@ -64,6 +64,13 @@ This document defines the cross-client notification contract used by:
    - iOS local schedule reminders are delayed to the quiet-hour end time.
    - iOS foreground push presentation is suppressed during quiet window.
 
+## Database migration checklist
+
+1. Run Supabase migrations so `public.notification_preferences` exists with RLS policies.
+2. Verify each signed-in user can only read/write their own row (admins can assist with support/debugging).
+
+> Note for non-coders: a migration is a versioned database change script. Running it creates the new table and safety rules automatically.
+
 ## Implementation notes
 
 - Web stores preferences in backend table `notification_preferences` (`profile_id`, `preferences`) and mirrors to service-worker cache storage; `localStorage` is offline fallback only.
