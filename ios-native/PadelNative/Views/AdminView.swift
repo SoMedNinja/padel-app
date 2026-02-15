@@ -398,6 +398,7 @@ struct AdminView: View {
             previewSection(
                 title: "Förhandsgranska / Dela",
                 content: viewModel.adminReportPreviewText,
+                imageURL: viewModel.adminReportPreviewImageURL,
                 status: viewModel.adminReportStatusMessage
             )
         }
@@ -537,7 +538,7 @@ struct AdminView: View {
     }
 
     @ViewBuilder
-    private func previewSection(title: String, content: String?, status: String?, renderAsEmail: Bool = false, htmlContent: String? = nil) -> some View {
+    private func previewSection(title: String, content: String?, imageURL: URL? = nil, status: String?, renderAsEmail: Bool = false, htmlContent: String? = nil) -> some View {
         SectionCard(title: title) {
             VStack(alignment: .leading, spacing: 12) {
                 if let content, content.isEmpty == false {
@@ -555,6 +556,14 @@ struct AdminView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        } else if let imageURL,
+                                  let image = UIImage(contentsOfFile: imageURL.path) {
+                            // Note for non-coders:
+                            // Admin reports now preview as a real generated image, matching the web flow.
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         } else {
                             Text(content)
                                 .font(.system(.caption, design: .monospaced))
@@ -568,7 +577,7 @@ struct AdminView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                     HStack {
-                        if let cardURL = adminShareImageURL(content: content, title: title) {
+                        if let cardURL = imageURL ?? adminShareImageURL(content: content, title: title) {
                             ShareLink(item: cardURL) {
                                 Label("Dela bild", systemImage: "photo.on.rectangle")
                             }

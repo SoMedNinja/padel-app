@@ -4,7 +4,6 @@ import SwiftUI
 private enum ProfileTab: String, CaseIterable, Identifiable {
     case overview
     case eloTrend
-    case teammates
     case merits
 
     var id: String { rawValue }
@@ -13,7 +12,6 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
         switch self {
         case .overview: return String(localized: "profile.tab.overview")
         case .eloTrend: return String(localized: "profile.tab.elo_trend")
-        case .teammates: return String(localized: "profile.tab.teammates")
         case .merits: return String(localized: "profile.tab.merits")
         }
     }
@@ -139,8 +137,6 @@ struct ProfileView: View {
             overviewTab(current)
         case .eloTrend:
             eloTrendTab
-        case .teammates:
-            teammatesTab
         case .merits:
             meritsTab(current)
         }
@@ -183,18 +179,6 @@ struct ProfileView: View {
                         Text(current.profileName)
                             .font(.inter(.title2, weight: .bold))
                             .foregroundStyle(AppColors.textPrimary)
-
-                        Spacer()
-
-                        if let cardURL = viewModel.generatePlayerStatsCard() {
-                            ShareLink(item: cardURL) {
-                                Image(systemName: "square.and.arrow.up")
-                                    .font(.body.bold())
-                                    .foregroundStyle(AppColors.brandPrimary)
-                                    .padding(8)
-                                    .background(AppColors.brandPrimary.opacity(0.1), in: Circle())
-                            }
-                        }
                     }
 
                     HStack(spacing: 4) {
@@ -372,19 +356,6 @@ struct ProfileView: View {
                 .padding(.vertical, 2)
             }
         }
-    }
-
-    @State private var comboSortKey: String = "games"
-    @State private var comboSortAscending: Bool = false
-
-    private var teammatesTab: some View {
-        HeatmapSectionView(
-            combos: viewModel.heatmapCombos,
-            title: String(localized: "dashboard.heatmap.title"),
-            sortKey: $comboSortKey,
-            sortAscending: $comboSortAscending,
-            currentPlayerName: viewModel.currentPlayer?.profileName
-        )
     }
 
     private func groupBadges(_ badges: [Badge]) -> [BadgeGroup] {
@@ -779,10 +750,6 @@ struct ProfileView: View {
                 Group {
                     if let point = selectedPoint(from: points) {
                         tooltip(point: point, playerIds: dataset.playerIds)
-                    } else {
-                        Text("Dra över grafen för detaljer")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(8)
@@ -792,10 +759,6 @@ struct ProfileView: View {
 
             chartLegendPills(playerIds: dataset.playerIds)
 
-            if chartSelectionIndex != nil {
-                Button("Rensa markör") { chartSelectionIndex = nil }
-                    .font(.caption)
-            }
         }
     }
 

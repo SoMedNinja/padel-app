@@ -435,6 +435,7 @@ final class AppViewModel: ObservableObject {
     @Published var isAdminReportRunning = false
     @Published var isAdminEmailActionRunning = false
     @Published var adminReportPreviewText: String?
+    @Published var adminReportPreviewImageURL: URL?
     @Published var adminReportStatusMessage: String?
     @Published var adminEmailPreviewText: String?
     @Published var adminEmailPreviewHTML: String?
@@ -1034,6 +1035,7 @@ final class AppViewModel: ObservableObject {
         adminProfiles = []
         adminBanner = nil
         adminReportPreviewText = nil
+        adminReportPreviewImageURL = nil
         adminReportStatusMessage = nil
         adminEmailPreviewText = nil
         adminEmailPreviewHTML = nil
@@ -3043,6 +3045,13 @@ final class AppViewModel: ObservableObject {
             setScheduleActionMessage("Poll created successfully.")
             scheduleErrorMessage = nil
             await refreshScheduleData()
+        } catch APIError.requestFailed(let statusCode) where statusCode == 409 {
+            // Note for non-coders:
+            // 409 means the week already has a poll. We treat that as a "already done" state
+            // instead of an app error so admins can continue without confusion.
+            setScheduleActionMessage("En omröstning för vecka \(option.week) finns redan.")
+            scheduleErrorMessage = nil
+            await refreshScheduleData()
         } catch {
             scheduleErrorMessage = "Could not create poll: \(error.localizedDescription)"
         }
@@ -3438,6 +3447,7 @@ final class AppViewModel: ObservableObject {
 
         guard !selectedMatches.isEmpty else {
             adminReportPreviewText = nil
+            adminReportPreviewImageURL = nil
             adminReportStatusMessage = "Inga matcher hittades för \(dayKey)."
             return
         }
@@ -3480,7 +3490,7 @@ final class AppViewModel: ObservableObject {
         let marathon = gamesByPlayer.max { $0.value < $1.value }
         let mostRotations = partnerCounts.max { $0.value.count < $1.value.count }
 
-        adminReportPreviewText = ([
+        let reportLines = [
             "🎾 MATCHKVÄLLS-RAPPORT",
             "Datum: \(dayKey)",
             "Antal matcher: \(totalMatches)",
@@ -3494,7 +3504,10 @@ final class AppViewModel: ObservableObject {
             marathon.map { "🏃 Marathon-spelare: \(playerName(for: $0.key)) (\($0.value) matcher)" },
             mostRotations.map { "🔄 Flest lagkamrater: \(playerName(for: $0.key)) (\($0.value.count) st)" },
             "⚡ Jämna matcher: \(selectedMatches.filter { abs($0.teamAScore - $0.teamBScore) <= 2 }.count) st"
-        ].compactMap { $0 }).joined(separator: "\n")
+        ].compactMap { $0 }
+
+        adminReportPreviewText = reportLines.joined(separator: "\n")
+        adminReportPreviewImageURL = buildAdminReportImageURL(title: "Matchkvälls-recap", lines: reportLines, fileNamePrefix: "admin-evening-report")
 
         adminReportStatusMessage = "Kvällsrapport genererad med fördjupad statistik."
     }
@@ -3517,6 +3530,7 @@ final class AppViewModel: ObservableObject {
 
             guard let tournament = tournaments.first(where: { $0.id == tournamentId }) else {
                 adminReportStatusMessage = "Turneringen hittades inte lokalt."
+                adminReportPreviewImageURL = nil
                 return
             }
 
@@ -3528,7 +3542,7 @@ final class AppViewModel: ObservableObject {
 
             let scoredRounds = rounds.filter { $0.team1Score != nil }.count
 
-            adminReportPreviewText = ([
+            let reportLines = [
                 "🏆 TURNERINGS-RAPPORT",
                 "Namn: \(tournament.name)",
                 "Typ: \(tournament.tournamentType.uppercased())",
@@ -3541,11 +3555,25 @@ final class AppViewModel: ObservableObject {
                 "✨ SAMMANFATTNING",
                 "Totalt antal deltagare: \(standings.count) st",
                 "Mest poäng i en runda: \(rounds.compactMap { max($0.team1Score ?? 0, $0.team2Score ?? 0) }.max() ?? 0) pts"
-            ]).joined(separator: "\n")
+            ]
+            adminReportPreviewText = reportLines.joined(separator: "\n")
+            adminReportPreviewImageURL = buildAdminReportImageURL(title: "Turneringsrecap", lines: reportLines, fileNamePrefix: "admin-tournament-report")
             adminReportStatusMessage = "Turneringsrapport genererad."
         } catch {
+            adminReportPreviewImageURL = nil
             adminReportStatusMessage = "Kunde inte generera rapport: \(error.localizedDescription)"
         }
+    }
+
+    private func buildAdminReportImageURL(title: String, lines: [String], fileNamePrefix: String) -> URL? {
+        // Note for non-coders:
+        // This creates a shareable PNG preview so admins see a real image (like PWA share cards)
+        // instead of only raw text.
+        try? ShareCardService.createShareImageFile(
+            title: title,
+            bodyLines: Array(lines.prefix(18)),
+            fileNamePrefix: fileNamePrefix
+        )
     }
 
     func buildWeeklyEmailPreview(timeframe: AdminWeeklyTimeframe, week: Int?, year: Int?) async {

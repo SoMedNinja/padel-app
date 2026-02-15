@@ -12,6 +12,12 @@ struct MainTabView: View {
                 }
                 .tag(0)
 
+            ProfileView()
+                .tabItem {
+                    Label("Profil", systemImage: "person.crop.circle")
+                }
+                .tag(2)
+
             if viewModel.canUseSingleGame {
                 SingleGameView()
                     .tabItem {
@@ -19,12 +25,6 @@ struct MainTabView: View {
                     }
                     .tag(1)
             }
-
-            ProfileView()
-                .tabItem {
-                    Label("Profil", systemImage: "person.crop.circle")
-                }
-                .tag(2)
 
             if viewModel.canSeeSchedule {
                 ScheduleView()
