@@ -1,0 +1,11 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
+  <rect width='800' height='420' fill='#ecfeff'/>
+  <rect x='120' y='60' width='560' height='300' fill='#bbf7d0' stroke='#14532d' stroke-width='4'/>
+  <line x1='400' y1='60' x2='400' y2='360' stroke='#14532d' stroke-width='3'/>
+  <line x1='120' y1='210' x2='680' y2='210' stroke='#14532d' stroke-width='3'/>
+  <text x='30' y='42' font-size='28' fill='#0f172a' font-family='Arial'>Lobb, volley, bandeja, vibora</text>
+  <path d='M220 310 Q320 120 500 90' stroke='#2563eb' stroke-width='6' fill='none'/>
+  <path d='M520 120 Q470 150 430 170' stroke='#dc2626' stroke-width='6' fill='none'/>
+  <path d='M300 90 Q380 150 550 220' stroke='#16a34a' stroke-width='6' fill='none'/>
+  <path d='M280 110 Q340 180 420 250' stroke='#9333ea' stroke-width='6' fill='none'/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
+  <rect width='800' height='420' fill='#f8fafc'/>
+  <text x='40' y='46' font-size='28' fill='#0f172a' font-family='Arial'>Mexicana rotation</text>
+  <g font-family='Arial' fill='#1e293b'>
+    <rect x='60' y='90' width='180' height='110' rx='12' fill='#dbeafe'/><text x='95' y='150' font-size='22'>Runda 1</text>
+    <rect x='310' y='90' width='180' height='110' rx='12' fill='#dcfce7'/><text x='345' y='150' font-size='22'>Runda 2</text>
+    <rect x='560' y='90' width='180' height='110' rx='12' fill='#fee2e2'/><text x='595' y='150' font-size='22'>Runda 3</text>
+    <text x='95' y='250' font-size='20'>A+B vs C+D</text>
+    <text x='345' y='250' font-size='20'>A+C vs B+D</text>
+    <text x='595' y='250' font-size='20'>A+D vs B+C</text>
+  </g>
+  <path d='M245 145h50' stroke='#0ea5e9' stroke-width='8' marker-end='url(#arr)'/>
+  <path d='M495 145h50' stroke='#0ea5e9' stroke-width='8' marker-end='url(#arr)'/>
+  <defs><marker id='arr' markerWidth='10' markerHeight='10' refX='6' refY='3' orient='auto'><path d='M0,0 L0,6 L7,3 z' fill='#0ea5e9'/></marker></defs>
+</svg>

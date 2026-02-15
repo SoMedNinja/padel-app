@@ -5,6 +5,12 @@ export interface EducationQuizQuestion {
   correctAnswer: string;
 }
 
+export interface EducationArticleIllustration {
+  src: string;
+  alt: string;
+  caption: string;
+}
+
 export interface EducationTopic {
   id: string;
   title: string;
@@ -14,6 +20,7 @@ export interface EducationTopic {
   badgeLabel: string;
   badgeIcon: string;
   article: string[];
+  articleIllustrations: EducationArticleIllustration[];
   quiz: EducationQuizQuestion[];
 }
 
@@ -28,9 +35,16 @@ export const educationTopics: EducationTopic[] = [
     badgeLabel: "Mexicana-mästare",
     badgeIcon: "🔁",
     article: [
-      "Mexicana är ett socialt padelformat där lagkamrater och motståndare roterar efter varje kort match.",
-      "Poängen räknas oftast per spelare, och den tabellen används för att skapa jämnare nästa omgång.",
-      "Formatet passar bra när många vill spela på kort tid och möta flera olika spelare.",
+      "Mexicana är ett socialt padelformat där lagkamrater och motståndare roterar efter varje kort match, ofta efter ett bestämt antal poäng eller minuter. Det gör att tempot hålls uppe och att alla möter många olika spelare under samma pass.",
+      "Poängen räknas vanligen per individ i stället för per lag, vilket betyder att varje boll spelar roll även om du byter partner i nästa runda. En tydlig resultattabell hjälper arrangören att skapa jämnare nya par och mer balanserade matcher.",
+      "För att lyckas i Mexicana lönar det sig att spela enkelt, kommunicera tidigt och undvika onödiga chansslag. Stabilitet över många korta matcher brukar ge bättre slutplacering än enstaka spektakulära poäng.",
+    ],
+    articleIllustrations: [
+      {
+        src: "/education/mexicana-rotation.svg",
+        alt: "Diagram över hur spelare roterar mellan banor i Mexicana",
+        caption: "Exempel på rotation mellan rundor i ett Mexicana-upplägg.",
+      },
     ],
     quiz: [
       {
@@ -56,9 +70,16 @@ export const educationTopics: EducationTopic[] = [
     badgeLabel: "Americano-strateg",
     badgeIcon: "🏁",
     article: [
-      "Americano spelas ofta som ett poängrace över många korta rundor med roterande lag.",
-      "I stället för utslagning handlar det om att samla så många poäng som möjligt totalt.",
-      "Jämn nivå och få enkla misstag är ofta viktigare än att jaga svåra vinnarslag.",
+      "Americano spelas som ett poängrace där alla deltagare möter många olika kombinationer av med- och motspelare i korta rundor. Formatet är uppskattat för att det är rättvist, socialt och lätt att anpassa till olika nivåer.",
+      "Till skillnad från utslagningsturneringar summeras poängen du tar i varje runda till en totalställning. Det betyder att du behöver hålla fokus hela vägen, eftersom även sena bollar i en match kan påverka din slutplacering markant.",
+      "En bra Americano-strateg är att prioritera säkra returer, smart placering och tydlig kommunikation med din tillfälliga partner. Spelare som minimerar enkla misstag brukar klättra i tabellen snabbare än de som jagar svåra avgöranden.",
+    ],
+    articleIllustrations: [
+      {
+        src: "/education/americano-scoreboard.svg",
+        alt: "Poängtavla för Americano med flera rundor",
+        caption: "Poäng summeras löpande över alla rundor i Americano.",
+      },
     ],
     quiz: [
       {
@@ -78,9 +99,16 @@ export const educationTopics: EducationTopic[] = [
     badgeLabel: "Slag-kännare",
     badgeIcon: "🎾",
     article: [
-      "I padel används flera olika slag beroende på situation: grundslag, volley, lob, bandeja och vibora.",
-      "Ett säkert grundslag bygger dueller, volley tar tid från motståndaren, och lobb används för att ta tillbaka nätet.",
-      "Bandeja och vibora är kontrollerade overheadslag för att behålla initiativet utan att ge enkla kontringar.",
+      "I padel bygger du poäng genom att välja rätt slag i rätt läge. Grundslag från bakplan används för att hålla bollen i spel, skapa rytm och flytta motståndarna. Ett lugnt, djupt grundslag ger ofta bättre kontroll än ett hårt chansslag.",
+      "Volley slås nära nät och används för att ta tid från motståndaren. Lobb är det viktigaste försvarsslaget när du vill återta nätet, särskilt om motståndarna pressar med volley. En hög, djup lobb ger dig tid att flytta fram tillsammans med partnern.",
+      "Bandeja är ett kontrollerat overheadslag med skuren boll som ofta spelas mot hörn eller mitt för att behålla nätposition. Vibora är mer aggressiv och sidospinnad, men kräver timing. Målet med båda slagen är oftast kontroll och initiativ, inte maximal kraft.",
+    ],
+    articleIllustrations: [
+      {
+        src: "/education/padel-shots.svg",
+        alt: "Illustration av lobb, volley, bandeja och vibora",
+        caption: "Exempel på slagbanor för lobb, volley, bandeja och vibora.",
+      },
     ],
     quiz: [
       {
@@ -106,9 +134,16 @@ export const educationTopics: EducationTopic[] = [
     badgeLabel: "Rörelse-coach",
     badgeIcon: "🏃",
     article: [
-      "I dubbel ska ni röra er tillsammans. När en spelare går framåt ska partnern oftast följa med för att hålla laget kompakt.",
-      "Efter varje slag är målet att snabbt återgå till en balanserad utgångsposition med små justeringssteg.",
-      "Tydlig kommunikation om lobb, mittenboll och byte minskar missförstånd och förbättrar positioneringen.",
+      "I padel rör sig ett bra par som en sammanhängande enhet, inte som två separata singelspelare. När en spelare går fram mot nät följer partnern med för att hålla laget kompakt och minska ytan som motståndaren kan spela igenom.",
+      "Efter varje slag behöver båda spelarna göra små justeringssteg tillbaka till en balanserad utgångsposition. Denna återställning gör att ni hinner reagera på snabba riktningsbyten, studs i glaset och bollar som går mot mitten.",
+      "Kommunikation är avgörande: ropa tidigt på lobb, mittenboll och eventuella byten av sida. Korta tydliga kommandon minskar tvekan, förbättrar besluten och gör att ni snabbare kan gå från försvar till ett stabilt nätspel.",
+    ],
+    articleIllustrations: [
+      {
+        src: "/education/movement-positions.svg",
+        alt: "Spelarpositioner i rörelse med pilar för lagets förflyttning",
+        caption: "Paren flyttar synkroniserat framåt, bakåt och i sidled.",
+      },
     ],
     quiz: [
       {
@@ -134,9 +169,16 @@ export const educationTopics: EducationTopic[] = [
     badgeLabel: "Regelproffs",
     badgeIcon: "📘",
     article: [
-      "Serve ska slås under midjehöjd efter en studs och diagonalt till rätt serveruta.",
-      "Bollen får studsa i golvet och sedan träffa glas, men inte tvärtom på den egna sidan.",
-      "Poängräkning följer normalt tennismodellen: 15, 30, 40 och game.",
+      "En giltig serve i padel startar med att bollen studsas i marken och slås under midjehöjd diagonalt till rätt serveruta. Om första serven blir fel får du en andraserve, men två fel i rad ger poängen till motståndarna.",
+      "Under duellen måste bollen först träffa golvet på egen sida innan den får gå i glaset. På motståndarsidan är det tillåtet att bollen studsar och sedan tar glas, men direktträff i glas utan studs räknas som fel.",
+      "Poängsystemet följer normalt tennis med 15, 30, 40 och game. Vid 40–40 spelas avgörande boll eller fördelssystem beroende på lokala regler. Känn också till sidbyte, nätberöring och vad som gäller vid boll i galler.",
+    ],
+    articleIllustrations: [
+      {
+        src: "/education/rules-serve.svg",
+        alt: "Padelbana med serveruta och studs före serve",
+        caption: "Serve under midjehöjd med studs och diagonal riktning.",
+      },
     ],
     quiz: [
       {
@@ -162,9 +204,16 @@ export const educationTopics: EducationTopic[] = [
     badgeLabel: "Anfallsmotor",
     badgeIcon: "🔥",
     article: [
-      "Offensivt spel bygger ofta på att vinna nätposition och hålla motståndarna bakom baslinjen.",
-      "Placering är oftast viktigare än rå kraft; bollar mot fötter och hörn skapar svåra returer.",
-      "Välj rätt läge för avgörande slag. Pressa kontinuerligt men undvik onödiga risker i fel läge.",
+      "Offensivt padelspel börjar med att vinna och behålla nätposition, eftersom du därifrån kan ta bollen tidigare och styra tempot. När båda spelarna står samlat nära nätet blir det lättare att stänga vinklar och skapa press.",
+      "Bra anfall handlar mer om placering än rå styrka. Volleys mot fötter, mot mitten mellan spelarna eller djupt i hörnen tvingar fram svåra returer. En väl vald bandeja håller motståndarna bakpressade utan att ge dem enkla kontringslägen.",
+      "Välj dina avslut med disciplin: attackera när du har balans och rätt bollhöjd, men spela säkert i neutrala lägen. Ett moget offensivt spel bygger kontinuerligt tryck över flera slag tills rätt läge för avgörande kommer.",
+    ],
+    articleIllustrations: [
+      {
+        src: "/education/offense-positions.svg",
+        alt: "Padelbana som visar offensiva nätpositioner och målområden",
+        caption: "Offensiva positioner vid nät med fokus på hörn, mitt och fötter.",
+      },
     ],
     quiz: [
       {
@@ -184,9 +233,16 @@ export const educationTopics: EducationTopic[] = [
     badgeLabel: "Försvarsgeneral",
     badgeIcon: "🛡️",
     article: [
-      "Defensivt spel handlar om att köpa tid, neutralisera press och vänta in rätt läge att vända duellen.",
-      "Djupa bollar med höjd och smart användning av glas hjälper dig att komma tillbaka i position.",
-      "När du är pressad är målet ofta att spela säkert och skapa möjlighet till en lobb som flyttar fram laget.",
+      "Defensivt spel i padel handlar om att neutralisera motståndarens press, vinna tid och återfå balans i banan. När du är tillbakapressad är första prioritet att hålla bollen i spel med bra marginal över nät och kontrollerad längd.",
+      "Använd glaset aktivt för att hantera svåra bollar i hörn och på vägg. Genom att läsa studs och låta bollen arbeta åt dig kan du spela säkrare returer i stället för stressade halvhuggna slag från dålig position.",
+      "Lobben är nyckeln för att växla från försvar till anfall. En hög, djup lobb flyttar motståndarna bakåt och ger ditt lag tid att gå fram tillsammans. Tålamod, kommunikation och rätt höjd är grunden i ett starkt försvarsspel.",
+    ],
+    articleIllustrations: [
+      {
+        src: "/education/defense-reset.svg",
+        alt: "Defensiv position med lobb för att återta nätet",
+        caption: "Defensiv återhämtning: kontrollera, lobba och flytta fram laget.",
+      },
     ],
     quiz: [
       {

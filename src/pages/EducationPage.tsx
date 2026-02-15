@@ -21,6 +21,7 @@ import {
 import {
   ArrowForward as ArrowForwardIcon,
   CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
   DirectionsRun as DirectionsRunIcon,
   Flag as FlagIcon,
   Gavel as GavelIcon,
@@ -39,6 +40,7 @@ interface CompletedQuizRecord {
   badgeIcon: string;
   answeredAt: string;
   correctCount: number;
+  passed: boolean;
   answers: Record<string, string>;
 }
 
@@ -87,6 +89,9 @@ function TopicListView({ completedByTopicId }: { completedByTopicId: Record<stri
                       primaryTypographyProps={{ fontWeight: 700 }}
                     />
                     {earnedBadge ? (
+                      earnedBadge.passed ? <CheckCircleIcon color="success" sx={{ mr: 1 }} /> : <CancelIcon color="error" sx={{ mr: 1 }} />
+                    ) : null}
+                    {earnedBadge ? (
                       <Chip size="small" color="success" label={`${earnedBadge.badgeIcon} ${earnedBadge.badgeLabel}`} sx={{ mr: 1 }} />
                     ) : null}
                     <ArrowForwardIcon color="action" />
@@ -115,12 +120,14 @@ function TopicArticleView({
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>(completion?.answers ?? {});
 
   const isCompleted = Boolean(completion);
-  const allAnswered = topic.quiz.every((question) => Boolean(selectedAnswers[question.id]));
 
   const correctCount = useMemo(
     () => topic.quiz.filter((question) => selectedAnswers[question.id] === question.correctAnswer).length,
     [selectedAnswers, topic.quiz],
   );
+
+  const passed = isCompleted ? completion.passed : correctCount === topic.quiz.length;
+  const allAnswered = topic.quiz.every((question) => Boolean(selectedAnswers[question.id]));
 
   useEffect(() => {
     setSelectedAnswers(completion?.answers ?? {});
@@ -139,6 +146,7 @@ function TopicArticleView({
       badgeIcon: topic.badgeIcon,
       answeredAt: new Date().toISOString(),
       correctCount,
+      passed: correctCount === topic.quiz.length,
       answers: selectedAnswers,
     });
   };
@@ -147,7 +155,7 @@ function TopicArticleView({
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Button variant="text" onClick={() => navigate("/education")}>Till ämneslistan</Button>
-        <Chip label={`${correctCount}/${topic.quiz.length} rätt`} color="primary" variant="outlined" />
+        <Chip label={`${correctCount}/${topic.quiz.length} rätt`} color={passed ? "success" : "primary"} variant="outlined" />
       </Stack>
 
       <Card sx={{ borderRadius: 3, mb: 2 }}>
@@ -181,6 +189,26 @@ function TopicArticleView({
             {topic.article.map((paragraph) => (
               <Typography key={paragraph} color="text.secondary">{paragraph}</Typography>
             ))}
+
+            {topic.articleIllustrations.map((illustration) => (
+              <Box key={illustration.src} sx={{ mt: 1 }}>
+                <Box
+                  component="img"
+                  src={illustration.src}
+                  alt={illustration.alt}
+                  sx={{
+                    width: "100%",
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                  {illustration.caption}
+                </Typography>
+              </Box>
+            ))}
           </Stack>
         </CardContent>
       </Card>
@@ -190,8 +218,8 @@ function TopicArticleView({
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Quiz (en gång)</Typography>
 
           {isCompleted ? (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Du har redan slutfört detta quiz och fått badgen <strong>{topic.badgeIcon} {topic.badgeLabel}</strong>.
+            <Alert severity={completion.passed ? "success" : "error"} sx={{ mb: 2 }}>
+              {completion.passed ? "✅ Du klarade quizet!" : "❌ Quizet blev inte godkänt den här gången."} Resultat: {completion.correctCount}/{topic.quiz.length}.
             </Alert>
           ) : null}
 
@@ -256,7 +284,17 @@ export default function EducationPage() {
 
     try {
       const parsed = JSON.parse(raw) as Record<string, CompletedQuizRecord>;
-      setCompletedByTopicId(parsed);
+      // Note for non-coders: older saved quiz results may not have the `passed` field, so we calculate it from score.
+      const normalized = Object.fromEntries(
+        Object.entries(parsed).map(([key, value]) => [
+          key,
+          {
+            ...value,
+            passed: value.passed ?? value.correctCount === educationTopics.find((topic) => topic.id === key)?.quiz.length,
+          },
+        ]),
+      ) as Record<string, CompletedQuizRecord>;
+      setCompletedByTopicId(normalized);
     } catch {
       setCompletedByTopicId({});
     }
