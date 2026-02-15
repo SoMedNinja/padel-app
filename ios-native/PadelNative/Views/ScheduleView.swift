@@ -18,6 +18,7 @@ struct ScheduleView: View {
     @State private var localCalendarStatus: String?
     @State private var showCalendarInviteForm = false
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
     @State private var inviteSendAnimationTick = 0
     @State private var calendarPermissionStatus: EKAuthorizationStatus = .notDetermined
 
@@ -42,7 +43,7 @@ struct ScheduleView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     ScrollOffsetTracker()
-                    PadelRefreshHeader(isRefreshing: viewModel.isScheduleLoading && !viewModel.polls.isEmpty, pullProgress: pullProgress)
+                    PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
                     statusSection
                     scheduledGamesSection
                     calendarInviteSection
@@ -58,8 +59,7 @@ struct ScheduleView: View {
             .padelLiquidGlassChrome()
             .coordinateSpace(name: "padelScroll")
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                let threshold: CGFloat = 80
-                pullProgress = max(0, min(1.0, offset / threshold))
+                pullProgress = PullToRefreshBehavior.progress(for: offset)
             }
             .task {
                 await viewModel.refreshScheduleData()
@@ -70,7 +70,9 @@ struct ScheduleView: View {
                 syncExpandedPollDefaults()
             }
             .refreshable {
-                await viewModel.refreshScheduleData()
+                await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                    await viewModel.refreshScheduleData()
+                }
             }
             .sheet(item: Binding(
                 get: { viewModel.pendingMatchConflict },

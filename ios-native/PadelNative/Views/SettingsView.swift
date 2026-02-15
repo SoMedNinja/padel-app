@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var showCropper = false
     @State private var imageToCrop: UIImage?
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
     @State private var showLogoutConfirmation = false
 
     var body: some View {
@@ -18,7 +19,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     ScrollOffsetTracker()
-                    PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.players.isEmpty, pullProgress: pullProgress)
+                    PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
 
                     if let current = viewModel.currentPlayer {
                         profileSection(current)
@@ -68,11 +69,12 @@ struct SettingsView: View {
             .background(AppColors.background)
             .coordinateSpace(name: "padelScroll")
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                let threshold: CGFloat = 80
-                pullProgress = max(0, min(1.0, offset / threshold))
+                pullProgress = PullToRefreshBehavior.progress(for: offset)
             }
             .refreshable {
-                await viewModel.bootstrap()
+                await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                    await viewModel.bootstrap()
+                }
             }
             .task {
                 await viewModel.refreshDevicePermissionStatuses()

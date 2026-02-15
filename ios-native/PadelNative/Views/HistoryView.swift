@@ -9,6 +9,7 @@ struct HistoryView: View {
     @State private var editingMatch: Match?
     @State private var matchToDelete: Match?
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
 
     // Note for non-coders:
     // We share one formatter helper so all screens show dates the same way.
@@ -19,7 +20,7 @@ struct HistoryView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     ScrollOffsetTracker()
-                    PadelRefreshHeader(isRefreshing: viewModel.isHistoryLoading && !viewModel.historyMatches.isEmpty, pullProgress: pullProgress)
+                    PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
                     filterSection
                     if let conflictResolutionMessage = viewModel.conflictResolutionMessage {
                         SectionCard(title: "Konfliktstatus") {
@@ -40,11 +41,12 @@ struct HistoryView: View {
             .padelLiquidGlassChrome()
             .coordinateSpace(name: "padelScroll")
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                let threshold: CGFloat = 80
-                pullProgress = max(0, min(1.0, offset / threshold))
+                pullProgress = PullToRefreshBehavior.progress(for: offset)
             }
             .refreshable {
-                await viewModel.reloadHistoryMatches()
+                await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                    await viewModel.reloadHistoryMatches()
+                }
             }
             .task {
                 if viewModel.historyMatches.isEmpty {

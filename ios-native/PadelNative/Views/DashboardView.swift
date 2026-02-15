@@ -27,6 +27,7 @@ struct DashboardView: View {
 
     @State private var showScrollToTop = false
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
     @State private var heatmapSortKey: String = "games"
     @State private var heatmapSortAscending: Bool = false
     @State private var lastErrorNoticeMessage: String?
@@ -41,7 +42,7 @@ struct DashboardView: View {
                     ScrollView {
                         VStack(spacing: 12) {
                             ScrollOffsetTracker()
-                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.matches.isEmpty, pullProgress: pullProgress)
+                            PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
 
                             Color.clear
                                 .frame(height: 0.01)
@@ -57,11 +58,12 @@ struct DashboardView: View {
                     .background(AppColors.background)
                     .coordinateSpace(name: "padelScroll")
                     .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                        let threshold: CGFloat = 80
-                        pullProgress = max(0, min(1.0, offset / threshold))
+                        pullProgress = PullToRefreshBehavior.progress(for: offset)
                     }
                     .refreshable {
-                        await viewModel.bootstrap()
+                        await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                            await viewModel.bootstrap()
+                        }
                     }
 
                     if showScrollToTop {

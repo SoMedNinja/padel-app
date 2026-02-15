@@ -75,6 +75,7 @@ struct AdminView: View {
     @State private var renamingProfile: AdminProfile?
     @State private var newPlayerName: String = ""
     @State private var pullProgress: CGFloat = 0
+    @State private var isPullRefreshing = false
 
     var body: some View {
         NavigationStack {
@@ -83,7 +84,7 @@ struct AdminView: View {
                     ScrollView {
                         VStack(spacing: 20) {
                             ScrollOffsetTracker()
-                            PadelRefreshHeader(isRefreshing: viewModel.isDashboardLoading && !viewModel.adminProfiles.isEmpty, pullProgress: pullProgress)
+                            PadelRefreshHeader(isRefreshing: isPullRefreshing, pullProgress: pullProgress)
                             SectionCard(title: "Adminområde") {
                                 Picker("Område", selection: $selectedTab) {
                                     ForEach(AdminTab.allCases) { tab in
@@ -117,8 +118,7 @@ struct AdminView: View {
                     .background(AppColors.background)
                     .coordinateSpace(name: "padelScroll")
                     .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                        let threshold: CGFloat = 80
-                        pullProgress = max(0, min(1.0, offset / threshold))
+                        pullProgress = PullToRefreshBehavior.progress(for: offset)
                     }
                     .overlay {
                         if viewModel.isAdminActionRunning || viewModel.isAdminReportRunning || viewModel.isAdminEmailActionRunning {
@@ -167,8 +167,10 @@ struct AdminView: View {
                 }
             }
             .refreshable {
-                guard viewModel.canUseAdmin else { return }
-                await viewModel.bootstrap()
+                await PullToRefreshBehavior.performRefresh(isPullRefreshing: $isPullRefreshing) {
+                    guard viewModel.canUseAdmin else { return }
+                    await viewModel.bootstrap()
+                }
             }
             .alert(item: $pendingAction) { action in
                 Alert(
