@@ -6,7 +6,11 @@ import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import theme from "./theme";
 import App from "./App";
-import { loadNotificationPreferencesWithSync, registerPushServiceWorker } from "./services/webNotificationService";
+import {
+  loadNotificationPreferencesWithSync,
+  registerPushServiceWorker,
+  setupPwaUpdateUX,
+} from "./services/webNotificationService";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -23,7 +27,15 @@ const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Failed to find the root element");
 
 if (typeof window !== "undefined") {
-  // Note for non-coders: this starts the push service worker early so web push can arrive even when this tab is in the background.
+  // Note for non-coders: this starts the service worker early so push alerts and offline caching both work in the background.
+  const updateServiceWorker = setupPwaUpdateUX(() => {
+    // Note for non-coders: this message appears when a fresh version is ready and a reload will switch to it.
+    const shouldReload = window.confirm("A new version is ready. Reload now to update?");
+    if (shouldReload) {
+      updateServiceWorker();
+    }
+  });
+
   void (async () => {
     const initialPreferences = await loadNotificationPreferencesWithSync();
     await registerPushServiceWorker(initialPreferences);

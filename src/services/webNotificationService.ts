@@ -7,7 +7,7 @@ import {
 import { supabase } from "../supabaseClient";
 
 const STORAGE_KEY = "settings.notificationPreferences.v1";
-const SW_PATH = "/notification-sw.js";
+const SW_PATH = "/sw.js";
 const NOTIFICATION_PREFERENCES_TABLE = "notification_preferences";
 
 type NotificationPreferenceRow = {
@@ -161,10 +161,55 @@ export async function ensureNotificationPermission(): Promise<NotificationPermis
 
 export async function registerPushServiceWorker(preferences: NotificationPreferences): Promise<ServiceWorkerRegistration | null> {
   if (!("serviceWorker" in navigator)) return null;
-  const registration = await navigator.serviceWorker.register(SW_PATH);
+
+  // Note for non-coders:
+  // We reuse the same service worker registration so offline app caching and push notifications stay in one place.
+  let registration = await navigator.serviceWorker.getRegistration(SW_PATH);
+  registration ??= await navigator.serviceWorker.register(SW_PATH);
   await navigator.serviceWorker.ready;
   await syncPreferencesToServiceWorker(preferences);
   return registration;
+}
+
+export function setupPwaUpdateUX(onUpdateAvailable: () => void): () => void {
+  if (!("serviceWorker" in navigator)) return () => {};
+
+  let waitingWorker: ServiceWorker | null = null;
+  let hasReloadedAfterUpdate = false;
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hasReloadedAfterUpdate) return;
+    hasReloadedAfterUpdate = true;
+    window.location.reload();
+  });
+
+  // Note for non-coders:
+  // When a new worker finishes installing, we store it so the UI can trigger an explicit "reload to update" action.
+  const trackRegistration = (registration: ServiceWorkerRegistration) => {
+    const syncWaitingWorker = () => {
+      waitingWorker = registration.waiting;
+      if (waitingWorker) onUpdateAvailable();
+    };
+
+    syncWaitingWorker();
+
+    registration.addEventListener("updatefound", () => {
+      const installing = registration.installing;
+      if (!installing) return;
+      installing.addEventListener("statechange", () => {
+        if (installing.state === "installed" && navigator.serviceWorker.controller) {
+          syncWaitingWorker();
+        }
+      });
+    });
+  };
+
+  void navigator.serviceWorker.ready.then(trackRegistration);
+
+  return () => {
+    if (!waitingWorker) return;
+    waitingWorker.postMessage({ type: "SKIP_WAITING" });
+  };
 }
 
 export async function syncPreferencesToServiceWorker(preferences: NotificationPreferences): Promise<void> {
