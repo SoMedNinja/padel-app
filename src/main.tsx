@@ -11,6 +11,7 @@ import {
   registerPushServiceWorker,
   setupPwaUpdateUX,
 } from "./services/webNotificationService";
+import { matchService } from "./services/matchService";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -42,6 +43,9 @@ function normalizeOpenRouteMessage(routeCandidate: unknown): string | null {
 }
 
 if (typeof window !== "undefined") {
+  // Note for non-coders: this starts the offline queue listener so match submissions can retry automatically.
+  matchService.initMutationQueue();
+
   // Note for non-coders: this starts the service worker early so push alerts and offline caching both work in the background.
   const updateServiceWorker = setupPwaUpdateUX(() => {
     // Note for non-coders: this message appears when a fresh version is ready and a reload will switch to it.

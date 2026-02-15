@@ -44,6 +44,40 @@ workbox.routing.registerRoute(
   })
 );
 
+
+function isKeyReadEndpoint(url) {
+  // Note for non-coders:
+  // We only cache read-heavy endpoints so dashboards/profiles/history open fast while fresh data still loads in background.
+  if (!url.pathname.includes("/rest/v1/") && !url.pathname.includes("/rpc/")) return false;
+
+  const restMatch = url.pathname.match(/\/rest\/v1\/([^/?]+)/);
+  const endpoint = restMatch?.[1] || "";
+  const readTables = ["profiles", "matches", "tournaments", "tournament_rounds", "tournament_results"];
+
+  if (readTables.includes(endpoint)) return true;
+
+  if (url.pathname.includes("/rpc/")) {
+    const rpcName = url.pathname.split("/").pop() || "";
+    return ["profile", "dashboard", "history"].some((keyword) => rpcName.includes(keyword));
+  }
+
+  return false;
+}
+
+workbox.routing.registerRoute(
+  ({ request, url }) => request.method === "GET" && isKeyReadEndpoint(url),
+  new workbox.strategies.StaleWhileRevalidate({
+    cacheName: "supabase-key-read-runtime-cache",
+    plugins: [
+      new workbox.cacheableResponse.CacheableResponsePlugin({ statuses: [200] }),
+      new workbox.expiration.ExpirationPlugin({
+        maxEntries: 120,
+        maxAgeSeconds: 60 * 10,
+      }),
+    ],
+  })
+);
+
 workbox.routing.registerRoute(
   ({ request }) => request.destination === "image",
   new workbox.strategies.CacheFirst({
