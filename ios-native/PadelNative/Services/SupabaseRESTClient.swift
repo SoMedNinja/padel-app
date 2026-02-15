@@ -42,6 +42,7 @@ struct MatchSubmission: Encodable {
     let teamAServesFirst: Bool
     let playedAt: Date
     let createdBy: UUID
+    let matchMode: ContractMatchMode?
 
     enum CodingKeys: String, CodingKey {
         case teamAName = "team1"
@@ -416,6 +417,7 @@ struct SupabaseRESTClient {
 
         struct PollInsertPayload: Encodable {
             let createdBy: UUID
+    let matchMode: ContractMatchMode?
             let weekYear: Int
             let weekNumber: Int
             let startDate: String
@@ -423,6 +425,7 @@ struct SupabaseRESTClient {
 
             enum CodingKeys: String, CodingKey {
                 case createdBy = "created_by"
+        case matchMode = "match_mode"
                 case weekYear = "week_year"
                 case weekNumber = "week_number"
                 case startDate = "start_date"
@@ -480,11 +483,14 @@ struct SupabaseRESTClient {
     }
 
     func upsertAvailabilityVote(dayId: UUID, profileId: UUID, slotPreferences: [AvailabilitySlot]) async throws {
+        let normalized = slotPreferences.isEmpty ? nil : slotPreferences
+        let contractVote = try normalized.map { try ContractTransforms.toContractVote(dayId: dayId, profileId: profileId, slotPreferences: $0) }
+
         struct VoteUpsertPayload: Encodable {
             let pollDayId: UUID
             let profileId: UUID
             let slot: AvailabilitySlot?
-            let slotPreferences: [AvailabilitySlot]?
+            let slotPreferences: [ContractAvailabilitySlot]?
 
             enum CodingKeys: String, CodingKey {
                 case pollDayId = "poll_day_id"
@@ -494,12 +500,11 @@ struct SupabaseRESTClient {
             }
         }
 
-        let normalized = slotPreferences.isEmpty ? nil : slotPreferences
         let payload = [VoteUpsertPayload(
             pollDayId: dayId,
             profileId: profileId,
             slot: normalized?.count == 1 ? normalized?.first : nil,
-            slotPreferences: normalized
+            slotPreferences: contractVote?.slotPreferences
         )]
         try await sendPost(path: "/rest/v1/availability_votes?on_conflict=poll_day_id,profile_id", body: payload, preferHeader: "resolution=merge-duplicates")
     }
@@ -583,7 +588,56 @@ struct SupabaseRESTClient {
     }
 
     func submitMatch(_ match: MatchSubmission) async throws {
-        try await sendPost(path: "/rest/v1/matches", body: [match])
+        let contractMatch = try ContractTransforms.toContractMatchRequest(from: match)
+
+        struct MatchInsertPayload: Encodable {
+            let team1: [String]
+            let team2: [String]
+            let team1IDs: [UUID?]?
+            let team2IDs: [UUID?]?
+            let team1Sets: Int
+            let team2Sets: Int
+            let scoreType: String
+            let scoreTarget: Int?
+            let sourceTournamentId: UUID?
+            let sourceTournamentType: String
+            let teamAServesFirst: Bool
+            let playedAt: Date
+            let createdBy: UUID
+
+            enum CodingKeys: String, CodingKey {
+                case team1
+                case team2
+                case team1IDs = "team1_ids"
+                case team2IDs = "team2_ids"
+                case team1Sets = "team1_sets"
+                case team2Sets = "team2_sets"
+                case scoreType = "score_type"
+                case scoreTarget = "score_target"
+                case sourceTournamentId = "source_tournament_id"
+                case sourceTournamentType = "source_tournament_type"
+                case teamAServesFirst = "team1_serves_first"
+                case playedAt = "created_at"
+                case createdBy = "created_by"
+            }
+        }
+
+        let payload = MatchInsertPayload(
+            team1: contractMatch.team1,
+            team2: contractMatch.team2,
+            team1IDs: contractMatch.team1IDs,
+            team2IDs: contractMatch.team2IDs,
+            team1Sets: contractMatch.team1Sets,
+            team2Sets: contractMatch.team2Sets,
+            scoreType: match.scoreType,
+            scoreTarget: match.scoreTarget,
+            sourceTournamentId: contractMatch.sourceTournamentId,
+            sourceTournamentType: match.sourceTournamentType,
+            teamAServesFirst: match.teamAServesFirst,
+            playedAt: match.playedAt,
+            createdBy: contractMatch.createdBy
+        )
+        try await sendPost(path: "/rest/v1/matches", body: [payload])
     }
 
     func updateMatch(

@@ -21,25 +21,6 @@ struct AuthSession: Codable {
     }
 }
 
-private struct SupabaseAuthResponse: Decodable {
-    let accessToken: String
-    let refreshToken: String
-    let expiresAt: TimeInterval
-    let user: SupabaseAuthUser
-
-    enum CodingKeys: String, CodingKey {
-        case accessToken = "access_token"
-        case refreshToken = "refresh_token"
-        case expiresAt = "expires_at"
-        case user
-    }
-}
-
-private struct SupabaseAuthUser: Decodable {
-    let id: UUID
-    let email: String?
-}
-
 private struct ProfileAuthRow: Decodable {
     let id: UUID
     let fullName: String?
@@ -172,7 +153,7 @@ struct AuthService {
         _ = try? await URLSession.shared.data(for: request)
     }
 
-    private func resolveIdentity(user: SupabaseAuthUser, accessToken: String) async throws -> AuthIdentity {
+    private func resolveIdentity(user: ContractAuthSessionResponse.User, accessToken: String) async throws -> AuthIdentity {
         let profile = try await fetchProfile(profileId: user.id, accessToken: accessToken)
         return AuthIdentity(
             profileId: profile.id,
@@ -230,7 +211,7 @@ struct AuthService {
         return "Player"
     }
 
-    private func requestAuthToken(endpoint: String, body: Any) async throws -> SupabaseAuthResponse {
+    private func requestAuthToken(endpoint: String, body: Any) async throws -> ContractAuthSessionResponse {
         if let warning = AppConfig.configurationWarning {
             throw AuthServiceError.invalidConfiguration(message: warning)
         }
@@ -248,7 +229,7 @@ struct AuthService {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response, data: data)
-        return try decoder.decode(SupabaseAuthResponse.self, from: data)
+        return try decoder.decode(ContractAuthSessionResponse.self, from: data)
     }
 
     private func validate(response: URLResponse, data: Data? = nil) throws {
