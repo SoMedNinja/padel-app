@@ -377,23 +377,53 @@ export async function updateEventToggle(
   return updated;
 }
 
-async function isServiceWorkerReady(): Promise<boolean> {
-  if (!("serviceWorker" in navigator)) return false;
+function detectStandaloneInstallState(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const isStandaloneMedia = window.matchMedia?.("(display-mode: standalone)")?.matches ?? false;
+  const isIosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+  return isStandaloneMedia || isIosStandalone;
+}
+
+function detectNotificationBrowserLimitation(isInstalledPwa: boolean): string | null {
+  if (typeof navigator === "undefined") return null;
+  const ua = navigator.userAgent.toLowerCase();
+  const isIos = /iphone|ipad|ipod/.test(ua);
+  const isSafari = /safari/.test(ua) && !/chrome|crios|fxios|edgios/.test(ua);
+
+  if (isIos && isSafari && !isInstalledPwa) {
+    return "On iOS Safari, push notifications work only after adding this app to your Home Screen and opening it as an installed app.";
+  }
+
+  return null;
+}
+
+async function getServiceWorkerDiagnostics(): Promise<{ supported: boolean; registration: ServiceWorkerRegistration | null; ready: boolean }> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return { supported: false, registration: null, ready: false };
+  }
+
   try {
-    const registration = await navigator.serviceWorker.ready;
-    return Boolean(registration.active);
+    const registration = await navigator.serviceWorker.getRegistration(SW_PATH);
+    const ready = Boolean(registration?.active);
+    return {
+      supported: true,
+      registration: registration ?? null,
+      ready,
+    };
   } catch {
-    return false;
+    return { supported: true, registration: null, ready: false };
   }
 }
 
 // Note for non-coders:
 // This collects the browser's capability checks and translates them into the shared state labels.
 export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSnapshot[]> {
+  const isSecureContext = typeof window !== "undefined" ? window.isSecureContext : false;
+  const isInstalledPwa = detectStandaloneInstallState();
+  const notificationBrowserLimitation = detectNotificationBrowserLimitation(isInstalledPwa);
   const notificationSupported = typeof window !== "undefined" && "Notification" in window;
   const notificationPermission = notificationSupported ? Notification.permission : "denied";
-  const swSupported = typeof navigator !== "undefined" && "serviceWorker" in navigator;
-  const swReady = swSupported ? await isServiceWorkerReady() : false;
+  const { supported: swSupported, registration: swRegistration, ready: swReady } = await getServiceWorkerDiagnostics();
   const pushSupported = swSupported && typeof window !== "undefined" && "PushManager" in window;
   let hasPushEndpoint = false;
 
@@ -403,59 +433,77 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
   }
 
   const backgroundSyncSupported = swSupported && "SyncManager" in window;
-  const passkeySupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
 
   const notificationState: PermissionStatusSnapshot["state"] =
-    !notificationSupported
+    !isSecureContext
       ? "limited"
+      : !notificationSupported
+      ? "limited"
+      : notificationBrowserLimitation
+        ? "limited"
       : notificationPermission === "denied"
         ? "blocked"
         : notificationPermission === "granted" && hasPushEndpoint
           ? "allowed"
           : "action_needed";
 
-  const notificationDetail = !notificationSupported
-    ? `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`
-    : notificationPermission === "denied"
-      ? `${sharedPermissionGuidance("notifications", "blocked")} Browser permission is denied.`
-      : notificationPermission === "granted" && hasPushEndpoint
-        ? `${sharedPermissionGuidance("notifications", "allowed")} Permission granted and push endpoint is fully enabled.`
-        : notificationPermission === "granted"
-          ? `${sharedPermissionGuidance("notifications", "action_needed")} Permission granted but push endpoint missing. Tap the action button to finish setup.`
-          : `${sharedPermissionGuidance("notifications", "action_needed")} Browser permission is default.`;
-
-  const notificationActionLabel = notificationPermission === "granted" && !hasPushEndpoint
-    ? "Finalize push endpoint"
-    : sharedPermissionActionLabel("notifications", notificationState);
+  const notificationDetail = !isSecureContext
+    ? `${sharedPermissionGuidance("notifications", "limited")} Notifications require HTTPS (secure context).`
+    : !notificationSupported
+      ? `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`
+      : notificationBrowserLimitation
+        ? `${sharedPermissionGuidance("notifications", "limited")} ${notificationBrowserLimitation}`
+        : notificationPermission === "denied"
+          ? `${sharedPermissionGuidance("notifications", "blocked")} Browser permission is denied.`
+          : notificationPermission === "granted" && hasPushEndpoint
+            ? `${sharedPermissionGuidance("notifications", "allowed")} Permission granted and push endpoint is fully enabled.${isInstalledPwa ? " Installed app mode detected." : ""}`
+            : notificationPermission === "granted"
+              ? `${sharedPermissionGuidance("notifications", "action_needed")} Permission granted but push endpoint missing. Retry setup to finish endpoint registration.`
+              : `${sharedPermissionGuidance("notifications", "action_needed")} Browser permission is default.`;
 
   const notifications: PermissionStatusSnapshot = {
     capability: "notifications",
     state: notificationState,
     detail: notificationDetail,
-    actionLabel: notificationActionLabel,
-    actionEnabled: notificationPermission !== "denied" && (!hasPushEndpoint || notificationPermission !== "granted"),
+    actionLabel: sharedPermissionActionLabel("notifications", notificationState),
+    actionEnabled:
+      notificationState === "blocked" ||
+      notificationState === "limited" ||
+      notificationPermission !== "granted" ||
+      !hasPushEndpoint,
   };
 
   const backgroundRefresh: PermissionStatusSnapshot = {
     capability: "background_refresh",
-    state: !swSupported ? "limited" : swReady ? "allowed" : "action_needed",
-    detail: !swSupported
+    state: !isSecureContext ? "limited" : !swSupported ? "limited" : swReady ? "allowed" : "action_needed",
+    detail: !isSecureContext
+      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers require HTTPS (secure context).`
+      : !swSupported
       ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers are not available in this browser.`
       : swReady
         ? `${sharedPermissionGuidance("background_refresh", "allowed")} Service worker is active${backgroundSyncSupported ? " and background sync is supported" : ", but background sync API is limited"}.`
-        : `${sharedPermissionGuidance("background_refresh", "action_needed")} Service worker is not active yet.`,
-    actionLabel: sharedPermissionActionLabel("background_refresh", !swSupported ? "limited" : swReady ? "allowed" : "action_needed"),
+        : `${sharedPermissionGuidance("background_refresh", "action_needed")} ${swRegistration ? "A registration exists but is not active yet. Retry after reloading or reinstall the app." : "Service worker is not registered yet. Retry and allow installation."}`,
+    actionLabel: sharedPermissionActionLabel(
+      "background_refresh",
+      !isSecureContext ? "limited" : !swSupported ? "limited" : swReady ? "allowed" : "action_needed"
+    ),
     actionEnabled: true,
   };
 
+  const passkeyApiSupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
+  const passkeyPlatformSupported = passkeyApiSupported && typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
+    ? await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+    : false;
   const biometricsPasskey: PermissionStatusSnapshot = {
     capability: "biometric_passkey",
-    state: passkeySupported ? "allowed" : "limited",
-    detail: passkeySupported
-      ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Passkey/WebAuthn APIs are available on this browser/device.`
-      : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey APIs are not available in this browser.`,
-    actionLabel: sharedPermissionActionLabel("biometric_passkey", passkeySupported ? "allowed" : "limited"),
-    actionEnabled: false,
+    state: passkeyApiSupported && passkeyPlatformSupported ? "allowed" : "limited",
+    detail: passkeyApiSupported && passkeyPlatformSupported
+      ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Platform authenticator is available on this device.`
+      : passkeyApiSupported
+        ? `${sharedPermissionGuidance("biometric_passkey", "limited")} WebAuthn exists, but no platform authenticator was detected.`
+        : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey APIs are not available in this browser.`,
+    actionLabel: sharedPermissionActionLabel("biometric_passkey", passkeyApiSupported && passkeyPlatformSupported ? "allowed" : "limited"),
+    actionEnabled: true,
   };
 
   const calendar: PermissionStatusSnapshot = {
