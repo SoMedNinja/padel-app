@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject private var viewModel: AppViewModel
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var leaderboardSortKey: String = "elo"
     @State private var leaderboardSortAscending: Bool = false
 
@@ -494,30 +495,95 @@ struct DashboardView: View {
 
     private var leaderboardSection: some View {
         SectionCard(title: "ELO-topplista") {
-            ScrollView(.horizontal, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 0) {
-                        headerCell(title: "Spelare", key: "name", width: 160, alignment: .leading)
-                        headerCell(title: "ELO", key: "elo", width: 60, help: "ELO är ett rankingsystem baserat på flertal faktorer.")
-                        headerCell(title: "Matcher", key: "games", width: 70)
-                        headerCell(title: "Vinster", key: "wins", width: 65)
-                        // NOTE (för icke-kodare): Vi visar inte "Streak" i iOS-topplistan längre,
-                        // så tabellen fokuserar på ELO, matcher, formkurva och vinstprocent.
-                        headerCell(title: "Form", key: "", width: 70)
-                        headerCell(title: "Vinst %", key: "winPct", width: 70)
-                    }
-                    .padding(.vertical, 10)
-                    .background(AppColors.background)
-
+            if dynamicTypeSize.isAccessibilitySize {
+                // Note for non-coders:
+                // At very large text sizes we switch from a dense table to stacked cards,
+                // so labels can wrap and stay readable instead of being cut off.
+                VStack(alignment: .leading, spacing: 10) {
                     ForEach(Array(sortedLeaderboard.enumerated()), id: \.element.id) { index, player in
-                        leaderboardRow(index: index, player: player)
-                        Divider()
-                            .background(AppColors.borderSubtle)
+                        leaderboardAccessibleRow(index: index, player: player)
                     }
                 }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 0) {
+                            headerCell(title: "Spelare", key: "name", width: 160, alignment: .leading)
+                            headerCell(title: "ELO", key: "elo", width: 60, help: "ELO är ett rankingsystem baserat på flertal faktorer.")
+                            headerCell(title: "Matcher", key: "games", width: 70)
+                            headerCell(title: "Vinster", key: "wins", width: 65)
+                            // NOTE (för icke-kodare): Vi visar inte "Streak" i iOS-topplistan längre,
+                            // så tabellen fokuserar på ELO, matcher, formkurva och vinstprocent.
+                            headerCell(title: "Form", key: "", width: 70)
+                            headerCell(title: "Vinst %", key: "winPct", width: 70)
+                        }
+                        .padding(.vertical, 10)
+                        .background(AppColors.background)
+
+                        ForEach(Array(sortedLeaderboard.enumerated()), id: \.element.id) { index, player in
+                            leaderboardRow(index: index, player: player)
+                            Divider()
+                                .background(AppColors.borderSubtle)
+                        }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
+    }
+
+    private func leaderboardAccessibleRow(index: Int, player: LeaderboardPlayer) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Text("#\(index + 1)")
+                    .font(.inter(.caption, weight: .bold))
+                    .foregroundStyle(AppColors.textSecondary)
+                PlayerAvatarView(urlString: player.avatarURL, size: 24)
+                    .overlay(Circle().stroke(AppColors.brandPrimary.opacity(0.1), lineWidth: 0.5))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(player.name)
+                        .font(.inter(.subheadline, weight: .semibold))
+                        .foregroundStyle(AppColors.textPrimary)
+                        .lineLimit(3)
+                    if let badgeId = player.featuredBadgeId,
+                       let badgeIcon = BadgeService.getBadgeIconById(badgeId) {
+                        Text("Märke: \(badgeIcon)")
+                            .font(.inter(.caption2))
+                            .foregroundStyle(AppColors.textSecondary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            HStack {
+                statPair(label: "ELO", value: "\(player.elo)", valueColor: AppColors.brandPrimary)
+                statPair(label: "Matcher", value: "\(player.games)")
+                statPair(label: "Vinster", value: "\(player.wins)")
+                statPair(label: "Vinst %", value: "\(player.winRate)%")
+            }
+
+            if player.eloHistory.count >= 2 {
+                SparklineView(points: player.eloHistory)
+                    .frame(height: 24)
+                    .opacity(0.8)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(12)
+        .background(player.isMe ? AppColors.brandPrimary.opacity(0.08) : AppColors.background)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func statPair(label: String, value: String, valueColor: Color = AppColors.textPrimary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.inter(.caption2, weight: .bold))
+                .foregroundStyle(AppColors.textSecondary)
+            Text(value)
+                .font(.inter(.subheadline, weight: .semibold))
+                .foregroundStyle(valueColor)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var rivalrySection: some View {
