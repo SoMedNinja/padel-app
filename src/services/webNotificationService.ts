@@ -12,6 +12,7 @@ const SW_PATH = "/sw.js";
 const NOTIFICATION_PREFERENCES_TABLE = "notification_preferences";
 const PUSH_SUBSCRIPTIONS_TABLE = "push_subscriptions";
 const WEB_PUSH_PLATFORM = "web";
+const WEB_PUSH_PUBLIC_KEY = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string | undefined;
 
 type NotificationPreferenceRow = {
   profile_id: string;
@@ -51,6 +52,36 @@ function resolveWebPushDeviceToken(subscription: PushSubscription): string {
 
 function serializeWebPushSubscription(subscription: PushSubscription): Record<string, unknown> {
   return subscription.toJSON() as Record<string, unknown>;
+}
+
+function decodeBase64UrlToUint8Array(value: string): Uint8Array {
+  const padded = `${value}${"=".repeat((4 - (value.length % 4)) % 4)}`.replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(padded);
+  const output = new Uint8Array(raw.length);
+  for (let index = 0; index < raw.length; index += 1) {
+    output[index] = raw.charCodeAt(index);
+  }
+  return output;
+}
+
+// Note for non-coders:
+// Browser permission alone is not enough — this step creates the unique push endpoint that the server can actually send to.
+async function ensureWebPushSubscription(
+  registration?: ServiceWorkerRegistration
+): Promise<PushSubscription | null> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
+  if (typeof window === "undefined" || !("PushManager" in window)) return null;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return null;
+
+  const resolvedRegistration = registration ?? (await navigator.serviceWorker.ready);
+  const existingSubscription = await resolvedRegistration.pushManager.getSubscription();
+  if (existingSubscription) return existingSubscription;
+  if (!WEB_PUSH_PUBLIC_KEY) return null;
+
+  return resolvedRegistration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: decodeBase64UrlToUint8Array(WEB_PUSH_PUBLIC_KEY),
+  });
 }
 
 async function upsertBackendPushSubscription(userId: string, subscription: PushSubscription): Promise<void> {
@@ -94,7 +125,7 @@ async function revokeAllWebPushSubscriptionsForCurrentUser(): Promise<void> {
   if (error) throw error;
 }
 
-async function syncCurrentPushSubscriptionWithBackend(): Promise<void> {
+async function syncCurrentPushSubscriptionWithBackend(registration?: ServiceWorkerRegistration): Promise<void> {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   if (typeof window === "undefined" || !("PushManager" in window)) return;
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
@@ -103,8 +134,8 @@ async function syncCurrentPushSubscriptionWithBackend(): Promise<void> {
   const userId = data.session?.user?.id;
   if (!userId) return;
 
-  const registration = await navigator.serviceWorker.ready;
-  const existingSubscription = await registration.pushManager.getSubscription();
+  const activeRegistration = registration ?? (await navigator.serviceWorker.ready);
+  const existingSubscription = await ensureWebPushSubscription(activeRegistration);
   if (!existingSubscription) return;
 
   await upsertBackendPushSubscription(userId, existingSubscription);
@@ -256,7 +287,7 @@ export async function registerPushServiceWorker(preferences: NotificationPrefere
   registration ??= await navigator.serviceWorker.register(SW_PATH);
   await navigator.serviceWorker.ready;
   await syncPreferencesToServiceWorker(preferences);
-  await syncCurrentPushSubscriptionWithBackend();
+  await syncCurrentPushSubscriptionWithBackend(registration);
   return registration;
 }
 
@@ -363,28 +394,46 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
   const notificationPermission = notificationSupported ? Notification.permission : "denied";
   const swSupported = typeof navigator !== "undefined" && "serviceWorker" in navigator;
   const swReady = swSupported ? await isServiceWorkerReady() : false;
+  const pushSupported = swSupported && typeof window !== "undefined" && "PushManager" in window;
+  let hasPushEndpoint = false;
+
+  if (notificationPermission === "granted" && pushSupported && swReady) {
+    const registration = await navigator.serviceWorker.ready;
+    hasPushEndpoint = Boolean(await registration.pushManager.getSubscription());
+  }
+
   const backgroundSyncSupported = swSupported && "SyncManager" in window;
   const passkeySupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
 
+  const notificationState: PermissionStatusSnapshot["state"] =
+    !notificationSupported
+      ? "limited"
+      : notificationPermission === "denied"
+        ? "blocked"
+        : notificationPermission === "granted" && hasPushEndpoint
+          ? "allowed"
+          : "action_needed";
+
+  const notificationDetail = !notificationSupported
+    ? `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`
+    : notificationPermission === "denied"
+      ? `${sharedPermissionGuidance("notifications", "blocked")} Browser permission is denied.`
+      : notificationPermission === "granted" && hasPushEndpoint
+        ? `${sharedPermissionGuidance("notifications", "allowed")} Permission granted and push endpoint is fully enabled.`
+        : notificationPermission === "granted"
+          ? `${sharedPermissionGuidance("notifications", "action_needed")} Permission granted but push endpoint missing. Tap the action button to finish setup.`
+          : `${sharedPermissionGuidance("notifications", "action_needed")} Browser permission is default.`;
+
+  const notificationActionLabel = notificationPermission === "granted" && !hasPushEndpoint
+    ? "Finalize push endpoint"
+    : sharedPermissionActionLabel("notifications", notificationState);
+
   const notifications: PermissionStatusSnapshot = {
     capability: "notifications",
-    state:
-      notificationPermission === "granted"
-        ? "allowed"
-        : notificationPermission === "denied"
-          ? "blocked"
-          : "action_needed",
-    detail: notificationSupported
-      ? `${sharedPermissionGuidance(
-          "notifications",
-          notificationPermission === "granted" ? "allowed" : notificationPermission === "denied" ? "blocked" : "action_needed"
-        )} Browser permission is ${notificationPermission}.`
-      : `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`,
-    actionLabel: sharedPermissionActionLabel(
-      "notifications",
-      notificationPermission === "granted" ? "allowed" : notificationPermission === "denied" ? "blocked" : "action_needed"
-    ),
-    actionEnabled: notificationPermission !== "granted",
+    state: notificationState,
+    detail: notificationDetail,
+    actionLabel: notificationActionLabel,
+    actionEnabled: notificationPermission !== "denied" && (!hasPushEndpoint || notificationPermission !== "granted"),
   };
 
   const backgroundRefresh: PermissionStatusSnapshot = {
