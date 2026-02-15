@@ -22,8 +22,8 @@ export default defineConfig({
       includeAssets: ["favicon.png", "icon-192.png", "icon-512.png"],
       manifest: {
         // This web app manifest is what phones/browsers read when users install the app.
-        name: "Padel Tracker",
-        short_name: "Padel",
+        name: "Padel Native",
+        short_name: "Padel Native",
         theme_color: "#b91c1c",
         background_color: "#ffffff",
         display: "standalone",
