@@ -1524,9 +1524,61 @@ export function HeadToHeadSection({
       <Box component="span" sx={{ color: 'error.main' }}>{setsAgainst}</Box>
     </>
   );
+  // Note for non-coders: this single style object keeps all stat "modules" visually consistent,
+  // so iOS Safari and the installed PWA present the same card layout.
+  const statModuleSx = {
+    p: 2,
+    textAlign: 'center' as const,
+    borderRadius: 2,
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    justifyContent: 'center',
+    backgroundColor: 'background.paper',
+  };
+  // Note for non-coders: this fixed order mirrors the PWA layout exactly and prevents browser-specific wrapping
+  // from changing which stat appears first.
+  const primaryStats = [
+    { label: 'Matcher', value: headToHeadStats.matches },
+    {
+      label: 'Vinst/förlust',
+      value: renderWinLossSplit(headToHeadStats.wins, headToHeadStats.losses),
+    },
+    { label: 'Vinst %', value: `${percent(headToHeadStats.wins, headToHeadStats.losses)}%` },
+    {
+      label: 'Totala set',
+      value: renderSetSplit(headToHeadStats.totalSetsFor, headToHeadStats.totalSetsAgainst),
+    },
+    {
+      label: 'Din vinst/förlust med start-serve',
+      value: renderWinLossSplit(headToHeadStats.serveFirstWins, headToHeadStats.serveFirstLosses),
+    },
+    {
+      label: 'Din vinst/förlust utan start-serve',
+      value: renderWinLossSplit(headToHeadStats.serveSecondWins, headToHeadStats.serveSecondLosses),
+    },
+    ...(mode === 'against'
+      ? [
+        {
+          label: 'Vinstchans',
+          value: `${Math.round(winProbability * 100)}%`,
+        },
+        {
+          label: 'ELO-utbyte',
+          value: `${headToHeadStats.totalEloExchange > 0 ? '+' : ''}${headToHeadStats.totalEloExchange}`,
+          color:
+              headToHeadStats.totalEloExchange > 0
+                ? 'success.main'
+                : headToHeadStats.totalEloExchange < 0
+                  ? 'error.main'
+                  : 'inherit',
+        },
+      ]
+      : []),
+  ];
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+    <Card className="head-to-head-section" variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Typography variant="h5" sx={{ fontWeight: 800, mb: 4 }}>Head-to-head</Typography>
 
@@ -1596,61 +1648,11 @@ export function HeadToHeadSection({
             </div>
 
             <Grid container spacing={2}>
-              {/* Note for non-coders: we reuse the same card styling so every head-to-head stat lines up evenly. */}
-              {[
-                { label: "Matcher", value: headToHeadStats.matches },
-                {
-                  label: "Vinst/förlust",
-                  value: renderWinLossSplit(headToHeadStats.wins, headToHeadStats.losses),
-                },
-                { label: "Vinst %", value: `${percent(headToHeadStats.wins, headToHeadStats.losses)}%` },
-                {
-                  label: "Totala set",
-                  value: renderSetSplit(headToHeadStats.totalSetsFor, headToHeadStats.totalSetsAgainst),
-                },
-                {
-                  label: "Din vinst/förlust med start-serve",
-                  value: renderWinLossSplit(headToHeadStats.serveFirstWins, headToHeadStats.serveFirstLosses),
-                },
-                {
-                  label: "Din vinst/förlust utan start-serve",
-                  value: renderWinLossSplit(headToHeadStats.serveSecondWins, headToHeadStats.serveSecondLosses),
-                },
-                ...(mode === "against" ? [
-                  {
-                    label: "Vinstchans",
-                    value: `${Math.round(winProbability * 100)}%`,
-                  },
-                  {
-                    label: "ELO-utbyte",
-                    value: `${headToHeadStats.totalEloExchange > 0 ? '+' : ''}${headToHeadStats.totalEloExchange}`,
-                    color: headToHeadStats.totalEloExchange > 0 ? 'success.main' : headToHeadStats.totalEloExchange < 0 ? 'error.main' : 'inherit'
-                  }
-                ] : [])
-              ].map(stat => (
-                <Grid key={stat.label} size={{ xs: 6, sm: 4, md: mode === "against" ? 3 : 2.4 }}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 2,
-                      textAlign: 'center',
-                      borderRadius: 2,
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800, color: (stat as any).color || 'inherit' }}>{stat.value}</Typography>
-                  </Paper>
-                </Grid>
-              ))}
-
               {headToHeadStats.lastMatch && (
                 <Grid size={{ xs: 12 }}>
-                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'grey.50' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste mötet</Typography>
+                  {/* Note for non-coders: "Last game" is shown first as its own module, matching the PWA order and making the latest result easy to spot. */}
+                  <Paper variant="outlined" sx={statModuleSx}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste match</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800 }}>
                       {formatDate(headToHeadStats.lastMatch.date)}: {formatScore(headToHeadStats.lastMatch.setsFor, headToHeadStats.lastMatch.setsAgainst)} ({headToHeadStats.lastMatch.won ? 'Vinst' : 'Förlust'})
                     </Typography>
@@ -1658,8 +1660,18 @@ export function HeadToHeadSection({
                 </Grid>
               )}
 
+              {/* Note for non-coders: we render stat modules from one ordered list so web and iOS show the same sequence. */}
+              {primaryStats.map(stat => (
+                <Grid key={stat.label} size={{ xs: 6, sm: 4, md: mode === 'against' ? 3 : 2.4 }}>
+                  <Paper variant="outlined" sx={statModuleSx}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{stat.label}</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: (stat as { color?: string }).color || 'inherit' }}>{stat.value}</Typography>
+                  </Paper>
+                </Grid>
+              ))}
+
               <Grid size={{ xs: 12 }}>
-                 <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
+                 <Paper variant="outlined" sx={statModuleSx}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste 5</Typography>
                     {headToHeadStats.recentResults.length ? (
                       <Stack direction="row" spacing={1} justifyContent="center">
