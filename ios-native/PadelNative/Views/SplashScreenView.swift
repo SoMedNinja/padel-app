@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SplashScreenView: View {
+    // NOTE: Keeping the app name in one place makes it easier for non-coders to update branding later.
+    private let splashAppName = "Grabbarnas Paddel app"
     @State private var ballOffset: CGFloat = -150
     @State private var ballOpacity: Double = 0
     @State private var racketScale: CGFloat = 0.5
@@ -52,15 +54,10 @@ struct SplashScreenView: View {
 
                 if showText {
                     VStack(spacing: 12) {
-                        Text("PADEL")
+                        Text(splashAppName)
                             .font(.inter(.title, weight: .black))
                             .foregroundStyle(AppColors.textPrimary)
-                            .tracking(10)
-
-                        Text("NATIVE")
-                            .font(.inter(.headline, weight: .bold))
-                            .foregroundStyle(AppColors.brandPrimary)
-                            .tracking(5)
+                            .multilineTextAlignment(.center)
                     }
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
