@@ -271,6 +271,11 @@ struct HistoryView: View {
                             .foregroundStyle(AppColors.success)
                     }
 
+                    // Note for non-coders:
+                    // We reuse the same avatar component here so history rows benefit from
+                    // the shared image cache and do not flicker during scrolling.
+                    PlayerAvatarView(urlString: avatarURL(for: row.id), size: 20)
+
                     Text(row.name)
                         .font(.inter(.subheadline, weight: isWinner ? .bold : .medium))
                         .foregroundStyle(isWinner ? AppColors.textPrimary : AppColors.textSecondary)
@@ -286,6 +291,14 @@ struct HistoryView: View {
                 }
             }
         }
+    }
+
+    private func avatarURL(for playerId: String?) -> String? {
+        guard let playerId,
+              let uuid = UUID(uuidString: playerId.lowercased()) else {
+            return nil
+        }
+        return viewModel.players.first(where: { $0.id == uuid })?.avatarURL
     }
 
     private func scoreLabel(_ match: Match) -> String {

@@ -2043,6 +2043,8 @@ final class AppViewModel: ObservableObject {
         }
 
         let cleanedAvatar = profileAvatarURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedAvatar = cleanedAvatar.isEmpty ? nil : cleanedAvatar
+        let previousAvatar = currentPlayer?.avatarURL?.trimmingCharacters(in: .whitespacesAndNewlines)
         isSavingProfileSetup = true
         defer { isSavingProfileSetup = false }
 
@@ -2051,9 +2053,17 @@ final class AppViewModel: ObservableObject {
                 profileId: profileId,
                 fullName: trimmedName,
                 profileName: trimmedName,
-                avatarURL: cleanedAvatar.isEmpty ? nil : cleanedAvatar,
+                avatarURL: normalizedAvatar,
                 featuredBadgeId: selectedFeaturedBadgeId
             )
+
+            // Note for non-coders:
+            // If avatar text changed, we remove old cached images so future screens show the latest photo.
+            if previousAvatar != normalizedAvatar {
+                AvatarImageService.shared.invalidate(urlString: previousAvatar)
+                AvatarImageService.shared.invalidate(urlString: normalizedAvatar)
+            }
+
             profileSetupMessage = "Profile setup saved."
             await bootstrap()
             syncProfileSetupDraftFromCurrentPlayer()
