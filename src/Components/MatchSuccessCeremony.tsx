@@ -38,9 +38,18 @@ export default function MatchSuccessCeremony({ recap }: MatchSuccessCeremonyProp
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setStep(1), 500),  // Show Score
-      setTimeout(() => setStep(2), 1500), // Show ELO Deltas
-      setTimeout(() => setStep(3), 3000), // Show Rank Info/Final
+      setTimeout(() => {
+        setStep(1);
+        if ("vibrate" in navigator) navigator.vibrate(20);
+      }, 500),  // Show Score
+      setTimeout(() => {
+        setStep(2);
+        if ("vibrate" in navigator) navigator.vibrate([10, 30, 10]);
+      }, 1500), // Show ELO Deltas
+      setTimeout(() => {
+        setStep(3);
+        if ("vibrate" in navigator) navigator.vibrate(40);
+      }, 3000), // Show Rank Info/Final
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -56,7 +65,15 @@ export default function MatchSuccessCeremony({ recap }: MatchSuccessCeremonyProp
             exit={{ scale: 1.2, opacity: 0 }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300 }}
           >
-            <EmojiEvents sx={{ fontSize: 80, color: 'primary.main', mb: 2 }} />
+            <motion.div
+              animate={{
+                scale: [1, 1.2, 1],
+                rotate: [0, 10, -10, 0]
+              }}
+              transition={{ duration: 0.5, repeat: 2 }}
+            >
+              <EmojiEvents sx={{ fontSize: 80, color: 'primary.main', mb: 2 }} />
+            </motion.div>
             <Typography variant="h4" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>Match Sparad!</Typography>
           </motion.div>
         )}
@@ -69,12 +86,23 @@ export default function MatchSuccessCeremony({ recap }: MatchSuccessCeremonyProp
             exit={{ y: -20, opacity: 0 }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300 }}
           >
-            <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: 4 }}>{recap.scoreline}</Typography>
-            <Chip
-              label={recap.teamAWon ? "Lag A Vann" : "Lag B Vann"}
-              color="success"
-              sx={{ fontWeight: 800, mt: 2 }}
-            />
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 0.3 }}
+            >
+              <Typography variant="h2" sx={{ fontWeight: 900, letterSpacing: 4 }}>{recap.scoreline}</Typography>
+            </motion.div>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 10, delay: 0.2 }}
+            >
+              <Chip
+                label={recap.teamAWon ? "Lag A Vann" : "Lag B Vann"}
+                color="success"
+                sx={{ fontWeight: 800, mt: 2 }}
+              />
+            </motion.div>
           </motion.div>
         )}
 

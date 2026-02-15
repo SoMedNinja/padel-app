@@ -39,7 +39,10 @@ import {
   Email as EmailIcon,
   Assessment as ReportsIcon,
   HowToReg as RegularIcon,
+  Search as SearchIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
+import { InputAdornment } from "@mui/material";
 import EmailPreviews from "./Admin/EmailPreviews";
 import ReportsSection from "./Admin/ReportsSection";
 
@@ -59,6 +62,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
   const [toggleId, setToggleId] = useState<string | null>(null);
   const [regularToggleId, setRegularToggleId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setTab(initialTab);
@@ -67,12 +71,17 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
   const sortedProfiles = useMemo(() => {
     return [...profiles]
       .filter(profile => !profile.is_deleted)
+      .filter(profile => {
+        if (!searchQuery) return true;
+        const name = getProfileDisplayName(profile).toLowerCase();
+        return name.includes(searchQuery.toLowerCase());
+      })
       .sort((a, b) => {
         const nameA = getProfileDisplayName(a).toLowerCase();
         const nameB = getProfileDisplayName(b).toLowerCase();
         return nameA.localeCompare(nameB);
       });
-  }, [profiles]);
+  }, [profiles, searchQuery]);
 
   const handleNameChange = (id: string, value: string) => {
     setEditNames(prev => ({ ...prev, [id]: value }));
@@ -187,6 +196,37 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
 
       {tab === 0 && (
         <>
+        <TextField
+          fullWidth
+          size="small"
+          label="Sök användare"
+          placeholder="Filtrera på namn..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ mb: 2, bgcolor: 'background.paper', borderRadius: 1 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery && (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setSearchQuery("");
+                    if ("vibrate" in navigator) navigator.vibrate(5);
+                  }}
+                  aria-label="Rensa sökning"
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ),
+            "aria-label": "Sök användare",
+          }}
+        />
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 4 }}>
           <Card variant="outlined" sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>

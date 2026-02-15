@@ -215,6 +215,11 @@ export default function MatchForm({
       newTeam[emptyIndex] = playerId;
       setTeam(newTeam);
 
+      // Haptic feedback for selection
+      if ("vibrate" in navigator) {
+        navigator.vibrate(10);
+      }
+
       // Auto-advance if team is full
       if (emptyIndex === teamSize - 1) {
         setStep(prev => (prev === 10 ? 2 : prev + 1));
@@ -341,6 +346,12 @@ export default function MatchForm({
     }
 
     setIsSubmitting(true);
+
+    // Haptic feedback for submission start
+    if ("vibrate" in navigator) {
+      navigator.vibrate(50);
+    }
+
     let createResult;
     try {
       createResult = await matchService.createMatch({
@@ -477,6 +488,20 @@ export default function MatchForm({
                     <SearchIcon fontSize="small" />
                   </InputAdornment>
                 ),
+                endAdornment: query && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setQuery("");
+                        if ("vibrate" in navigator) navigator.vibrate(5);
+                      }}
+                      aria-label="Rensa sökning"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 "aria-label": "Sök spelare",
               },
             }}
@@ -554,7 +579,14 @@ export default function MatchForm({
           );
           })}
         </Grid>
-        {filtered.length === 0 && <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>Inga träffar för "{query}"</Typography>}
+        {filtered.length === 0 && (
+          <Box sx={{ py: 4, textAlign: 'center', opacity: 0.5 }}>
+            <SearchIcon sx={{ fontSize: 48, mb: 1, color: 'text.disabled' }} />
+            <Typography variant="body2" color="text.secondary">
+              Inga spelare hittades för "{query}"
+            </Typography>
+          </Box>
+        )}
       </Box>
     );
   };
