@@ -102,16 +102,34 @@ struct ProfileView: View {
             if selectedTab == .overview || selectedTab == .eloTrend {
                 SectionCard(title: String(localized: "profile.filter.title")) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Picker(LocalizedStringKey("profile.filter.period"), selection: $viewModel.globalFilter) {
-                            ForEach(profileFilterOptions) { filter in
-                                Text(filter.title).tag(filter)
+                        // Note for non-coders:
+                        // This compact menu mirrors the web dropdown filter so profile filtering feels the same on iOS and PWA.
+                        HStack(spacing: 8) {
+                            Picker(LocalizedStringKey("profile.filter.period"), selection: $viewModel.globalFilter) {
+                                ForEach(profileFilterOptions) { filter in
+                                    Text(filter.title).tag(filter)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                            if viewModel.globalFilter != .all {
+                                Button(LocalizedStringKey("dashboard.filter.reset")) {
+                                    viewModel.globalFilter = .all
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                         }
-                        .pickerStyle(.segmented)
 
                         if viewModel.globalFilter == .custom {
                             DatePicker(LocalizedStringKey("profile.filter.from"), selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                                .datePickerStyle(.compact)
                             DatePicker(LocalizedStringKey("profile.filter.to"), selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
+                                .datePickerStyle(.compact)
                         }
 
                         Text(String(format: String(localized: "profile.filter.active"), viewModel.globalActiveFilterLabel))
@@ -655,9 +673,10 @@ struct ProfileView: View {
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.secondary)
                     if let partner = viewModel.bestPartner {
+                        let winPercent = Int(round((Double(partner.wins) / Double(max(partner.games, 1))) * 100))
                         Text(partner.name)
                             .font(.headline)
-                        Text("\(partner.wins) vinster på \(partner.games) matcher")
+                        Text("\(partner.wins) vinster på \(partner.games) matcher (\(winPercent)%)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else {
@@ -676,9 +695,10 @@ struct ProfileView: View {
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.secondary)
                     if let rival = viewModel.toughestOpponent {
+                        let lossPercent = Int(round((Double(rival.losses) / Double(max(rival.games, 1))) * 100))
                         Text(rival.name)
                             .font(.headline)
-                        Text("\(rival.losses) förluster på \(rival.games) matcher")
+                        Text("\(rival.losses) förluster på \(rival.games) matcher (\(lossPercent)%)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else {
