@@ -31,7 +31,6 @@ struct EloTrendDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         controls
-                        stickyTooltip(dataset: dataset)
                         trendChart(dataset: dataset)
                         legendView(playerIds: dataset.playerIds)
 
@@ -97,11 +96,77 @@ struct EloTrendDetailView: View {
         }
     }
 
-    private func stickyTooltip(dataset: ComparisonChartDataset) -> some View {
+    private func trendChart(dataset: ComparisonChartDataset) -> some View {
+        let eloDomain = viewModel.eloDomain(for: dataset.points, players: dataset.playerIds)
+        let xDomain = (dataset.points.first?.id ?? 0)...(dataset.points.last?.id ?? 0)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topLeading) {
+                Chart {
+                if primaryMetric == .elo || secondaryMetric == .elo {
+                    ForEach(dataset.playerIds, id: \.self) { pid in
+                        let label = viewModel.chartDisplayName(for: pid)
+                        let color = colorForSeries(name: label, index: dataset.playerIds.firstIndex(of: pid) ?? 0)
+                        ForEach(dataset.points) { point in
+                            if let elo = point.elos[pid] {
+                                LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Spelare", label))
+                                    .interpolationMethod(.catmullRom)
+                                    .foregroundStyle(color)
+                                    .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                            }
+                        }
+                    }
+                }
+
+                if primaryMetric == .winRate || secondaryMetric == .winRate,
+                   let currentId = viewModel.currentPlayer?.id {
+                    ForEach(dataset.points) { point in
+                        if let rate = point.winRates[currentId] {
+                            LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: eloDomain)))
+                                .foregroundStyle(.mint)
+                                .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
+                        }
+                    }
+                }
+
+                if let selected = chartSelectionIndex {
+                    RuleMark(x: .value("Vald", selected))
+                        .foregroundStyle(AppColors.textSecondary.opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                }
+                }
+                .frame(height: 350)
+                .chartYScale(domain: eloDomain)
+                // Note for non-coders:
+                // Removing end padding keeps the newest value flush to the right edge of the graph.
+                .chartXScale(domain: xDomain, range: .plotDimension(startPadding: 6, endPadding: 0))
+                .chartXSelection(value: $chartSelectionIndex)
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 5)) { value in
+                        if let index = value.as(Int.self),
+                           let point = dataset.points.first(where: { $0.id == index }) {
+                            AxisGridLine()
+                            AxisValueLabel {
+                                Text(point.date, format: .dateTime.month(.abbreviated))
+                            }
+                        }
+                    }
+                }
+
+                chartOverlayLegend(dataset: dataset)
+                    .padding(10)
+            }
+
+            Button("Rensa markör") { chartSelectionIndex = nil }
+                .font(.caption)
+        }
+    }
+
+    private func chartOverlayLegend(dataset: ComparisonChartDataset) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if let selected = chartSelectionIndex,
                let point = dataset.points.first(where: { $0.id == selected }) {
-                Text(point.date, format: .dateTime.day().month().year().hour().minute())
+                Text(point.date, format: .dateTime.day().month().year())
                     .font(.inter(.subheadline, weight: .bold))
                 ForEach(Array(dataset.playerIds.enumerated()), id: \.element) { index, pid in
                     let label = viewModel.chartDisplayName(for: pid)
@@ -117,73 +182,13 @@ struct EloTrendDetailView: View {
                         .foregroundStyle(.mint)
                 }
             } else {
-                Text("Dra fingret över grafen. Tooltipen stannar kvar (sticky) tills du rensar markören.")
+                Text("Dra fingret över grafen för detaljer")
                     .font(.inter(.caption))
                     .foregroundStyle(AppColors.textSecondary)
             }
         }
-        .padding()
-        .background(AppColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private func trendChart(dataset: ComparisonChartDataset) -> some View {
-        let eloDomain = viewModel.eloDomain(for: dataset.points, players: dataset.playerIds)
-
-        return VStack(alignment: .leading, spacing: 8) {
-            Chart {
-            if primaryMetric == .elo || secondaryMetric == .elo {
-                ForEach(dataset.playerIds, id: \.self) { pid in
-                    let label = viewModel.chartDisplayName(for: pid)
-                    let color = colorForSeries(name: label, index: dataset.playerIds.firstIndex(of: pid) ?? 0)
-                    ForEach(dataset.points) { point in
-                        if let elo = point.elos[pid] {
-                            LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Spelare", label))
-                                .interpolationMethod(.catmullRom)
-                                .foregroundStyle(color)
-                                .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                        }
-                    }
-                }
-            }
-
-            if primaryMetric == .winRate || secondaryMetric == .winRate,
-               let currentId = viewModel.currentPlayer?.id {
-                ForEach(dataset.points) { point in
-                    if let rate = point.winRates[currentId] {
-                        LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: eloDomain)))
-                            .foregroundStyle(.mint)
-                            .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
-                    }
-                }
-            }
-
-            if let selected = chartSelectionIndex {
-                RuleMark(x: .value("Vald", selected))
-                    .foregroundStyle(AppColors.textSecondary.opacity(0.3))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
-            }
-            }
-            .frame(height: 350)
-            .chartYScale(domain: eloDomain)
-            .chartXSelection(value: $chartSelectionIndex)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: 1)) { value in
-                    if let index = value.as(Int.self),
-                       let point = dataset.points.first(where: { $0.id == index }),
-                       index % max(1, dataset.points.count / 6) == 0 {
-                        AxisGridLine()
-                        AxisValueLabel {
-                            Text(point.date, format: .dateTime.month().day())
-                        }
-                    }
-                }
-            }
-            .padding(.vertical)
-
-            Button("Rensa markör") { chartSelectionIndex = nil }
-                .font(.caption)
-        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func legendView(playerIds: [UUID]) -> some View {
