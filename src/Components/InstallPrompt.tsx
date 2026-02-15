@@ -4,32 +4,22 @@ import IosShareIcon from "@mui/icons-material/IosShare";
 import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useStore } from "../store/useStore";
-import { getPlatformIntent } from "../utils/platform";
+import { getInstallGuidanceContext, INSTALL_GUIDANCE_COPY, detectStandaloneInstallState } from "../shared/installGuidance";
 import {
   getInstallPromptVisibility,
   hasActiveInstallPromptSnooze,
   INSTALL_PROMPT_CONFIG,
 } from "./installPromptConfig";
-import { requestOpenPermissionGuide } from "../services/permissionGuidanceService";
+import { recordInstallCtaEvent, requestOpenPermissionGuide } from "../services/permissionGuidanceService";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-const isRunningStandalone = () => {
-  if (typeof window === "undefined") return false;
-
-  const inDisplayMode = window.matchMedia("(display-mode: standalone)").matches;
-  const iosStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-
-  // Note for non-coders: if either check is true, the app is already installed, so we hide this prompt.
-  return inDisplayMode || iosStandalone;
-};
-
 export default function InstallPrompt() {
   const isGuest = useStore((state) => state.isGuest);
-  const platformIntent = useMemo(() => getPlatformIntent(), []);
+  const platformIntent = useMemo(() => getInstallGuidanceContext().platformIntent, []);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isSnoozed, setIsSnoozed] = useState(false);
@@ -54,7 +44,7 @@ export default function InstallPrompt() {
   };
 
   useEffect(() => {
-    setIsInstalled(isRunningStandalone());
+    setIsInstalled(detectStandaloneInstallState());
 
     const snoozeUntilRaw = localStorage.getItem(INSTALL_PROMPT_CONFIG.storage.snoozeUntilKey);
     setIsSnoozed(hasActiveInstallPromptSnooze(snoozeUntilRaw));
@@ -77,7 +67,7 @@ export default function InstallPrompt() {
     };
 
     const handleDisplayModeChange = () => {
-      setIsInstalled(isRunningStandalone());
+      setIsInstalled(detectStandaloneInstallState());
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -111,6 +101,13 @@ export default function InstallPrompt() {
             onClick={async () => {
               await deferredPrompt.prompt();
               const choiceResult = await deferredPrompt.userChoice;
+              recordInstallCtaEvent({
+                surface: "install_prompt",
+                cta: "browser_install_button",
+                promptType: "browser_prompt",
+                platformIntent,
+                result: choiceResult.outcome,
+              });
 
               if (choiceResult.outcome === "accepted") {
                 setDeferredPrompt(null);
@@ -125,21 +122,37 @@ export default function InstallPrompt() {
           </Button>
         )}
       >
-        <AlertTitle>{INSTALL_PROMPT_CONFIG.copy.browserTitle}</AlertTitle>
-        {INSTALL_PROMPT_CONFIG.copy.valueProposition}
+        <AlertTitle>{INSTALL_GUIDANCE_COPY.browserTitle}</AlertTitle>
+        {INSTALL_GUIDANCE_COPY.valueProposition}
         <Button
           color="inherit"
           size="small"
           sx={{ mt: 1 }}
-          onClick={snoozeInstallPrompt}
+          onClick={() => {
+            recordInstallCtaEvent({
+              surface: "install_prompt",
+              cta: "snooze",
+              promptType: "browser_prompt",
+              platformIntent,
+            });
+            snoozeInstallPrompt();
+          }}
         >
-          {INSTALL_PROMPT_CONFIG.copy.cadenceLabels.snooze}
+          {INSTALL_GUIDANCE_COPY.cadenceLabels.snooze}
         </Button>
         <Button
           color="inherit"
           size="small"
           sx={{ mt: 1, ml: 1 }}
-          onClick={() => requestOpenPermissionGuide("install_prompt")}
+          onClick={() => {
+            recordInstallCtaEvent({
+              surface: "install_prompt",
+              cta: "open_permission_guide",
+              promptType: "browser_prompt",
+              platformIntent,
+            });
+            requestOpenPermissionGuide("install_prompt");
+          }}
         >
           Behörighetshjälp
         </Button>
@@ -152,24 +165,32 @@ export default function InstallPrompt() {
       <Alert
         severity="info"
         action={(
-        <Button color="inherit" size="small" onClick={snoozeInstallPrompt}>
-          {INSTALL_PROMPT_CONFIG.copy.cadenceLabels.snooze}
+        <Button color="inherit" size="small" onClick={() => {
+          recordInstallCtaEvent({
+            surface: "install_prompt",
+            cta: "snooze",
+            promptType: "ios_manual",
+            platformIntent,
+          });
+          snoozeInstallPrompt();
+        }}>
+          {INSTALL_GUIDANCE_COPY.cadenceLabels.snooze}
         </Button>
       )}
       >
-        <AlertTitle>{INSTALL_PROMPT_CONFIG.copy.iosTitle}</AlertTitle>
+        <AlertTitle>{INSTALL_GUIDANCE_COPY.iosTitle}</AlertTitle>
         <Typography variant="body2" component="div" sx={{ mb: 0.75 }}>
-          {INSTALL_PROMPT_CONFIG.copy.valueProposition}
+          {INSTALL_GUIDANCE_COPY.valueProposition}
         </Typography>
         <Typography variant="body2" component="div">
-          {INSTALL_PROMPT_CONFIG.copy.iosManualIntro}
+          {INSTALL_GUIDANCE_COPY.iosManualIntro}
         </Typography>
         <Box component="ol" sx={{ mt: 1, mb: 0, pl: 2.5 }}>
           <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
-            {INSTALL_PROMPT_CONFIG.copy.iosManualSteps[0]} <IosShareIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
+            {INSTALL_GUIDANCE_COPY.iosManualSteps[0]} <IosShareIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
           </Typography>
           <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
-            {INSTALL_PROMPT_CONFIG.copy.iosManualSteps[1]} <AddBoxOutlinedIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
+            {INSTALL_GUIDANCE_COPY.iosManualSteps[1]} <AddBoxOutlinedIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
           </Typography>
         </Box>
         <Box
@@ -191,7 +212,15 @@ export default function InstallPrompt() {
             <AddBoxOutlinedIcon sx={{ fontSize: 18 }} />
           </Stack>
         </Box>
-        <Button color="inherit" size="small" sx={{ mt: 1 }} onClick={() => requestOpenPermissionGuide("install_prompt")}>
+        <Button color="inherit" size="small" sx={{ mt: 1 }} onClick={() => {
+          recordInstallCtaEvent({
+            surface: "install_prompt",
+            cta: "open_permission_guide",
+            promptType: "ios_manual",
+            platformIntent,
+          });
+          requestOpenPermissionGuide("install_prompt");
+        }}>
           Behörighetshjälp
         </Button>
       </Alert>

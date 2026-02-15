@@ -8,9 +8,11 @@ import {
   registerPushServiceWorker,
 } from "../../services/webNotificationService";
 import { IOS_PERMISSION_LIMITATIONS_COPY } from "../../shared/permissionsCopy";
+import { getInstallGuidanceContext, INSTALL_GUIDANCE_COPY } from "../../shared/installGuidance";
 import {
   loadPermissionGuideMetrics,
   PermissionGuideEntryPoint,
+  recordInstallCtaEvent,
   recordPermissionGuideMetric,
   subscribePermissionGuideOpen,
 } from "../../services/permissionGuidanceService";
@@ -25,11 +27,6 @@ type GuideStep = {
   done: boolean;
 };
 
-function isIosDevice(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
 export default function PermissionActionGuide() {
   const [open, setOpen] = useState(false);
   const [entryPoint, setEntryPoint] = useState<PermissionGuideEntryPoint>("settings");
@@ -37,6 +34,8 @@ export default function PermissionActionGuide() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [metrics, setMetrics] = useState(() => loadPermissionGuideMetrics());
+
+  const installGuidanceContext = useMemo(() => getInstallGuidanceContext(), []);
 
   const refreshState = async () => {
     const data = await buildWebPermissionSnapshots();
@@ -57,31 +56,29 @@ export default function PermissionActionGuide() {
   const steps = useMemo<GuideStep[]>(() => {
     const notificationSnapshot = snapshots.find((snapshot) => snapshot.capability === "notifications");
     const backgroundSnapshot = snapshots.find((snapshot) => snapshot.capability === "background_refresh");
-    const ios = isIosDevice();
+    const isIosSafari = installGuidanceContext.platformIntent === "ios_safari";
 
     return [
       {
         key: "install",
-        title: "Install app to Home Screen",
-        helpText: ios
-          ? "Open Safari Share menu and choose 'Add to Home Screen' so push and background behavior work more reliably."
-          : "Install the app from your browser menu so it behaves more like a native app.",
+        title: INSTALL_GUIDANCE_COPY.permissionGuideInstallLabel,
+        helpText: installGuidanceContext.installHelpText,
         done: isInstalled,
       },
       {
         key: "notifications",
         title: "Allow notifications",
-        helpText: ios ? IOS_PERMISSION_LIMITATIONS_COPY.notifications : notificationSnapshot?.detail ?? "Enable browser notifications.",
+        helpText: isIosSafari ? IOS_PERMISSION_LIMITATIONS_COPY.notifications : notificationSnapshot?.detail ?? "Enable browser notifications.",
         done: notificationSnapshot?.state === "allowed",
       },
       {
         key: "background_refresh",
         title: "Verify background refresh",
-        helpText: ios ? IOS_PERMISSION_LIMITATIONS_COPY.backgroundRefresh : backgroundSnapshot?.detail ?? "Keep background refresh ready.",
+        helpText: isIosSafari ? IOS_PERMISSION_LIMITATIONS_COPY.backgroundRefresh : backgroundSnapshot?.detail ?? "Keep background refresh ready.",
         done: backgroundSnapshot?.state === "allowed",
       },
     ];
-  }, [isInstalled, snapshots]);
+  }, [installGuidanceContext.installHelpText, installGuidanceContext.platformIntent, isInstalled, snapshots]);
 
   const activeStep = steps.find((step) => !step.done) ?? steps[steps.length - 1];
   const completedCount = steps.filter((step) => step.done).length;
@@ -101,6 +98,13 @@ export default function PermissionActionGuide() {
     const before = steps;
 
     if (activeStep.key === "install") {
+      recordInstallCtaEvent({
+        surface: "permission_guide",
+        cta: "run_install_step",
+        promptType: installGuidanceContext.platformIntent === "ios_safari" ? "ios_manual" : "browser_prompt",
+        platformIntent: installGuidanceContext.platformIntent,
+        entryPoint,
+      });
       setMessage("Install step requires manual action in browser/iOS menus. Follow the instructions and then press refresh status.");
     }
 

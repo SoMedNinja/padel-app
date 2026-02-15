@@ -1,3 +1,6 @@
+import type { InstallPromptType } from "../shared/installGuidance";
+import type { PlatformIntent } from "../utils/platform";
+
 export type PermissionGuideEntryPoint = "install_prompt" | "version_banner" | "menu" | "settings";
 
 type PermissionGuideOpenPayload = {
@@ -13,8 +16,20 @@ type StepMetric = {
 
 export type PermissionGuideMetrics = Record<PermissionGuideStepKey, StepMetric>;
 
+export type InstallCtaEvent = {
+  surface: "install_prompt" | "permission_guide";
+  cta: "browser_install_button" | "snooze" | "open_permission_guide" | "run_install_step";
+  promptType: InstallPromptType;
+  platformIntent: PlatformIntent;
+  entryPoint?: PermissionGuideEntryPoint;
+  result?: "accepted" | "dismissed";
+  timestampMs: number;
+};
+
 const OPEN_EVENT_NAME = "padel:permissions-guide-open";
 const METRICS_STORAGE_KEY = "padel:permissions-guide-metrics:v1";
+const INSTALL_CTA_STORAGE_KEY = "padel:install-cta-events:v1";
+const INSTALL_CTA_MAX_EVENTS = 50;
 
 const EMPTY_METRICS: PermissionGuideMetrics = {
   install: { attempts: 0, completions: 0 },
@@ -76,6 +91,38 @@ export function loadPermissionGuideMetrics(): PermissionGuideMetrics {
 export function savePermissionGuideMetrics(metrics: PermissionGuideMetrics): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+}
+
+export function loadInstallCtaEvents(): InstallCtaEvent[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(INSTALL_CTA_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as InstallCtaEvent[];
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// Note for non-coders:
+// Every install button now records this same event shape so analytics dashboards can compare prompts consistently.
+export function recordInstallCtaEvent(event: Omit<InstallCtaEvent, "timestampMs">): InstallCtaEvent {
+  const nextEvent: InstallCtaEvent = {
+    ...event,
+    timestampMs: Date.now(),
+  };
+
+  if (typeof window === "undefined") {
+    return nextEvent;
+  }
+
+  const existing = loadInstallCtaEvents();
+  const next = [...existing, nextEvent].slice(-INSTALL_CTA_MAX_EVENTS);
+  window.localStorage.setItem(INSTALL_CTA_STORAGE_KEY, JSON.stringify(next));
+  return nextEvent;
 }
 
 // Note for non-coders:
