@@ -1,6 +1,11 @@
 import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { buildWebPermissionSnapshots, ensureNotificationPermission } from "../../services/webNotificationService";
+import {
+  buildWebPermissionSnapshots,
+  ensureNotificationPermission,
+  loadNotificationPreferences,
+  registerPushServiceWorker,
+} from "../../services/webNotificationService";
 import { SHARED_PERMISSION_CAPABILITY_LABELS, SHARED_PERMISSION_STATE_LABELS, WEB_PERMISSION_CAPABILITY_HELP } from "../../shared/permissionsCopy";
 import { SHARED_PERMISSION_PLATFORM_DIFFERENCES } from "../../shared/permissionCapabilityMatrix";
 import { PermissionStatusSnapshot } from "../../types/permissions";
@@ -18,6 +23,7 @@ interface WebPermissionsPanelProps {
 
 export default function WebPermissionsPanel({ onNotificationPermissionChanged }: WebPermissionsPanelProps) {
   const [snapshots, setSnapshots] = useState<PermissionStatusSnapshot[]>([]);
+  const [actionNote, setActionNote] = useState<string | null>(null);
 
   const reloadSnapshots = async () => {
     const data = await buildWebPermissionSnapshots();
@@ -30,9 +36,32 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
 
   const handleAction = async (snapshot: PermissionStatusSnapshot) => {
     if (snapshot.capability === "notifications") {
-      await ensureNotificationPermission();
+      if (snapshot.state === "action_needed") {
+        await ensureNotificationPermission();
+        setActionNote("We requested notification permission from your browser.");
+      } else if (snapshot.state === "blocked" || snapshot.state === "limited") {
+        setActionNote("Notifications are blocked/limited by browser rules. Open site settings from the lock icon and allow notifications, then retry.");
+      }
       await onNotificationPermissionChanged();
     }
+
+    if (snapshot.capability === "background_refresh") {
+      if (snapshot.state === "action_needed") {
+        const registration = await registerPushServiceWorker(loadNotificationPreferences());
+        setActionNote(
+          registration
+            ? "Service worker registration retried. If status still shows action needed, install/open the app once and retry."
+            : "Service workers are unavailable in this browser context. Use HTTPS/localhost and supported browser features."
+        );
+      } else {
+        setActionNote("Background refresh check re-run.");
+      }
+    }
+
+    if (snapshot.capability === "biometric_passkey") {
+      setActionNote("Passkey status depends on both WebAuthn API support and whether this device exposes a platform authenticator.");
+    }
+
     await reloadSnapshots();
   };
 
@@ -45,6 +74,7 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
       </Typography>
 
       <Stack spacing={1.5}>
+        {actionNote ? <Alert severity="info">{actionNote}</Alert> : null}
         {snapshots.map((snapshot) => (
           <Box key={snapshot.capability} sx={{ p: 1.5, borderRadius: 1.5, bgcolor: "background.default" }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>

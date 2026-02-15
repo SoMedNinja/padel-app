@@ -356,56 +356,122 @@ async function isServiceWorkerReady(): Promise<boolean> {
   }
 }
 
+type WebDiagnostics = {
+  secureContext: boolean;
+  installedPwa: boolean;
+  browserFamily: "chrome" | "edge" | "firefox" | "safari" | "other";
+};
+
+function detectBrowserFamily(userAgent: string): WebDiagnostics["browserFamily"] {
+  if (/edg\//i.test(userAgent)) return "edge";
+  if (/chrome\//i.test(userAgent) && !/edg\//i.test(userAgent)) return "chrome";
+  if (/firefox\//i.test(userAgent)) return "firefox";
+  if (/safari\//i.test(userAgent) && !/chrome\//i.test(userAgent)) return "safari";
+  return "other";
+}
+
+function collectWebDiagnostics(): WebDiagnostics {
+  const secureContext = typeof window !== "undefined" ? window.isSecureContext : false;
+  const installedPwa =
+    typeof window !== "undefined" &&
+    (window.matchMedia?.("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
+  const browserFamily = typeof navigator !== "undefined" ? detectBrowserFamily(navigator.userAgent) : "other";
+
+  return {
+    secureContext,
+    installedPwa,
+    browserFamily,
+  };
+}
+
+function notificationSettingsGuidance(browserFamily: WebDiagnostics["browserFamily"]): string {
+  if (browserFamily === "chrome" || browserFamily === "edge") {
+    return "Open Site settings in the address bar lock icon and allow Notifications.";
+  }
+  if (browserFamily === "firefox") {
+    return "Open Firefox page info (lock icon) and allow notifications for this site.";
+  }
+  if (browserFamily === "safari") {
+    return "Open Safari Settings > Websites > Notifications and allow this site.";
+  }
+  return "Open browser site settings and allow notifications for this app.";
+}
+
+async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
+  if (typeof window === "undefined" || !("PublicKeyCredential" in window)) return false;
+  if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function") return false;
+
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch {
+    return false;
+  }
+}
+
 // Note for non-coders:
 // This collects the browser's capability checks and translates them into the shared state labels.
 export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSnapshot[]> {
+  const diagnostics = collectWebDiagnostics();
   const notificationSupported = typeof window !== "undefined" && "Notification" in window;
   const notificationPermission = notificationSupported ? Notification.permission : "denied";
   const swSupported = typeof navigator !== "undefined" && "serviceWorker" in navigator;
   const swReady = swSupported ? await isServiceWorkerReady() : false;
   const backgroundSyncSupported = swSupported && "SyncManager" in window;
-  const passkeySupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
-
-  const notifications: PermissionStatusSnapshot = {
-    capability: "notifications",
-    state:
-      notificationPermission === "granted"
+  const passkeyApiSupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
+  const platformAuthenticatorAvailable = await isPlatformAuthenticatorAvailable();
+  const notificationState = !notificationSupported
+    ? "limited"
+    : !diagnostics.secureContext
+      ? "limited"
+      : notificationPermission === "granted"
         ? "allowed"
         : notificationPermission === "denied"
           ? "blocked"
-          : "action_needed",
-    detail: notificationSupported
-      ? `${sharedPermissionGuidance(
-          "notifications",
-          notificationPermission === "granted" ? "allowed" : notificationPermission === "denied" ? "blocked" : "action_needed"
-        )} Browser permission is ${notificationPermission}.`
-      : `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`,
-    actionLabel: sharedPermissionActionLabel(
-      "notifications",
-      notificationPermission === "granted" ? "allowed" : notificationPermission === "denied" ? "blocked" : "action_needed"
-    ),
-    actionEnabled: notificationPermission !== "granted",
+          : "action_needed";
+
+  const notifications: PermissionStatusSnapshot = {
+    capability: "notifications",
+    state: notificationState,
+    detail: !notificationSupported
+      ? `${sharedPermissionGuidance("notifications", "limited")} This browser does not support the Notification API.`
+      : !diagnostics.secureContext
+        ? `${sharedPermissionGuidance("notifications", "limited")} Notifications require HTTPS or localhost; this page is not in a secure context.`
+        : `${sharedPermissionGuidance("notifications", notificationState)} Browser permission is ${notificationPermission}. ${
+            diagnostics.installedPwa ? "Installed app context detected." : "Running in browser-tab context."
+          } ${notificationPermission === "denied" ? notificationSettingsGuidance(diagnostics.browserFamily) : ""}`.trim(),
+    actionLabel: sharedPermissionActionLabel("notifications", notificationState),
+    actionEnabled: notificationState !== "allowed",
   };
 
+  const backgroundState = !swSupported ? "limited" : !diagnostics.secureContext ? "limited" : swReady ? "allowed" : "action_needed";
   const backgroundRefresh: PermissionStatusSnapshot = {
     capability: "background_refresh",
-    state: !swSupported ? "limited" : swReady ? "allowed" : "action_needed",
+    state: backgroundState,
     detail: !swSupported
       ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers are not available in this browser.`
+      : !diagnostics.secureContext
+        ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers require a secure context (HTTPS/localhost).`
       : swReady
         ? `${sharedPermissionGuidance("background_refresh", "allowed")} Service worker is active${backgroundSyncSupported ? " and background sync is supported" : ", but background sync API is limited"}.`
-        : `${sharedPermissionGuidance("background_refresh", "action_needed")} Service worker is not active yet.`,
-    actionLabel: sharedPermissionActionLabel("background_refresh", !swSupported ? "limited" : swReady ? "allowed" : "action_needed"),
+        : `${sharedPermissionGuidance("background_refresh", "action_needed")} Service worker is not active yet. ${
+            diagnostics.installedPwa
+              ? "Re-open the installed app once to finish setup, then retry."
+              : "Install/open the app once to improve background reliability, then retry."
+          }`,
+    actionLabel: sharedPermissionActionLabel("background_refresh", backgroundState),
     actionEnabled: true,
   };
 
+  const passkeyState = passkeyApiSupported && platformAuthenticatorAvailable ? "allowed" : "limited";
   const biometricsPasskey: PermissionStatusSnapshot = {
     capability: "biometric_passkey",
-    state: passkeySupported ? "allowed" : "limited",
-    detail: passkeySupported
-      ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Passkey/WebAuthn APIs are available on this browser/device.`
+    state: passkeyState,
+    detail: passkeyApiSupported
+      ? platformAuthenticatorAvailable
+        ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} A platform authenticator is available on this device.`
+        : `${sharedPermissionGuidance("biometric_passkey", "limited")} WebAuthn exists, but no platform authenticator was reported by this browser/device.`
       : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey APIs are not available in this browser.`,
-    actionLabel: sharedPermissionActionLabel("biometric_passkey", passkeySupported ? "allowed" : "limited"),
+    actionLabel: sharedPermissionActionLabel("biometric_passkey", passkeyState),
     actionEnabled: false,
   };
 
