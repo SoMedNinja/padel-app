@@ -2,6 +2,17 @@
 
 > Note for non-coders: a "design token" is just a named style value (like "brand primary color") so teams can change one place and update many screens.
 
+## Token pipeline (single source of truth)
+
+- Canonical token file: `design/tokens.json`.
+- Generate platform files with: `npm run tokens:generate`.
+- Generated outputs:
+  - Web TypeScript tokens: `src/generated/designTokens.ts`
+  - Web CSS variables: `src/generated/design-tokens.css`
+  - iOS Swift tokens: `ios-native/PadelNative/Theme/GeneratedDesignTokens.swift`
+
+> Note for non-coders: this means we update style values once in `design/tokens.json`, then regenerate both apps so they stay in sync.
+
 ## 1) Semantic color tokens
 
 Use semantic names first, not raw hex codes, so web and iOS stay aligned even if the exact shade is tuned per platform.

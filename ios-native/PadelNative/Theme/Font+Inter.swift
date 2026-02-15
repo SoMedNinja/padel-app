@@ -13,4 +13,25 @@ extension Font {
     static func inter(size: CGFloat, weight: Weight = .regular) -> Font {
         return .system(size: size, weight: weight)
     }
+
+    // Note for non-coders: these helpers map to our shared typography scale tokens.
+    static func tokenDisplay(weight: Weight = .bold) -> Font {
+        .inter(size: DesignTokens.Typography.display, weight: weight)
+    }
+
+    static func tokenTitle(weight: Weight = .bold) -> Font {
+        .inter(size: DesignTokens.Typography.title, weight: weight)
+    }
+
+    static func tokenSection(weight: Weight = .semibold) -> Font {
+        .inter(size: DesignTokens.Typography.section, weight: weight)
+    }
+
+    static func tokenBody(weight: Weight = .regular) -> Font {
+        .inter(size: DesignTokens.Typography.bodyLarge, weight: weight)
+    }
+
+    static func tokenCaption(weight: Weight = .regular) -> Font {
+        .inter(size: DesignTokens.Typography.caption, weight: weight)
+    }
 }

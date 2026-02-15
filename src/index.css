@@ -1,20 +1,19 @@
+@import "./generated/design-tokens.css";
+
 * {
   box-sizing:border-box;
 }
 
 :root {
   color-scheme:light;
-  --color-bg:#f6f7fb;
-  --color-surface:#ffffff;
-  --color-text:#1f1f1f;
-  --color-muted:#6d6d6d;
-  --color-brand:#d32f2f;
-  --color-brand-dark:#b71c1c;
-  --color-border:#ececec;
-  --color-border-strong:#f0b7b7;
-  --color-highlight:#fff5f5;
-  --radius-lg:14px;
-  --radius-md:10px;
+  /* Note for non-coders: these aliases let older CSS names keep working while using shared tokens underneath. */
+  --color-bg:var(--color-background);
+  --color-text:var(--color-text-primary);
+  --color-muted:var(--color-text-secondary);
+  --color-brand:var(--color-primary);
+  --color-brand-dark:var(--color-primary-strong);
+  --color-border:var(--color-border-subtle);
+  --radius-lg:var(--radius-xl);
   --shadow-soft:0 10px 30px rgba(17, 24, 39, 0.08);
   --shadow-card:0 8px 18px rgba(0, 0, 0, 0.08);
 }

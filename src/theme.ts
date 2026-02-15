@@ -1,61 +1,81 @@
 import { createTheme } from '@mui/material/styles';
+import { designTokens } from './generated/designTokens';
+
+// Note for non-coders: instead of hardcoding style numbers/colors here,
+// we read from shared tokens so web and iOS stay visually aligned.
+const semantic = designTokens.color.semantic;
+const radius = designTokens.radius;
+const typographyScale = designTokens.typography.scale;
+const typographyWeight = designTokens.typography.weight;
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#d32f2f', // Note for non-coders: main brand red used for primary actions.
-      dark: '#b71c1c',
-      contrastText: '#ffffff',
+      main: semantic.primary,
+      dark: semantic.primaryStrong,
+      contrastText: semantic.onPrimary,
     },
     secondary: {
-      main: '#ff8f00',
+      main: semantic.secondary,
     },
     success: {
-      main: '#2e7d32',
+      main: semantic.success,
     },
     warning: {
-      main: '#ed6c02',
+      main: semantic.warning,
+    },
+    info: {
+      main: semantic.info,
     },
     background: {
-      default: '#f6f7fb',
-      paper: '#ffffff',
+      default: semantic.background,
+      paper: semantic.surface,
     },
     text: {
-      primary: '#1f1f1f',
-      secondary: '#6d6d6d',
+      primary: semantic.textPrimary,
+      secondary: semantic.textSecondary,
     },
-    divider: '#ececec',
+    divider: semantic.borderSubtle,
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
   },
   typography: {
-    fontFamily: '"Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif',
+    fontFamily: designTokens.typography.fontFamily,
     h1: {
-      fontSize: '2rem',
-      fontWeight: 800,
+      fontSize: `${typographyScale.display / 16}rem`,
+      fontWeight: typographyWeight.extrabold,
       letterSpacing: '-0.02em',
     },
     h2: {
-      fontSize: '1.5rem',
-      fontWeight: 700,
+      fontSize: `${typographyScale.title / 16}rem`,
+      fontWeight: typographyWeight.bold,
       letterSpacing: '-0.01em',
     },
     h3: {
-      fontSize: '1.25rem',
-      fontWeight: 700,
+      fontSize: `${typographyScale.section / 16}rem`,
+      fontWeight: typographyWeight.bold,
+    },
+    body1: {
+      fontSize: `${typographyScale.bodyLarge / 16}rem`,
+    },
+    body2: {
+      fontSize: `${typographyScale.body / 16}rem`,
+    },
+    caption: {
+      fontSize: `${typographyScale.caption / 16}rem`,
     },
     button: {
       textTransform: 'none',
-      fontWeight: 600,
+      fontWeight: typographyWeight.semibold,
     },
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 10,
-          padding: '8px 16px',
+          borderRadius: radius.md,
+          padding: `${designTokens.spacing.sm}px ${designTokens.spacing.lg}px`,
         },
         containedPrimary: {
           boxShadow: '0 6px 16px rgba(211, 47, 47, 0.24)',
@@ -65,31 +85,31 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 14,
+          borderRadius: radius.xl,
           boxShadow: '0 8px 18px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #ececec',
+          border: `1px solid ${semantic.borderSubtle}`,
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: {
-          borderRadius: 14,
+          borderRadius: radius.xl,
         },
       },
     },
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 999,
-          fontWeight: 700,
+          borderRadius: radius.pill,
+          fontWeight: typographyWeight.bold,
         },
       },
     },
     MuiAlert: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: radius.lg,
         },
       },
     },
