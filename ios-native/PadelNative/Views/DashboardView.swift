@@ -136,17 +136,16 @@ struct DashboardView: View {
 
     private var loadingState: some View {
         VStack(spacing: 16) {
-            ProgressView(LocalizedStringKey("dashboard.loading"))
-                .font(.inter(.body))
-
-            ForEach(0..<3) { _ in
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(AppColors.surface)
-                    .frame(height: 120)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(AppColors.borderSubtle, lineWidth: 1)
-                    )
+            // Note for non-coders:
+            // These placeholder cards mirror the real dashboard sections, so loading feels stable.
+            ForEach([96.0, 86.0, 132.0, 160.0], id: \.self) { height in
+                SkeletonCardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SkeletonBlock(height: 12, width: 120)
+                        SkeletonBlock(height: 10, width: 220)
+                        SkeletonBlock(height: height - 54)
+                    }
+                }
             }
         }
     }

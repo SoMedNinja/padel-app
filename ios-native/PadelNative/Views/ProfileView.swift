@@ -223,9 +223,14 @@ struct ProfileView: View {
 
                 switch datasetState {
                 case .loading:
-                    ProgressView("Laddar trenddata…")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 30)
+                    SkeletonCardView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            SkeletonBlock(height: 12, width: 170)
+                            SkeletonBlock(height: 10, width: 130)
+                                .padding(.bottom, 6)
+                            SkeletonBlock(height: 190)
+                        }
+                    }
                 case .error(let message):
                     Text(message)
                         .foregroundStyle(.red)
@@ -584,26 +589,41 @@ struct ProfileView: View {
         SectionCard(title: "Prestation") {
             // Note for non-coders: we use a grid of equal cards here so this matches the PWA layout.
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(viewModel.profilePerformanceWidgets(filter: viewModel.globalFilter)) { widget in
-                    VStack(spacing: 8) {
-                        Text(widget.title.uppercased())
-                            .font(.inter(size: 9, weight: .black))
-                            .foregroundStyle(AppColors.textSecondary)
-                            .multilineTextAlignment(.center)
-                        Text(widget.value)
-                            .font(.inter(.title3, weight: .bold))
-                            .foregroundStyle(widget.color == "success" ? .green : (widget.color == "error" ? .red : .primary))
-                            .multilineTextAlignment(.center)
-                        Text(widget.detail)
-                            .font(.inter(size: 10))
-                            .foregroundStyle(AppColors.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
+                if viewModel.isDashboardLoading && viewModel.profileMatchesPlayed == 0 {
+                    // Note for non-coders:
+                    // We only show the skeleton before profile data exists, preventing flicker.
+                    ForEach(0..<4, id: \.self) { _ in
+                        SkeletonCardView {
+                            VStack(spacing: 10) {
+                                SkeletonBlock(height: 10, width: 90)
+                                SkeletonBlock(height: 24, width: 70)
+                                SkeletonBlock(height: 10, width: 110)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 92)
+                        }
                     }
-                    .frame(maxWidth: .infinity, minHeight: 112)
-                    .padding(10)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    ForEach(viewModel.profilePerformanceWidgets(filter: viewModel.globalFilter)) { widget in
+                        VStack(spacing: 8) {
+                            Text(widget.title.uppercased())
+                                .font(.inter(size: 9, weight: .black))
+                                .foregroundStyle(AppColors.textSecondary)
+                                .multilineTextAlignment(.center)
+                            Text(widget.value)
+                                .font(.inter(.title3, weight: .bold))
+                                .foregroundStyle(widget.color == "success" ? .green : (widget.color == "error" ? .red : .primary))
+                                .multilineTextAlignment(.center)
+                            Text(widget.detail)
+                                .font(.inter(size: 10))
+                                .foregroundStyle(AppColors.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 112)
+                        .padding(10)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
                 }
             }
         }

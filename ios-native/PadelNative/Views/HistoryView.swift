@@ -114,13 +114,26 @@ struct HistoryView: View {
                 .padding(.horizontal, 4)
 
             if viewModel.isHistoryLoading && viewModel.historyMatches.isEmpty {
-                HStack {
-                    Spacer()
-                    ProgressView("Laddar historik…")
-                        .font(.inter(.body))
-                    Spacer()
+                // Note for non-coders:
+                // These placeholders copy the final match card structure while the first page loads.
+                VStack(spacing: 12) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        SkeletonCardView {
+                            VStack(alignment: .leading, spacing: 14) {
+                                HStack {
+                                    SkeletonBlock(height: 16, width: 74)
+                                    Spacer()
+                                    SkeletonBlock(height: 12, width: 120)
+                                }
+
+                                HStack(alignment: .top, spacing: 12) {
+                                    SkeletonBlock(height: 54, width: 70)
+                                    SkeletonBlock(height: 84)
+                                }
+                            }
+                        }
+                    }
                 }
-                .padding(.vertical, 20)
             } else if !viewModel.isHistoryLoading && viewModel.historyMatches.isEmpty {
                 SectionCard(title: "") {
                     VStack(spacing: 16) {
