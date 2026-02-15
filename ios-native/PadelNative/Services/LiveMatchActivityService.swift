@@ -1,5 +1,6 @@
 import Foundation
 import ActivityKit
+import os
 
 struct LiveMatchAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
@@ -16,6 +17,10 @@ struct LiveMatchAttributes: ActivityAttributes {
 @MainActor
 class LiveMatchActivityService {
     static let shared = LiveMatchActivityService()
+
+    // Note for non-coders:
+    // This logger helps us trace Live Activity lifecycle events without exposing raw identifiers.
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "PadelNative", category: "LiveMatchActivityService")
 
     private init() {}
 
@@ -66,6 +71,7 @@ class LiveMatchActivityService {
         let updatedState = LiveMatchAttributes.ContentState(teamAScore: scoreA, teamBScore: scoreB, status: status)
 
         if let existingForMatch = Activity<LiveMatchAttributes>.activities.first(where: { $0.attributes.matchId == matchId }) {
+            logger.info("Updating existing Live Activity. matchId=\(matchId, privacy: .private(mask: .hash))")
             currentActivity = existingForMatch
             currentMatchId = matchId
             latestState = updatedState
@@ -78,6 +84,7 @@ class LiveMatchActivityService {
 
         if let activity = currentActivity {
             guard currentMatchId == matchId else {
+                logger.info("Switching Live Activity to a new match. previousMatchId=\(currentMatchId ?? "none", privacy: .private(mask: .hash)) newMatchId=\(matchId, privacy: .private(mask: .hash))")
                 endMatchActivity(scoreA: latestState.teamAScore, scoreB: latestState.teamBScore, status: latestState.status, matchId: currentMatchId)
                 breakLoopAndStart(matchId: matchId, teamA: teamA, teamB: teamB, updatedState: updatedState)
                 return
@@ -101,8 +108,9 @@ class LiveMatchActivityService {
             )
             currentMatchId = matchId
             latestState = updatedState
+            logger.info("Started Live Activity. matchId=\(matchId, privacy: .private(mask: .hash))")
         } catch {
-            print("Error starting Live Activity: \(error.localizedDescription)")
+            logger.error("Failed to start Live Activity. matchId=\(matchId, privacy: .private(mask: .hash)) error=\(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -115,6 +123,7 @@ class LiveMatchActivityService {
 
         Task {
             for duplicate in duplicates {
+                logger.debug("Ending duplicate Live Activity. matchId=\(matchId, privacy: .private(mask: .hash)) activityId=\(duplicate.id, privacy: .private(mask: .hash))")
                 if #available(iOS 16.2, *) {
                     await duplicate.end(.init(state: duplicate.content.state, staleDate: nil), dismissalPolicy: .immediate)
                 } else {
@@ -136,6 +145,7 @@ class LiveMatchActivityService {
 
     func endMatchActivity(scoreA: Int? = nil, scoreB: Int? = nil, status: String? = nil, matchId: String? = nil) {
         if let matchId, let currentMatchId, matchId != currentMatchId {
+            logger.debug("Skipping Live Activity end for non-active match. requestedMatchId=\(matchId, privacy: .private(mask: .hash)) activeMatchId=\(currentMatchId, privacy: .private(mask: .hash))")
             return
         }
 
@@ -154,6 +164,7 @@ class LiveMatchActivityService {
             } else {
                 await currentActivity?.end(dismissalPolicy: .immediate)
             }
+            logger.info("Ended Live Activity. matchId=\(currentMatchId ?? "none", privacy: .private(mask: .hash))")
             currentActivity = nil
             currentMatchId = nil
             latestState = LiveMatchAttributes.ContentState(teamAScore: 0, teamBScore: 0, status: Self.localizedStatusCompleted)
