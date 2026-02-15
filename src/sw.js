@@ -149,19 +149,46 @@ self.addEventListener("push", (event) => {
   );
 });
 
+function normalizeRoute(routeCandidate) {
+  // Note for non-coders:
+  // Notifications may carry broken/missing route values, so we sanitize them to a safe in-app URL.
+  if (typeof routeCandidate !== "string") return "/";
+  const trimmedRoute = routeCandidate.trim();
+  if (!trimmedRoute) return "/";
+
+  try {
+    const parsedRoute = new URL(trimmedRoute, self.location.origin);
+    if (parsedRoute.origin !== self.location.origin) return "/";
+    return `${parsedRoute.pathname}${parsedRoute.search}${parsedRoute.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const route = event.notification.data?.route || "/";
+  const route = normalizeRoute(event.notification.data?.route);
+  const targetUrl = new URL(route, self.location.origin);
   event.waitUntil(
     (async () => {
       const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      const first = clients[0];
-      if (first) {
-        first.focus();
-        first.postMessage({ type: "OPEN_ROUTE", route });
+
+      const matchingClient = clients.find((client) => {
+        try {
+          const clientUrl = new URL(client.url);
+          return clientUrl.origin === targetUrl.origin && clientUrl.pathname === targetUrl.pathname;
+        } catch {
+          return false;
+        }
+      });
+
+      if (matchingClient) {
+        await matchingClient.focus();
+        matchingClient.postMessage({ type: "OPEN_ROUTE", route });
         return;
       }
-      await self.clients.openWindow(route);
+
+      await self.clients.openWindow(targetUrl.href);
     })()
   );
 });
