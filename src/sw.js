@@ -1,7 +1,8 @@
-/* eslint-disable no-restricted-globals */
-/* global workbox */
-
-importScripts("https://storage.googleapis.com/workbox-cdn/releases/7.1.0/workbox-sw.js");
+import { CacheableResponsePlugin } from "workbox-cacheable-response";
+import { ExpirationPlugin } from "workbox-expiration";
+import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching";
+import { registerRoute, setCatchHandler } from "workbox-routing";
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
 
 const PREFERENCES_CACHE = "notification-preferences-v1";
 const PREFERENCES_URL = "/__notification_preferences__";
@@ -22,14 +23,15 @@ const defaultPreferences = {
 
 // Note for non-coders:
 // Precache means "save app files ahead of time" so the app shell can start fast/offline.
-workbox.precaching.precacheAndRoute(self.__WB_MANIFEST || []);
-workbox.precaching.cleanupOutdatedCaches();
+// The files are bundled with the app build, so install does not need to fetch Workbox from a CDN first.
+precacheAndRoute(self.__WB_MANIFEST || []);
+cleanupOutdatedCaches();
 
-const navigationFallbackHandler = workbox.precaching.createHandlerBoundToURL("/index.html");
+const navigationFallbackHandler = createHandlerBoundToURL("/index.html");
 
 // Note for non-coders:
 // If a page request fails (for example no network), we still return the app shell so React can show an offline-safe screen.
-workbox.routing.setCatchHandler(async ({ event }) => {
+setCatchHandler(async ({ event }) => {
   if (event.request.destination === "document") {
     return navigationFallbackHandler({ event });
   }
@@ -39,20 +41,20 @@ workbox.routing.setCatchHandler(async ({ event }) => {
 
 // Note for non-coders:
 // Runtime caching handles files that are fetched after startup (images, API responses, pages).
-workbox.routing.registerRoute(
+registerRoute(
   ({ request }) => request.mode === "navigate",
-  new workbox.strategies.NetworkFirst({
+  new NetworkFirst({
     cacheName: "pages-runtime-cache",
     networkTimeoutSeconds: 3,
-    plugins: [new workbox.expiration.ExpirationPlugin({ maxEntries: 50 })],
+    plugins: [new ExpirationPlugin({ maxEntries: 50 })],
   })
 );
 
-workbox.routing.registerRoute(
+registerRoute(
   ({ request }) => ["style", "script", "worker"].includes(request.destination),
-  new workbox.strategies.StaleWhileRevalidate({
+  new StaleWhileRevalidate({
     cacheName: "static-assets-runtime-cache",
-    plugins: [new workbox.expiration.ExpirationPlugin({ maxEntries: 80 })],
+    plugins: [new ExpirationPlugin({ maxEntries: 80 })],
   })
 );
 
@@ -76,13 +78,13 @@ function isKeyReadEndpoint(url) {
   return false;
 }
 
-workbox.routing.registerRoute(
+registerRoute(
   ({ request, url }) => request.method === "GET" && isKeyReadEndpoint(url),
-  new workbox.strategies.StaleWhileRevalidate({
+  new StaleWhileRevalidate({
     cacheName: "supabase-key-read-runtime-cache",
     plugins: [
-      new workbox.cacheableResponse.CacheableResponsePlugin({ statuses: [200] }),
-      new workbox.expiration.ExpirationPlugin({
+      new CacheableResponsePlugin({ statuses: [200] }),
+      new ExpirationPlugin({
         maxEntries: 120,
         maxAgeSeconds: 60 * 10,
       }),
@@ -90,12 +92,12 @@ workbox.routing.registerRoute(
   })
 );
 
-workbox.routing.registerRoute(
+registerRoute(
   ({ request }) => request.destination === "image",
-  new workbox.strategies.CacheFirst({
+  new CacheFirst({
     cacheName: "images-runtime-cache",
     plugins: [
-      new workbox.expiration.ExpirationPlugin({
+      new ExpirationPlugin({
         maxEntries: 100,
         maxAgeSeconds: 60 * 60 * 24 * 30,
       }),

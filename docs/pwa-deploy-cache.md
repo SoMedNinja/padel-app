@@ -6,6 +6,16 @@ When the app is installed as a PWA, the browser can keep an old copy of `index.h
 
 **Note for non-coders:** `index.html` is the app’s table of contents. If the table of contents is old, the app can’t find the real pages.
 
+## Why local service-worker dependencies matter
+
+The service worker now imports Workbox from the app bundle at build time (via Vite `injectManifest`) instead of downloading Workbox from a CDN during install/update.
+
+- This removes a network dependency from the very first service-worker install step.
+- If a user is on weak Wi‑Fi, behind strict firewalls, or temporarily offline, install is less likely to fail before caching starts.
+- It also reduces risk from third-party CDN outages for critical offline/update behavior.
+
+**Note for non-coders:** before this change, the app installer had to fetch an extra tool from the internet first. Now that tool ships inside the app package, so there is one less thing that can break on day one.
+
 ## What we configured in this repo
 
 Vercel cache headers are defined in `vercel.json`:

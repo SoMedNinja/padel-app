@@ -1,6 +1,13 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+// Note for non-coders:
+// These aliases tell the build where Workbox code lives locally, so the service worker can bundle it instead of downloading from a CDN.
+const workboxModule = (name) => path.resolve(rootDir, `node_modules/.pnpm/${name}@7.4.0/node_modules/${name}`);
 
 export default defineConfig({
   test: {
@@ -9,6 +16,15 @@ export default defineConfig({
     exclude: ["**/node_modules/**"],
   },
   base: "./",
+  resolve: {
+    alias: {
+      "workbox-cacheable-response": workboxModule("workbox-cacheable-response"),
+      "workbox-expiration": workboxModule("workbox-expiration"),
+      "workbox-precaching": workboxModule("workbox-precaching"),
+      "workbox-routing": workboxModule("workbox-routing"),
+      "workbox-strategies": workboxModule("workbox-strategies"),
+    },
+  },
   plugins: [
     react(),
     VitePWA({
