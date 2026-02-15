@@ -1,28 +1,19 @@
 import { PermissionCapability, SharedPermissionState } from "../types/permissions";
-import { SHARED_PERMISSION_CAPABILITY_MATRIX } from "./permissionCapabilityMatrix";
+import {
+  SHARED_PERMISSION_CAPABILITY_LABELS,
+  SHARED_PERMISSION_CAPABILITY_MATRIX,
+  SHARED_PERMISSION_STATE_LABELS,
+} from "./permissionCapabilityMatrix";
 
-// Note for non-coders:
-// "copy" means user-facing text. Keeping one table avoids different wording in different screens.
-export const SHARED_PERMISSION_STATE_LABELS: Record<SharedPermissionState, string> = {
-  allowed: "Tillåten",
-  blocked: "Blockerad",
-  limited: "Begränsad",
-  action_needed: "Åtgärd krävs",
-};
-
-export const SHARED_PERMISSION_CAPABILITY_LABELS: Record<PermissionCapability, string> = {
-  notifications: "Notiser",
-  background_refresh: "Bakgrundsuppdatering",
-  biometric_passkey: "Biometri / passkey",
-  calendar: "Kalender",
-};
+export { SHARED_PERMISSION_CAPABILITY_LABELS, SHARED_PERMISSION_STATE_LABELS };
 
 export const WEB_PERMISSION_CAPABILITY_HELP: Record<PermissionCapability, string> = {
   // Note for non-coders: these short helper texts explain each permission card in everyday Swedish.
   notifications: "Webbläsaraviseringar för matchpåminnelser och adminuppdateringar.",
   background_refresh: "Service worker-beredskap för att ta emot push även när sidan är stängd.",
   biometric_passkey: "Om den här webbläsaren/enheten kan använda plattformsnycklar (passkeys).",
-  calendar: "Webben kan inte slå av/på operativsystemets kalenderbehörighet direkt; kalenderfunktioner beror på din kalenderapp.",
+  calendar:
+    "Webben kan inte slå av/på operativsystemets kalenderbehörighet direkt; kalenderfunktioner beror på din kalenderapp.",
 };
 
 export const IOS_PERMISSION_LIMITATIONS_COPY = {

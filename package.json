@@ -15,7 +15,9 @@
     "tokens:generate": "node scripts/generate-design-tokens.mjs",
     "tokens:check": "node scripts/check-design-token-sync.mjs",
     "pwa:generate": "node scripts/generate-pwa-assets.mjs",
-    "pwa:check": "node scripts/check-pwa-assets.mjs"
+    "pwa:check": "node scripts/check-pwa-assets.mjs",
+    "permissions:generate": "node scripts/generate-permission-capability-matrix.mjs",
+    "permissions:check": "node scripts/check-permission-capability-matrix-sync.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

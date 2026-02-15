@@ -10,9 +10,13 @@ on:
       - "scripts/check-contract-sync.mjs"
       - "scripts/check-design-token-sync.mjs"
       - "scripts/check-pwa-assets.mjs"
+      - "scripts/check-permission-capability-matrix-sync.mjs"
       - "scripts/generate-contract-models.mjs"
       - "scripts/generate-design-tokens.mjs"
       - "scripts/generate-pwa-assets.mjs"
+      - "scripts/generate-permission-capability-matrix.mjs"
+      - "docs/permissions-capability-matrix.json"
+      - "docs/permissions-capability-matrix.schema.json"
       - "index.html"
       - "vite.config.js"
       - "package.json"
@@ -27,9 +31,13 @@ on:
       - "scripts/check-contract-sync.mjs"
       - "scripts/check-design-token-sync.mjs"
       - "scripts/check-pwa-assets.mjs"
+      - "scripts/check-permission-capability-matrix-sync.mjs"
       - "scripts/generate-contract-models.mjs"
       - "scripts/generate-design-tokens.mjs"
       - "scripts/generate-pwa-assets.mjs"
+      - "scripts/generate-permission-capability-matrix.mjs"
+      - "docs/permissions-capability-matrix.json"
+      - "docs/permissions-capability-matrix.schema.json"
       - "index.html"
       - "vite.config.js"
       - "package.json"
@@ -66,3 +74,13 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run pwa:check
+
+  permission-copy-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run permissions:check

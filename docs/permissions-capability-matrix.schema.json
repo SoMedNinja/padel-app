@@ -1,18 +1,91 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://padelnative.local/schemas/permissions-capability-matrix.schema.json",
-  "title": "PermissionCapabilityMatrix",
-  "description": "capability -> allowed/blocked/limited/action_needed -> explanation + action label",
+  "title": "PermissionCapabilityMatrixSource",
+  "description": "Canonical localized permission capability matrix that generates web and iOS artifacts.",
   "type": "object",
-  "required": ["notifications", "background_refresh", "biometric_passkey", "calendar"],
+  "required": [
+    "version",
+    "supported_locales",
+    "default_locale_by_client",
+    "state_labels",
+    "capabilities",
+    "platform_differences"
+  ],
   "additionalProperties": false,
   "properties": {
-    "notifications": { "$ref": "#/$defs/stateSemantics" },
-    "background_refresh": { "$ref": "#/$defs/stateSemantics" },
-    "biometric_passkey": { "$ref": "#/$defs/stateSemantics" },
-    "calendar": { "$ref": "#/$defs/stateSemantics" }
+    "version": { "type": "integer", "minimum": 1 },
+    "supported_locales": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/locale" },
+      "uniqueItems": true
+    },
+    "default_locale_by_client": {
+      "type": "object",
+      "required": ["web", "ios"],
+      "additionalProperties": false,
+      "properties": {
+        "web": { "$ref": "#/$defs/locale" },
+        "ios": { "$ref": "#/$defs/locale" }
+      }
+    },
+    "state_labels": {
+      "type": "object",
+      "required": ["sv", "en"],
+      "additionalProperties": false,
+      "properties": {
+        "sv": { "$ref": "#/$defs/stateLabels" },
+        "en": { "$ref": "#/$defs/stateLabels" }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["notifications", "background_refresh", "biometric_passkey", "calendar"],
+      "additionalProperties": false,
+      "properties": {
+        "notifications": { "$ref": "#/$defs/capability" },
+        "background_refresh": { "$ref": "#/$defs/capability" },
+        "biometric_passkey": { "$ref": "#/$defs/capability" },
+        "calendar": { "$ref": "#/$defs/capability" }
+      }
+    },
+    "platform_differences": { "$ref": "#/$defs/localizedString" }
   },
   "$defs": {
+    "locale": {
+      "type": "string",
+      "enum": ["sv", "en"]
+    },
+    "stateLabels": {
+      "type": "object",
+      "required": ["allowed", "blocked", "limited", "action_needed"],
+      "additionalProperties": false,
+      "properties": {
+        "allowed": { "type": "string", "minLength": 1 },
+        "blocked": { "type": "string", "minLength": 1 },
+        "limited": { "type": "string", "minLength": 1 },
+        "action_needed": { "type": "string", "minLength": 1 }
+      }
+    },
+    "localizedString": {
+      "type": "object",
+      "required": ["sv", "en"],
+      "additionalProperties": false,
+      "properties": {
+        "sv": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 }
+      }
+    },
+    "semanticCopy": {
+      "type": "object",
+      "required": ["explanation", "action_label"],
+      "additionalProperties": false,
+      "properties": {
+        "explanation": { "$ref": "#/$defs/localizedString" },
+        "action_label": { "$ref": "#/$defs/localizedString" }
+      }
+    },
     "stateSemantics": {
       "type": "object",
       "required": ["allowed", "blocked", "limited", "action_needed"],
@@ -24,13 +97,14 @@
         "action_needed": { "$ref": "#/$defs/semanticCopy" }
       }
     },
-    "semanticCopy": {
+    "capability": {
       "type": "object",
-      "required": ["explanation", "action_label"],
+      "required": ["title", "subtitle", "states"],
       "additionalProperties": false,
       "properties": {
-        "explanation": { "type": "string", "minLength": 1 },
-        "action_label": { "type": "string", "minLength": 1 }
+        "title": { "$ref": "#/$defs/localizedString" },
+        "subtitle": { "$ref": "#/$defs/localizedString" },
+        "states": { "$ref": "#/$defs/stateSemantics" }
       }
     }
   }
