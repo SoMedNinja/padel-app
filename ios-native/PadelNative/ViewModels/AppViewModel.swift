@@ -2174,6 +2174,9 @@ final class AppViewModel: ObservableObject {
         case emails
     }
 
+    private let canonicalScheduleRoute = "schedule"
+    private let legacyScheduleRoute = "schema"
+
     // Note for non-coders:
     // This parser turns raw URL text into a small "route enum", so we can validate everything once
     // and keep the actual navigation logic simple and safe.
@@ -2196,9 +2199,9 @@ final class AppViewModel: ObservableObject {
             .split(separator: "/")
             .map(String.init)
             .filter { !$0.isEmpty }
-        let routeName = pathSegments.first ?? ""
+        let routeName = normalizedRouteName(pathSegments.first ?? "")
 
-        if routeName == "schema" || routeName == "schedule" {
+        if routeName == canonicalScheduleRoute {
             let allowedNames: Set<String> = ["poll", "pollid", "day", "dayid", "slots"]
             let unknownNames = items
                 .map { $0.name.lowercased() }
@@ -2288,6 +2291,19 @@ final class AppViewModel: ObservableObject {
         }
 
         return .failure(DeepLinkParseError(message: "Länken matchar ingen känd sida i appen."))
+    }
+
+
+    // Note for non-coders:
+    // We keep one canonical route name ("schedule") internally.
+    // Old "schema" links are still accepted for a transition period.
+    private func normalizedRouteName(_ rawRouteName: String) -> String {
+        switch rawRouteName {
+        case legacyScheduleRoute:
+            return canonicalScheduleRoute
+        default:
+            return rawRouteName
+        }
     }
 
     // Note for non-coders:

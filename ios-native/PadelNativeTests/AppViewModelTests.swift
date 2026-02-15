@@ -23,7 +23,26 @@ final class AppViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testHandleIncomingUniversalScheduleURLSetsPollAndVoteDraft() {
+    func testHandleIncomingCanonicalUniversalScheduleURLSetsPollAndVoteDraft() {
+        let viewModel = AppViewModel()
+        viewModel.isAuthenticated = true
+        viewModel.isGuestMode = false
+        viewModel.injectIdentityForTests(AuthIdentity(profileId: UUID(), email: "member@padel.se", fullName: "Member", isAdmin: false, isRegular: true, isApproved: true))
+
+        let pollId = UUID()
+        let dayId = UUID()
+        let url = URL(string: "https://padelnative.app/schedule?poll=\(pollId.uuidString)&day=\(dayId.uuidString)&slots=day")!
+
+        viewModel.handleIncomingURL(url)
+
+        XCTAssertEqual(viewModel.selectedMainTab, 3)
+        XCTAssertEqual(viewModel.deepLinkedPollId, pollId)
+        XCTAssertEqual(viewModel.deepLinkedPollDayId, dayId)
+    }
+
+
+    @MainActor
+    func testHandleIncomingLegacyUniversalSchemaURLStillSetsPollAndVoteDraft() {
         let viewModel = AppViewModel()
         viewModel.isAuthenticated = true
         viewModel.isGuestMode = false

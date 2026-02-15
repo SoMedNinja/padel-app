@@ -9,8 +9,8 @@ This document defines the cross-client notification contract used by:
 
 | Event type | Purpose | Default route |
 | --- | --- | --- |
-| `scheduled_match_new` | A new scheduled match was created or changed. | `/schema` |
-| `availability_poll_reminder` | Reminder to answer an availability poll before deadline. | `/schema` |
+| `scheduled_match_new` | A new scheduled match was created or changed. | `/schedule` |
+| `availability_poll_reminder` | Reminder to answer an availability poll before deadline. | `/schedule` |
 | `admin_announcement` | Admin broadcast announcement (maintenance, policy, important updates). | `/` |
 
 ## Payload schema (JSON)
@@ -20,7 +20,7 @@ This document defines the cross-client notification contract used by:
   "eventType": "scheduled_match_new",
   "title": "Ny match i schemat",
   "body": "Tisdag 19:00 på PDL Center.",
-  "route": "/schema",
+  "route": "/schedule",
   "metadata": {
     "matchId": "uuid-or-string"
   },
@@ -80,6 +80,15 @@ This document defines the cross-client notification contract used by:
 - Revoking/unsubscribing marks `push_subscriptions.revoked_at` so delivery systems can skip inactive endpoints.
 - First sign-in migrates existing local/browser preferences to backend if no backend row exists yet.
 - iOS local schedule reminders currently map to `scheduled_match_new` semantics for parity.
+- Canonical deep-link target is now `/schedule`; keep `/schema` as a temporary redirect so older notifications still work.
+
+## Backward compatibility and phase-out plan
+
+1. **Now (compatibility window):** produce new notification routes as `/schedule`, while clients still accept `/schema`.
+2. **After delivery lag window (recommended 30-60 days):** audit logs for remaining `/schema` route usage.
+3. **Phase-out:** remove `/schema` route generation first, then remove `/schema` redirect handling once usage reaches zero.
+
+> Note for non-coders: we keep old links alive for a while because some notifications are opened days later.
 
 
 ## Push subscription lifecycle
