@@ -8,6 +8,7 @@ import PlayerProfilePage from "./pages/PlayerProfilePage";
 import SchedulePage from "./pages/SchedulePage";
 import MatchShareRedirectPage from "./pages/MatchShareRedirectPage";
 import OfflinePage from "./pages/OfflinePage";
+import EducationPage from "./pages/EducationPage";
 import { useStore } from "./store/useStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -35,6 +36,8 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<PageWrapper><Dashboard /></PageWrapper>} />
         <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
         <Route path="/history" element={<PageWrapper><HistoryPage /></PageWrapper>} />
+        <Route path="/education" element={<PageWrapper><EducationPage /></PageWrapper>} />
+        <Route path="/education/:topicId" element={<PageWrapper><EducationPage /></PageWrapper>} />
         {canAccessSchedule && <Route path="/schedule" element={<PageWrapper><SchedulePage /></PageWrapper>} />}
         {canAccessSchedule && <Route path="/schema" element={<Navigate to="/schedule" replace />} />}
         {!isGuest && <Route path="/tournament" element={<PageWrapper><TournamentPage /></PageWrapper>} />}

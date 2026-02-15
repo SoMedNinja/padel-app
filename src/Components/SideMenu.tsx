@@ -20,6 +20,7 @@ import {
   AdminPanelSettings as AdminIcon,
   Logout as LogoutIcon,
   Login as LoginIcon,
+  School as SchoolIcon,
 } from "@mui/icons-material";
 
 interface SideMenuProps {
@@ -40,6 +41,7 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
     { text: "Profil", icon: <HomeIcon />, path: "/" },
     { text: "Översikt", icon: <TrophyIcon />, path: "/dashboard" },
     { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
+    { text: "Utbildning", icon: <SchoolIcon />, path: "/education" },
   ];
 
   if (user?.is_regular) {
