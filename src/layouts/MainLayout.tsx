@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
 import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
+import InstallPrompt from "../Components/InstallPrompt";
 import {
   IconButton,
   Box,
@@ -40,7 +41,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [overflowAnchorEl, setOverflowAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const guestModeMaxAgeMs = 1000 * 60 * 60 * 24;
   const [now] = useState(() => Date.now());
@@ -141,6 +141,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       <Container maxWidth="lg" sx={{ mt: 2 }}>
         <SupabaseConfigBanner />
+      </Container>
+
+      <Container maxWidth="lg" sx={{ mt: 2 }}>
+        {/* Note for non-coders: this card helps people install the web app like a normal phone app. */}
+        <InstallPrompt />
       </Container>
 
       {hasGuestAccess && (
