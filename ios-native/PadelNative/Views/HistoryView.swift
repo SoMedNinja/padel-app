@@ -109,17 +109,35 @@ struct HistoryView: View {
     private var filterSection: some View {
         SectionCard(title: "Globalt Filter") {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Period", selection: $viewModel.globalFilter) {
-                    ForEach(DashboardMatchFilter.allCases) { filter in
-                        Text(filter.title).tag(filter)
+                // Note for non-coders:
+                // This compact menu + reset button matches the slimmer web filter pattern.
+                HStack(spacing: 8) {
+                    Picker("Period", selection: $viewModel.globalFilter) {
+                        ForEach(DashboardMatchFilter.allCases) { filter in
+                            Text(filter.title).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .sensoryFeedback(.selection, trigger: viewModel.globalFilter)
+
+                    if viewModel.globalFilter != .all {
+                        Button("Återställ") {
+                            viewModel.globalFilter = .all
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
-                .pickerStyle(.segmented)
-                .sensoryFeedback(.selection, trigger: viewModel.globalFilter)
 
                 if viewModel.globalFilter == .custom {
                     DatePicker("Från", selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                        .datePickerStyle(.compact)
                     DatePicker("Till", selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
+                        .datePickerStyle(.compact)
                 }
 
                 Text("Aktivt filter: \(viewModel.globalActiveFilterLabel)")

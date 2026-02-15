@@ -310,22 +310,35 @@ struct DashboardView: View {
     private var filterSection: some View {
         SectionCard(title: String(localized: "dashboard.filter.title")) {
             VStack(alignment: .leading, spacing: 12) {
-                Picker(LocalizedStringKey("dashboard.filter.period"), selection: $viewModel.globalFilter) {
-                    ForEach(DashboardMatchFilter.allCases) { filter in
-                        Text(filter.title).tag(filter)
+                // Note for non-coders:
+                // A menu picker takes less vertical room than segmented tabs, which matches the lighter PWA filter feel.
+                HStack(spacing: 8) {
+                    Picker(LocalizedStringKey("dashboard.filter.period"), selection: $viewModel.globalFilter) {
+                        ForEach(DashboardMatchFilter.allCases) { filter in
+                            Text(filter.title).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .sensoryFeedback(.selection, trigger: viewModel.globalFilter)
+
+                    if viewModel.globalFilter != .all {
+                        Button(LocalizedStringKey("dashboard.filter.reset")) {
+                            viewModel.globalFilter = .all
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
-                .pickerStyle(.segmented)
-                .sensoryFeedback(.selection, trigger: viewModel.globalFilter)
 
                 if viewModel.globalFilter == .custom {
                     DatePicker(LocalizedStringKey("dashboard.filter.from"), selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                        .datePickerStyle(.compact)
                     DatePicker(LocalizedStringKey("dashboard.filter.to"), selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
-
-                    Button(LocalizedStringKey("dashboard.filter.reset")) {
-                        viewModel.globalFilter = .all
-                    }
-                    .buttonStyle(.bordered)
+                        .datePickerStyle(.compact)
                 }
 
                 Text(String(format: String(localized: "dashboard.filter.active"), viewModel.globalActiveFilterLabel))

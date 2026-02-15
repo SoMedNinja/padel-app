@@ -1268,12 +1268,14 @@ final class AppViewModel: ObservableObject {
         }.count
         let recentLosses = recentResults.count - recentWins
 
+        // Note for non-coders:
+        // This order and wording now mirrors the web (PWA) profile cards so both apps feel consistent.
         return [
-            ProfilePerformanceWidget(id: "elo", title: "Aktuell ELO", value: "\(currentPlayer.elo)", detail: "Din nuvarande ranking", symbol: "chart.line.uptrend.xyaxis"),
             ProfilePerformanceWidget(id: "matches", title: "Matcher", value: "\(myMatches.count)", detail: "Totalt spelade matcher", symbol: "paddles.fill"),
-            ProfilePerformanceWidget(id: "winLoss", title: "Vinst/förlust", value: "\(wins) - \(losses)", detail: "\(winRate)% vinstprocent", symbol: "trophy", color: wins >= losses ? "success" : "error"),
-            ProfilePerformanceWidget(id: "serveFirst", title: "Med start-serve", value: "\(serveStats.firstWins)V - \(serveStats.firstLosses)F", detail: "Vinstprocent: \(serveStats.firstWinRate)%", symbol: "bolt.fill"),
-            ProfilePerformanceWidget(id: "serveSecond", title: "Utan start-serve", value: "\(serveStats.secondWins)V - \(serveStats.secondLosses)F", detail: "Vinstprocent: \(serveStats.secondWinRate)%", symbol: "bolt.slash.fill"),
+            ProfilePerformanceWidget(id: "winLoss", title: "Vinst/förlust", value: "\(wins) - \(losses)", detail: "\(winRate)% vinstprocent", symbol: "trophy"),
+            ProfilePerformanceWidget(id: "winRate", title: "Vinst %", value: "\(winRate)%", detail: "Andel vinster i vald period", symbol: "percent"),
+            ProfilePerformanceWidget(id: "serveFirst", title: "Vinst/förlust med start-serve", value: "\(serveStats.firstWins)V - \(serveStats.firstLosses)F", detail: "Vinstprocent: \(serveStats.firstWinRate)%", symbol: "bolt.fill"),
+            ProfilePerformanceWidget(id: "serveSecond", title: "Vinst/förlust utan start-serve", value: "\(serveStats.secondWins)V - \(serveStats.secondLosses)F", detail: "Vinstprocent: \(serveStats.secondWinRate)%", symbol: "bolt.slash.fill"),
             ProfilePerformanceWidget(id: "delta30", title: "ELO +/- (30d)", value: "\(last30DaysDelta >= 0 ? "+" : "")\(last30DaysDelta)", detail: "Förändring senaste 30 dagarna", symbol: "calendar", color: last30DaysDelta >= 0 ? "success" : "error"),
             ProfilePerformanceWidget(id: "deltaSession", title: "ELO +/- (Kväll)", value: "\(lastSessionDelta >= 0 ? "+" : "")\(lastSessionDelta)", detail: "Förändring senaste passet", symbol: "moon.stars.fill", color: lastSessionDelta >= 0 ? "success" : "error"),
             ProfilePerformanceWidget(id: "form", title: "Form (L5)", value: "\(recentWins)V - \(recentLosses)F", detail: "Resultat på senaste 5 matcherna", symbol: "waveform.path.ecg")
