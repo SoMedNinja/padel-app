@@ -3,7 +3,8 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import theme from "./theme";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { darkTheme, lightTheme } from "./theme";
 import RootApp from "./RootApp";
 import "./index.css";
 
@@ -17,16 +18,26 @@ const queryClient = new QueryClient({
   },
 });
 
-const rootElement = document.getElementById("root");
-if (!rootElement) throw new Error("Failed to find the root element");
+function AppShell() {
+  // Note for non-coders: this listens to your device/browser setting and picks light or dark theme automatically.
+  const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)", { noSsr: true });
+  const activeTheme = prefersDarkMode ? darkTheme : lightTheme;
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <ThemeProvider theme={theme}>
+  return (
+    <ThemeProvider theme={activeTheme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
         <RootApp />
       </QueryClientProvider>
     </ThemeProvider>
+  );
+}
+
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Failed to find the root element");
+
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
+    <AppShell />
   </React.StrictMode>
 );

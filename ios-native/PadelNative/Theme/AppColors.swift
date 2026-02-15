@@ -6,29 +6,29 @@ import SwiftUI
 /// The values come from shared DesignTokens so web and iOS match from one source.
 enum AppColors {
     // Brand Colors
-    static let brandPrimary = Color(hex: DesignTokens.Colors.primary)
-    static let brandDark = Color(hex: DesignTokens.Colors.primaryStrong)
-    static let secondary = Color(hex: DesignTokens.Colors.secondary)
+    static let brandPrimary = Color.adaptive(lightHex: DesignTokens.Colors.lightPrimary, darkHex: DesignTokens.Colors.darkPrimary)
+    static let brandDark = Color.adaptive(lightHex: DesignTokens.Colors.lightPrimaryStrong, darkHex: DesignTokens.Colors.darkPrimaryStrong)
+    static let secondary = Color.adaptive(lightHex: DesignTokens.Colors.lightSecondary, darkHex: DesignTokens.Colors.darkSecondary)
 
     // Semantic Status
-    static let success = Color(hex: DesignTokens.Colors.success)
-    static let warning = Color(hex: DesignTokens.Colors.warning)
-    static let error = Color(hex: DesignTokens.Colors.primary)
-    static let info = Color(hex: DesignTokens.Colors.info)
+    static let success = Color.adaptive(lightHex: DesignTokens.Colors.lightSuccess, darkHex: DesignTokens.Colors.darkSuccess)
+    static let warning = Color.adaptive(lightHex: DesignTokens.Colors.lightWarning, darkHex: DesignTokens.Colors.darkWarning)
+    static let error = Color.adaptive(lightHex: DesignTokens.Colors.lightPrimary, darkHex: DesignTokens.Colors.darkPrimary)
+    static let info = Color.adaptive(lightHex: DesignTokens.Colors.lightInfo, darkHex: DesignTokens.Colors.darkInfo)
 
     // Backgrounds & Surfaces
-    static let background = Color(hex: DesignTokens.Colors.background)
-    static let surface = Color(hex: DesignTokens.Colors.surface)
-    static let surfaceMuted = Color(hex: DesignTokens.Colors.surfaceMuted)
+    static let background = Color.adaptive(lightHex: DesignTokens.Colors.lightBackground, darkHex: DesignTokens.Colors.darkBackground)
+    static let surface = Color.adaptive(lightHex: DesignTokens.Colors.lightSurface, darkHex: DesignTokens.Colors.darkSurface)
+    static let surfaceMuted = Color.adaptive(lightHex: DesignTokens.Colors.lightSurfaceMuted, darkHex: DesignTokens.Colors.darkSurfaceMuted)
 
     // Text
-    static let textPrimary = Color(hex: DesignTokens.Colors.textPrimary)
-    static let textSecondary = Color(hex: DesignTokens.Colors.textSecondary)
+    static let textPrimary = Color.adaptive(lightHex: DesignTokens.Colors.lightTextPrimary, darkHex: DesignTokens.Colors.darkTextPrimary)
+    static let textSecondary = Color.adaptive(lightHex: DesignTokens.Colors.lightTextSecondary, darkHex: DesignTokens.Colors.darkTextSecondary)
 
     // Borders and Highlights
-    static let borderSubtle = Color(hex: DesignTokens.Colors.borderSubtle)
-    static let borderStrong = Color(hex: DesignTokens.Colors.borderStrong)
-    static let highlight = Color(hex: DesignTokens.Colors.highlight)
+    static let borderSubtle = Color.adaptive(lightHex: DesignTokens.Colors.lightBorderSubtle, darkHex: DesignTokens.Colors.darkBorderSubtle)
+    static let borderStrong = Color.adaptive(lightHex: DesignTokens.Colors.lightBorderStrong, darkHex: DesignTokens.Colors.darkBorderStrong)
+    static let highlight = Color.adaptive(lightHex: DesignTokens.Colors.lightHighlight, darkHex: DesignTokens.Colors.darkHighlight)
 
     // Spacing and corners
     static let spacingSmall = DesignTokens.Spacing.sm
