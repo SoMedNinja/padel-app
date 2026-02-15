@@ -1,0 +1,80 @@
+/*
+ Swedish (sv) values are active by default in this file.
+ English (en) suggestions are kept in comments beside each key.
+*/
+
+"dashboard.title" = "Översikt"; /* en: Overview */
+"dashboard.scroll_to_top" = "Scrolla till toppen"; /* en: Scroll to top */
+"dashboard.loading" = "Laddar översikt…"; /* en: Loading overview… */
+"dashboard.error.title" = "Kunde inte ladda data"; /* en: Could not load data */
+"dashboard.retry" = "Försök igen"; /* en: Try again */
+"dashboard.empty.title" = "Inga matcher ännu"; /* en: No matches yet */
+"dashboard.empty.body" = "Lägg till din första match för att låsa upp trender, highlights och MVP-kort."; /* en: Add your first match to unlock trends, highlights, and MVP cards. */
+"dashboard.empty.cta" = "Registrera första matchen"; /* en: Register your first match */
+"dashboard.heatmap.title" = "Lagkombinationer"; /* en: Team combinations */
+"dashboard.notice.warning_title" = "Varning vid datahämtning"; /* en: Data fetch warning */
+"dashboard.notice.tournament_title" = "Turnering pågår!"; /* en: Tournament in progress! */
+"dashboard.notice.tournament_live" = "%@ är live nu."; /* en: %@ is live now. */
+"dashboard.notice.tournament_button" = "Visa turnering"; /* en: View tournament */
+"dashboard.notice.schedule_title" = "Uppkommande bokning"; /* en: Upcoming booking */
+"dashboard.notice.schedule_default_description" = "Bokning"; /* en: Booking */
+"dashboard.notice.schedule_default_location" = "Okänd bana"; /* en: Unknown court */
+"dashboard.notice.schedule_button" = "Se schema"; /* en: View schedule */
+"dashboard.notice.recent_title" = "Nytt resultat!"; /* en: New result! */
+"dashboard.notice.recent_score" = "Resultat: %@–%@"; /* en: Score: %@–%@ */
+"dashboard.notice.recent_button" = "Se alla"; /* en: See all */
+"dashboard.filter.title" = "Globalt Filter"; /* en: Global Filter */
+"dashboard.filter.period" = "Period"; /* en: Period */
+"dashboard.filter.from" = "Från"; /* en: From */
+"dashboard.filter.to" = "Till"; /* en: To */
+"dashboard.filter.reset" = "Återställ"; /* en: Reset */
+"dashboard.filter.active" = "Aktivt filter: %@"; /* en: Active filter: %@ */
+
+"profile.title" = "Profil"; /* en: Profile */
+"profile.tab.overview" = "Profil"; /* en: Profile */
+"profile.tab.elo_trend" = "ELO trend"; /* en: ELO trend */
+"profile.tab.teammates" = "Lagkamrater"; /* en: Teammates */
+"profile.tab.merits" = "Meriter"; /* en: Merits */
+"profile.tab.picker_label" = "Profilflik"; /* en: Profile tab */
+"profile.filter.title" = "Globalt Filter"; /* en: Global Filter */
+"profile.filter.period" = "Period"; /* en: Period */
+"profile.filter.from" = "Från"; /* en: From */
+"profile.filter.to" = "Till"; /* en: To */
+"profile.filter.active" = "Aktivt filter: %@"; /* en: Active filter: %@ */
+"profile.guest.title" = "Gästläge"; /* en: Guest mode */
+"profile.guest.body" = "Gästläge är skrivskyddat. Du kan se statistik, men för att spara matcher eller ändra profil krävs ett konto."; /* en: Guest mode is read-only... */
+"profile.guest.login" = "Logga in"; /* en: Sign in */
+
+"schedule.title" = "Schema"; /* en: Schedule */
+"schedule.empty_state" = "Inga bokningar ännu"; /* en: No bookings yet */
+"schedule.empty_hint" = "Skapa din första bokning för att komma igång."; /* en: Create your first booking to get started. */
+
+"history.title" = "Historik"; /* en: History */
+"history.empty_state" = "Inga matcher spelade ännu"; /* en: No matches played yet */
+"history.delete" = "Radera"; /* en: Delete */
+"history.edit" = "Redigera"; /* en: Edit */
+"history.share" = "Dela"; /* en: Share */
+"history.score.points" = "poäng"; /* en: points */
+"history.score.sets" = "set"; /* en: sets */
+
+"single_game.step.team" = "Steg 1: Ditt lag"; /* en: Step 1: Your team */
+"single_game.step.opponents" = "Steg 2: Motståndare"; /* en: Step 2: Opponents */
+"single_game.step.score" = "Steg 3: Resultat"; /* en: Step 3: Result */
+"single_game.step.review" = "Steg 4: Granska"; /* en: Step 4: Review */
+"single_game.step.matchmaker" = "Matchmaker"; /* en: Matchmaker */
+"single_game.step.prefix" = "Steg %d: "; /* en: Step %d: */
+"single_game.step.state.active" = "Aktivt"; /* en: Active */
+"single_game.step.state.completed" = "Slutfört"; /* en: Completed */
+"single_game.step.state.upcoming" = "Kommande"; /* en: Upcoming */
+"single_game.step.hint.go_back" = "Gå tillbaka till detta steg"; /* en: Go back to this step */
+"single_game.back_to_flow" = "Tillbaka till flödet"; /* en: Back to flow */
+"single_game.back" = "Tillbaka"; /* en: Back */
+"single_game.saving" = "Sparar..."; /* en: Saving... */
+"single_game.save_match" = "Spara match"; /* en: Save match */
+"single_game.next" = "Nästa"; /* en: Next */
+"single_game.reset" = "Återställ"; /* en: Reset */
+
+"notification.upcoming.title" = "Padel snart"; /* en: Padel soon */
+"notification.upcoming.default_summary" = "Match"; /* en: Match */
+"notification.upcoming.default_location" = "okänd plats"; /* en: unknown location */
+"notification.upcoming.body" = "%@ kl %@ på %@."; /* en: %@ at %@ in %@. */

@@ -11,10 +11,10 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .overview: return "Profil"
-        case .eloTrend: return "ELO trend"
-        case .teammates: return "Lagkamrater"
-        case .merits: return "Meriter"
+        case .overview: return String(localized: "profile.tab.overview")
+        case .eloTrend: return String(localized: "profile.tab.elo_trend")
+        case .teammates: return String(localized: "profile.tab.teammates")
+        case .merits: return String(localized: "profile.tab.merits")
         }
     }
 }
@@ -74,7 +74,7 @@ struct ProfileView: View {
             .refreshable {
                 await viewModel.bootstrap()
             }
-            .navigationTitle("Profil")
+            .navigationTitle(LocalizedStringKey("profile.title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 viewModel.syncProfileSetupDraftFromCurrentPlayer()
@@ -85,7 +85,7 @@ struct ProfileView: View {
 
     private var tabSelector: some View {
         VStack(spacing: 12) {
-            Picker("Profile tab", selection: $selectedTab) {
+            Picker(LocalizedStringKey("profile.tab.picker_label"), selection: $selectedTab) {
                 ForEach(ProfileTab.allCases) { tab in
                     Text(tab.title).tag(tab)
                 }
@@ -93,9 +93,9 @@ struct ProfileView: View {
             .pickerStyle(.segmented)
 
             if selectedTab == .overview || selectedTab == .eloTrend {
-                SectionCard(title: "Globalt Filter") {
+                SectionCard(title: String(localized: "profile.filter.title")) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Picker("Period", selection: $viewModel.globalFilter) {
+                        Picker(LocalizedStringKey("profile.filter.period"), selection: $viewModel.globalFilter) {
                             ForEach(profileFilterOptions) { filter in
                                 Text(filter.title).tag(filter)
                             }
@@ -103,11 +103,11 @@ struct ProfileView: View {
                         .pickerStyle(.segmented)
 
                         if viewModel.globalFilter == .custom {
-                            DatePicker("Från", selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
-                            DatePicker("Till", selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
+                            DatePicker(LocalizedStringKey("profile.filter.from"), selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                            DatePicker(LocalizedStringKey("profile.filter.to"), selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
                         }
 
-                        Text("Aktivt filter: \(viewModel.globalActiveFilterLabel)")
+                        Text(String(format: String(localized: "profile.filter.active"), viewModel.globalActiveFilterLabel))
                             .font(.inter(.caption))
                             .foregroundStyle(AppColors.textSecondary)
                     }
@@ -119,12 +119,12 @@ struct ProfileView: View {
 
 
     private var guestModeSection: some View {
-        SectionCard(title: "Gästläge") {
-            Text("Gästläge är skrivskyddat. Du kan se statistik, men för att spara matcher eller ändra profil krävs ett konto.")
+        SectionCard(title: String(localized: "profile.guest.title")) {
+            Text(LocalizedStringKey("profile.guest.body"))
                 .font(.inter(.footnote))
                 .foregroundStyle(AppColors.textSecondary)
 
-            Button("Logga in") {
+            Button(LocalizedStringKey("profile.guest.login")) {
                 viewModel.exitGuestMode()
             }
             .buttonStyle(.borderedProminent)
@@ -337,7 +337,7 @@ struct ProfileView: View {
     private var teammatesTab: some View {
         HeatmapSectionView(
             combos: viewModel.heatmapCombos,
-            title: "Lagkombinationer",
+            title: String(localized: "dashboard.heatmap.title"),
             sortKey: $comboSortKey,
             sortAscending: $comboSortAscending,
             currentPlayerName: viewModel.currentPlayer?.profileName
