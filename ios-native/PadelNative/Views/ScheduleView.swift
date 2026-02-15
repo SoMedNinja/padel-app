@@ -1,4 +1,5 @@
 import SwiftUI
+import EventKit
 
 struct ScheduleView: View {
     @EnvironmentObject private var viewModel: AppViewModel
@@ -18,6 +19,7 @@ struct ScheduleView: View {
     @State private var showCalendarInviteForm = false
     @State private var pullProgress: CGFloat = 0
     @State private var inviteSendAnimationTick = 0
+    @State private var calendarPermissionStatus: EKAuthorizationStatus = .notDetermined
 
     private let calendarService: CalendarServicing
 
@@ -91,6 +93,7 @@ struct ScheduleView: View {
             }
             .task {
                 await viewModel.refreshScheduleData()
+                refreshCalendarPermissionStatus()
                 syncExpandedPollDefaults()
             }
             .onChange(of: viewModel.polls.count) { _, _ in
@@ -458,6 +461,26 @@ struct ScheduleView: View {
 
                         Toggle("Lägg till i iPhone-kalender", isOn: $addToLocalCalendar)
                             .font(.inter(.footnote))
+                            .onChange(of: addToLocalCalendar) { _, enabled in
+                                guard enabled else { return }
+                                refreshCalendarPermissionStatus()
+                            }
+
+                        if addToLocalCalendar {
+                            Text("För att spara i din iPhone-kalender behöver PadelNative ha kalenderåtkomst. Aktivera i Inställningar → PadelNative → Kalender.")
+                                .font(.inter(.footnote))
+                                .foregroundStyle(AppColors.textSecondary)
+
+                            if calendarPermissionNeedsSettings {
+                                Button {
+                                    viewModel.openSystemSettings()
+                                } label: {
+                                    Label("Öppna iOS-inställningar", systemImage: "calendar.badge.exclamationmark")
+                                        .font(.inter(.footnote, weight: .bold))
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
 
                         Picker("Åtgärd", selection: $inviteAction) {
                             Text("Skapa").tag("create")
@@ -547,8 +570,10 @@ struct ScheduleView: View {
                                         location: inviteLocation.isEmpty ? nil : inviteLocation
                                     )
                                     localCalendarStatus = "Lokal kalenderpost skapad."
+                                    refreshCalendarPermissionStatus()
                                     FeedbackService.shared.impact(.success)
                                 } catch {
+                                    refreshCalendarPermissionStatus()
                                     localCalendarStatus = "Kunde inte spara: \(error.localizedDescription)"
                                     FeedbackService.shared.notify(.warning)
                                 }
@@ -601,6 +626,14 @@ struct ScheduleView: View {
                 }
             }
         }
+    }
+
+    private var calendarPermissionNeedsSettings: Bool {
+        calendarPermissionStatus == .denied || calendarPermissionStatus == .restricted
+    }
+
+    private func refreshCalendarPermissionStatus() {
+        calendarPermissionStatus = calendarService.currentAuthorizationStatus()
     }
 
     private var inviteDays: [AvailabilityPollDay] {
