@@ -377,7 +377,9 @@ export async function updateEventToggle(
   return updated;
 }
 
-function detectStandaloneInstallState(): boolean {
+// Note for non-coders:
+// "Standalone" means the web app was opened like a real app from the home screen.
+export function detectStandaloneInstallState(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
   const isStandaloneMedia = window.matchMedia?.("(display-mode: standalone)")?.matches ?? false;
   const isIosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
