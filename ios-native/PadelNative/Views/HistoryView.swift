@@ -225,6 +225,26 @@ struct HistoryView: View {
             .padelSurfaceCard()
         }
         .buttonStyle(.plain)
+        // Note for non-coders:
+        // Swipe actions are the buttons shown when a user drags a row sideways.
+        // We keep role checks here so members only see actions they are allowed to run.
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if viewModel.canDeleteMatch(match) {
+                Button(role: .destructive) {
+                    matchToDelete = match
+                } label: {
+                    Label("Radera", systemImage: "trash")
+                }
+                .tint(.red)
+            }
+
+            Button {
+                editingMatch = match
+            } label: {
+                Label("Redigera", systemImage: "pencil")
+            }
+            .tint(AppColors.brandPrimary)
+        }
     }
 
     private func teamDisplay(names: [String], ids: [String?], match: Match, isTeamA: Bool) -> some View {
