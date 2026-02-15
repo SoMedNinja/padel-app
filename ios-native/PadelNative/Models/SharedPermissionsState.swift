@@ -6,7 +6,7 @@ enum SharedPermissionState: String {
     case allowed = "allowed"
     case blocked = "blocked"
     case limited = "limited"
-    case actionNeeded = "action needed"
+    case actionNeeded = "action_needed"
 
     var label: String {
         switch self {
@@ -16,6 +16,11 @@ enum SharedPermissionState: String {
         case .actionNeeded: return "Action needed"
         }
     }
+}
+
+struct SharedPermissionSemanticCopy {
+    let explanation: String
+    let actionLabel: String
 }
 
 enum SharedPermissionCapability: String {
@@ -47,38 +52,88 @@ enum SharedPermissionCapability: String {
     }
 
     // Note for non-coders:
-    // This mirrors the shared capability matrix so each state has clear user guidance.
+    // This dictionary is our source of truth for each capability + state pair, including guidance and button text.
+    private static let semanticMatrix: [SharedPermissionCapability: [SharedPermissionState: SharedPermissionSemanticCopy]] = [
+        .notifications: [
+            .allowed: SharedPermissionSemanticCopy(
+                explanation: "Allowed: reminders and admin updates can be delivered.",
+                actionLabel: "Retry check"
+            ),
+            .blocked: SharedPermissionSemanticCopy(
+                explanation: "Blocked: notifications are off for this app. Open system/browser settings and allow notifications.",
+                actionLabel: "Open Settings"
+            ),
+            .limited: SharedPermissionSemanticCopy(
+                explanation: "Limited: only partial notification surfaces are available on this device/browser.",
+                actionLabel: "Open Settings"
+            ),
+            .actionNeeded: SharedPermissionSemanticCopy(
+                explanation: "Action needed: grant notification permission to receive reminders.",
+                actionLabel: "Request"
+            ),
+        ],
+        .backgroundRefresh: [
+            .allowed: SharedPermissionSemanticCopy(
+                explanation: "Allowed: background delivery/refresh is available.",
+                actionLabel: "Retry check"
+            ),
+            .blocked: SharedPermissionSemanticCopy(
+                explanation: "Blocked: background activity is disabled in system settings.",
+                actionLabel: "Open Settings"
+            ),
+            .limited: SharedPermissionSemanticCopy(
+                explanation: "Limited: background behavior depends on browser or OS constraints.",
+                actionLabel: "Open Settings"
+            ),
+            .actionNeeded: SharedPermissionSemanticCopy(
+                explanation: "Action needed: enable background activity support, then retry.",
+                actionLabel: "Open Settings"
+            ),
+        ],
+        .biometricPasskey: [
+            .allowed: SharedPermissionSemanticCopy(
+                explanation: "Allowed: biometric/passkey features are ready to use.",
+                actionLabel: "Retry check"
+            ),
+            .blocked: SharedPermissionSemanticCopy(
+                explanation: "Blocked: biometric/passkey usage is disabled in system settings.",
+                actionLabel: "Open Settings"
+            ),
+            .limited: SharedPermissionSemanticCopy(
+                explanation: "Limited: this device/browser does not fully support biometric or passkey features.",
+                actionLabel: "Open Settings"
+            ),
+            .actionNeeded: SharedPermissionSemanticCopy(
+                explanation: "Action needed: enable biometric/passkey and confirm setup.",
+                actionLabel: "Request"
+            ),
+        ],
+        .calendar: [
+            .allowed: SharedPermissionSemanticCopy(
+                explanation: "Allowed: calendar access is available for saving matches.",
+                actionLabel: "Retry check"
+            ),
+            .blocked: SharedPermissionSemanticCopy(
+                explanation: "Blocked: calendar permission is denied. Open settings and allow calendar access.",
+                actionLabel: "Open Settings"
+            ),
+            .limited: SharedPermissionSemanticCopy(
+                explanation: "Limited: web cannot directly toggle OS calendar permission.",
+                actionLabel: "Open calendar settings"
+            ),
+            .actionNeeded: SharedPermissionSemanticCopy(
+                explanation: "Action needed: grant calendar access to save matches automatically.",
+                actionLabel: "Request"
+            ),
+        ],
+    ]
+
     func guidance(for state: SharedPermissionState) -> String {
-        switch self {
-        case .notifications:
-            switch state {
-            case .allowed: return "Allowed: reminders and admin updates can be delivered."
-            case .blocked: return "Blocked: notifications are off for this app. Open system/browser settings and allow notifications."
-            case .limited: return "Limited: only partial notification surfaces are available on this device/browser."
-            case .actionNeeded: return "Action needed: grant notification permission to receive reminders."
-            }
-        case .backgroundRefresh:
-            switch state {
-            case .allowed: return "Allowed: background delivery/refresh is available."
-            case .blocked: return "Blocked: background activity is disabled in system settings."
-            case .limited: return "Limited: background behavior depends on browser or OS constraints."
-            case .actionNeeded: return "Action needed: enable background activity support, then retry."
-            }
-        case .biometricPasskey:
-            switch state {
-            case .allowed: return "Allowed: biometric/passkey features are ready to use."
-            case .blocked: return "Blocked: biometric/passkey usage is disabled in system settings."
-            case .limited: return "Limited: this device/browser does not fully support biometric or passkey features."
-            case .actionNeeded: return "Action needed: enable biometric/passkey and confirm setup."
-            }
-        case .calendar:
-            switch state {
-            case .allowed: return "Allowed: calendar access is available for saving matches."
-            case .blocked: return "Blocked: calendar permission is denied. Open settings and allow calendar access."
-            case .limited: return "Limited: web cannot directly toggle OS calendar permission."
-            case .actionNeeded: return "Action needed: grant calendar access to save matches automatically."
-            }
-        }
+        SharedPermissionCapability.semanticMatrix[self]?[state]?.explanation ?? ""
+    }
+
+    func actionLabel(for state: SharedPermissionState) -> String {
+        SharedPermissionCapability.semanticMatrix[self]?[state]?.actionLabel ?? "Retry check"
     }
 
     static let platformDifferencesCopy = "Platform differences: web can request Notifications, but background behavior depends on service workers/browser policies and calendar permission cannot be toggled directly; iOS can request Notifications and Calendar, while Background App Refresh and biometric availability depend on iOS Settings/device support."

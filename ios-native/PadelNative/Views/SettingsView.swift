@@ -464,11 +464,7 @@ struct SettingsView: View {
     }
 
     private var notificationActionTitle: String {
-        switch notificationState {
-        case .actionNeeded: return "Request"
-        case .blocked, .limited: return "Open Settings"
-        case .allowed: return "Retry check"
-        }
+        SharedPermissionCapability.notifications.actionLabel(for: notificationState.sharedState)
     }
 
     private var notificationActionIcon: String {
@@ -480,10 +476,7 @@ struct SettingsView: View {
     }
 
     private var backgroundRefreshActionTitle: String {
-        switch backgroundRefreshState {
-        case .actionNeeded, .blocked, .limited: return "Open Settings"
-        case .allowed: return "Retry check"
-        }
+        SharedPermissionCapability.backgroundRefresh.actionLabel(for: backgroundRefreshState.sharedState)
     }
 
     private var backgroundRefreshActionIcon: String {
@@ -494,11 +487,7 @@ struct SettingsView: View {
     }
 
     private var calendarActionTitle: String {
-        switch calendarState {
-        case .actionNeeded: return "Request"
-        case .blocked, .limited: return "Open Settings"
-        case .allowed: return "Retry check"
-        }
+        SharedPermissionCapability.calendar.actionLabel(for: calendarState.sharedState)
     }
 
     private var calendarActionIcon: String {
@@ -510,11 +499,7 @@ struct SettingsView: View {
     }
 
     private var biometricActionTitle: String {
-        switch biometricState {
-        case .actionNeeded: return "Request"
-        case .blocked, .limited: return "Open Settings"
-        case .allowed: return "Retry check"
-        }
+        SharedPermissionCapability.biometricPasskey.actionLabel(for: biometricState.sharedState)
     }
 
     private var biometricActionIcon: String {

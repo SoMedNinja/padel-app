@@ -2,26 +2,35 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://padelnative.local/schemas/permissions-capability-matrix.schema.json",
   "title": "PermissionCapabilityMatrix",
-  "description": "capability -> allowed/blocked/limited/action_needed -> user guidance",
+  "description": "capability -> allowed/blocked/limited/action_needed -> explanation + action label",
   "type": "object",
   "required": ["notifications", "background_refresh", "biometric_passkey", "calendar"],
   "additionalProperties": false,
   "properties": {
-    "notifications": { "$ref": "#/$defs/stateGuidance" },
-    "background_refresh": { "$ref": "#/$defs/stateGuidance" },
-    "biometric_passkey": { "$ref": "#/$defs/stateGuidance" },
-    "calendar": { "$ref": "#/$defs/stateGuidance" }
+    "notifications": { "$ref": "#/$defs/stateSemantics" },
+    "background_refresh": { "$ref": "#/$defs/stateSemantics" },
+    "biometric_passkey": { "$ref": "#/$defs/stateSemantics" },
+    "calendar": { "$ref": "#/$defs/stateSemantics" }
   },
   "$defs": {
-    "stateGuidance": {
+    "stateSemantics": {
       "type": "object",
       "required": ["allowed", "blocked", "limited", "action_needed"],
       "additionalProperties": false,
       "properties": {
-        "allowed": { "type": "string", "minLength": 1 },
-        "blocked": { "type": "string", "minLength": 1 },
-        "limited": { "type": "string", "minLength": 1 },
-        "action_needed": { "type": "string", "minLength": 1 }
+        "allowed": { "$ref": "#/$defs/semanticCopy" },
+        "blocked": { "$ref": "#/$defs/semanticCopy" },
+        "limited": { "$ref": "#/$defs/semanticCopy" },
+        "action_needed": { "$ref": "#/$defs/semanticCopy" }
+      }
+    },
+    "semanticCopy": {
+      "type": "object",
+      "required": ["explanation", "action_label"],
+      "additionalProperties": false,
+      "properties": {
+        "explanation": { "type": "string", "minLength": 1 },
+        "action_label": { "type": "string", "minLength": 1 }
       }
     }
   }
