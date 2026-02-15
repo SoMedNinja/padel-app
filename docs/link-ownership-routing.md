@@ -30,7 +30,7 @@ Apple calls this **Universal Links**. They require cooperation between:
 
 ### 3) Browser/PWA equivalents kept working
 - Added SPA rewrites for `/schema`, `/schedule`, `/single-game`, `/match/:id`.
-- Added web route `/schedule` that redirects to `/schema`.
+- Added web route `/schema` that temporarily redirects to canonical `/schedule`.
 - Added web route `/match/:matchId` that redirects to `/history?match=<id>`.
 - History now auto-scrolls/highlights the requested match card.
 
@@ -46,11 +46,22 @@ Apple calls this **Universal Links**. They require cooperation between:
 ## Invite/share URL validation matrix
 
 ### Schedule invite/vote links
-- Link format from backend mail functions: `/schema?poll=<pollId>&day=<dayId>&slots=<...>`.
-- Native iOS: parser now supports universal `https://padelnative.app/schema?...` format.
+- Canonical link format from backend mail functions: `/schedule?poll=<pollId>&day=<dayId>&slots=<...>`.
+- Native iOS: parser now prefers universal `https://padelnative.app/schedule?...` and keeps `/schema` as a legacy alias.
 - Web/PWA: `SchedulePage` already consumes `poll/day/slots` query values and applies the vote.
 
 ### Match share links
 - Link format from native share metadata: `/match/<matchId>`.
 - Native iOS: parser now recognizes `/match/<id>` and opens history tab.
 - Web/PWA: route forwards to history and highlights the target match.
+
+## Canonical schedule route policy
+
+- **Canonical route:** `/schedule` for all newly generated links across web, docs, and notifications.
+- **Temporary compatibility route:** `/schema` redirects/parses to `/schedule` so older shared links continue to open correctly.
+- **Phase-out sequence:**
+  1. Start generating only `/schedule`.
+  2. Wait through a compatibility window (30-60 days recommended) while monitoring `/schema` usage.
+  3. Remove `/schema` redirect/parser support after usage reaches near-zero.
+
+> Note for non-coders: this avoids “broken old links” while the team gradually moves everyone to one stable URL.

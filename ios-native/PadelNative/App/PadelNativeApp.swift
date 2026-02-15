@@ -82,8 +82,30 @@ struct PadelNativeApp: App {
 
     // Note for non-coders:
     // We keep one entry function for incoming links so UI tests and real app taps behave the same.
+    // It also rewrites old /schema links to /schedule before handing them to AppViewModel.
     private func processIncomingDeepLink(_ url: URL) {
-        appViewModel.handleIncomingURL(url)
+        appViewModel.handleIncomingURL(remapLegacyScheduleURL(url))
+    }
+
+    // Note for non-coders:
+    // During migration we accept old links, but normalize them immediately so all deeper logic
+    // can think in one canonical route shape.
+    private func remapLegacyScheduleURL(_ url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        if components.path.lowercased().hasPrefix("/schema") {
+            components.path = "/schedule" + String(components.path.dropFirst("/schema".count))
+            return components.url ?? url
+        }
+
+        if components.host?.lowercased() == "schema" {
+            components.host = "schedule"
+            return components.url ?? url
+        }
+
+        return url
     }
 
     var body: some Scene {
