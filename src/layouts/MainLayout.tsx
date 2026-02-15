@@ -6,8 +6,10 @@ import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import InstallPrompt from "../Components/InstallPrompt";
+import PostInstallChecklist from "../Components/PostInstallChecklist";
 import MatchSyncStatusBanner from "../Components/Shared/MatchSyncStatusBanner";
 import AppVersionPolicyBanner from "../Components/AppVersionPolicyBanner";
+import { detectStandaloneInstallState } from "../services/webNotificationService";
 import {
   IconButton,
   Box,
@@ -42,6 +44,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [overflowAnchorEl, setOverflowAnchorEl] = useState<null | HTMLElement>(null);
+  const [isStandaloneApp, setIsStandaloneApp] = useState(false);
   const navigate = useNavigate();
 
   const guestModeMaxAgeMs = 1000 * 60 * 60 * 24;
@@ -59,6 +62,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
       setGuestModeStartedAt(null);
     }
   }, [isGuest, isGuestModeRecent, setGuestModeStartedAt, setIsGuest]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Note for non-coders: this checks whether the app is opened in installed-app mode instead of a normal browser tab.
+    const syncStandaloneState = () => {
+      setIsStandaloneApp(detectStandaloneInstallState());
+    };
+
+    syncStandaloneState();
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    const handleModeChange = () => syncStandaloneState();
+    mediaQuery.addEventListener("change", handleModeChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleModeChange);
+    };
+  }, []);
 
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
@@ -154,6 +175,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
         {/* Note for non-coders: this card helps people install the web app like a normal phone app. */}
         <InstallPrompt />
       </Container>
+
+      {isStandaloneApp && (
+        <Container maxWidth="lg" sx={{ mt: 2 }}>
+          <PostInstallChecklist
+            isStandalone={isStandaloneApp}
+            // Note for non-coders: guests can browse, but this step only completes when a real account session exists.
+            isSignedIn={Boolean(user) && !hasGuestAccess}
+          />
+        </Container>
+      )}
 
       <Container maxWidth="lg" sx={{ mt: 2 }}>
         <MatchSyncStatusBanner />
