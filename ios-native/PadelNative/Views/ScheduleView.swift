@@ -22,20 +22,9 @@ struct ScheduleView: View {
     @State private var calendarPermissionStatus: EKAuthorizationStatus = .notDetermined
 
     private let calendarService: CalendarServicing
-
-    private let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = AppConfig.swedishLocale
-        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMM yyyy")
-        return formatter
-    }()
-
-    private let gameFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = AppConfig.swedishLocale
-        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMM yyyy HH:mm")
-        return formatter
-    }()
+    // Note for non-coders:
+    // We share one formatter helper so all screens show dates the same way.
+    private let dateFormattingService = DateFormattingService.shared
 
     private static func defaultTime(hour: Int, minute: Int) -> Date {
         var components = Calendar.current.dateComponents([.year, .month, .day], from: .now)
@@ -43,25 +32,6 @@ struct ScheduleView: View {
         components.minute = minute
         return Calendar.current.date(from: components) ?? .now
     }
-
-    private static let inviteDateISOFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .iso8601)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
-
-    private static let inviteTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .iso8601)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
 
     init(calendarService: CalendarServicing = CalendarService()) {
         self.calendarService = calendarService
@@ -554,9 +524,9 @@ struct ScheduleView: View {
                                 localCalendarStatus = nil
                                 await viewModel.sendCalendarInvite(
                                     pollId: selectedInvitePollId,
-                                    date: Self.inviteDateISOFormatter.string(from: inviteDateValue),
-                                    startTime: Self.inviteTimeFormatter.string(from: inviteStartTimeValue),
-                                    endTime: Self.inviteTimeFormatter.string(from: inviteEndTimeValue),
+                                    date: dateFormattingService.inviteDateISO(inviteDateValue),
+                                    startTime: dateFormattingService.inviteTimeISO(inviteStartTimeValue),
+                                    endTime: dateFormattingService.inviteTimeISO(inviteEndTimeValue),
                                     location: inviteLocation.isEmpty ? nil : inviteLocation,
                                     inviteeProfileIds: Array(selectedInvitees),
                                     action: inviteAction,
@@ -630,7 +600,7 @@ struct ScheduleView: View {
                             Text(game.location ?? "Okänd bana")
                                 .font(.inter(.subheadline))
                                 .foregroundStyle(AppColors.textSecondary)
-                            Text(gameFormatter.string(from: game.startsAt))
+                            Text(dateFormattingService.fullScheduleTimestamp(game.startsAt))
                                 .font(.inter(.caption))
                                 .foregroundStyle(AppColors.brandPrimary)
                         }
@@ -694,24 +664,10 @@ struct ScheduleView: View {
 
 
     private func dateValue(fromISO rawDate: String) -> Date {
-        ScheduleView.inviteDateISOFormatter.date(from: rawDate) ?? .now
+        dateFormattingService.dateFromISODate(rawDate)
     }
 
     private func parsedDate(_ rawDate: String) -> String {
-        let parts = rawDate.split(separator: "-")
-        guard parts.count == 3,
-              let year = Int(parts[0]),
-              let month = Int(parts[1]),
-              let day = Int(parts[2]) else {
-            return rawDate
-        }
-
-        var components = DateComponents()
-        components.year = year
-        components.month = month
-        components.day = day
-        let calendar = Calendar(identifier: .gregorian)
-        guard let date = calendar.date(from: components) else { return rawDate }
-        return dateFormatter.string(from: date)
+        dateFormattingService.scheduleDayLabel(fromISODate: rawDate)
     }
 }

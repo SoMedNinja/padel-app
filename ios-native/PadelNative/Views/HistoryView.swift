@@ -10,13 +10,9 @@ struct HistoryView: View {
     @State private var matchToDelete: Match?
     @State private var pullProgress: CGFloat = 0
 
-    private let formatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = AppConfig.swedishLocale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
+    // Note for non-coders:
+    // We share one formatter helper so all screens show dates the same way.
+    private let dateFormattingService = DateFormattingService.shared
 
     var body: some View {
         NavigationStack {
@@ -196,7 +192,7 @@ struct HistoryView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     typeLabelChip(for: match)
-                    Text(formatter.string(from: match.playedAt))
+                    Text(dateFormattingService.historyDateLabel(match.playedAt))
                         .font(.inter(.caption))
                         .foregroundStyle(AppColors.textSecondary)
                     Spacer()

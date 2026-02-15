@@ -5,14 +5,9 @@ struct DashboardView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var leaderboardSortKey: String = "elo"
     @State private var leaderboardSortAscending: Bool = false
-
-    private let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = AppConfig.swedishLocale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
+    // Note for non-coders:
+    // We share one formatter helper so all screens show dates the same way.
+    private let dateFormattingService = DateFormattingService.shared
 
     private var sortedLeaderboard: [LeaderboardPlayer] {
         let base = viewModel.leaderboardPlayers
@@ -245,7 +240,7 @@ struct DashboardView: View {
                         .font(.inter(.headline, weight: .bold))
                     Text("\(upcoming.description ?? String(localized: "dashboard.notice.schedule_default_description")) • \(upcoming.location ?? String(localized: "dashboard.notice.schedule_default_location"))")
                         .font(.inter(.subheadline))
-                    Text(dateFormatter.string(from: upcoming.startsAt))
+                    Text(dateFormattingService.fullScheduleTimestamp(upcoming.startsAt))
                         .font(.inter(.caption))
                         .foregroundStyle(AppColors.textSecondary)
                     Button {
@@ -420,7 +415,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(match.teamAName) \(match.teamAScore)–\(match.teamBScore) \(match.teamBName)")
                         .font(.inter(.subheadline, weight: .bold))
-                    Text(dateFormatter.string(from: match.playedAt))
+                    Text(dateFormattingService.historyDateLabel(match.playedAt))
                         .font(.inter(.caption2))
                         .foregroundStyle(AppColors.textSecondary)
                 }
@@ -458,7 +453,7 @@ struct DashboardView: View {
             "",
             "\(match.teamAName) \(match.teamAScore)–\(match.teamBScore) \(match.teamBName)",
             "",
-            "Spelad: \(dateFormatter.string(from: match.playedAt))"
+            "Spelad: \(dateFormattingService.historyDateLabel(match.playedAt))"
         ]
 
         let fileURL = try? ShareCardService.createShareImageFile(

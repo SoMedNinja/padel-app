@@ -6,13 +6,9 @@ struct MatchDetailView: View {
 
     @State private var showDeleteConfirm = false
 
-    private let formatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = AppConfig.swedishLocale
-        formatter.dateStyle = .full
-        formatter.timeStyle = .short
-        return formatter
-    }()
+    // Note for non-coders:
+    // We share one formatter helper so all screens show dates the same way.
+    private let dateFormattingService = DateFormattingService.shared
 
     var body: some View {
         ScrollView {
@@ -35,7 +31,7 @@ struct MatchDetailView: View {
                             detailRow(label: "Mål", value: "\(target)")
                         }
                         Divider().background(AppColors.borderSubtle)
-                        detailRow(label: "Spelad", value: formatter.string(from: match.playedAt))
+                        detailRow(label: "Spelad", value: dateFormattingService.historyDateLabel(match.playedAt))
                     }
                 }
 
