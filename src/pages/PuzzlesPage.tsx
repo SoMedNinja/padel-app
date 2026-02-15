@@ -48,6 +48,7 @@ export default function PuzzlesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [difficulty, setDifficulty] = useState<PuzzleDifficulty>("easy");
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [submittedRecord, setSubmittedRecord] = useState<PadelPuzzleAnswerRecord | null>(null);
   const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, PadelPuzzleAnswerRecord>>({});
 
   const puzzles = useMemo(() => getPuzzlesByDifficulty(difficulty), [difficulty]);
@@ -89,6 +90,7 @@ export default function PuzzlesPage() {
 
   useEffect(() => {
     setSelectedAnswer(answerRecord?.selectedAnswer ?? null);
+    setSubmittedRecord(null);
   }, [answerRecord?.selectedAnswer, currentPuzzle?.questionId]);
 
   const totalSolved = solvedPuzzleIds.length;
@@ -109,7 +111,7 @@ export default function PuzzlesPage() {
   };
 
   const handleCheckAnswer = () => {
-    if (!currentPuzzle || !selectedAnswer) return;
+    if (!currentPuzzle || !selectedAnswer || answerRecord || submittedRecord) return;
 
     const nextRecord: PadelPuzzleAnswerRecord = {
       questionId: currentPuzzle.questionId,
@@ -120,24 +122,37 @@ export default function PuzzlesPage() {
       answeredAt: new Date().toISOString(),
     };
 
-    setAnswersByQuestionId((previous) => {
-      const next = { ...previous, [currentPuzzle.questionId]: nextRecord };
-      // Note for non-coders: we save puzzle answers in your browser storage,
-      // so your progress remains after refresh without needing a backend database.
-      window.localStorage.setItem(puzzleStorageKeyForUser(user?.id), JSON.stringify(next));
-      return next;
-    });
+    // Note for non-coders: once a player has saved an answer for the current question,
+    // we lock that specific question view so the same answer can't be edited immediately.
+    setSubmittedRecord(nextRecord);
+
+    if (nextRecord.isCorrect) {
+      setAnswersByQuestionId((previous) => {
+        const next = { ...previous, [currentPuzzle.questionId]: nextRecord };
+        // Note for non-coders: we only store correct answers as permanently solved.
+        // Wrong answers are temporary attempts and will come back in the queue later.
+        window.localStorage.setItem(puzzleStorageKeyForUser(user?.id), JSON.stringify(next));
+        return next;
+      });
+    }
   };
 
   const goToNextPuzzle = () => {
     if (!currentPuzzle) return;
 
-    // Note for non-coders: we prioritize unanswered or wrong puzzles first,
-    // so players keep getting pending scenarios until all are correct.
+    // Note for non-coders: solved means answered correctly at least once.
+    // Wrong attempts are not solved and therefore stay in the active queue.
     const pendingPuzzles = puzzles.filter((puzzle) => !answersByQuestionId[puzzle.questionId]?.isCorrect);
-    const candidates = pendingPuzzles.length > 0 ? pendingPuzzles : puzzles;
-    const currentIndex = candidates.findIndex((puzzle) => puzzle.questionId === currentPuzzle.questionId);
-    const nextPuzzle = candidates[(currentIndex + 1 + candidates.length) % candidates.length];
+
+    // Note for non-coders: if the current puzzle is still unsolved, we move it to the back
+    // by rotating the pending list so the next unsolved puzzle appears first.
+    const unsolvedWithoutCurrent = pendingPuzzles.filter((puzzle) => puzzle.questionId !== currentPuzzle.questionId);
+    const rotatedPendingQueue = answersByQuestionId[currentPuzzle.questionId]?.isCorrect
+      ? pendingPuzzles
+      : [...unsolvedWithoutCurrent, currentPuzzle];
+
+    const candidates = rotatedPendingQueue.length > 0 ? rotatedPendingQueue : puzzles;
+    const nextPuzzle = candidates[0] ?? puzzles[0];
     setSearchParams({ questionId: nextPuzzle.questionId });
   };
 
@@ -232,19 +247,31 @@ export default function PuzzlesPage() {
               <ToggleButtonGroup
                 exclusive
                 value={selectedAnswer}
-                onChange={(_, value) => setSelectedAnswer(value)}
+                onChange={(_, value) => {
+                  if (answerRecord || submittedRecord) return;
+                  setSelectedAnswer(value);
+                }}
                 orientation="vertical"
                 fullWidth
               >
                 {currentPuzzle.options.map((option) => (
-                  <ToggleButton key={option} value={option} sx={{ justifyContent: "flex-start", textTransform: "none" }}>
+                  <ToggleButton
+                    key={option}
+                    value={option}
+                    disabled={Boolean(answerRecord || submittedRecord)}
+                    sx={{ justifyContent: "flex-start", textTransform: "none" }}
+                  >
                     {option}
                   </ToggleButton>
                 ))}
               </ToggleButtonGroup>
 
               <Stack direction="row" spacing={1.5}>
-                <Button variant="contained" onClick={handleCheckAnswer} disabled={!selectedAnswer}>
+                <Button
+                  variant="contained"
+                  onClick={handleCheckAnswer}
+                  disabled={!selectedAnswer || Boolean(answerRecord || submittedRecord)}
+                >
                   Kontrollera svar
                 </Button>
                 <Button variant="outlined" onClick={goToNextPuzzle}>
@@ -252,9 +279,12 @@ export default function PuzzlesPage() {
                 </Button>
               </Stack>
 
-              {answerRecord ? (
-                <Alert severity={answerRecord.isCorrect ? "success" : "warning"} icon={answerRecord.isCorrect ? <CheckCircleIcon /> : undefined}>
-                  {answerRecord.isCorrect ? "Rätt beslut!" : "Inte optimalt val den här gången."} Facit: {currentPuzzle.correctAnswer}
+              {(answerRecord || submittedRecord) ? (
+                <Alert
+                  severity={(answerRecord || submittedRecord)?.isCorrect ? "success" : "warning"}
+                  icon={(answerRecord || submittedRecord)?.isCorrect ? <CheckCircleIcon /> : undefined}
+                >
+                  {(answerRecord || submittedRecord)?.isCorrect ? "Rätt beslut!" : "Inte optimalt val den här gången."} Facit: {currentPuzzle.correctAnswer}
                   <br />
                   <strong>Coaching tips:</strong> {currentPuzzle.coachingTip}
                 </Alert>
