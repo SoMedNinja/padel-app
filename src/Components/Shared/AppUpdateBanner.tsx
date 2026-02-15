@@ -1,5 +1,6 @@
 import { Button, Paper, Stack, Typography } from "@mui/material";
-import { UPDATE_STATE_CONTENT, UpdateUrgency } from "../../shared/updateStates";
+import { UPDATE_PROMPT_CONFIG } from "../updatePromptConfig";
+import { UpdateUrgency } from "../../shared/updateStates";
 
 type AppUpdateBannerProps = {
   open: boolean;
@@ -11,7 +12,7 @@ type AppUpdateBannerProps = {
 export default function AppUpdateBanner({ open, urgency, onUpdateNow, onLater }: AppUpdateBannerProps) {
   if (!open) return null;
 
-  const content = UPDATE_STATE_CONTENT[urgency];
+  const content = UPDATE_PROMPT_CONFIG.copy.states[urgency];
 
   return (
     <Paper
@@ -35,6 +36,9 @@ export default function AppUpdateBanner({ open, urgency, onUpdateNow, onLater }:
           {/* Note for non-coders: this explains that pressing update reloads once so the newest app files are used. */}
           <Typography variant="body2" color="text.secondary">
             {content.message}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+            {UPDATE_PROMPT_CONFIG.copy.reloadExplanation}
           </Typography>
         </div>
 

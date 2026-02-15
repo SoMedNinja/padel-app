@@ -6,7 +6,8 @@ import {
   getCurrentWebAppVersion,
   resolveWebPolicy,
 } from "../services/appVersionService";
-import { UPDATE_STATE_CONTENT, UpdateUrgency } from "../shared/updateStates";
+import { UpdateUrgency } from "../shared/updateStates";
+import { UPDATE_PROMPT_CONFIG } from "./updatePromptConfig";
 
 export default function AppVersionPolicyBanner() {
   const [versionState, setVersionState] = useState<AppVersionState>({ kind: "upToDate" });
@@ -34,7 +35,7 @@ export default function AppVersionPolicyBanner() {
   if (versionState.kind === "upToDate") return null;
 
   const urgency: UpdateUrgency = versionState.kind === "updateRequired" ? "required" : "recommended";
-  const content = UPDATE_STATE_CONTENT[urgency];
+  const content = UPDATE_PROMPT_CONFIG.copy.states[urgency];
 
   return (
     <Alert
@@ -47,6 +48,9 @@ export default function AppVersionPolicyBanner() {
     >
       <AlertTitle>{content.title}</AlertTitle>
       <Typography variant="body2">{versionState.policy.releaseNotes ?? content.message}</Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+        {UPDATE_PROMPT_CONFIG.copy.reloadExplanation}
+      </Typography>
       <Box sx={{ mt: 0.75 }}>
         <Typography variant="caption" color="text.secondary">
           Minst stödd version: {versionState.policy.minimumSupportedVersion}
