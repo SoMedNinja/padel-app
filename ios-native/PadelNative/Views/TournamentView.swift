@@ -30,13 +30,9 @@ struct TournamentView: View {
 
     private let scoreTargetOptions = [16, 21, 24, 31]
 
-    private let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = AppConfig.swedishLocale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
+    // Note for non-coders:
+    // We share one formatter helper so all screens show dates the same way.
+    private let dateFormattingService = DateFormattingService.shared
 
     var body: some View {
         NavigationStack {
@@ -320,7 +316,7 @@ struct TournamentView: View {
                                 .font(.inter(.subheadline))
                         }
                         if let scheduledAt = tournament.scheduledAt {
-                            Text("Planerad: \(dateFormatter.string(from: scheduledAt))")
+                            Text("Planerad: \(dateFormattingService.fullScheduleTimestamp(scheduledAt))")
                                 .font(.inter(.subheadline))
                         }
                     }
