@@ -561,7 +561,7 @@ final class AppViewModel: ObservableObject {
 
     init(
         apiClient: SupabaseRESTClient = SupabaseRESTClient(),
-        pendingWriteQueue: PendingWriteQueueService = PendingWriteQueueService(),
+        pendingWriteQueue: PendingWriteQueueService? = nil,
         tournamentDataLoader: TournamentDataLoading? = nil,
         appVersionService: AppVersionService = AppVersionService(),
         notificationService: NotificationServicing = NotificationService(),
@@ -569,7 +569,7 @@ final class AppViewModel: ObservableObject {
         dismissalStore: UserDefaults = .standard
     ) {
         self.apiClient = apiClient
-        self.pendingWriteQueue = pendingWriteQueue
+        self.pendingWriteQueue = pendingWriteQueue ?? PendingWriteQueueService()
         self.tournamentDataLoader = tournamentDataLoader ?? SupabaseTournamentDataLoader(apiClient: apiClient)
         self.appVersionService = appVersionService
         self.notificationService = notificationService
@@ -3850,20 +3850,28 @@ final class AppViewModel: ObservableObject {
         // Note for non-coders:
         // This fingerprint lets us detect if the same submission-id was retried
         // with different score data, which indicates a true conflict.
-        let joined = [
+        let teamAPlayerIdsString = teamAPlayerIds.map { $0 ?? "nil" }.joined(separator: "|")
+        let teamBPlayerIdsString = teamBPlayerIds.map { $0 ?? "nil" }.joined(separator: "|")
+        let scoreTargetString = scoreTarget.map(String.init) ?? "nil"
+        let sourceTournamentIdString = sourceTournamentId?.uuidString ?? "nil"
+        let playedAtString = ISO8601DateFormatter().string(from: playedAt)
+
+        let joinedParts = [
             teamANames.joined(separator: "|"),
             teamBNames.joined(separator: "|"),
-            teamAPlayerIds.map { $0 ?? "nil" }.joined(separator: "|"),
-            teamBPlayerIds.map { $0 ?? "nil" }.joined(separator: "|"),
+            teamAPlayerIdsString,
+            teamBPlayerIdsString,
             "\(teamAScore)",
             "\(teamBScore)",
             scoreType,
-            scoreTarget.map(String.init) ?? "nil",
-            sourceTournamentId?.uuidString ?? "nil",
+            scoreTargetString,
+            sourceTournamentIdString,
             sourceTournamentType,
             "\(teamAServesFirst)",
-            ISO8601DateFormatter().string(from: playedAt)
-        ].joined(separator: "§")
+            playedAtString
+        ]
+
+        let joined = joinedParts.joined(separator: "§")
 
         var hash = 0
         for scalar in joined.unicodeScalars {
