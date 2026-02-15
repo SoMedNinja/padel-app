@@ -29,6 +29,10 @@ struct PadelNativeApp: App {
         // Note for non-coders: this hides the native iOS pull-to-refresh spinner
         // so we can use our custom BallRefreshIndicator instead without double icons.
         UIRefreshControl.appearance().tintColor = .clear
+
+        // Note for non-coders:
+        // These identifiers tell iOS which app tasks are allowed to run in the background.
+        AppViewModel.registerBackgroundTaskHandlers()
     }
     @StateObject private var appViewModel = AppViewModel()
     @Environment(\.scenePhase) private var scenePhase
@@ -150,6 +154,12 @@ struct PadelNativeApp: App {
                     Task {
                         await appViewModel.checkForAppUpdate()
                     }
+                }
+
+                if phase == .background {
+                    // Note for non-coders:
+                    // Every time the app goes to background we ask iOS for the next periodic refresh window.
+                    appViewModel.scheduleBackgroundRefreshTasksIfPossible()
                 }
             }
         }
