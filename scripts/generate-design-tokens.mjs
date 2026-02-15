@@ -7,7 +7,9 @@ const tokenFile = path.join(rootDir, 'design/tokens.json');
 const raw = await readFile(tokenFile, 'utf8');
 const tokens = sortKeys(JSON.parse(raw));
 
-const color = tokens.color.semantic;
+const semantic = tokens.color.semantic;
+const lightColor = semantic.light;
+const darkColor = semantic.dark;
 const spacing = tokens.spacing;
 const radius = tokens.radius;
 const typography = tokens.typography;
@@ -18,18 +20,27 @@ const cssLines = [
   '/* AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY. */',
   '/* Note for non-coders: these CSS variables are generated from design/tokens.json. */',
   ':root {',
-  ...Object.entries(color).map(([key, value]) => `  --color-${kebab(key)}: ${value};`),
+  '  color-scheme: light dark;',
+  ...Object.entries(lightColor).map(([key, value]) => `  --color-${kebab(key)}: ${value};`),
   ...Object.entries(spacing).map(([key, value]) => `  --space-${kebab(key)}: ${value}px;`),
   ...Object.entries(radius).map(([key, value]) => `  --radius-${kebab(key)}: ${value}px;`),
   ...Object.entries(typography.scale).map(([key, value]) => `  --font-size-${kebab(key)}: ${value}px;`),
   `  --font-family-base: ${typography.fontFamily};`,
+  '}',
+  '',
+  '@media (prefers-color-scheme: dark) {',
+  '  :root {',
+  ...Object.entries(darkColor).map(([key, value]) => `    --color-${kebab(key)}: ${value};`),
+  '  }',
   '}'
 ];
 
-const webThemeOutput = `/* AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.\n * Note for non-coders: this web theme is generated from design/tokens.json\n * so changing one token file updates web + iOS together.\n */\n\nimport { createTheme } from '@mui/material/styles';\nimport { designTokens } from './generated/designTokens';\n\nconst semantic = designTokens.color.semantic;\nconst radius = designTokens.radius;\nconst typographyScale = designTokens.typography.scale;\nconst typographyWeight = designTokens.typography.weight;\n\nconst theme = createTheme({\n  palette: {\n    primary: {\n      main: semantic.primary,\n      dark: semantic.primaryStrong,\n      contrastText: semantic.onPrimary,\n    },\n    secondary: {\n      main: semantic.secondary,\n    },\n    success: {\n      main: semantic.success,\n    },\n    warning: {\n      main: semantic.warning,\n    },\n    info: {\n      main: semantic.info,\n    },\n    background: {\n      default: semantic.background,\n      paper: semantic.surface,\n    },\n    text: {\n      primary: semantic.textPrimary,\n      secondary: semantic.textSecondary,\n    },\n    divider: semantic.borderSubtle,\n  },\n  shape: {\n    borderRadius: radius.lg,\n  },\n  typography: {\n    fontFamily: designTokens.typography.fontFamily,\n    h1: {\n      fontSize: \`${'${typographyScale.display / 16}'}rem\`,\n      fontWeight: typographyWeight.extrabold,\n      letterSpacing: '-0.02em',\n    },\n    h2: {\n      fontSize: \`${'${typographyScale.title / 16}'}rem\`,\n      fontWeight: typographyWeight.bold,\n      letterSpacing: '-0.01em',\n    },\n    h3: {\n      fontSize: \`${'${typographyScale.section / 16}'}rem\`,\n      fontWeight: typographyWeight.bold,\n    },\n    body1: {\n      fontSize: \`${'${typographyScale.bodyLarge / 16}'}rem\`,\n    },\n    body2: {\n      fontSize: \`${'${typographyScale.body / 16}'}rem\`,\n    },\n    caption: {\n      fontSize: \`${'${typographyScale.caption / 16}'}rem\`,\n    },\n    button: {\n      textTransform: 'none',\n      fontWeight: typographyWeight.semibold,\n    },\n  },\n  components: {\n    MuiButton: {\n      styleOverrides: {\n        root: {\n          borderRadius: radius.md,\n          padding: \`${'${designTokens.spacing.sm}'}px ${'${designTokens.spacing.lg}'}px\`,\n        },\n        containedPrimary: {\n          boxShadow: '0 6px 16px rgba(211, 47, 47, 0.24)',\n        },\n      },\n    },\n    MuiCard: {\n      styleOverrides: {\n        root: {\n          borderRadius: radius.xl,\n          boxShadow: '0 8px 18px rgba(0, 0, 0, 0.08)',\n          border: \`1px solid ${'${semantic.borderSubtle}'}\`,\n        },\n      },\n    },\n    MuiPaper: {\n      styleOverrides: {\n        root: {\n          borderRadius: radius.xl,\n        },\n      },\n    },\n    MuiChip: {\n      styleOverrides: {\n        root: {\n          borderRadius: radius.pill,\n          fontWeight: typographyWeight.bold,\n        },\n      },\n    },\n    MuiAlert: {\n      styleOverrides: {\n        root: {\n          borderRadius: radius.lg,\n        },\n      },\n    },\n  },\n});\n\nexport default theme;\n`;
+const webThemeOutput = `/* AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.\n * Note for non-coders: this web theme is generated from design/tokens.json\n * so changing one token file updates web + iOS together.\n */\n\nimport { createTheme } from '@mui/material/styles';\nimport { designTokens } from './generated/designTokens';\n\ntype ThemeMode = 'light' | 'dark';\n\nconst semantic = designTokens.color.semantic;\nconst radius = designTokens.radius;\nconst typographyScale = designTokens.typography.scale;\nconst typographyWeight = designTokens.typography.weight;\n\nfunction buildTheme(mode: ThemeMode) {\n  const modeSemantic = semantic[mode];\n\n  return createTheme({\n    palette: {\n      mode,\n      primary: {\n        main: modeSemantic.primary,\n        dark: modeSemantic.primaryStrong,\n        contrastText: modeSemantic.onPrimary,\n      },\n      secondary: {\n        main: modeSemantic.secondary,\n      },\n      success: {\n        main: modeSemantic.success,\n      },\n      warning: {\n        main: modeSemantic.warning,\n      },\n      info: {\n        main: modeSemantic.info,\n      },\n      background: {\n        default: modeSemantic.background,\n        paper: modeSemantic.surface,\n      },\n      text: {\n        primary: modeSemantic.textPrimary,\n        secondary: modeSemantic.textSecondary,\n      },\n      divider: modeSemantic.borderSubtle,\n    },\n    shape: {\n      borderRadius: radius.lg,\n    },\n    typography: {\n      fontFamily: designTokens.typography.fontFamily,\n      h1: {\n        fontSize: \`${'${typographyScale.display / 16}'}rem\`,\n        fontWeight: typographyWeight.extrabold,\n        letterSpacing: '-0.02em',\n      },\n      h2: {\n        fontSize: \`${'${typographyScale.title / 16}'}rem\`,\n        fontWeight: typographyWeight.bold,\n        letterSpacing: '-0.01em',\n      },\n      h3: {\n        fontSize: \`${'${typographyScale.section / 16}'}rem\`,\n        fontWeight: typographyWeight.bold,\n      },\n      body1: {\n        fontSize: \`${'${typographyScale.bodyLarge / 16}'}rem\`,\n      },\n      body2: {\n        fontSize: \`${'${typographyScale.body / 16}'}rem\`,\n      },\n      caption: {\n        fontSize: \`${'${typographyScale.caption / 16}'}rem\`,\n      },\n      button: {\n        textTransform: 'none',\n        fontWeight: typographyWeight.semibold,\n      },\n    },\n    components: {\n      MuiButton: {\n        styleOverrides: {\n          root: {\n            borderRadius: radius.md,\n            padding: \`${'${designTokens.spacing.sm}'}px ${'${designTokens.spacing.lg}'}px\`,\n          },\n          containedPrimary: {\n            boxShadow: mode === 'dark' ? 'none' : '0 6px 16px rgba(211, 47, 47, 0.24)',\n          },\n        },\n      },\n      MuiCard: {\n        styleOverrides: {\n          root: {\n            borderRadius: radius.xl,\n            boxShadow: mode === 'dark' ? 'none' : '0 8px 18px rgba(0, 0, 0, 0.08)',\n            border: \`1px solid ${'${modeSemantic.borderSubtle}'}\`,\n          },\n        },\n      },\n      MuiPaper: {\n        styleOverrides: {\n          root: {\n            borderRadius: radius.xl,\n          },\n        },\n      },\n      MuiChip: {\n        styleOverrides: {\n          root: {\n            borderRadius: radius.pill,\n            fontWeight: typographyWeight.bold,\n          },\n        },\n      },\n      MuiAlert: {\n        styleOverrides: {\n          root: {\n            borderRadius: radius.lg,\n          },\n        },\n      },\n    },\n  });\n}\n\nexport const lightTheme = buildTheme('light');\nexport const darkTheme = buildTheme('dark');\n`;
 
-const swiftOutput = `// AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.\n// Note for non-coders: iOS reads shared design tokens from this generated file.\n\nimport SwiftUI\n\nenum DesignTokens {\n    enum Colors {\n${Object.entries(color)
-  .map(([key, value]) => `        static let ${camel(key)} = \"${value}\"`)
+const swiftOutput = `// AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.\n// Note for non-coders: iOS reads shared design tokens from this generated file.\n\nimport SwiftUI\n\nenum DesignTokens {\n    enum Colors {\n${Object.entries(lightColor)
+  .map(([key, value]) => `        static let light${pascal(key)} = "${value}"`)
+  .join('\n')}\n${Object.entries(darkColor)
+  .map(([key, value]) => `        static let dark${pascal(key)} = "${value}"`)
   .join('\n')}\n    }\n\n    enum Spacing {\n${Object.entries(spacing)
   .map(([key, value]) => `        static let ${camel(key)}: CGFloat = ${value}`)
   .join('\n')}\n    }\n\n    enum Radius {\n${Object.entries(radius)
@@ -54,6 +65,10 @@ function kebab(input) {
 
 function camel(input) {
   return input[0].toLowerCase() + input.slice(1);
+}
+
+function pascal(input) {
+  return input[0].toUpperCase() + input.slice(1);
 }
 
 function sortKeys(value) {

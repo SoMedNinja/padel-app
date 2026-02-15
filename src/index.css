@@ -5,7 +5,7 @@
 }
 
 :root {
-  color-scheme:light;
+  color-scheme:light dark;
   /* Note for non-coders: these aliases let older CSS names keep working while using shared tokens underneath. */
   --color-bg:var(--color-background);
   --color-text:var(--color-text-primary);
@@ -74,7 +74,7 @@ body,
 .styled-table td {
   padding:10px 12px;
   border:none;
-  border-bottom:1px solid #eee;
+  border-bottom:1px solid var(--color-border);
   text-align:left;
   white-space:nowrap;
 }
@@ -88,15 +88,15 @@ body,
   background:var(--color-highlight);
   color:var(--color-brand-dark);
   font-weight:600;
-  border-bottom:1px solid #f0dada;
+  border-bottom:1px solid var(--color-border-strong);
 }
 
 .styled-table tbody tr:nth-child(even) {
-  background:#fafafa;
+  background:var(--color-surface-muted);
 }
 
 .styled-table tbody tr:hover {
-  background:#fff0f0;
+  background:var(--color-highlight);
 }
 
 .styled-table th.sortable {
@@ -104,7 +104,7 @@ body,
 }
 
 .styled-table th.sortable:hover {
-  color:#b71c1c;
+  color:var(--color-brand-dark);
 }
 
 /* Helper for Recharts fullscreen */
@@ -153,7 +153,7 @@ body.chart-fullscreen-active {
 }
 
 .bracket-match {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -200,7 +200,7 @@ body.chart-fullscreen-active {
 
 .bracket-match.is-played .bracket-score {
   background: var(--color-brand);
-  color: #fff;
+  color: var(--color-on-primary);
 }
 
 .bracket-divider {
@@ -211,7 +211,7 @@ body.chart-fullscreen-active {
   margin: -8px 0;
   position: relative;
   z-index: 1;
-  background: #fff;
+  background: var(--color-surface);
   width: 24px;
   margin-left: auto;
   margin-right: auto;
@@ -242,7 +242,7 @@ body.chart-fullscreen-active {
   align-items: center;
   justify-content: center;
   background-color: var(--color-border-strong);
-  color: #fff;
+  color: var(--color-on-primary);
   font-weight: 700;
   font-size: 1.2rem;
 }
@@ -260,9 +260,9 @@ body.chart-fullscreen-active {
 .padel-ball {
   width: 24px;
   height: 24px;
-  background-color: #d4e157; /* Padel ball yellow */
+  background-color: color-mix(in srgb, var(--color-warning) 55%, #d4e157 45%); /* Note for non-coders: this blends our shared warning token with a classic padel-ball yellow so it still reads as a ball in both themes. */
   border-radius: 50%;
-  border: 2px solid #aebf2e;
+  border: 2px solid color-mix(in srgb, var(--color-warning) 60%, var(--color-border) 40%);
   box-shadow: inset -2px -2px 0 rgba(0,0,0,0.1);
   position: relative;
 }

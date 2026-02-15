@@ -7,21 +7,40 @@ export const designTokens = {
   "$schema": "https://example.com/design-tokens.schema.json",
   "color": {
     "semantic": {
-      "background": "#f6f7fb",
-      "borderStrong": "#f0b7b7",
-      "borderSubtle": "#ececec",
-      "highlight": "#fff5f5",
-      "info": "#0288d1",
-      "onPrimary": "#ffffff",
-      "primary": "#d32f2f",
-      "primaryStrong": "#b71c1c",
-      "secondary": "#ff8f00",
-      "success": "#2e7d32",
-      "surface": "#ffffff",
-      "surfaceMuted": "#f6f7fb",
-      "textPrimary": "#1f1f1f",
-      "textSecondary": "#6d6d6d",
-      "warning": "#ed6c02"
+      "dark": {
+        "background": "#121417",
+        "borderStrong": "#6b4242",
+        "borderSubtle": "#32353a",
+        "highlight": "#2c2020",
+        "info": "#4fc3f7",
+        "onPrimary": "#140102",
+        "primary": "#ef5350",
+        "primaryStrong": "#e53935",
+        "secondary": "#ffb74d",
+        "success": "#66bb6a",
+        "surface": "#1e1e1e",
+        "surfaceMuted": "#26282c",
+        "textPrimary": "#f5f5f5",
+        "textSecondary": "#b0b4ba",
+        "warning": "#ffb74d"
+      },
+      "light": {
+        "background": "#f6f7fb",
+        "borderStrong": "#f0b7b7",
+        "borderSubtle": "#ececec",
+        "highlight": "#fff5f5",
+        "info": "#0288d1",
+        "onPrimary": "#ffffff",
+        "primary": "#d32f2f",
+        "primaryStrong": "#b71c1c",
+        "secondary": "#ff8f00",
+        "success": "#2e7d32",
+        "surface": "#ffffff",
+        "surfaceMuted": "#f6f7fb",
+        "textPrimary": "#1f1f1f",
+        "textSecondary": "#6d6d6d",
+        "warning": "#ed6c02"
+      }
     }
   },
   "meta": {

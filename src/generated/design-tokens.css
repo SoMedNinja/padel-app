@@ -1,6 +1,7 @@
 /* AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY. */
 /* Note for non-coders: these CSS variables are generated from design/tokens.json. */
 :root {
+  color-scheme: light dark;
   --color-background: #f6f7fb;
   --color-border-strong: #f0b7b7;
   --color-border-subtle: #ececec;
@@ -34,4 +35,24 @@
   --font-size-section: 20px;
   --font-size-title: 24px;
   --font-family-base: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #121417;
+    --color-border-strong: #6b4242;
+    --color-border-subtle: #32353a;
+    --color-highlight: #2c2020;
+    --color-info: #4fc3f7;
+    --color-on-primary: #140102;
+    --color-primary: #ef5350;
+    --color-primary-strong: #e53935;
+    --color-secondary: #ffb74d;
+    --color-success: #66bb6a;
+    --color-surface: #1e1e1e;
+    --color-surface-muted: #26282c;
+    --color-text-primary: #f5f5f5;
+    --color-text-secondary: #b0b4ba;
+    --color-warning: #ffb74d;
+  }
 }
