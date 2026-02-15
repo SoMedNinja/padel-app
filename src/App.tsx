@@ -28,7 +28,15 @@ export default function App() {
     showLoadingHint,
   } = useAuthProfile();
   const [showAuthScreen, setShowAuthScreen] = useState(false);
-  const toaster = <Toaster position="top-center" richColors />;
+  const toaster = (
+    <Toaster
+      position="top-center"
+      richColors
+      // Note for non-coders: iPhones reserve a "safe area" at the very top; this keeps messages visible below that area.
+      mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      offset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+    />
+  );
 
   useRealtime();
 

@@ -27,6 +27,12 @@ body {
   line-height:1.5;
 }
 
+/* Note for non-coders: we force toast notifications to stick to the phone screen (not the page content), so they stay visible after scrolling. */
+[data-sonner-toaster] {
+  position: fixed !important;
+  top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+}
+
 /* Note for non-coders: this tells iOS Safari to keep pull gestures inside our app, so the browser's own spinner does not appear on top of our custom animation. */
 html,
 body,
