@@ -4,7 +4,7 @@ import { isIosDevice } from "../utils/platform";
 type RefreshAction = () => Promise<unknown> | unknown;
 
 const REFRESH_ACTION_TIMEOUT_MS = 12000;
-const IOS_MIN_REFRESH_ANIMATION_MS = 900;
+const IOS_MIN_REFRESH_ANIMATION_MS = 1200;
 
 const waitForAction = async (action: RefreshAction) => {
   const timeoutPromise = new Promise<null>((resolve) => {
