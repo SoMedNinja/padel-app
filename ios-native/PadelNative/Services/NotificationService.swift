@@ -191,7 +191,9 @@ struct NotificationService {
 
     // Note for non-coders:
     // We keep only a few upcoming reminders so notifications stay useful instead of noisy.
-    func scheduleUpcomingGameReminders(_ games: [ScheduleEntry], preferences: NotificationPreferences, limit: Int = 3) async {
+    func scheduleUpcomingGameReminders(_ games: [ScheduleEntry], preferences: NotificationPreferences) async {
+        let reminderLimit = 3
+
         guard preferences.enabled else {
             await clearScheduledGameReminders()
             return
@@ -205,7 +207,7 @@ struct NotificationService {
         let futureGames = games
             .filter { $0.startsAt > .now }
             .sorted { $0.startsAt < $1.startsAt }
-            .prefix(limit)
+            .prefix(reminderLimit)
 
         let pending = await center.pendingNotificationRequests()
         let existingIds = pending

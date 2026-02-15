@@ -526,7 +526,7 @@ final class AppViewModel: ObservableObject {
         return formatter
     }()
 
-    nonisolated(unsafe) static let uiDateTimeFormatter: DateFormatter = {
+    static let uiDateTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = AppConfig.swedishLocale
         formatter.dateStyle = .medium
