@@ -433,7 +433,7 @@ const buildServeSplitStats = (
   };
 };
 
-const buildHeadToHead = (
+const buildHeadToHeadStats = (
   matches: Match[],
   playerId: string | undefined,
   opponentId: string,
@@ -441,73 +441,74 @@ const buildHeadToHead = (
   nameToIdMap: Map<string, string>,
   playerDeltaMap: Map<string, number>
 ) => {
-  if (!playerId || !opponentId) {
-    return {
-      wins: 0,
-      losses: 0,
-      matches: 0,
-      totalSetsFor: 0,
-      totalSetsAgainst: 0,
-      totalEloExchange: 0,
-      lastMatch: null
-    };
-  }
+  const result = {
+    wins: 0,
+    losses: 0,
+    matches: 0,
+    totalSetsFor: 0,
+    totalSetsAgainst: 0,
+    totalEloExchange: 0,
+    lastMatch: null as { date: string; setsFor: number; setsAgainst: number; won: boolean } | null,
+    serveFirstWins: 0,
+    serveFirstLosses: 0,
+    serveSecondWins: 0,
+    serveSecondLosses: 0,
+    recentResults: [] as string[]
+  };
 
-  let wins = 0;
-  let losses = 0;
-  let total = 0;
-  let totalSetsFor = 0;
-  let totalSetsAgainst = 0;
-  let totalEloExchange = 0;
-  let lastMatch: any = null;
+  if (!playerId || !opponentId) return result;
 
-  matches.forEach(match => {
+  // Optimization: use a for-loop for better performance in the match processing loop.
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i];
     // Optimization: skip matches where the player did not participate using the pre-indexed delta map.
-    if (!playerDeltaMap.has(match.id)) return;
+    if (!playerDeltaMap.has(match.id)) continue;
 
-    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
-    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
+    // Optimization: identify teams directly from IDs if possible to avoid redundant string normalization.
+    const isT1 = (match.team1_ids && match.team1_ids.length > 0)
+      ? (match.team1_ids[0] === playerId || match.team1_ids[1] === playerId)
+      : normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap)).includes(playerId);
 
-    const isTeam1 = team1.includes(playerId);
-    const isTeam2 = team2.includes(playerId);
-    if (!isTeam1 && !isTeam2) return;
+    const isT2 = !isT1 && ((match.team2_ids && match.team2_ids.length > 0)
+      ? (match.team2_ids[0] === playerId || match.team2_ids[1] === playerId)
+      : normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap)).includes(playerId));
 
-    const opponentTeam1 = team1.includes(opponentId);
-    const opponentTeam2 = team2.includes(opponentId);
+    if (!isT1 && !isT2) continue;
 
-    if (!opponentTeam1 && !opponentTeam2) return;
+    const oppT1 = (match.team1_ids && match.team1_ids.length > 0)
+      ? (match.team1_ids[0] === opponentId || match.team1_ids[1] === opponentId)
+      : normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap)).includes(opponentId);
 
-    const together = (isTeam1 && opponentTeam1) || (isTeam2 && opponentTeam2);
-    const against = (isTeam1 && opponentTeam2) || (isTeam2 && opponentTeam1);
+    const oppT2 = (match.team2_ids && match.team2_ids.length > 0)
+      ? (match.team2_ids[0] === opponentId || match.team2_ids[1] === opponentId)
+      : normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap)).includes(opponentId);
 
-    if ((mode === "together" && !together) || (mode === "against" && !against)) {
-      return;
-    }
+    if (!oppT1 && !oppT2) continue;
 
-    if (match.team1_sets == null || match.team2_sets == null) return;
+    const together = (isT1 && oppT1) || (isT2 && oppT2);
+    const against = (isT1 && oppT2) || (isT2 && oppT1);
+
+    if ((mode === "together" && !together) || (mode === "against" && !against)) continue;
+
+    if (match.team1_sets == null || match.team2_sets == null) continue;
 
     const s1 = Number(match.team1_sets || 0);
     const s2 = Number(match.team2_sets || 0);
     const team1Won = s1 > s2;
-    const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
+    const playerWon = (isT1 && team1Won) || (isT2 && !team1Won);
 
-    total++;
-    if (playerWon) {
-      wins++;
-    } else {
-      losses++;
-    }
+    result.matches++;
+    if (playerWon) result.wins++; else result.losses++;
 
-    let setsFor = isTeam1 ? s1 : s2;
-    let setsAgainst = isTeam1 ? s2 : s1;
+    let setsFor = isT1 ? s1 : s2;
+    let setsAgainst = isT1 ? s2 : s1;
 
     // Track ELO exchange
-    const delta = playerDeltaMap.get(match.id) || 0;
-    totalEloExchange += delta;
+    result.totalEloExchange += playerDeltaMap.get(match.id) || 0;
 
-    // Track last match
-    if (!lastMatch || match.created_at > lastMatch.created_at) {
-      lastMatch = {
+    // Track last match (assuming matches are already sorted descending as they come from Dashboard)
+    if (!result.lastMatch) {
+      result.lastMatch = {
         date: match.created_at,
         setsFor,
         setsAgainst,
@@ -515,104 +516,30 @@ const buildHeadToHead = (
       };
     }
 
-    // Normalize point-based matches (from tournaments) to a 1-set win/loss
-    // for the "Totala set" count to be consistent.
-    if (match.score_type === "points") {
-      if (setsFor > setsAgainst) {
-        setsFor = 1;
-        setsAgainst = 0;
-      } else if (setsAgainst > setsFor) {
-        setsFor = 0;
-        setsAgainst = 1;
-      } else {
-        setsFor = 0;
-        setsAgainst = 0;
-      }
+    // Recent results (last 5)
+    if (result.recentResults.length < 5) {
+      result.recentResults.push(playerWon ? "V" : "F");
     }
 
-    totalSetsFor += setsFor;
-    totalSetsAgainst += setsAgainst;
-  });
+    // Normalize point-based matches (from tournaments) to a 1-set win/loss
+    if (match.score_type === "points") {
+      if (setsFor > setsAgainst) { setsFor = 1; setsAgainst = 0; }
+      else if (setsAgainst > setsFor) { setsFor = 0; setsAgainst = 1; }
+      else { setsFor = 0; setsAgainst = 0; }
+    }
+    result.totalSetsFor += setsFor;
+    result.totalSetsAgainst += setsAgainst;
 
-  return {
-    wins,
-    losses,
-    matches: total,
-    totalSetsFor,
-    totalSetsAgainst,
-    totalEloExchange,
-    lastMatch
-  };
-};
-
-const buildHeadToHeadServeStats = (
-  matches: Match[],
-  playerId: string | undefined,
-  opponentId: string,
-  mode: string,
-  nameToIdMap: Map<string, string>
-) => {
-  if (!playerId || !opponentId) {
-    return {
-      serveFirstWins: 0,
-      serveFirstLosses: 0,
-      serveSecondWins: 0,
-      serveSecondLosses: 0,
-    };
+    // Serve stats
+    const playerServedFirst = isT1; // Team 1 always serves first
+    if (playerServedFirst) {
+      if (playerWon) result.serveFirstWins++; else result.serveFirstLosses++;
+    } else {
+      if (playerWon) result.serveSecondWins++; else result.serveSecondLosses++;
+    }
   }
 
-  let serveFirstWins = 0;
-  let serveFirstLosses = 0;
-  let serveSecondWins = 0;
-  let serveSecondLosses = 0;
-
-  matches.forEach(match => {
-    if (match.team1_sets == null || match.team2_sets == null) return;
-
-    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
-    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
-
-    const isTeam1 = team1.includes(playerId);
-    const isTeam2 = team2.includes(playerId);
-    if (!isTeam1 && !isTeam2) return;
-
-    const opponentTeam1 = team1.includes(opponentId);
-    const opponentTeam2 = team2.includes(opponentId);
-    if (!opponentTeam1 && !opponentTeam2) return;
-
-    const together = (isTeam1 && opponentTeam1) || (isTeam2 && opponentTeam2);
-    const against = (isTeam1 && opponentTeam2) || (isTeam2 && opponentTeam1);
-    if ((mode === "together" && !together) || (mode === "against" && !against)) return;
-
-    // Note for non-coders: Team A (team 1) always serves first in this app,
-    // so we can confidently treat team 1 as the starter for head-to-head splits.
-    const team1ServesFirst = true;
-    const playerServedFirst = (team1ServesFirst && isTeam1) || (!team1ServesFirst && isTeam2);
-
-    const team1Won = match.team1_sets > match.team2_sets;
-    const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
-
-    if (playerServedFirst) {
-      if (playerWon) {
-        serveFirstWins += 1;
-      } else {
-        serveFirstLosses += 1;
-      }
-    } else {
-      if (playerWon) {
-        serveSecondWins += 1;
-      } else {
-        serveSecondLosses += 1;
-      }
-    }
-  });
-
-  return {
-    serveFirstWins,
-    serveFirstLosses,
-    serveSecondWins,
-    serveSecondLosses,
-  };
+  return result;
 };
 
 const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playerId: string | undefined, opponentId: string) => {
@@ -637,53 +564,6 @@ const buildHeadToHeadTournaments = (tournamentResults: TournamentResult[], playe
   });
 
   return { wins, matches };
-};
-
-const buildHeadToHeadRecentResults = (
-  matches: Match[],
-  playerId: string | undefined,
-  opponentId: string,
-  mode: string,
-  limit = 5,
-  nameToIdMap: Map<string, string>,
-  playerDeltaMap: Map<string, number>
-) => {
-  if (!playerId || !opponentId) return [];
-
-  const results = [];
-
-  // Optimization: use the fact that matches are already sorted descending and skip irrelevant ones.
-  for (const match of matches) {
-    if (!playerDeltaMap.has(match.id)) continue;
-
-    const team1 = normalizeTeam(resolveTeamIds(match.team1_ids, match.team1, nameToIdMap));
-    const team2 = normalizeTeam(resolveTeamIds(match.team2_ids, match.team2, nameToIdMap));
-
-    const isTeam1 = team1.includes(playerId);
-    const isTeam2 = team2.includes(playerId);
-    if (!isTeam1 && !isTeam2) continue;
-
-    const opponentTeam1 = team1.includes(opponentId);
-    const opponentTeam2 = team2.includes(opponentId);
-    if (!opponentTeam1 && !opponentTeam2) continue;
-
-    const together = (isTeam1 && opponentTeam1) || (isTeam2 && opponentTeam2);
-    const against = (isTeam1 && opponentTeam2) || (isTeam2 && opponentTeam1);
-
-    if ((mode === "together" && !together) || (mode === "against" && !against)) {
-      continue;
-    }
-
-    if (match.team1_sets == null || match.team2_sets == null) continue;
-
-    const team1Won = match.team1_sets > match.team2_sets;
-    const playerWon = (isTeam1 && team1Won) || (isTeam2 && !team1Won);
-    results.push(playerWon ? "V" : "F");
-
-    if (results.length >= limit) break;
-  }
-
-  return results;
 };
 
 interface PlayerSectionProps {
@@ -1585,27 +1465,8 @@ export function HeadToHeadSection({
     return map;
   }, [allEloPlayers, user?.id, eloDeltaByMatch, matches]);
 
-  const headToHead = useMemo(
-    () => buildHeadToHead(matches, user?.id, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap),
-    [matches, user, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap]
-  );
-
-  const headToHeadServeStats = useMemo(
-    () => buildHeadToHeadServeStats(matches, user?.id, resolvedOpponentId, mode, nameToIdMap),
-    [matches, user?.id, resolvedOpponentId, mode, nameToIdMap]
-  );
-
-  const recentResults = useMemo(
-    () =>
-      buildHeadToHeadRecentResults(
-        matches,
-        user?.id,
-        resolvedOpponentId,
-        mode,
-        5,
-        nameToIdMap,
-        playerDeltaMap
-      ),
+  const headToHeadStats = useMemo(
+    () => buildHeadToHeadStats(matches, user?.id, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap),
     [matches, user, resolvedOpponentId, mode, nameToIdMap, playerDeltaMap]
   );
 
@@ -1737,23 +1598,23 @@ export function HeadToHeadSection({
             <Grid container spacing={2}>
               {/* Note for non-coders: we reuse the same card styling so every head-to-head stat lines up evenly. */}
               {[
-                { label: "Matcher", value: headToHead.matches },
+                { label: "Matcher", value: headToHeadStats.matches },
                 {
                   label: "Vinst/förlust",
-                  value: renderWinLossSplit(headToHead.wins, headToHead.losses),
+                  value: renderWinLossSplit(headToHeadStats.wins, headToHeadStats.losses),
                 },
-                { label: "Vinst %", value: `${percent(headToHead.wins, headToHead.losses)}%` },
+                { label: "Vinst %", value: `${percent(headToHeadStats.wins, headToHeadStats.losses)}%` },
                 {
                   label: "Totala set",
-                  value: renderSetSplit(headToHead.totalSetsFor, headToHead.totalSetsAgainst),
+                  value: renderSetSplit(headToHeadStats.totalSetsFor, headToHeadStats.totalSetsAgainst),
                 },
                 {
                   label: "Din vinst/förlust med start-serve",
-                  value: renderWinLossSplit(headToHeadServeStats.serveFirstWins, headToHeadServeStats.serveFirstLosses),
+                  value: renderWinLossSplit(headToHeadStats.serveFirstWins, headToHeadStats.serveFirstLosses),
                 },
                 {
                   label: "Din vinst/förlust utan start-serve",
-                  value: renderWinLossSplit(headToHeadServeStats.serveSecondWins, headToHeadServeStats.serveSecondLosses),
+                  value: renderWinLossSplit(headToHeadStats.serveSecondWins, headToHeadStats.serveSecondLosses),
                 },
                 ...(mode === "against" ? [
                   {
@@ -1762,8 +1623,8 @@ export function HeadToHeadSection({
                   },
                   {
                     label: "ELO-utbyte",
-                    value: `${headToHead.totalEloExchange > 0 ? '+' : ''}${headToHead.totalEloExchange}`,
-                    color: headToHead.totalEloExchange > 0 ? 'success.main' : headToHead.totalEloExchange < 0 ? 'error.main' : 'inherit'
+                    value: `${headToHeadStats.totalEloExchange > 0 ? '+' : ''}${headToHeadStats.totalEloExchange}`,
+                    color: headToHeadStats.totalEloExchange > 0 ? 'success.main' : headToHeadStats.totalEloExchange < 0 ? 'error.main' : 'inherit'
                   }
                 ] : [])
               ].map(stat => (
@@ -1786,12 +1647,12 @@ export function HeadToHeadSection({
                 </Grid>
               ))}
 
-              {headToHead.lastMatch && (
+              {headToHeadStats.lastMatch && (
                 <Grid size={{ xs: 12 }}>
                   <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, bgcolor: 'grey.50' }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste mötet</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                      {formatDate(headToHead.lastMatch.date)}: {formatScore(headToHead.lastMatch.setsFor, headToHead.lastMatch.setsAgainst)} ({headToHead.lastMatch.won ? 'Vinst' : 'Förlust'})
+                      {formatDate(headToHeadStats.lastMatch.date)}: {formatScore(headToHeadStats.lastMatch.setsFor, headToHeadStats.lastMatch.setsAgainst)} ({headToHeadStats.lastMatch.won ? 'Vinst' : 'Förlust'})
                     </Typography>
                   </Paper>
                 </Grid>
@@ -1800,9 +1661,9 @@ export function HeadToHeadSection({
               <Grid size={{ xs: 12 }}>
                  <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 1 }}>Senaste 5</Typography>
-                    {recentResults.length ? (
+                    {headToHeadStats.recentResults.length ? (
                       <Stack direction="row" spacing={1} justifyContent="center">
-                        {recentResults.map((result, index) => (
+                        {headToHeadStats.recentResults.map((result, index) => (
                           <Chip
                             key={`${result}-${index}`}
                             label={result}
