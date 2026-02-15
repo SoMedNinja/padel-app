@@ -113,20 +113,20 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
   const checklistItems = [
     {
       key: "notifications",
-      title: "Enable notifications",
-      helpText: "Allow notifications so match reminders and score updates can reach you instantly.",
+      title: "Aktivera notiser",
+      helpText: "Tillåt notiser så att påminnelser och resultatuppdateringar når dig direkt.",
       done: progress.notifications,
     },
     {
       key: "backgroundRefresh",
-      title: "Verify background refresh",
-      helpText: "Keep background refresh ready so the app can sync in the background when possible.",
+      title: "Verifiera bakgrundsuppdatering",
+      helpText: "Håll bakgrundsuppdatering redo så appen kan synka i bakgrunden när det är möjligt.",
       done: progress.backgroundRefresh,
     },
     {
       key: "accountSignIn",
-      title: "Confirm account sign-in",
-      helpText: "Stay signed in so your history and settings are saved on all your devices.",
+      title: "Bekräfta inloggning",
+      helpText: "Var inloggad så att historik och inställningar sparas på alla dina enheter.",
       done: progress.accountSignIn,
     },
   ] as const;
@@ -139,23 +139,23 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
     >
       <Stack spacing={1.5}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
-          <AlertTitle sx={{ mb: 0 }}>Native-like setup checklist</AlertTitle>
+          <AlertTitle sx={{ mb: 0 }}>Checklista för app-lik konfiguration</AlertTitle>
           <Chip
             size="small"
             color={allCompleted ? "success" : "primary"}
-            label={`${completedCount}/${totalSteps} complete`}
+            label={`${completedCount}/${totalSteps} klara`}
           />
         </Box>
 
         <Typography variant="body2" color="text.secondary">
-          Complete these quick steps once to unlock the best app-like experience.
+          Slutför dessa snabba steg en gång för att få den bästa app-lika upplevelsen.
         </Typography>
 
         {isLoadingCapabilities && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <CircularProgress size={14} />
             <Typography variant="caption" color="text.secondary">
-              Checking device readiness...
+              Kontrollerar enhetsstöd...
             </Typography>
           </Box>
         )}

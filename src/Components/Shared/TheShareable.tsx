@@ -1017,7 +1017,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
       }}
     >
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>The Shareable</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>Delningsbild</Typography>
         <IconButton onClick={onClose} size="small" aria-label="Stäng">
           <Close />
         </IconButton>
