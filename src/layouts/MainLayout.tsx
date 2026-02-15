@@ -191,13 +191,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
       </Container>
 
       {isStandaloneApp && (
-        <Container maxWidth="lg" sx={{ mt: 2 }}>
-          <PostInstallChecklist
-            isStandalone={isStandaloneApp}
-            // Note for non-coders: guests can browse, but this step only completes when a real account session exists.
-            isSignedIn={Boolean(user) && !hasGuestAccess}
-          />
-        </Container>
+        <PostInstallChecklist
+          isStandalone={isStandaloneApp}
+          // Note for non-coders: guests can browse, but this step only completes when a real account session exists.
+          isSignedIn={Boolean(user) && !hasGuestAccess}
+        />
       )}
 
       <Container maxWidth="lg" sx={{ mt: 2 }}>

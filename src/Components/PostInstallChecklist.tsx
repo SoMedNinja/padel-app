@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Container,
   IconButton,
   List,
   ListItem,
@@ -189,12 +190,14 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
   };
 
   return (
-    <Alert
-      severity={allCompleted ? "success" : "info"}
-      sx={{ borderRadius: 2 }}
-      icon={false}
-    >
-      <Stack spacing={1.5}>
+    <Container maxWidth="lg" sx={{ mt: 2 }}>
+      {/* Note for non-coders: spacing is applied only when this card is visible, so dismissing it doesn't leave empty space. */}
+      <Alert
+        severity={allCompleted ? "success" : "info"}
+        sx={{ borderRadius: 2 }}
+        icon={false}
+      >
+        <Stack spacing={1.5}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
           <AlertTitle sx={{ mb: 0 }}>Checklista för app-lik konfiguration</AlertTitle>
           <Stack direction="row" spacing={0.5} alignItems="center">
@@ -258,7 +261,8 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
             </ListItem>
           ))}
         </List>
-      </Stack>
-    </Alert>
+        </Stack>
+      </Alert>
+    </Container>
   );
 }
