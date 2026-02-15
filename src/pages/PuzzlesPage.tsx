@@ -17,7 +17,12 @@ import { CheckCircle as CheckCircleIcon, School as SchoolIcon } from "@mui/icons
 import { useStore } from "../store/useStore";
 import { getPuzzlesByDifficulty, padelPuzzles, puzzleDifficulties, type PadelPuzzle } from "../content/padelPuzzles";
 import type { PuzzleDifficulty } from "../content/padelPuzzlesEditable";
-import { puzzleStorageKeyForUser, readPuzzleAnswerMap, type PadelPuzzleAnswerRecord } from "../utils/padelPuzzle";
+import {
+  claimFirstPerfectPuzzlePlayer,
+  puzzleStorageKeyForUser,
+  readPuzzleAnswerMap,
+  type PadelPuzzleAnswerRecord,
+} from "../utils/padelPuzzle";
 
 const difficultyLabels: Record<PuzzleDifficulty, string> = {
   easy: "Easy",
@@ -51,11 +56,14 @@ export default function PuzzlesPage() {
   // We use it to detect when the player has answered all scenarios.
   const allPuzzleIds = useMemo(() => new Set(padelPuzzles.map((puzzle) => puzzle.questionId)), []);
 
-  const solvedPuzzleIds = useMemo(
-    () => Object.keys(answersByQuestionId).filter((questionId) => allPuzzleIds.has(questionId)),
-    [allPuzzleIds, answersByQuestionId],
-  );
+  const solvedPuzzleIds = useMemo(() => {
+    return Object.entries(answersByQuestionId)
+      .filter(([questionId, record]) => allPuzzleIds.has(questionId) && record.isCorrect)
+      .map(([questionId]) => questionId);
+  }, [allPuzzleIds, answersByQuestionId]);
 
+  // Note for non-coders: "klar" now means correct answer, not just any answer.
+  // If a scenario was wrong, it stays in the queue until the player gets it right.
   const hasAnsweredAllPuzzles = solvedPuzzleIds.length >= allPuzzleIds.size && allPuzzleIds.size > 0;
 
   const queryQuestionId = searchParams.get("questionId");
@@ -90,6 +98,11 @@ export default function PuzzlesPage() {
     [answersByQuestionId],
   );
 
+  useEffect(() => {
+    if (!user?.id || !hasAnsweredAllPuzzles) return;
+    claimFirstPerfectPuzzlePlayer(user.id);
+  }, [hasAnsweredAllPuzzles, user?.id]);
+
   const handleDifficultyChange = (_: MouseEvent<HTMLElement>, value: PuzzleDifficulty | null) => {
     if (!value) return;
     setDifficulty(value);
@@ -118,8 +131,13 @@ export default function PuzzlesPage() {
 
   const goToNextPuzzle = () => {
     if (!currentPuzzle) return;
-    const currentIndex = puzzles.findIndex((puzzle) => puzzle.questionId === currentPuzzle.questionId);
-    const nextPuzzle = puzzles[(currentIndex + 1) % puzzles.length];
+
+    // Note for non-coders: we prioritize unanswered or wrong puzzles first,
+    // so players keep getting pending scenarios until all are correct.
+    const pendingPuzzles = puzzles.filter((puzzle) => !answersByQuestionId[puzzle.questionId]?.isCorrect);
+    const candidates = pendingPuzzles.length > 0 ? pendingPuzzles : puzzles;
+    const currentIndex = candidates.findIndex((puzzle) => puzzle.questionId === currentPuzzle.questionId);
+    const nextPuzzle = candidates[(currentIndex + 1 + candidates.length) % candidates.length];
     setSearchParams({ questionId: nextPuzzle.questionId });
   };
 
