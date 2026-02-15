@@ -1,6 +1,7 @@
 import Foundation
 import BackgroundTasks
 import UserNotifications
+import EventKit
 import UIKit
 
 struct ProfileEloPoint: Identifiable {
@@ -412,7 +413,9 @@ final class AppViewModel: ObservableObject {
     @Published var currentRotation: RotationSchedule?
     @Published var areScheduleNotificationsEnabled = false
     @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
+    @Published var calendarPermissionStatus: EKAuthorizationStatus = .notDetermined
     @Published var isBiometricLockEnabled = false
+    @Published var isBiometricAvailable = false
     @Published var appVersionMessage: String?
     @Published var appStoreUpdateURL: URL?
     @Published var isUpdateRequired = false
@@ -438,6 +441,7 @@ final class AppViewModel: ObservableObject {
     private lazy var bootstrapService = AppBootstrapService(apiClient: apiClient)
     private let appVersionService: AppVersionService
     private let notificationService: NotificationServicing
+    private let calendarService: CalendarServicing
     private let biometricAuthService = BiometricAuthService()
     private var liveSyncTask: Task<Void, Never>?
     private var liveSyncDebounceTask: Task<Void, Never>?
@@ -488,12 +492,14 @@ final class AppViewModel: ObservableObject {
         tournamentDataLoader: TournamentDataLoading? = nil,
         appVersionService: AppVersionService = AppVersionService(),
         notificationService: NotificationServicing = NotificationService(),
+        calendarService: CalendarServicing = CalendarService(),
         dismissalStore: UserDefaults = .standard
     ) {
         self.apiClient = apiClient
         self.tournamentDataLoader = tournamentDataLoader ?? SupabaseTournamentDataLoader(apiClient: apiClient)
         self.appVersionService = appVersionService
         self.notificationService = notificationService
+        self.calendarService = calendarService
         self.dismissalStore = dismissalStore
         dismissedHighlightMatchId = Self.uuidValue(from: dismissalStore, key: dismissedHighlightIdKey)
         dismissedHighlightDateKey = dismissalStore.string(forKey: dismissedHighlightDateKeyStore)
@@ -520,6 +526,9 @@ final class AppViewModel: ObservableObject {
             guard let self else { return }
             LiveMatchActivityService.shared.restoreActiveActivityIfNeeded()
             self.updateLiveActivity()
+            Task { @MainActor in
+                await self.refreshDevicePermissionStatuses()
+            }
         }
     }
 
@@ -532,7 +541,7 @@ final class AppViewModel: ObservableObject {
     // Note for non-coders:
     // This runs native-only setup (notification status, remote push registration) when app starts.
     func prepareNativeCapabilities() async {
-        notificationPermissionStatus = await notificationService.currentStatus()
+        await refreshDevicePermissionStatuses()
         if areScheduleNotificationsEnabled && (notificationPermissionStatus == .authorized || notificationPermissionStatus == .provisional) {
             notificationService.registerForRemoteNotifications()
             await notificationService.scheduleUpcomingGameReminders(schedule)
@@ -669,6 +678,24 @@ final class AppViewModel: ObservableObject {
 
     func refreshNotificationPermissionStatus() async {
         notificationPermissionStatus = await notificationService.currentStatus()
+    }
+
+    // Note for non-coders:
+    // Settings uses this one function to refresh all permission-related badges at once.
+    func refreshDevicePermissionStatuses() async {
+        notificationPermissionStatus = await notificationService.currentStatus()
+        calendarPermissionStatus = calendarService.currentAuthorizationStatus()
+        isBiometricAvailable = biometricAuthService.canUseBiometrics()
+    }
+
+    func requestCalendarPermission() async {
+        do {
+            _ = try await calendarService.requestAccessIfNeeded()
+            calendarPermissionStatus = calendarService.currentAuthorizationStatus()
+        } catch {
+            calendarPermissionStatus = calendarService.currentAuthorizationStatus()
+            statusMessage = "Vi kunde inte be om kalenderåtkomst just nu. Försök gärna igen."
+        }
     }
 
     func setScheduleNotificationsEnabled(_ enabled: Bool) async {
