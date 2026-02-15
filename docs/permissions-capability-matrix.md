@@ -35,3 +35,15 @@ Use this exact sentence on both clients:
 ## Non-coder note
 
 The matrix keeps wording stable so users get the same explanation and next-step action on web and iOS, even when the underlying OS APIs are different.
+
+
+## Shared troubleshooting by state
+
+Use this section when a capability shows one of the four shared states. The goal is to give exact next steps with platform-specific wording while preserving the same state terminology.
+
+| State | iOS exact user action | Web exact user action |
+|---|---|---|
+| `allowed` | Tap **Retry check** to refresh status and confirm nothing regressed in iOS Settings. | Tap **Retry check** to re-run permission checks and verify push/service-worker readiness. |
+| `blocked` | Tap **Open Settings** and enable the blocked permission in iOS Settings for PadelNative, then return and retry. | Tap **Open Settings** and allow the blocked permission in browser/site settings for this app, then refresh or retry. |
+| `limited` | Tap **Open Settings** and review device restrictions/support limits (for example Background App Refresh restrictions or unavailable biometrics). | Tap **Open Settings** and review browser/site constraints (for example HTTPS/PWA/service-worker limitations); if calendar is limited, use **Open calendar settings**. |
+| `action_needed` | Tap **Request** when available (Notifications/Calendar/Biometric setup) to prompt iOS permission flow, or follow **Open Settings** when the capability requires settings-level enablement. | Tap **Request** when browser permission can be prompted (Notifications); otherwise follow the shown action to finish setup (for example service-worker/background setup). |

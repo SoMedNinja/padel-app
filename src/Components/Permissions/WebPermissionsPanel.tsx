@@ -10,6 +10,9 @@ import { SHARED_PERMISSION_CAPABILITY_LABELS, SHARED_PERMISSION_STATE_LABELS, WE
 import { SHARED_PERMISSION_PLATFORM_DIFFERENCES } from "../../shared/permissionCapabilityMatrix";
 import { PermissionStatusSnapshot } from "../../types/permissions";
 
+const LAST_CHECKED_AT_KEY = "permissions.lastCheckedAt.v1";
+const LAST_SUCCESSFUL_PUSH_SETUP_AT_KEY = "permissions.lastSuccessfulPushSetupAt.v1";
+
 const CHIP_COLORS: Record<PermissionStatusSnapshot["state"], "success" | "error" | "warning" | "default"> = {
   allowed: "success",
   blocked: "error",
@@ -38,10 +41,30 @@ function notificationSettingsGuidance(): string {
 export default function WebPermissionsPanel({ onNotificationPermissionChanged }: WebPermissionsPanelProps) {
   const [snapshots, setSnapshots] = useState<PermissionStatusSnapshot[]>([]);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(() => localStorage.getItem(LAST_CHECKED_AT_KEY));
+  const [lastSuccessfulPushSetupAt, setLastSuccessfulPushSetupAt] = useState<string | null>(() =>
+    localStorage.getItem(LAST_SUCCESSFUL_PUSH_SETUP_AT_KEY)
+  );
+
+  const formatTimestamp = (iso: string | null): string => {
+    if (!iso) return "Not yet";
+    const parsed = new Date(iso);
+    return Number.isNaN(parsed.getTime()) ? "Not yet" : parsed.toLocaleString();
+  };
 
   const reloadSnapshots = async () => {
     const data = await buildWebPermissionSnapshots();
     setSnapshots(data);
+
+    const nowIso = new Date().toISOString();
+    setLastCheckedAt(nowIso);
+    localStorage.setItem(LAST_CHECKED_AT_KEY, nowIso);
+
+    const notifications = data.find((snapshot) => snapshot.capability === "notifications");
+    if (notifications?.state === "allowed") {
+      setLastSuccessfulPushSetupAt(nowIso);
+      localStorage.setItem(LAST_SUCCESSFUL_PUSH_SETUP_AT_KEY, nowIso);
+    }
   };
 
   useEffect(() => {
@@ -117,6 +140,14 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {/* Note for non-coders: this panel translates technical browser APIs into the same state words used on iOS. */}
         Same state model on every client: Allowed, Blocked, Limited, or Action needed.
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+        {/* Note for non-coders: this is the exact time the app most recently re-ran all permission checks. */}
+        Last checked: {formatTimestamp(lastCheckedAt)}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+        {/* Note for non-coders: this only updates when push is fully ready (permission + endpoint). */}
+        Last successful push setup: {formatTimestamp(lastSuccessfulPushSetupAt)}
       </Typography>
 
       <Stack spacing={1.5}>
