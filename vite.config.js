@@ -35,6 +35,8 @@ export default defineConfig({
       filename: "sw.js",
       registerType: "prompt",
       // includeAssets keeps these files copied as-is so install icons stay available.
+      // PWA_ASSETS:INCLUDE_ASSETS_START
+      // Note for non-coders: this list is generated from design/pwa-assets.json so every install-related file stays in one source-of-truth.
       includeAssets: [
         "favicon.png",
         "icon-192.png",
@@ -49,8 +51,9 @@ export default defineConfig({
         "apple-launch-1125x2436.png",
         "apple-launch-1242x2688.png",
         "apple-launch-828x1792.png",
-        "apple-launch-750x1334.png"
+        "apple-launch-750x1334.png",
       ],
+      // PWA_ASSETS:INCLUDE_ASSETS_END
       manifest: {
         // This web app manifest is what phones/browsers read when users install the app.
         id: "/",
@@ -63,6 +66,8 @@ export default defineConfig({
         background_color: "#ffffff",
         display: "standalone",
         start_url: "/",
+        // PWA_ASSETS:MANIFEST_ICONS_START
+        // Note for non-coders: these install icon entries are generated from design/pwa-assets.json so Android/Desktop install data stays in sync.
         icons: [
           {
             src: "icon-192.png",
@@ -89,6 +94,7 @@ export default defineConfig({
             purpose: "maskable any",
           },
         ],
+        // PWA_ASSETS:MANIFEST_ICONS_END
         shortcuts: [
           {
             name: "Dashboard",

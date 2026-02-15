@@ -13,7 +13,9 @@
     "contract:generate": "node scripts/generate-contract-models.mjs",
     "contract:check": "node scripts/check-contract-sync.mjs",
     "tokens:generate": "node scripts/generate-design-tokens.mjs",
-    "tokens:check": "node scripts/check-design-token-sync.mjs"
+    "tokens:check": "node scripts/check-design-token-sync.mjs",
+    "pwa:generate": "node scripts/generate-pwa-assets.mjs",
+    "pwa:check": "node scripts/check-pwa-assets.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
