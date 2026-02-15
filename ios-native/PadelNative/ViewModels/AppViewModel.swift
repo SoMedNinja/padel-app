@@ -468,6 +468,7 @@ final class AppViewModel: ObservableObject {
     @Published var notificationPreferences: NotificationPreferences = .default
     @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
     @Published var calendarPermissionStatus: EKAuthorizationStatus = .notDetermined
+    @Published var backgroundRefreshStatus: UIBackgroundRefreshStatus = UIApplication.shared.backgroundRefreshStatus
     @Published var isBiometricLockEnabled = false
     @Published var isBiometricAvailable = false
     @Published var appVersionMessage: String?
@@ -806,6 +807,7 @@ final class AppViewModel: ObservableObject {
     func refreshDevicePermissionStatuses() async {
         notificationPermissionStatus = await notificationService.currentStatus()
         calendarPermissionStatus = calendarService.currentAuthorizationStatus()
+        backgroundRefreshStatus = UIApplication.shared.backgroundRefreshStatus
         isBiometricAvailable = biometricAuthService.canUseBiometrics()
     }
 
@@ -826,7 +828,7 @@ final class AppViewModel: ObservableObject {
             if notificationPermissionStatus == .denied || notificationPermissionStatus == .restricted {
                 areScheduleNotificationsEnabled = false
                 dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
-                statusMessage = "Notiser är blockerade i iOS-inställningar. Öppna Inställningar och tillåt notiser för PadelNative."
+                statusMessage = "Action needed: Notifications are blocked. Open iOS Settings and allow notifications for PadelNative."
                 return
             }
 
@@ -835,7 +837,7 @@ final class AppViewModel: ObservableObject {
                 notificationPermissionStatus = await notificationService.currentStatus()
                 guard granted else {
                     areScheduleNotificationsEnabled = false
-                    statusMessage = "Notiser är inte tillåtna ännu. Aktivera i iOS-inställningar om du vill ha påminnelser."
+                    statusMessage = "Action needed: Notifications are not allowed yet. Enable them in iOS Settings to receive reminders."
                     dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
                     return
                 }
@@ -845,7 +847,7 @@ final class AppViewModel: ObservableObject {
                 await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
                 notificationService.registerForRemoteNotifications()
                 await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
-                statusMessage = "Notiser aktiverade. Du får påminnelse före kommande matcher."
+                statusMessage = "Allowed: Notifications are enabled for upcoming match reminders."
             } catch {
                 areScheduleNotificationsEnabled = false
                 dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
@@ -859,7 +861,7 @@ final class AppViewModel: ObservableObject {
         notificationPreferences.enabled = false
         await notificationService.saveNotificationPreferencesWithSync(notificationPreferences, profileId: currentIdentity?.profileId, store: dismissalStore)
         await notificationService.clearScheduledGameReminders()
-        statusMessage = "Notispåminnelser avstängda för den här enheten."
+        statusMessage = "Action needed: Notifications are turned off on this device."
     }
 
 
@@ -893,7 +895,7 @@ final class AppViewModel: ObservableObject {
     func setBiometricLockEnabled(_ enabled: Bool) async {
         if enabled {
             guard biometricAuthService.canUseBiometrics() else {
-                statusMessage = "Face ID/Touch ID är inte tillgängligt på den här enheten."
+                statusMessage = "Limited: Biometric unlock is not available on this device."
                 isBiometricLockEnabled = false
                 dismissalStore.set(false, forKey: biometricLockEnabledKey)
                 return
@@ -903,7 +905,7 @@ final class AppViewModel: ObservableObject {
                 try await biometricAuthService.authenticate(reason: "Bekräfta att du vill skydda PadelNative med Face ID/Touch ID")
                 isBiometricLockEnabled = true
                 dismissalStore.set(true, forKey: biometricLockEnabledKey)
-                statusMessage = "Biometriskt applås aktiverat."
+                statusMessage = "Allowed: Biometric app lock is enabled."
             } catch {
                 isBiometricLockEnabled = false
                 dismissalStore.set(false, forKey: biometricLockEnabledKey)
@@ -914,7 +916,7 @@ final class AppViewModel: ObservableObject {
 
         isBiometricLockEnabled = false
         dismissalStore.set(false, forKey: biometricLockEnabledKey)
-        statusMessage = "Biometriskt applås avstängt."
+        statusMessage = "Action needed: Biometric app lock is turned off."
     }
 
     // Note for non-coders:
