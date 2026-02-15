@@ -24,6 +24,29 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         logger.error("APNs registration failed. error=\(error.localizedDescription, privacy: .public)")
     }
+
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        let service = NotificationService()
+        let preferences = service.loadNotificationPreferences()
+
+        // Note for non-coders:
+        // Foreground notifications use the same event + quiet-hour filtering as background delivery.
+        guard service.shouldDeliverRemoteNotification(userInfo: notification.request.content.userInfo, preferences: preferences) else {
+            completionHandler([])
+            return
+        }
+
+        completionHandler([.banner, .sound, .badge])
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        completionHandler()
+    }
 }
 
 @main

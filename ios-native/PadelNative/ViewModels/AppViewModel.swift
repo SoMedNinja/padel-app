@@ -465,6 +465,7 @@ final class AppViewModel: ObservableObject {
     @Published var deepLinkedSingleGameMode: String?
     @Published var currentRotation: RotationSchedule?
     @Published var areScheduleNotificationsEnabled = false
+    @Published var notificationPreferences: NotificationPreferences = .default
     @Published var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
     @Published var calendarPermissionStatus: EKAuthorizationStatus = .notDetermined
     @Published var isBiometricLockEnabled = false
@@ -562,6 +563,8 @@ final class AppViewModel: ObservableObject {
         dismissedScheduledGameId = Self.uuidValue(from: dismissalStore, key: dismissedScheduledGameIdKey)
         dismissedTournamentNoticeId = Self.uuidValue(from: dismissalStore, key: dismissedTournamentNoticeIdKey)
         areScheduleNotificationsEnabled = dismissalStore.bool(forKey: scheduleNotificationsEnabledKey)
+        notificationPreferences = notificationService.loadNotificationPreferences(store: dismissalStore)
+        notificationPreferences.enabled = areScheduleNotificationsEnabled
         isBiometricLockEnabled = dismissalStore.bool(forKey: biometricLockEnabledKey)
 
         if AppConfig.isConfigured {
@@ -599,7 +602,7 @@ final class AppViewModel: ObservableObject {
         await refreshDevicePermissionStatuses()
         if areScheduleNotificationsEnabled && (notificationPermissionStatus == .authorized || notificationPermissionStatus == .provisional) {
             notificationService.registerForRemoteNotifications()
-            await notificationService.scheduleUpcomingGameReminders(schedule)
+            await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
         }
 
         scheduleBackgroundRefreshTasksIfPossible()
@@ -838,8 +841,10 @@ final class AppViewModel: ObservableObject {
                 }
                 areScheduleNotificationsEnabled = true
                 dismissalStore.set(true, forKey: scheduleNotificationsEnabledKey)
+                notificationPreferences.enabled = true
+                notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
                 notificationService.registerForRemoteNotifications()
-                await notificationService.scheduleUpcomingGameReminders(schedule)
+                await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
                 statusMessage = "Notiser aktiverade. Du får påminnelse före kommande matcher."
             } catch {
                 areScheduleNotificationsEnabled = false
@@ -851,8 +856,38 @@ final class AppViewModel: ObservableObject {
 
         areScheduleNotificationsEnabled = false
         dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
+        notificationPreferences.enabled = false
+        notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
         await notificationService.clearScheduledGameReminders()
         statusMessage = "Notispåminnelser avstängda för den här enheten."
+    }
+
+
+
+    // Note for non-coders:
+    // This lets users mute one event category (for example polls) without muting everything.
+    func setNotificationEventEnabled(_ eventType: NotificationEventType, enabled: Bool) async {
+        notificationPreferences.eventToggles[eventType.rawValue] = enabled
+        notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
+
+        if eventType == .scheduledMatchNew {
+            if enabled && areScheduleNotificationsEnabled {
+                await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
+            } else {
+                await notificationService.clearScheduledGameReminders()
+            }
+        }
+    }
+
+    // Note for non-coders:
+    // Quiet hours delay alerts into a daytime window so night-time pushes are avoided.
+    func setNotificationQuietHours(enabled: Bool, startHour: Int, endHour: Int) async {
+        notificationPreferences.quietHours = NotificationQuietHours(enabled: enabled, startHour: startHour, endHour: endHour)
+        notificationService.saveNotificationPreferences(notificationPreferences, store: dismissalStore)
+
+        if areScheduleNotificationsEnabled {
+            await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
+        }
     }
 
     func setBiometricLockEnabled(_ enabled: Bool) async {
@@ -2010,7 +2045,7 @@ final class AppViewModel: ObservableObject {
             await refreshAdminProfiles(silently: true)
             recalculateDerivedStats()
             if areScheduleNotificationsEnabled {
-                await notificationService.scheduleUpcomingGameReminders(schedule)
+                await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
             }
             await checkForAppUpdate()
             startLiveSyncIfNeeded()
@@ -2046,7 +2081,7 @@ final class AppViewModel: ObservableObject {
             self.polls = fallback.polls
             self.voteDraftsByDay = [:]
             if areScheduleNotificationsEnabled {
-                await notificationService.scheduleUpcomingGameReminders(schedule)
+                await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
             }
             await checkForAppUpdate()
             self.lastErrorMessage = "Live data unavailable. Showing sample data for local testing. Details: \(errorSummary)"
@@ -2485,7 +2520,7 @@ final class AppViewModel: ObservableObject {
                 if scheduleSignature(latestSchedule) != scheduleSignature(schedule) {
                     schedule = latestSchedule
                     if areScheduleNotificationsEnabled {
-                        await notificationService.scheduleUpcomingGameReminders(schedule)
+                        await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
                     }
                     changedCollections.append("schedule")
                 }
@@ -2601,7 +2636,7 @@ final class AppViewModel: ObservableObject {
             if scheduleSignature(latestSchedule) != scheduleSignature(schedule) {
                 schedule = latestSchedule
                 if areScheduleNotificationsEnabled {
-                    await notificationService.scheduleUpcomingGameReminders(schedule)
+                    await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
                 }
                 changedCollections.append("schedule")
             }
@@ -2824,7 +2859,7 @@ final class AppViewModel: ObservableObject {
             syncVoteDraftsFromPolls()
             await applyPendingDeepLinkVoteIfNeeded()
             if areScheduleNotificationsEnabled {
-                await notificationService.scheduleUpcomingGameReminders(schedule)
+                await notificationService.scheduleUpcomingGameReminders(schedule, preferences: notificationPreferences)
             }
             scheduleErrorMessage = nil
         } catch {

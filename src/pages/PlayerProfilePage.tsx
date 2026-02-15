@@ -7,7 +7,7 @@ import { useStore } from "../store/useStore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
-import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, Grid } from "@mui/material";
+import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, Grid, FormControlLabel, Switch, Divider, MenuItem, TextField } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
 import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
@@ -16,6 +16,14 @@ import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } 
 import { useEloStats } from "../hooks/useEloStats";
 import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
+import { NotificationEventType, NotificationPreferences } from "../types/notifications";
+import { ensureNotificationPermission, loadNotificationPreferences, saveNotificationPreferences, syncPreferencesToServiceWorker } from "../services/webNotificationService";
+
+const EVENT_LABELS: Record<NotificationEventType, string> = {
+  scheduled_match_new: "Ny schemalagd match",
+  availability_poll_reminder: "Påminnelse om tillgänglighetspoll",
+  admin_announcement: "Admin-meddelanden",
+};
 
 export default function PlayerProfilePage() {
   const queryClient = useQueryClient();
@@ -49,6 +57,7 @@ export default function PlayerProfilePage() {
   );
 
   const [activeTab, setActiveTab] = useState(0);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(() => loadNotificationPreferences());
 
   // Simplified handling for admin and approval state for now
   const userWithAdmin = user ? { ...user, is_admin: user.is_admin } : null;
@@ -71,6 +80,26 @@ export default function PlayerProfilePage() {
     (tournamentResultsError as Error | undefined)?.message ||
     eloError?.message ||
     "Något gick fel när profilen laddades.";
+
+  const updateNotificationPrefs = async (nextPrefs: NotificationPreferences) => {
+    setNotificationPrefs(nextPrefs);
+    saveNotificationPreferences(nextPrefs);
+    await syncPreferencesToServiceWorker(nextPrefs);
+  };
+
+  const handleMasterNotificationsToggle = async (enabled: boolean) => {
+    if (enabled) {
+      const permission = await ensureNotificationPermission();
+      if (permission !== "granted") {
+        return;
+      }
+    }
+
+    await updateNotificationPrefs({
+      ...notificationPrefs,
+      enabled,
+    });
+  };
 
   if (isGuest) {
     return (
@@ -158,6 +187,7 @@ export default function PlayerProfilePage() {
                 <Tab label="ELO-Trend" />
                 <Tab label="Lagkamrater" />
                 <Tab label="Meriter" />
+                <Tab label="Notiser" />
               </Tabs>
 
               {activeTab === 0 && (
@@ -211,6 +241,112 @@ export default function PlayerProfilePage() {
                     tournamentResults={tournamentResults}
                     onProfileUpdate={() => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() })}
                   />
+                </Box>
+              )}
+
+              {activeTab === 4 && (
+                <Box id="notifications" component="section" sx={{ p: 2, bgcolor: "background.paper", borderRadius: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Notifieringsinställningar</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {/* Note for non-coders: this is where users decide which alerts they want to receive on web and in the service worker push channel. */}
+                    Slå av/på notiser per händelsetyp och välj tysta timmar för när mobilen inte ska plinga.
+                  </Typography>
+
+                  <FormControlLabel
+                    control={<Switch checked={notificationPrefs.enabled} onChange={(_, checked) => void handleMasterNotificationsToggle(checked)} />}
+                    label="Tillåt notiser på webben"
+                  />
+
+                  <Divider sx={{ my: 2 }} />
+
+                  {Object.entries(EVENT_LABELS).map(([eventType, label]) => (
+                    <FormControlLabel
+                      key={eventType}
+                      control={
+                        <Switch
+                          checked={notificationPrefs.eventToggles[eventType as NotificationEventType]}
+                          onChange={(_, checked) => {
+                            const nextPrefs: NotificationPreferences = {
+                              ...notificationPrefs,
+                              eventToggles: {
+                                ...notificationPrefs.eventToggles,
+                                [eventType]: checked,
+                              },
+                            };
+                            void updateNotificationPrefs(nextPrefs);
+                          }}
+                          disabled={!notificationPrefs.enabled}
+                        />
+                      }
+                      label={label}
+                    />
+                  ))}
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={notificationPrefs.quietHours.enabled}
+                        onChange={(_, checked) => {
+                          void updateNotificationPrefs({
+                            ...notificationPrefs,
+                            quietHours: {
+                              ...notificationPrefs.quietHours,
+                              enabled: checked,
+                            },
+                          });
+                        }}
+                        disabled={!notificationPrefs.enabled}
+                      />
+                    }
+                    label="Aktivera tysta timmar"
+                  />
+
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 1 }}>
+                    <TextField
+                      select
+                      size="small"
+                      label="Start"
+                      value={notificationPrefs.quietHours.startHour}
+                      onChange={(event) => {
+                        void updateNotificationPrefs({
+                          ...notificationPrefs,
+                          quietHours: {
+                            ...notificationPrefs.quietHours,
+                            startHour: Number(event.target.value),
+                          },
+                        });
+                      }}
+                      disabled={!notificationPrefs.enabled || !notificationPrefs.quietHours.enabled}
+                    >
+                      {Array.from({ length: 24 }).map((_, hour) => <MenuItem key={`start-${hour}`} value={hour}>{`${hour.toString().padStart(2, "0")}:00`}</MenuItem>)}
+                    </TextField>
+                    <TextField
+                      select
+                      size="small"
+                      label="Slut"
+                      value={notificationPrefs.quietHours.endHour}
+                      onChange={(event) => {
+                        void updateNotificationPrefs({
+                          ...notificationPrefs,
+                          quietHours: {
+                            ...notificationPrefs.quietHours,
+                            endHour: Number(event.target.value),
+                          },
+                        });
+                      }}
+                      disabled={!notificationPrefs.enabled || !notificationPrefs.quietHours.enabled}
+                    >
+                      {Array.from({ length: 24 }).map((_, hour) => <MenuItem key={`end-${hour}`} value={hour}>{`${hour.toString().padStart(2, "0")}:00`}</MenuItem>)}
+                    </TextField>
+                  </Stack>
+
+                  {!notificationPrefs.enabled && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      Alla web-notiser är avstängda. Du kan fortfarande slå på dem igen här.
+                    </Alert>
+                  )}
                 </Box>
               )}
             </>

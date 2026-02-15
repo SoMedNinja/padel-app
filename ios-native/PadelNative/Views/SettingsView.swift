@@ -216,6 +216,66 @@ struct SettingsView: View {
                 ))
                 .font(.inter(.subheadline))
 
+                // Note for non-coders:
+                // These switches let users choose exactly which event categories should notify them.
+                eventToggleRow(title: "Ny schemalagd match", eventType: .scheduledMatchNew)
+                eventToggleRow(title: "Påminnelse om poll", eventType: .availabilityPollReminder)
+                eventToggleRow(title: "Admin-meddelande", eventType: .adminAnnouncement)
+
+                Toggle("Tysta timmar", isOn: Binding(
+                    get: { viewModel.notificationPreferences.quietHours.enabled },
+                    set: { enabled in
+                        Task {
+                            await viewModel.setNotificationQuietHours(
+                                enabled: enabled,
+                                startHour: viewModel.notificationPreferences.quietHours.startHour,
+                                endHour: viewModel.notificationPreferences.quietHours.endHour
+                            )
+                        }
+                    }
+                ))
+                .font(.inter(.subheadline))
+
+                if viewModel.notificationPreferences.quietHours.enabled {
+                    HStack(spacing: 12) {
+                        Picker("Start", selection: Binding(
+                            get: { viewModel.notificationPreferences.quietHours.startHour },
+                            set: { hour in
+                                Task {
+                                    await viewModel.setNotificationQuietHours(
+                                        enabled: true,
+                                        startHour: hour,
+                                        endHour: viewModel.notificationPreferences.quietHours.endHour
+                                    )
+                                }
+                            }
+                        )) {
+                            ForEach(0..<24, id: \.self) { hour in
+                                Text(String(format: "%02d:00", hour)).tag(hour)
+                            }
+                        }
+                        .pickerStyle(.menu)
+
+                        Picker("Slut", selection: Binding(
+                            get: { viewModel.notificationPreferences.quietHours.endHour },
+                            set: { hour in
+                                Task {
+                                    await viewModel.setNotificationQuietHours(
+                                        enabled: true,
+                                        startHour: viewModel.notificationPreferences.quietHours.startHour,
+                                        endHour: hour
+                                    )
+                                }
+                            }
+                        )) {
+                            ForEach(0..<24, id: \.self) { hour in
+                                Text(String(format: "%02d:00", hour)).tag(hour)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                }
+
                 if viewModel.notificationPermissionNeedsSettings {
                     VStack(alignment: .leading, spacing: 8) {
                         // Note for non-coders: this message tells exactly what to enable in iPhone Settings.
@@ -297,6 +357,18 @@ struct SettingsView: View {
         }
     }
 
+
+
+    private func eventToggleRow(title: String, eventType: NotificationEventType) -> some View {
+        Toggle(title, isOn: Binding(
+            get: { viewModel.notificationPreferences.eventToggles[eventType.rawValue, default: true] },
+            set: { enabled in
+                Task { await viewModel.setNotificationEventEnabled(eventType, enabled: enabled) }
+            }
+        ))
+        .font(.inter(.subheadline))
+        .disabled(!viewModel.areScheduleNotificationsEnabled)
+    }
 
 
     private func permissionRow(title: String, subtitle: String, state: PermissionChipState, buttonLabel: String, buttonSystemImage: String, action: @escaping () -> Void) -> some View {
