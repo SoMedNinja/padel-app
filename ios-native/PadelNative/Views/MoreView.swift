@@ -39,12 +39,9 @@ struct MoreView: View {
                     }
                     .padelSurfaceCard()
 
-                    NavigationLink(isActive: $isDeepLinkedAdminActive) {
-                        AdminView()
-                    } label: {
-                        EmptyView()
-                    }
-                    .hidden()
+                    // Note for non-coders: this is the modern iOS navigation API for opening screens in code (for deep links).
+                    Color.clear
+                        .frame(width: 0, height: 0)
                 }
                 .padding()
             }
@@ -64,6 +61,9 @@ struct MoreView: View {
                 // Note for non-coders: deep links can open a screen without the user tapping it manually.
                 isDeepLinkedAdminActive = true
                 viewModel.consumeOpenAdminFromDeepLinkFlag()
+            }
+            .navigationDestination(isPresented: $isDeepLinkedAdminActive) {
+                AdminView()
             }
             .padelLiquidGlassChrome()
         }
