@@ -1,4 +1,5 @@
 import { PlatformIntent } from "../utils/platform";
+import { getInstallGuidanceVisibility } from "../shared/installGuidance";
 
 export const INSTALL_PROMPT_CONFIG = {
   storage: {
@@ -7,19 +8,6 @@ export const INSTALL_PROMPT_CONFIG = {
   },
   snoozeDurationMs: 7 * 24 * 60 * 60 * 1000,
   repeatedSessionThreshold: 3,
-  copy: {
-    browserTitle: "Installera appen",
-    iosTitle: "Installera på iPhone/iPad",
-    valueProposition: "Lägg till appen på hemskärmen för snabbare åtkomst och en mer app-lik upplevelse.",
-    iosManualIntro: "Safari stödjer inte den automatiska installationsknappen. Gör så här:",
-    iosManualSteps: [
-      "Tryck på Dela",
-      "Välj Lägg till på hemskärmen",
-    ],
-    cadenceLabels: {
-      snooze: "Påminn mig om 7 dagar",
-    },
-  },
 };
 
 export const getSessionCadence = (sessionCount: number) => ({
@@ -49,22 +37,18 @@ export const getInstallPromptVisibility = ({
   isInstalled,
   hasDeferredPrompt,
 }: InstallPromptVisibilityInput) => {
-  if (isInstalled || hasActiveSnooze) {
-    return { showBrowserInstallPrompt: false, showIosInstallInstructions: false };
-  }
-
-  if (hasDeferredPrompt) {
-    return { showBrowserInstallPrompt: true, showIosInstallInstructions: false };
-  }
-
-  const { isFirstVisit, hasRepeatedSessions } = getSessionCadence(sessionCount);
-  const cadenceAllowsPrompt = isGuest || isFirstVisit || hasRepeatedSessions;
-
-  // Note for non-coders: we only show iPhone manual steps when the user's visit cadence says "this is a good moment".
-  const showIosInstallInstructions = platformIntent === "ios_safari" && cadenceAllowsPrompt;
+  const visibility = getInstallGuidanceVisibility({
+    platformIntent,
+    isGuest,
+    sessionCount,
+    hasActiveSnooze,
+    isInstalled,
+    hasDeferredPrompt,
+    repeatedSessionThreshold: INSTALL_PROMPT_CONFIG.repeatedSessionThreshold,
+  });
 
   return {
-    showBrowserInstallPrompt: false,
-    showIosInstallInstructions,
+    showBrowserInstallPrompt: visibility.showBrowserInstallPrompt,
+    showIosInstallInstructions: visibility.showIosInstallInstructions,
   };
 };

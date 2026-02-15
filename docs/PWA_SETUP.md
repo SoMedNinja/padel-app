@@ -11,6 +11,13 @@ This document explains how the Padel Native web app handles installation and "na
   - Displays a splash screen (launch image) while loading.
   - Matches the brand colors in the status bar.
 
+
+### Which prompt appears when? (non-coder note)
+
+- **Browser install popup (one-tap install button):** shown on browsers that support the install event (for example Android Chrome) after basic cadence checks (first visit, guest user, or repeat visits) and when the app is not already installed.
+- **iOS manual install guide (Share → Add to Home Screen):** shown on iPhone/iPad Safari when the same cadence checks allow prompting, because iOS does not expose the browser install popup event.
+- **Permission setup guide dialog:** opened when the user taps “Behörighetshjälp” from install/version/menu/settings surfaces; it gives step-by-step actions and reuses the same install wording so instructions stay consistent.
+
 ### Why iOS install is manual (non-coder note)
 
 On iPhone/iPad, Safari does **not** expose the same `beforeinstallprompt` browser event that Android Chrome and many desktop browsers support. That means the app cannot trigger a one-tap "Install" popup on iOS. Instead, we show a short guide so users can manually tap **Share → Add to Home Screen**. On Android Chrome and compatible desktop browsers, the install popup can appear automatically because that event is available.
