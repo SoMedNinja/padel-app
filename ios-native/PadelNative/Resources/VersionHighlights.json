@@ -1,0 +1,13 @@
+{
+  "releases": [
+    {
+      "version": "1.2.0",
+      "title": "Nyheter i den här uppdateringen",
+      "changes": [
+        "Bättre översikt för matcher och statistik i huvudflikarna.",
+        "Smidigare notiser och kalenderkoppling för kommande spel.",
+        "Flera stabilitetsfixar för snabbare laddning och färre avbrott."
+      ]
+    }
+  ]
+}

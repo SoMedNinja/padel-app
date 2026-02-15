@@ -41,14 +41,25 @@ struct SettingsView: View {
                     }
 
                     SectionCard(title: "App Information") {
-                        HStack {
-                            Text("Version")
-                                .font(.inter(.body))
-                                .foregroundStyle(AppColors.textPrimary)
-                            Spacer()
-                            Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
-                                .font(.inter(.body))
-                                .foregroundStyle(AppColors.textSecondary)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Version")
+                                    .font(.inter(.body))
+                                    .foregroundStyle(AppColors.textPrimary)
+                                Spacer()
+                                Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
+                                    .font(.inter(.body))
+                                    .foregroundStyle(AppColors.textSecondary)
+                            }
+
+                            // Note for non-coders: this button lets anyone re-open the latest release notes manually.
+                            Button {
+                                viewModel.showLatestVersionHighlights()
+                            } label: {
+                                Label("Visa senaste nyheter", systemImage: "sparkles")
+                                    .font(.inter(.footnote, weight: .bold))
+                            }
+                            .buttonStyle(.bordered)
                         }
                     }
                 }
