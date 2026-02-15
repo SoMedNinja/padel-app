@@ -1,24 +1,24 @@
 import { Box, Typography } from "@mui/material";
-
-const isIosDevice = () => {
-  if (typeof navigator === "undefined") return false;
-
-  const userAgent = navigator.userAgent || "";
-  const platform = navigator.platform || "";
-  const hasTouch = navigator.maxTouchPoints > 1;
-
-  const isClassicIos = /iPad|iPhone|iPod/i.test(userAgent) || /iPad|iPhone|iPod/i.test(platform);
-  const isIpadOsDesktopUa = platform === "MacIntel" && hasTouch;
-
-  // Note for non-coders: newer iPads can pretend to be "Mac" in the browser, so we also check if touch is available.
-  return isClassicIos || isIpadOsDesktopUa;
-};
+import { isIosDevice } from "../../utils/platform";
 
 const IOS_PULL_LABEL = "Dra för att ladda senaste padelnytt...";
 const DEFAULT_PULL_LABEL = "Dra för att se vad som hänt...";
 
 const IOS_REFRESH_LABEL = "Padelbollarna studsar medan vi laddar...";
 const DEFAULT_REFRESH_LABEL = "Hämtar senaste resultaten...";
+
+export const getPullToRefreshTuning = () => {
+  if (!isIosDevice()) {
+    return {};
+  }
+
+  // Note for non-coders: iOS needs a slightly longer pull distance so the full custom animation has room to appear.
+  return {
+    pullDownThreshold: 72,
+    maxPullDownDistance: 132,
+    resistance: 1.1,
+  };
+};
 
 export const RefreshingContent = () => {
   const isIos = isIosDevice();

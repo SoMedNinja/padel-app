@@ -9,7 +9,7 @@ import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, Grid, FormControlLabel, Switch, Divider, MenuItem, TextField } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
-import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
+import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
 import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
@@ -17,8 +17,13 @@ import { useEloStats } from "../hooks/useEloStats";
 import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
 import { NotificationEventType, NotificationPreferences } from "../types/notifications";
-import { ensureNotificationPermission, loadNotificationPreferences, loadNotificationPreferencesWithSync, saveNotificationPreferencesWithSync } from "../services/webNotificationService";
-import { ensureNotificationPermission, loadNotificationPreferences, saveNotificationPreferences, syncPreferencesToServiceWorker } from "../services/webNotificationService";
+import {
+  ensureNotificationPermission,
+  loadNotificationPreferences,
+  loadNotificationPreferencesWithSync,
+  saveNotificationPreferencesWithSync,
+  syncPreferencesToServiceWorker,
+} from "../services/webNotificationService";
 import WebPermissionsPanel from "../Components/Permissions/WebPermissionsPanel";
 
 const EVENT_LABELS: Record<NotificationEventType, string> = {
@@ -86,6 +91,7 @@ export default function PlayerProfilePage() {
     () => invalidateMatchData(queryClient),
     () => invalidateTournamentData(queryClient),
   ]);
+  const pullToRefreshTuning = getPullToRefreshTuning();
 
   // Note for non-coders: leaving guest mode triggers the login screen in the app shell.
   const handleGuestLogin = () => {
@@ -142,6 +148,7 @@ export default function PlayerProfilePage() {
       onRefresh={handleRefresh}
       pullingContent={<PullingContent />}
       refreshingContent={<RefreshingContent />}
+      {...pullToRefreshTuning}
     >
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Box component="section">
