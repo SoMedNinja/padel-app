@@ -5,11 +5,13 @@
 ## Token pipeline (single source of truth)
 
 - Canonical token file: `design/tokens.json`.
-- Generate platform files with: `npm run tokens:generate`.
+- Generate platform files with: `npm run tokens:generate` (this now also regenerates `src/theme.ts`).
 - Generated outputs:
+  - Web theme file: `src/theme.ts`
   - Web TypeScript tokens: `src/generated/designTokens.ts`
   - Web CSS variables: `src/generated/design-tokens.css`
   - iOS Swift tokens: `ios-native/PadelNative/Theme/GeneratedDesignTokens.swift`
+- Drift check for CI/local verification: `npm run tokens:check` (fails if generated files are out of date).
 
 > Note for non-coders: this means we update style values once in `design/tokens.json`, then regenerate both apps so they stay in sync.
 

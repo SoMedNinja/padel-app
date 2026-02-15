@@ -1,37 +1,37 @@
 /* AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY. */
 /* Note for non-coders: these CSS variables are generated from design/tokens.json. */
 :root {
+  --color-background: #f6f7fb;
+  --color-border-strong: #f0b7b7;
+  --color-border-subtle: #ececec;
+  --color-highlight: #fff5f5;
+  --color-info: #0288d1;
+  --color-on-primary: #ffffff;
   --color-primary: #d32f2f;
   --color-primary-strong: #b71c1c;
-  --color-on-primary: #ffffff;
   --color-secondary: #ff8f00;
   --color-success: #2e7d32;
-  --color-warning: #ed6c02;
-  --color-info: #0288d1;
   --color-surface: #ffffff;
   --color-surface-muted: #f6f7fb;
-  --color-background: #f6f7fb;
   --color-text-primary: #1f1f1f;
   --color-text-secondary: #6d6d6d;
-  --color-border-subtle: #ececec;
-  --color-border-strong: #f0b7b7;
-  --color-highlight: #fff5f5;
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
+  --color-warning: #ed6c02;
   --space-lg: 16px;
+  --space-md: 12px;
+  --space-sm: 8px;
   --space-xl: 24px;
+  --space-xs: 4px;
   --space-xxl: 32px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
   --radius-lg: 12px;
-  --radius-xl: 14px;
+  --radius-md: 10px;
   --radius-pill: 999px;
-  --font-size-caption: 12px;
+  --radius-sm: 8px;
+  --radius-xl: 14px;
   --font-size-body: 14px;
   --font-size-body-large: 16px;
+  --font-size-caption: 12px;
+  --font-size-display: 32px;
   --font-size-section: 20px;
   --font-size-title: 24px;
-  --font-size-display: 32px;
   --font-family-base: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
