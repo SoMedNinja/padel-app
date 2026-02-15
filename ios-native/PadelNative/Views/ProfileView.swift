@@ -32,6 +32,10 @@ struct ProfileView: View {
     @State private var compareWithIds: Set<UUID> = []
     @State private var selectedMeritSection: String = "earned"
     @State private var pullProgress: CGFloat = 0
+    @State private var chartSelectionIndex: Int?
+    @State private var profileTimeRange: TrendChartTimeRange = .days90
+    @State private var primaryMetric: TrendChartMetric = .elo
+    @State private var secondaryMetric: TrendChartMetric = .winRate
 
     private var profileFilterOptions: [DashboardMatchFilter] {
         [.last7, .last30, .tournaments, .custom, .all]
@@ -211,67 +215,28 @@ struct ProfileView: View {
     private var eloTrendTab: some View {
         SectionCard(title: "ELO-tidslinje") {
             VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Jämför med:")
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            Button {
-                                if compareWithIds.count == viewModel.players.count - 1 {
-                                    compareWithIds = []
-                                } else {
-                                    compareWithIds = Set(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }.map { $0.id })
-                                }
-                            } label: {
-                                Text("Alla")
-                                    .font(.caption2)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(compareWithIds.count == viewModel.players.count - 1 && !compareWithIds.isEmpty ? Color.accentColor : Color(.systemGray5))
-                                    .foregroundStyle(compareWithIds.count == viewModel.players.count - 1 && !compareWithIds.isEmpty ? .white : .primary)
-                                    .clipShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
-
-                            ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
-                                Button {
-                                    if compareWithIds.contains(player.id) {
-                                        compareWithIds.remove(player.id)
-                                    } else {
-                                        compareWithIds.insert(player.id)
-                                    }
-                                } label: {
-                                    Text(player.profileName)
-                                        .font(.caption2)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(compareWithIds.contains(player.id) ? Color.accentColor : Color(.systemGray5))
-                                        .foregroundStyle(compareWithIds.contains(player.id) ? .white : .primary)
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
+                metricControls
+                comparisonChips
 
                 let playerIds = (viewModel.currentPlayer?.id).map { [$0] + Array(compareWithIds) } ?? Array(compareWithIds)
-                let timeline = viewModel.buildComparisonTimeline(playerIds: playerIds, filter: viewModel.globalFilter)
+                let datasetState = viewModel.comparisonChartDataset(playerIds: playerIds, filter: viewModel.globalFilter, timeRange: profileTimeRange)
 
-                if timeline.count <= 1 {
-                    Text("Spela fler matcher för att se din ELO-trend.")
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 40)
+                switch datasetState {
+                case .loading:
+                    ProgressView("Laddar trenddata…")
                         .frame(maxWidth: .infinity)
-                } else {
-                    if #available(iOS 17.0, *) {
-                        chartWithScrubbing(timeline: timeline, playerIds: playerIds)
-                    } else {
-                        chartStatic(timeline: timeline, playerIds: playerIds)
-                    }
+                        .padding(.vertical, 30)
+                case .error(let message):
+                    Text(message)
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                case .empty(let message):
+                    Text(message)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 24)
+                        .frame(maxWidth: .infinity)
+                case .ready(let dataset):
+                    trendChartContent(dataset: dataset)
 
                     NavigationLink {
                         EloTrendDetailView(playerIds: playerIds, filter: viewModel.globalFilter)
@@ -284,6 +249,84 @@ struct ProfileView: View {
                     .buttonStyle(.bordered)
                     .padding(.top, 10)
                 }
+            }
+        }
+    }
+
+    // Note for non-coders:
+    // These controls let you decide which time window and two metrics to compare in one chart.
+    private var metricControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("Tidsintervall", selection: $profileTimeRange) {
+                ForEach(TrendChartTimeRange.allCases) { range in
+                    Text(range.title).tag(range)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            HStack {
+                Picker("Primär", selection: $primaryMetric) {
+                    ForEach(TrendChartMetric.allCases) { metric in
+                        Text(metric.title).tag(metric)
+                    }
+                }
+                Picker("Sekundär", selection: $secondaryMetric) {
+                    ForEach(TrendChartMetric.allCases) { metric in
+                        Text(metric.title).tag(metric)
+                    }
+                }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: primaryMetric) { newValue in
+                if secondaryMetric == newValue { secondaryMetric = newValue == .elo ? .winRate : .elo }
+            }
+            .onChange(of: secondaryMetric) { newValue in
+                if primaryMetric == newValue { primaryMetric = newValue == .elo ? .winRate : .elo }
+            }
+        }
+    }
+
+    private var comparisonChips: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Jämför med:")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        if compareWithIds.count == viewModel.players.count - 1 {
+                            compareWithIds = []
+                        } else {
+                            compareWithIds = Set(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }.map { $0.id })
+                        }
+                    } label: {
+                        Text("Alla")
+                            .font(.caption2)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(compareWithIds.count == viewModel.players.count - 1 && !compareWithIds.isEmpty ? Color.accentColor : Color(.systemGray5))
+                            .foregroundStyle(compareWithIds.count == viewModel.players.count - 1 && !compareWithIds.isEmpty ? .white : .primary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    ForEach(viewModel.players.filter { $0.id != viewModel.currentPlayer?.id }) { player in
+                        Button {
+                            if compareWithIds.contains(player.id) { compareWithIds.remove(player.id) } else { compareWithIds.insert(player.id) }
+                        } label: {
+                            Text(player.profileName)
+                                .font(.caption2)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(compareWithIds.contains(player.id) ? Color.accentColor : Color(.systemGray5))
+                                .foregroundStyle(compareWithIds.contains(player.id) ? .white : .primary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
             }
         }
     }
@@ -616,129 +659,65 @@ struct ProfileView: View {
 
 
 
-    @State private var chartSelectionIndex: Int?
-
-    @available(iOS 17.0, *)
     @ViewBuilder
-    private func chartWithScrubbing(timeline: [ComparisonTimelinePoint], playerIds: [UUID]) -> some View {
-        VStack(alignment: .leading) {
-            if let index = chartSelectionIndex, index < timeline.count {
-                let point = timeline[index]
-                Text("\(point.date, format: .dateTime.day().month().year().hour().minute())")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                ForEach(Array(playerIds.enumerated()), id: \.element) { index, pid in
-                    let label = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
-                    if let elo = point.elos[pid] {
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(colorForSeries(name: label, index: index))
-                                .frame(width: 8, height: 8)
-                            Text("\(label): \(elo) ELO")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(colorForSeries(name: label, index: index))
-                        }
-                    }
-                }
+    private func trendChartContent(dataset: ComparisonChartDataset) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let index = chartSelectionIndex,
+               let point = dataset.points.first(where: { $0.id == index }) {
+                tooltip(point: point, playerIds: dataset.playerIds)
             } else {
-                Text("Dra över grafen för detaljer")
+                Text("Dra över grafen för detaljer. Tooltipen ligger kvar tills du väljer en ny punkt.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(" ")
-                    .font(.headline)
             }
 
-            let domain = chartYDomain(timeline: timeline)
+            let points = dataset.points
+            let eloDomain = viewModel.eloDomain(for: points, players: dataset.playerIds)
 
             Chart {
-                ForEach(playerIds, id: \.self) { pid in
-                    let name = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
-                    let color = colorForSeries(name: name, index: playerIds.firstIndex(of: pid) ?? 0)
-
-                    ForEach(timeline) { point in
-                        if let elo = point.elos[pid] {
-                            LineMark(
-                                x: .value("Match", point.id),
-                                y: .value("ELO", elo),
-                                series: .value("Spelare", name)
-                            )
-                            .interpolationMethod(.catmullRom)
-                            .foregroundStyle(color)
-                            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                        }
-                    }
-                }
-
-                if let index = chartSelectionIndex {
-                    RuleMark(x: .value("Vald", index))
-                        .foregroundStyle(Color.secondary.opacity(0.3))
-                        .offset(y: -10)
-                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .disabled)) { EmptyView() }
-                }
-            }
-            .frame(height: 280)
-            .chartYScale(domain: domain)
-            .chartLegend(.hidden)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: 1)) { value in
-                    if let index = value.as(Int.self), index < timeline.count {
-                        if index % max(1, timeline.count / 5) == 0 {
-                            AxisGridLine()
-                            AxisValueLabel {
-                                // Note for non-coders: we only show month names on the x-axis
-                                // to keep long timelines readable at a glance.
-                                Text(timeline[index].date, format: .dateTime.month(.wide))
+                if primaryMetric == .elo || secondaryMetric == .elo {
+                    ForEach(dataset.playerIds, id: \.self) { pid in
+                        let label = viewModel.chartDisplayName(for: pid)
+                        let color = colorForSeries(name: label, index: dataset.playerIds.firstIndex(of: pid) ?? 0)
+                        ForEach(points) { point in
+                            if let elo = point.elos[pid] {
+                                LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Serie", label))
+                                    .foregroundStyle(color)
+                                    .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                             }
                         }
                     }
                 }
-            }
-            .chartXSelection(value: $chartSelectionIndex)
 
-            chartLegendPills(playerIds: playerIds)
-        }
-    }
-
-    @ViewBuilder
-    private func chartStatic(timeline: [ComparisonTimelinePoint], playerIds: [UUID]) -> some View {
-        let domain = chartYDomain(timeline: timeline)
-
-        Chart {
-            ForEach(playerIds, id: \.self) { pid in
-                let name = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
-                let color = colorForSeries(name: name, index: playerIds.firstIndex(of: pid) ?? 0)
-
-                ForEach(timeline) { point in
-                    if let elo = point.elos[pid] {
-                        LineMark(
-                            x: .value("Match", point.id),
-                            y: .value("ELO", elo),
-                            series: .value("Spelare", name)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(color)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                    }
-                }
-            }
-        }
-        .frame(height: 280)
-        .chartYScale(domain: domain)
-        .chartLegend(.hidden)
-        .chartXAxis {
-            AxisMarks(values: .stride(by: 1)) { value in
-                if let index = value.as(Int.self), index < timeline.count {
-                    if index % max(1, timeline.count / 5) == 0 {
-                        AxisGridLine()
-                        AxisValueLabel {
-                            Text(timeline[index].date, format: .dateTime.month(.wide))
+                if primaryMetric == .winRate || secondaryMetric == .winRate,
+                   let currentId = viewModel.currentPlayer?.id {
+                    ForEach(points) { point in
+                        if let rate = point.winRates[currentId] {
+                            LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: eloDomain)))
+                                .foregroundStyle(.mint)
+                                .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
+                                .symbol(.circle)
+                                .symbolSize(24)
                         }
                     }
                 }
+
+                if let selected = chartSelectionIndex {
+                    RuleMark(x: .value("Vald", selected))
+                        .foregroundStyle(.secondary.opacity(0.35))
+                }
+            }
+            .frame(height: 280)
+            .chartYScale(domain: eloDomain)
+            .chartXSelection(value: $chartSelectionIndex)
+
+            chartLegendPills(playerIds: dataset.playerIds)
+
+            if chartSelectionIndex != nil {
+                Button("Rensa markör") { chartSelectionIndex = nil }
+                    .font(.caption)
             }
         }
-
-        chartLegendPills(playerIds: playerIds)
     }
 
     // Note for non-coders:
@@ -746,7 +725,7 @@ struct ProfileView: View {
     private func chartLegendPills(playerIds: [UUID]) -> some View {
         HStack(spacing: 10) {
             ForEach(Array(playerIds.enumerated()), id: \.element) { index, pid in
-                let label = pid == viewModel.currentPlayer?.id ? "Du" : (viewModel.players.first(where: { $0.id == pid })?.profileName ?? "Annan")
+                let label = viewModel.chartDisplayName(for: pid)
                 HStack(spacing: 6) {
                     Circle()
                         .fill(colorForSeries(name: label, index: index))
@@ -761,13 +740,31 @@ struct ProfileView: View {
         }
     }
 
-    private func chartYDomain(timeline: [ComparisonTimelinePoint]) -> ClosedRange<Double> {
-        let values = timeline.flatMap { $0.elos.values.map { Double($0) } }
-        guard let minValue = values.min(), let maxValue = values.max() else {
-            return 900...1100
+    private func tooltip(point: ComparisonMetricTimelinePoint, playerIds: [UUID]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(point.date, format: .dateTime.day().month().year())
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ForEach(Array(playerIds.enumerated()), id: \.element) { index, pid in
+                let label = viewModel.chartDisplayName(for: pid)
+                if let elo = point.elos[pid] {
+                    Text("\(label): \(elo) ELO")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(colorForSeries(name: label, index: index))
+                }
+            }
+
+            if let currentId = viewModel.currentPlayer?.id, let rate = point.winRates[currentId] {
+                Text("Du: \(rate, format: .number.precision(.fractionLength(1)))% win rate")
+                    .font(.caption)
+                    .foregroundStyle(.mint)
+            }
         }
-        let padding = max(8, (maxValue - minValue) * 0.08)
-        return (minValue - padding)...(maxValue + padding)
+    }
+
+    private func scaledWinRate(_ rate: Double, domain: ClosedRange<Double>) -> Double {
+        domain.lowerBound + ((rate / 100) * (domain.upperBound - domain.lowerBound))
     }
 
     private func colorForSeries(name: String, index: Int) -> Color {

@@ -16,6 +16,58 @@ struct ComparisonTimelinePoint: Identifiable {
     let elos: [UUID: Int] // PlayerID -> Elo
 }
 
+enum TrendChartTimeRange: String, CaseIterable, Identifiable {
+    case days30
+    case days90
+    case year1
+    case all
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .days30: return "30d"
+        case .days90: return "90d"
+        case .year1: return "1y"
+        case .all: return "All"
+        }
+    }
+}
+
+enum TrendChartMetric: String, CaseIterable, Identifiable {
+    case elo
+    case winRate
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .elo: return "ELO"
+        case .winRate: return "Win rate"
+        }
+    }
+}
+
+enum ChartDatasetState<Value> {
+    case loading
+    case empty(message: String)
+    case error(message: String)
+    case ready(Value)
+}
+
+struct ComparisonMetricTimelinePoint: Identifiable {
+    let id: Int
+    let date: Date
+    let matchId: UUID
+    let elos: [UUID: Int]
+    let winRates: [UUID: Double]
+}
+
+struct ComparisonChartDataset {
+    let playerIds: [UUID]
+    let points: [ComparisonMetricTimelinePoint]
+}
+
 struct ProfileComboStat: Identifiable {
     let id: String
     let title: String
@@ -1020,6 +1072,67 @@ final class AppViewModel: ObservableObject {
         return result
     }
 
+    // Note for non-coders:
+    // This helper prepares all chart data in one place so views can focus on UI only.
+    // It also returns explicit loading/empty/error states that the screens can render.
+    func comparisonChartDataset(playerIds: [UUID], filter: DashboardMatchFilter, timeRange: TrendChartTimeRange) -> ChartDatasetState<ComparisonChartDataset> {
+        if isDashboardLoading && allMatches.isEmpty {
+            return .loading
+        }
+
+        if let lastErrorMessage, allMatches.isEmpty {
+            return .error(message: lastErrorMessage)
+        }
+
+        let filteredTimeline = buildComparisonTimeline(playerIds: playerIds, filter: filter)
+            .filter { point in includes(point.date, in: timeRange) }
+
+        guard !filteredTimeline.isEmpty else {
+            return .empty(message: "Ingen trenddata för valt intervall ännu.")
+        }
+
+        let matchLookup = Dictionary(uniqueKeysWithValues: allMatches.map { ($0.id, $0) })
+        var winsByPlayer: [UUID: Int] = [:]
+        var gamesByPlayer: [UUID: Int] = [:]
+        var latestWinRateByPlayer: [UUID: Double] = [:]
+
+        let points = filteredTimeline.map { point in
+            if let match = matchLookup[point.matchId] {
+                for pid in playerIds {
+                    guard let didWin = didPlayerWin(playerId: pid, in: match) else { continue }
+                    gamesByPlayer[pid, default: 0] += 1
+                    if didWin {
+                        winsByPlayer[pid, default: 0] += 1
+                    }
+                    let wins = winsByPlayer[pid, default: 0]
+                    let games = gamesByPlayer[pid, default: 0]
+                    latestWinRateByPlayer[pid] = games == 0 ? 0 : (Double(wins) / Double(games) * 100)
+                }
+            }
+
+            return ComparisonMetricTimelinePoint(
+                id: point.id,
+                date: point.date,
+                matchId: point.matchId,
+                elos: point.elos,
+                winRates: latestWinRateByPlayer
+            )
+        }
+
+        return .ready(ComparisonChartDataset(playerIds: playerIds, points: points))
+    }
+
+    func chartDisplayName(for playerId: UUID) -> String {
+        playerId == currentPlayer?.id ? "Du" : playerName(for: playerId)
+    }
+
+    func eloDomain(for points: [ComparisonMetricTimelinePoint], players: [UUID]) -> ClosedRange<Double> {
+        let values = points.flatMap { point in players.compactMap { point.elos[$0].map(Double.init) } }
+        guard let minValue = values.min(), let maxValue = values.max() else { return 900...1100 }
+        let padding = max(8, (maxValue - minValue) * 0.08)
+        return (minValue - padding)...(maxValue + padding)
+    }
+
     func profileComboStats(filter: DashboardMatchFilter) -> [ProfileComboStat] {
         guard let currentPlayer else { return [] }
         let myMatches = matchesForProfile(filter: filter)
@@ -1435,6 +1548,36 @@ final class AppViewModel: ObservableObject {
         let teamAIds = match.teamAPlayerIds.compactMap { $0?.lowercased() }
         let iAmTeamA = teamAIds.contains(player.id.uuidString.lowercased()) || match.teamAName.localizedCaseInsensitiveContains(player.fullName)
         return iAmTeamA ? match.teamAScore > match.teamBScore : match.teamBScore > match.teamAScore
+    }
+
+    private func didPlayerWin(playerId: UUID, in match: Match) -> Bool? {
+        let teamAIds = Set(match.teamAPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) })
+        let teamBIds = Set(match.teamBPlayerIds.compactMap { $0.flatMap(UUID.init(uuidString:)) })
+
+        if teamAIds.contains(playerId) {
+            return match.teamAScore > match.teamBScore
+        }
+        if teamBIds.contains(playerId) {
+            return match.teamBScore > match.teamAScore
+        }
+        return nil
+    }
+
+    private func includes(_ date: Date, in range: TrendChartTimeRange) -> Bool {
+        guard range != .all else { return true }
+        let now = Date()
+        let calendar = Calendar.current
+        let dayOffset: Int
+
+        switch range {
+        case .days30: dayOffset = -30
+        case .days90: dayOffset = -90
+        case .year1: dayOffset = -365
+        case .all: dayOffset = 0
+        }
+
+        guard let cutoff = calendar.date(byAdding: .day, value: dayOffset, to: now) else { return true }
+        return date >= cutoff && date <= now
     }
 
     private func playerName(for id: UUID) -> String {
