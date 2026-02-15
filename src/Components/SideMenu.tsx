@@ -21,6 +21,7 @@ import {
   Logout as LogoutIcon,
   Login as LoginIcon,
   School as SchoolIcon,
+  Extension as ExtensionIcon,
 } from "@mui/icons-material";
 
 interface SideMenuProps {
@@ -42,6 +43,7 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
     { text: "Översikt", icon: <TrophyIcon />, path: "/dashboard" },
     { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
     { text: "Utbildning", icon: <SchoolIcon />, path: "/education" },
+    { text: "Puzzles", icon: <ExtensionIcon />, path: "/puzzles" },
   ];
 
   if (user?.is_regular) {

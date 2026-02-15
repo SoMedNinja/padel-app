@@ -9,6 +9,7 @@ import SchedulePage from "./pages/SchedulePage";
 import MatchShareRedirectPage from "./pages/MatchShareRedirectPage";
 import OfflinePage from "./pages/OfflinePage";
 import EducationPage from "./pages/EducationPage";
+import PuzzlesPage from "./pages/PuzzlesPage";
 import { useStore } from "./store/useStore";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -38,6 +39,7 @@ export default function AppRoutes() {
         <Route path="/history" element={<PageWrapper><HistoryPage /></PageWrapper>} />
         <Route path="/education" element={<PageWrapper><EducationPage /></PageWrapper>} />
         <Route path="/education/:topicId" element={<PageWrapper><EducationPage /></PageWrapper>} />
+        <Route path="/puzzles" element={<PageWrapper><PuzzlesPage /></PageWrapper>} />
         {canAccessSchedule && <Route path="/schedule" element={<PageWrapper><SchedulePage /></PageWrapper>} />}
         {canAccessSchedule && <Route path="/schema" element={<Navigate to="/schedule" replace />} />}
         {!isGuest && <Route path="/tournament" element={<PageWrapper><TournamentPage /></PageWrapper>} />}
