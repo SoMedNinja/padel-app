@@ -650,8 +650,38 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+
+    var notificationPermissionNeedsSettings: Bool {
+        notificationPermissionStatus == .denied || notificationPermissionStatus == .restricted
+    }
+
+    // Note for non-coders:
+    // This opens the iOS Settings page for this app so you can manually change permissions.
+    func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString),
+              UIApplication.shared.canOpenURL(url) else {
+            statusMessage = "Kunde inte öppna iOS-inställningar på den här enheten."
+            return
+        }
+
+        UIApplication.shared.open(url)
+    }
+
+    func refreshNotificationPermissionStatus() async {
+        notificationPermissionStatus = await notificationService.currentStatus()
+    }
+
     func setScheduleNotificationsEnabled(_ enabled: Bool) async {
         if enabled {
+            notificationPermissionStatus = await notificationService.currentStatus()
+
+            if notificationPermissionStatus == .denied || notificationPermissionStatus == .restricted {
+                areScheduleNotificationsEnabled = false
+                dismissalStore.set(false, forKey: scheduleNotificationsEnabledKey)
+                statusMessage = "Notiser är blockerade i iOS-inställningar. Öppna Inställningar och tillåt notiser för PadelNative."
+                return
+            }
+
             do {
                 let granted = try await notificationService.requestAuthorization()
                 notificationPermissionStatus = await notificationService.currentStatus()

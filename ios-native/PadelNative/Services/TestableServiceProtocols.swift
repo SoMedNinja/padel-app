@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import EventKit
 
 // Note for non-coders:
 // These small protocols are "plug points". Production uses the real services,
@@ -15,6 +16,7 @@ protocol NotificationServicing {
 extension NotificationService: NotificationServicing {}
 
 protocol CalendarServicing {
+    func currentAuthorizationStatus() -> EKAuthorizationStatus
     func requestAccessIfNeeded() async throws -> Bool
     func upsertLocalEvent(title: String, date: Date, startTime: Date, endTime: Date, location: String?) async throws
 }

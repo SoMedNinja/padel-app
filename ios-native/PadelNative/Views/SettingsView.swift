@@ -60,6 +60,9 @@ struct SettingsView: View {
             .refreshable {
                 await viewModel.bootstrap()
             }
+            .task {
+                await viewModel.refreshNotificationPermissionStatus()
+            }
             .navigationTitle("Inställningar")
             .navigationBarTitleDisplayMode(.inline)
             .onChange(of: selectedAvatarItem) { _, newItem in
@@ -198,6 +201,23 @@ struct SettingsView: View {
                     }
                 ))
                 .font(.inter(.subheadline))
+
+                if viewModel.notificationPermissionNeedsSettings {
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Note for non-coders: this message tells exactly what to enable in iPhone Settings.
+                        Text("Notiser är just nu blockerade. Öppna Inställningar → PadelNative → Notiser och slå på 'Tillåt notiser' samt aviseringar på låsskärm/banners om du vill få matchpåminnelser.")
+                            .font(.inter(.footnote))
+                            .foregroundStyle(AppColors.warning)
+
+                        Button {
+                            viewModel.openSystemSettings()
+                        } label: {
+                            Label("Öppna iOS-inställningar", systemImage: "gearshape")
+                                .font(.inter(.footnote, weight: .bold))
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
 
                 Toggle("Lås upp med Face ID / Touch ID", isOn: Binding(
                     get: { viewModel.isBiometricLockEnabled },

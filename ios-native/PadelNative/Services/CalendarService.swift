@@ -4,6 +4,10 @@ import Foundation
 struct CalendarService {
     private let store = EKEventStore()
 
+    func currentAuthorizationStatus() -> EKAuthorizationStatus {
+        EKEventStore.authorizationStatus(for: .event)
+    }
+
     // Note for non-coders:
     // EventKit is Apple's calendar API. We ask permission before writing to your calendar.
     func requestAccessIfNeeded() async throws -> Bool {
