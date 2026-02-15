@@ -14,12 +14,48 @@ struct NotificationQuietHours: Codable {
     var endHour: Int
 
     static let `default` = NotificationQuietHours(enabled: false, startHour: 22, endHour: 7)
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case startHour
+        case endHour
+    }
+
+    init(enabled: Bool, startHour: Int, endHour: Int) {
+        self.enabled = enabled
+        self.startHour = NotificationQuietHours.safeHour(startHour, fallback: Self.default.startHour)
+        self.endHour = NotificationQuietHours.safeHour(endHour, fallback: Self.default.endHour)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.default.enabled
+        self.startHour = NotificationQuietHours.safeHour(
+            try container.decodeIfPresent(Int.self, forKey: .startHour),
+            fallback: Self.default.startHour
+        )
+        self.endHour = NotificationQuietHours.safeHour(
+            try container.decodeIfPresent(Int.self, forKey: .endHour),
+            fallback: Self.default.endHour
+        )
+    }
+
+    static func safeHour(_ candidate: Int?, fallback: Int) -> Int {
+        guard let candidate, (0...23).contains(candidate) else { return fallback }
+        return candidate
+    }
 }
 
 struct NotificationPreferences: Codable {
     var enabled: Bool
     var eventToggles: [String: Bool]
     var quietHours: NotificationQuietHours
+
+    static let eventOrder: [NotificationEventType] = [
+        .scheduledMatchNew,
+        .availabilityPollReminder,
+        .adminAnnouncement,
+    ]
 
     static let `default` = NotificationPreferences(
         enabled: true,
@@ -31,12 +67,46 @@ struct NotificationPreferences: Codable {
         quietHours: .default
     )
 
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case eventToggles
+        case quietHours
+    }
+
+    init(enabled: Bool, eventToggles: [String: Bool], quietHours: NotificationQuietHours) {
+        self.enabled = enabled
+        self.eventToggles = eventToggles
+        self.quietHours = quietHours
+        self = normalizedForPersistence()
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedEnabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.default.enabled
+        let decodedToggles = try container.decodeIfPresent([String: Bool].self, forKey: .eventToggles) ?? [:]
+        let decodedQuietHours = try container.decodeIfPresent(NotificationQuietHours.self, forKey: .quietHours) ?? .default
+        self.init(enabled: decodedEnabled, eventToggles: decodedToggles, quietHours: decodedQuietHours)
+    }
+
     // Note for non-coders:
     // This helper answers "is this event allowed right now?" using the user's switches and quiet hours.
     func allows(eventType: NotificationEventType, now: Date = .now) -> Bool {
         guard enabled else { return false }
         guard eventToggles[eventType.rawValue, default: true] else { return false }
         return !quietHours.isActive(at: now)
+    }
+
+    // Note for non-coders:
+    // We always save one canonical JSON shape so web + iOS read/write identical keys.
+    func normalizedForPersistence() -> NotificationPreferences {
+        var normalized = NotificationPreferences.default
+        normalized.enabled = enabled
+        normalized.quietHours = quietHours
+        for eventType in Self.eventOrder {
+            let key = eventType.rawValue
+            normalized.eventToggles[key] = eventToggles[key] ?? NotificationPreferences.default.eventToggles[key] ?? true
+        }
+        return normalized
     }
 }
 
@@ -146,7 +216,8 @@ struct NotificationService {
     }
 
     func saveNotificationPreferences(_ preferences: NotificationPreferences, store: UserDefaults = .standard) {
-        if let data = try? JSONEncoder().encode(preferences) {
+        let normalized = preferences.normalizedForPersistence()
+        if let data = try? JSONEncoder().encode(normalized) {
             store.set(data, forKey: notificationPreferencesKey)
         }
     }
@@ -205,18 +276,14 @@ struct NotificationService {
         }
 
         do {
-            try await apiClient.upsertNotificationPreferences(profileId: profileId, preferences: preferences)
+            try await apiClient.upsertNotificationPreferences(profileId: profileId, preferences: preferences.normalizedForPersistence())
         } catch {
             // Keep local copy as fallback if backend call fails.
         }
     }
 
     private func mergePreferences(_ decoded: NotificationPreferences) -> NotificationPreferences {
-        var merged = NotificationPreferences.default
-        merged.enabled = decoded.enabled
-        merged.quietHours = decoded.quietHours
-        merged.eventToggles.merge(decoded.eventToggles) { _, new in new }
-        return merged
+        decoded.normalizedForPersistence()
     }
 
     func eventType(from userInfo: [AnyHashable: Any]) -> NotificationEventType? {
