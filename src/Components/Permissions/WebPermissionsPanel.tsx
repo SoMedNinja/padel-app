@@ -77,9 +77,18 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
       return;
     }
 
+    // Note for non-coders:
+    // If permission is already granted, this re-runs full push setup so the missing endpoint can be created.
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      await registerPushServiceWorker(loadNotificationPreferences());
+      await onNotificationPermissionChanged();
+      setActionMessage("Push-konfigurationen kördes igen. Om allt gick bra registrerades endpointen nu.");
+      return;
+    }
+
     await ensureNotificationPermission();
     await onNotificationPermissionChanged();
-    setActionMessage("Notiskontrollen kördes igen. Om behörighet är tillåten slutförs push-konfigurationen automatiskt.");
+    setActionMessage("Notiskontrollen kördes igen. Om behörighet är tillåten kan du sedan trycka på 'Kör konfiguration igen'.");
   };
 
   const handleBackgroundRefreshAction = async () => {

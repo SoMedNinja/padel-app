@@ -3,8 +3,10 @@ import {
   Alert,
   AlertTitle,
   Box,
+  Button,
   Chip,
   CircularProgress,
+  IconButton,
   List,
   ListItem,
   ListItemText,
@@ -12,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CloseIcon from "@mui/icons-material/Close";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import {
   buildWebPermissionSnapshots,
@@ -30,6 +33,7 @@ interface PostInstallChecklistProps {
 
 const STORAGE_VERSION = "v1";
 const STORAGE_KEY = `padel:post-install-checklist:${STORAGE_VERSION}`;
+const DISMISS_KEY = `padel:post-install-checklist:dismissed:${STORAGE_VERSION}`;
 
 const EMPTY_PROGRESS: ChecklistProgress = {
   notifications: false,
@@ -63,7 +67,16 @@ function saveStoredProgress(progress: ChecklistProgress): void {
 
 export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostInstallChecklistProps) {
   const [progress, setProgress] = React.useState<ChecklistProgress>(() => loadStoredProgress());
+  const [dismissed, setDismissed] = React.useState(false);
   const [isLoadingCapabilities, setIsLoadingCapabilities] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Note for non-coders:
+    // We remember if the user dismissed this card so we don't keep nagging on every app open.
+    setDismissed(window.localStorage.getItem(DISMISS_KEY) === "true");
+  }, []);
 
   React.useEffect(() => {
     if (!isStandalone) return;
@@ -105,6 +118,7 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
   }, [isSignedIn, isStandalone]);
 
   if (!isStandalone) return null;
+  if (dismissed) return null;
 
   const completedCount = Object.values(progress).filter(Boolean).length;
   const totalSteps = 3;
@@ -114,7 +128,7 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
     {
       key: "notifications",
       title: "Aktivera notiser",
-      helpText: "Tillåt notiser så att påminnelser och resultatuppdateringar når dig direkt.",
+      helpText: "Tryck på 'Aktivera notiser nu' och välj sedan Tillåt i webbläsarens notisruta.",
       done: progress.notifications,
     },
     {
@@ -131,6 +145,49 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
     },
   ] as const;
 
+  const handleDismissChecklist = () => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(DISMISS_KEY, "true");
+    setDismissed(true);
+  };
+
+  const handleRequestNotifications = async () => {
+    setIsLoadingCapabilities(true);
+    try {
+      const snapshots = await buildWebPermissionSnapshots();
+      const notificationsReady = snapshots.some(
+        snapshot => snapshot.capability === "notifications" && snapshot.state === "allowed"
+      );
+
+      // Note for non-coders:
+      // This opens the browser's own permission popup, which is the only place users can approve notifications.
+      if (!notificationsReady && typeof window !== "undefined" && "Notification" in window) {
+        await window.Notification.requestPermission();
+      }
+
+      const nextSnapshots = await buildWebPermissionSnapshots();
+      const notificationsDone = nextSnapshots.some(
+        snapshot => snapshot.capability === "notifications" && snapshot.state === "allowed"
+      );
+      const backgroundRefreshReady = nextSnapshots.some(
+        snapshot => snapshot.capability === "background_refresh" && snapshot.state === "allowed"
+      );
+
+      setProgress((previous) => {
+        const nextProgress = {
+          notifications: previous.notifications || notificationsDone,
+          backgroundRefresh: previous.backgroundRefresh || backgroundRefreshReady,
+          accountSignIn: previous.accountSignIn || isSignedIn,
+        };
+        saveStoredProgress(nextProgress);
+        return nextProgress;
+      });
+    } finally {
+      setIsLoadingCapabilities(false);
+    }
+  };
+
   return (
     <Alert
       severity={allCompleted ? "success" : "info"}
@@ -140,16 +197,36 @@ export default function PostInstallChecklist({ isStandalone, isSignedIn }: PostI
       <Stack spacing={1.5}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
           <AlertTitle sx={{ mb: 0 }}>Checklista för app-lik konfiguration</AlertTitle>
-          <Chip
-            size="small"
-            color={allCompleted ? "success" : "primary"}
-            label={`${completedCount}/${totalSteps} klara`}
-          />
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Chip
+              size="small"
+              color={allCompleted ? "success" : "primary"}
+              label={`${completedCount}/${totalSteps} klara`}
+            />
+            <IconButton
+              size="small"
+              onClick={handleDismissChecklist}
+              aria-label="Dölj checklistan"
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
         </Box>
 
         <Typography variant="body2" color="text.secondary">
           Slutför dessa snabba steg en gång för att få den bästa app-lika upplevelsen.
         </Typography>
+
+        {!progress.notifications && (
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button variant="contained" size="small" onClick={() => void handleRequestNotifications()}>
+              Aktivera notiser nu
+            </Button>
+            <Button variant="text" size="small" onClick={handleDismissChecklist}>
+              Visa inte detta igen
+            </Button>
+          </Stack>
+        )}
 
         {isLoadingCapabilities && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

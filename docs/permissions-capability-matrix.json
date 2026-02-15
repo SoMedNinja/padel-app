@@ -67,8 +67,8 @@
             "en": "Action needed: grant notification permission to receive reminders."
           },
           "action_label": {
-            "sv": "Begär",
-            "en": "Request"
+            "sv": "Kör konfiguration igen",
+            "en": "Run setup again"
           }
         }
       }
