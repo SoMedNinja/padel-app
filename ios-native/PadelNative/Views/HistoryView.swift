@@ -32,7 +32,7 @@ struct HistoryView: View {
                 .padding(.bottom, 40)
             }
             .background(AppColors.background)
-            .navigationTitle("Historik")
+            .navigationTitle(LocalizedStringKey("history.title"))
             .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
             .coordinateSpace(name: "padelScroll")
@@ -124,7 +124,7 @@ struct HistoryView: View {
             } else if !viewModel.isHistoryLoading && viewModel.historyMatches.isEmpty {
                 SectionCard(title: "") {
                     VStack(spacing: 16) {
-                        Text("Inga matcher hittades för valt filter.")
+                        Text(LocalizedStringKey("history.empty_state"))
                             .font(.inter(.body))
                             .foregroundStyle(AppColors.textSecondary)
 
@@ -174,21 +174,21 @@ struct HistoryView: View {
                         Button {
                             editingMatch = match
                         } label: {
-                            Label("Redigera", systemImage: "pencil")
+                            Label(LocalizedStringKey("history.edit"), systemImage: "pencil")
                         }
 
                         if viewModel.canDeleteMatch(match) {
                             Button(role: .destructive) {
                                 matchToDelete = match
                             } label: {
-                                Label("Radera", systemImage: "trash")
+                                Label(LocalizedStringKey("history.delete"), systemImage: "trash")
                             }
                         }
 
                         Button {
                             shareMatch(match)
                         } label: {
-                            Label("Dela", systemImage: "square.and.arrow.up")
+                            Label(LocalizedStringKey("history.share"), systemImage: "square.and.arrow.up")
                         }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -239,7 +239,7 @@ struct HistoryView: View {
                 Button(role: .destructive) {
                     matchToDelete = match
                 } label: {
-                    Label("Radera", systemImage: "trash")
+                    Label(LocalizedStringKey("history.delete"), systemImage: "trash")
                 }
                 .tint(.red)
             }
@@ -247,7 +247,7 @@ struct HistoryView: View {
             Button {
                 editingMatch = match
             } label: {
-                Label("Redigera", systemImage: "pencil")
+                Label(LocalizedStringKey("history.edit"), systemImage: "pencil")
             }
             .tint(AppColors.brandPrimary)
         }
@@ -304,7 +304,7 @@ struct HistoryView: View {
             Text(scoreLabel(match))
                 .font(.inter(.title3, weight: .black))
                 .foregroundStyle(AppColors.textPrimary)
-            Text(match.scoreType == "points" ? "poäng" : "set")
+            Text(match.scoreType == "points" ? String(localized: "history.score.points") : String(localized: "history.score.sets"))
                 .font(.inter(.caption2, weight: .bold))
                 .foregroundStyle(AppColors.textSecondary)
                 .textCase(.uppercase)

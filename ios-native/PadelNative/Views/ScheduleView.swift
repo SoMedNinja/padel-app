@@ -136,7 +136,7 @@ struct ScheduleView: View {
 
     private var pollCardsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Omröstningar")
+            Text(LocalizedStringKey("schedule.title"))
                 .font(.inter(.headline, weight: .bold))
                 .foregroundStyle(AppColors.textPrimary)
                 .padding(.horizontal, 4)
@@ -575,7 +575,7 @@ struct ScheduleView: View {
     private var scheduledGamesSection: some View {
         SectionCard(title: "Schemalagda matcher") {
             if viewModel.schedule.isEmpty {
-                Text("Inga matcher schemalagda ännu.")
+                Text(LocalizedStringKey("schedule.empty_state"))
                     .font(.inter(.body))
                     .foregroundStyle(AppColors.textSecondary)
             } else {

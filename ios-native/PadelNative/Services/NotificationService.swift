@@ -55,12 +55,12 @@ struct NotificationService {
 
             // Note for non-coders:
             // Some schedule fields can be empty. We choose friendly fallback text so reminders always read naturally.
-            let gameSummary = game.description ?? "Match"
-            let gameLocation = game.location ?? "okänd plats"
+            let gameSummary = game.description ?? String(localized: "notification.upcoming.default_summary")
+            let gameLocation = game.location ?? String(localized: "notification.upcoming.default_location")
 
             let content = UNMutableNotificationContent()
-            content.title = "Padel snart"
-            content.body = "\(gameSummary) kl \(timeLabel(for: game.startsAt)) på \(gameLocation)."
+            content.title = String(localized: "notification.upcoming.title")
+            content.body = String(format: String(localized: "notification.upcoming.body"), gameSummary, timeLabel(for: game.startsAt), gameLocation)
             content.sound = .default
             content.userInfo = ["route": "schedule"]
 

@@ -85,12 +85,12 @@ struct DashboardView: View {
                                 .shadow(color: AppColors.shadowColor, radius: 4)
                         }
                         .padding(.bottom, 20)
-                        .accessibilityLabel("Scrolla till toppen")
+                        .accessibilityLabel(Text("dashboard.scroll_to_top"))
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
             }
-            .navigationTitle("Översikt")
+            .navigationTitle(LocalizedStringKey("dashboard.title"))
             .navigationBarTitleDisplayMode(.inline)
             .padelLiquidGlassChrome()
             .task {
@@ -136,7 +136,7 @@ struct DashboardView: View {
 
     private var loadingState: some View {
         VStack(spacing: 16) {
-            ProgressView("Laddar översikt…")
+            ProgressView(LocalizedStringKey("dashboard.loading"))
                 .font(.inter(.body))
 
             ForEach(0..<3) { _ in
@@ -152,11 +152,11 @@ struct DashboardView: View {
     }
 
     private func errorState(message: String) -> some View {
-        SectionCard(title: "Kunde inte ladda data") {
+        SectionCard(title: String(localized: "dashboard.error.title")) {
             Text(message)
                 .font(.inter(.body))
                 .foregroundStyle(.red)
-            Button("Försök igen") {
+            Button(LocalizedStringKey("dashboard.retry")) {
                 Task { await viewModel.bootstrap() }
             }
             .buttonStyle(.bordered)
@@ -164,9 +164,9 @@ struct DashboardView: View {
     }
 
     private var emptyState: some View {
-        SectionCard(title: "Inga matcher ännu") {
+        SectionCard(title: String(localized: "dashboard.empty.title")) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Lägg till din första match för att låsa upp trender, highlights och MVP-kort.")
+                Text(LocalizedStringKey("dashboard.empty.body"))
                     .font(.inter(.body))
                     .foregroundStyle(AppColors.textSecondary)
 
@@ -174,7 +174,7 @@ struct DashboardView: View {
                     Button {
                         viewModel.selectedMainTab = 1
                     } label: {
-                        Label("Registrera första matchen", systemImage: "plus.square.on.square")
+                        Label(LocalizedStringKey("dashboard.empty.cta"), systemImage: "plus.square.on.square")
                             .font(.inter(.subheadline, weight: .bold))
                     }
                     .buttonStyle(.borderedProminent)
@@ -198,7 +198,7 @@ struct DashboardView: View {
     private var heatmapSection: some View {
         HeatmapSectionView(
             combos: viewModel.heatmapCombos,
-            title: "Lagkombinationer",
+            title: String(localized: "dashboard.heatmap.title"),
             sortKey: $heatmapSortKey,
             sortAscending: $heatmapSortAscending,
             currentPlayerName: viewModel.currentPlayer?.profileName
@@ -210,7 +210,7 @@ struct DashboardView: View {
         VStack(spacing: 12) {
             if let error = viewModel.lastErrorMessage {
                 AppAlert(severity: .warning, isAnimated: true) {
-                    Text("Varning vid datahämtning")
+                    Text(LocalizedStringKey("dashboard.notice.warning_title"))
                         .font(.inter(.headline, weight: .bold))
                     Text(error)
                         .font(.inter(.footnote))
@@ -222,15 +222,15 @@ struct DashboardView: View {
                 AppAlert(severity: .info, icon: "trophy.fill", isAnimated: true, onClose: {
                     viewModel.dismissTournamentNotice()
                 }) {
-                    Text("Turnering pågår!")
+                    Text(LocalizedStringKey("dashboard.notice.tournament_title"))
                         .font(.inter(.headline, weight: .bold))
-                    Text("\(notice.name) är live nu.")
+                    Text(String(format: String(localized: "dashboard.notice.tournament_live"), notice.name))
                         .font(.inter(.subheadline))
                         .foregroundStyle(AppColors.textSecondary)
                     Button {
                         viewModel.openTournamentTab()
                     } label: {
-                        Label("Visa turnering", systemImage: "trophy.fill")
+                        Label(LocalizedStringKey("dashboard.notice.tournament_button"), systemImage: "trophy.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -242,9 +242,9 @@ struct DashboardView: View {
                 AppAlert(severity: .info, icon: "timer", isAnimated: true, onClose: {
                     viewModel.dismissScheduledGameNotice()
                 }) {
-                    Text("Uppkommande bokning")
+                    Text(LocalizedStringKey("dashboard.notice.schedule_title"))
                         .font(.inter(.headline, weight: .bold))
-                    Text("\(upcoming.description ?? "Bokning") • \(upcoming.location ?? "Okänd bana")")
+                    Text("\(upcoming.description ?? String(localized: "dashboard.notice.schedule_default_description")) • \(upcoming.location ?? String(localized: "dashboard.notice.schedule_default_location"))")
                         .font(.inter(.subheadline))
                     Text(dateFormatter.string(from: upcoming.startsAt))
                         .font(.inter(.caption))
@@ -252,7 +252,7 @@ struct DashboardView: View {
                     Button {
                         viewModel.openScheduleTab()
                     } label: {
-                        Label("Se schema", systemImage: "calendar")
+                        Label(LocalizedStringKey("dashboard.notice.schedule_button"), systemImage: "calendar")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -264,17 +264,17 @@ struct DashboardView: View {
                 AppAlert(severity: .success, icon: "timer", isAnimated: true, onClose: {
                     viewModel.dismissRecentMatchNotice()
                 }) {
-                    Text("Nytt resultat!")
+                    Text(LocalizedStringKey("dashboard.notice.recent_title"))
                         .font(.inter(.headline, weight: .bold))
                     Text("\(recent.teamAName) vs \(recent.teamBName)")
                         .font(.inter(.body))
-                    Text("Resultat: \(recent.teamAScore)–\(recent.teamBScore)")
+                    Text(String(format: String(localized: "dashboard.notice.recent_score"), String(recent.teamAScore), String(recent.teamBScore)))
                         .font(.inter(.subheadline, weight: .semibold))
 
                     Button {
                         viewModel.openHistoryTab()
                     } label: {
-                        Label("Se alla", systemImage: "clock.arrow.circlepath")
+                        Label(LocalizedStringKey("dashboard.notice.recent_button"), systemImage: "clock.arrow.circlepath")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -285,9 +285,9 @@ struct DashboardView: View {
     }
 
     private var filterSection: some View {
-        SectionCard(title: "Globalt Filter") {
+        SectionCard(title: String(localized: "dashboard.filter.title")) {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Period", selection: $viewModel.globalFilter) {
+                Picker(LocalizedStringKey("dashboard.filter.period"), selection: $viewModel.globalFilter) {
                     ForEach(DashboardMatchFilter.allCases) { filter in
                         Text(filter.title).tag(filter)
                     }
@@ -296,16 +296,16 @@ struct DashboardView: View {
                 .sensoryFeedback(.selection, trigger: viewModel.globalFilter)
 
                 if viewModel.globalFilter == .custom {
-                    DatePicker("Från", selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
-                    DatePicker("Till", selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
+                    DatePicker(LocalizedStringKey("dashboard.filter.from"), selection: $viewModel.globalCustomStartDate, displayedComponents: [.date])
+                    DatePicker(LocalizedStringKey("dashboard.filter.to"), selection: $viewModel.globalCustomEndDate, displayedComponents: [.date])
 
-                    Button("Återställ") {
+                    Button(LocalizedStringKey("dashboard.filter.reset")) {
                         viewModel.globalFilter = .all
                     }
                     .buttonStyle(.bordered)
                 }
 
-                Text("Aktivt filter: \(viewModel.globalActiveFilterLabel)")
+                Text(String(format: String(localized: "dashboard.filter.active"), viewModel.globalActiveFilterLabel))
                     .font(.inter(.caption))
                     .foregroundStyle(AppColors.textSecondary)
             }

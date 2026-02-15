@@ -9,16 +9,16 @@ private enum SingleGameWizardStep: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .teamSetup: return "Steg 1: Ditt lag"
-        case .opponentSetup: return "Steg 2: Motståndare"
-        case .score: return "Steg 3: Resultat"
-        case .review: return "Steg 4: Granska"
-        case .matchmaker: return "Matchmaker"
+        case .teamSetup: return String(localized: "single_game.step.team")
+        case .opponentSetup: return String(localized: "single_game.step.opponents")
+        case .score: return String(localized: "single_game.step.score")
+        case .review: return String(localized: "single_game.step.review")
+        case .matchmaker: return String(localized: "single_game.step.matchmaker")
         }
     }
 
     var shortTitle: String {
-        title.replacingOccurrences(of: "Steg \(rawValue + 1): ", with: "")
+        title.replacingOccurrences(of: String(format: String(localized: "single_game.step.prefix"), rawValue + 1), with: "")
     }
 }
 
@@ -79,8 +79,8 @@ struct SingleGameView: View {
                             .accessibilityElement(children: .combine)
                             .accessibilityLabel(step.title)
                             .accessibilityAddTraits(.isButton)
-                            .accessibilityValue(wizardStep == step ? "Aktivt" : (wizardStep.rawValue > step.rawValue ? "Slutfört" : "Kommande"))
-                            .accessibilityHint(step.rawValue < wizardStep.rawValue ? "Gå tillbaka till detta steg" : "")
+                            .accessibilityValue(wizardStep == step ? String(localized: "single_game.step.state.active") : (wizardStep.rawValue > step.rawValue ? String(localized: "single_game.step.state.completed") : String(localized: "single_game.step.state.upcoming")))
+                            .accessibilityHint(step.rawValue < wizardStep.rawValue ? String(localized: "single_game.step.hint.go_back") : "")
 
                             if step != .review {
                                 Rectangle()
@@ -118,7 +118,7 @@ struct SingleGameView: View {
                         if !showSuccessState {
                             HStack(spacing: 16) {
                                 if wizardStep == .matchmaker {
-                                    Button("Tillbaka till flödet") {
+                                    Button(LocalizedStringKey("single_game.back_to_flow")) {
                                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                         wizardStep = previousWizardStepBeforeMatchmaker
                                     }
@@ -126,7 +126,7 @@ struct SingleGameView: View {
                                     .font(.inter(.subheadline, weight: .bold))
                                     .disabled(isSubmitting)
                                 } else if wizardStep != .teamSetup {
-                                    Button("Tillbaka") {
+                                    Button(LocalizedStringKey("single_game.back")) {
                                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                         previousStep()
                                     }
@@ -148,9 +148,9 @@ struct SingleGameView: View {
                                             if isSubmitting && wizardStep == .review {
                                                 ProgressView()
                                                     .tint(.white)
-                                                Text("Sparar...")
+                                                Text(LocalizedStringKey("single_game.saving"))
                                             } else {
-                                                Text(wizardStep == .review ? "Spara match" : "Nästa")
+                                                Text(wizardStep == .review ? String(localized: "single_game.save_match") : String(localized: "single_game.next"))
                                             }
                                         }
                                     }
@@ -158,7 +158,7 @@ struct SingleGameView: View {
                                     .disabled(isSubmitting || !isStepValid)
                                 }
 
-                                Button("Återställ") {
+                                Button(LocalizedStringKey("single_game.reset")) {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     resetFormForNextEntry(keepMatchType: true)
                                 }
