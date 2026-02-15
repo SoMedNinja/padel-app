@@ -327,64 +327,63 @@ struct DashboardView: View {
     }
 
     private var mvpSection: some View {
-        HStack(spacing: 16) {
+        VStack(spacing: 12) {
             if let evening = viewModel.currentMVP {
-                mvpMiniCard(title: "Kvällens MVP", result: evening)
+                mvpCard(title: "Kvällens MVP", result: evening)
             } else {
-                mvpEmptyMiniCard(title: "Kvällens MVP")
+                mvpEmptyCard(title: "Kvällens MVP")
             }
 
             if let monthly = viewModel.periodMVP {
-                mvpMiniCard(title: "Månadens MVP", result: monthly)
+                mvpCard(title: "Månadens MVP", result: monthly)
             } else {
-                mvpEmptyMiniCard(title: "Månadens MVP")
+                mvpEmptyCard(title: "Månadens MVP")
             }
         }
     }
 
-    private func mvpMiniCard(title: String, result: DashboardMVPResult) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.inter(.caption2, weight: .black))
-                .foregroundStyle(AppColors.textSecondary)
-                .textCase(.uppercase)
+    private func mvpCard(title: String, result: DashboardMVPResult) -> some View {
+        let icon = title.lowercased().contains("kvällens") ? "🚀" : "🏆"
+        let winPercent = Int((result.winRate * 100).rounded())
 
-            HStack(spacing: 10) {
-                PlayerAvatarView(urlString: result.player.avatarURL, size: 36)
-                    .overlay(Circle().stroke(AppColors.success.opacity(0.2), lineWidth: 1))
+        // Note for non-coders:
+        // This mirrors the PWA MVP card data so iOS and web show the same summary values.
+        return VStack(spacing: 10) {
+            Text("\(icon) \(title)")
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.brandPrimary)
 
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(result.player.profileName)
-                        .font(.inter(.subheadline, weight: .bold))
-                        .lineLimit(1)
-                    Text("\(result.wins)V • \(result.periodEloGain >= 0 ? "+" : "")\(result.periodEloGain)")
-                        .font(.inter(.caption2))
-                        .foregroundStyle(AppColors.textSecondary)
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padelSurfaceCard()
-    }
+            Text(result.player.profileName)
+                .font(.inter(.headline, weight: .bold))
+                .multilineTextAlignment(.center)
 
-    private func mvpEmptyMiniCard(title: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.inter(.caption2, weight: .black))
-                .foregroundStyle(AppColors.textSecondary)
-                .textCase(.uppercase)
-
-            Text("Ingen data")
+            Text("\(result.wins) vinster, \(result.games) matcher, \(winPercent)% vinst, ΔELO: \(result.periodEloGain)")
                 .font(.inter(.caption))
                 .foregroundStyle(AppColors.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 4)
+                .multilineTextAlignment(.center)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .frame(maxWidth: .infinity)
         .padelSurfaceCard()
-        .opacity(0.6)
+    }
+
+    private func mvpEmptyCard(title: String) -> some View {
+        let icon = title.lowercased().contains("kvällens") ? "🚀" : "🏆"
+
+        return VStack(spacing: 10) {
+            Text("\(icon) \(title)")
+                .font(.inter(.subheadline, weight: .bold))
+                .foregroundStyle(AppColors.brandPrimary)
+
+            Text("Inte tillräckligt många spelade matcher")
+                .font(.inter(.caption))
+                .foregroundStyle(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity)
+        .padelSurfaceCard()
+        .opacity(0.8)
     }
 
     @ViewBuilder
