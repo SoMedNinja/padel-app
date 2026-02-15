@@ -19,11 +19,13 @@ struct NotificationQuietHours: Codable {
     private static let defaultEndHour = 7
     private static let defaultEnabled = false
 
-    static let `default` = NotificationQuietHours(
-        enabled: Self.defaultEnabled,
-        startHour: Self.defaultStartHour,
-        endHour: Self.defaultEndHour
-    )
+    static var `default`: NotificationQuietHours {
+        NotificationQuietHours(
+            enabled: Self.defaultEnabled,
+            startHour: Self.defaultStartHour,
+            endHour: Self.defaultEndHour
+        )
+    }
 
     enum CodingKeys: String, CodingKey {
         case enabled
@@ -61,21 +63,27 @@ struct NotificationPreferences: Codable {
     var eventToggles: [String: Bool]
     var quietHours: NotificationQuietHours
 
+    private static let defaultEnabled = true
+    private static let defaultEventToggles: [String: Bool] = [
+        NotificationEventType.scheduledMatchNew.rawValue: true,
+        NotificationEventType.availabilityPollReminder.rawValue: true,
+        NotificationEventType.adminAnnouncement.rawValue: true,
+    ]
+
     static let eventOrder: [NotificationEventType] = [
         .scheduledMatchNew,
         .availabilityPollReminder,
         .adminAnnouncement,
     ]
 
-    static let `default` = NotificationPreferences(
-        enabled: true,
-        eventToggles: [
-            NotificationEventType.scheduledMatchNew.rawValue: true,
-            NotificationEventType.availabilityPollReminder.rawValue: true,
-            NotificationEventType.adminAnnouncement.rawValue: true,
-        ],
-        quietHours: .default
-    )
+    static var `default`: NotificationPreferences {
+        NotificationPreferences(
+            enabled: Self.defaultEnabled,
+            eventToggles: Self.defaultEventToggles,
+            quietHours: .default,
+            normalize: false
+        )
+    }
 
     enum CodingKeys: String, CodingKey {
         case enabled
@@ -84,10 +92,16 @@ struct NotificationPreferences: Codable {
     }
 
     init(enabled: Bool, eventToggles: [String: Bool], quietHours: NotificationQuietHours) {
+        self.init(enabled: enabled, eventToggles: eventToggles, quietHours: quietHours, normalize: true)
+    }
+
+    private init(enabled: Bool, eventToggles: [String: Bool], quietHours: NotificationQuietHours, normalize: Bool) {
         self.enabled = enabled
         self.eventToggles = eventToggles
         self.quietHours = quietHours
-        self = normalizedForPersistence()
+        if normalize {
+            self = normalizedForPersistence()
+        }
     }
 
     init(from decoder: Decoder) throws {
@@ -109,14 +123,17 @@ struct NotificationPreferences: Codable {
     // Note for non-coders:
     // We always save one canonical JSON shape so web + iOS read/write identical keys.
     func normalizedForPersistence() -> NotificationPreferences {
-        var normalized = NotificationPreferences.default
-        normalized.enabled = enabled
-        normalized.quietHours = quietHours
+        var normalizedEventToggles = Self.defaultEventToggles
         for eventType in Self.eventOrder {
             let key = eventType.rawValue
-            normalized.eventToggles[key] = eventToggles[key] ?? NotificationPreferences.default.eventToggles[key] ?? true
+            normalizedEventToggles[key] = eventToggles[key] ?? Self.defaultEventToggles[key] ?? true
         }
-        return normalized
+        return NotificationPreferences(
+            enabled: enabled,
+            eventToggles: normalizedEventToggles,
+            quietHours: quietHours,
+            normalize: false
+        )
     }
 }
 
