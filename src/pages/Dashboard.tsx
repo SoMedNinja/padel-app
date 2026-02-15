@@ -389,6 +389,9 @@ export default function Dashboard() {
                     matches={filteredMatches}
                     profiles={profiles}
                     allEloPlayers={eloPlayers}
+                    // Note for non-coders: this keeps the heatmap focused on your own teammate combinations,
+                    // matching how the native iOS app behaves.
+                    currentUserOnly={user?.id}
                   />
                 </Box>
 
