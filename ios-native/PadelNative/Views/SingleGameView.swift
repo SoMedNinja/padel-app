@@ -450,14 +450,29 @@ struct SingleGameView: View {
                 && !excluded.contains($0.id.uuidString)
             }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                // Guest tile
-                if !excluded.contains("guest") {
-                    playerTileButton(id: "guest", name: "Gäst", icon: "person.badge.plus", selection: selection)
+            if filteredPlayers.isEmpty && !playerSearchText.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "person.and.arrow.left.and.arrow.right")
+                        .font(.largeTitle)
+                        .foregroundStyle(AppColors.textSecondary.opacity(0.3))
+                    Text("Inga spelare hittades för \"\(playerSearchText)\"")
+                        .font(.inter(.caption, weight: .medium))
+                        .foregroundStyle(AppColors.textSecondary)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
+            } else {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    // Guest tile
+                    // Note for non-coders: Guest tile is always available unless already picked
+                    // in the other team, helping users quickly fill empty slots.
+                    if !excluded.contains("guest") {
+                        playerTileButton(id: "guest", name: "Gäst", icon: "person.badge.plus", selection: selection)
+                    }
 
-                ForEach(filteredPlayers) { player in
-                    playerTileButton(id: player.id.uuidString, name: player.profileName, avatarURL: player.avatarURL, selection: selection)
+                    ForEach(filteredPlayers) { player in
+                        playerTileButton(id: player.id.uuidString, name: player.profileName, avatarURL: player.avatarURL, selection: selection)
+                    }
                 }
             }
         }

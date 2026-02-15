@@ -707,7 +707,9 @@ struct DashboardView: View {
             .disabled(key.isEmpty)
             .buttonStyle(.plain)
             .accessibilityLabel(title)
-            .accessibilityHint(key.isEmpty ? "" : "Sortera efter \(title.lowercased())")
+            .accessibilityValue(leaderboardSortKey == key ? (leaderboardSortAscending ? "Sorterat stigande" : "Sorterat fallande") : "")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint(key.isEmpty ? "" : "Tryck för att sortera efter \(title.lowercased())")
 
             if let help = help {
                 Menu {
@@ -718,6 +720,7 @@ struct DashboardView: View {
                         .font(.system(size: 8))
                         .foregroundStyle(AppColors.textSecondary)
                 }
+                .accessibilityLabel("Mer information om \(title.lowercased())")
             }
         }
         .frame(width: width, alignment: alignment)

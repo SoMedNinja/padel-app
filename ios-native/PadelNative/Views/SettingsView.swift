@@ -121,15 +121,23 @@ struct SettingsView: View {
                 // Note for non-coders: we save the name directly to your profile so it updates app-wide.
                 if isEditingName {
                     HStack(spacing: 10) {
-                        TextField("Namn", text: $viewModel.profileDisplayNameDraft)
-                            .textFieldStyle(.roundedBorder)
-                            .disabled(viewModel.isSavingProfileSetup)
-                            .onSubmit {
-                                Task {
-                                    await viewModel.saveProfileSetup()
-                                    isEditingName = false
+                        VStack(alignment: .trailing, spacing: 4) {
+                            TextField("Namn", text: $viewModel.profileDisplayNameDraft)
+                                .textFieldStyle(.roundedBorder)
+                                .disabled(viewModel.isSavingProfileSetup)
+                                .onSubmit {
+                                    if viewModel.profileDisplayNameDraft.count <= 50 {
+                                        Task {
+                                            await viewModel.saveProfileSetup()
+                                            isEditingName = false
+                                        }
+                                    }
                                 }
-                            }
+
+                            Text("\(viewModel.profileDisplayNameDraft.count)/50")
+                                .font(.inter(size: 10))
+                                .foregroundStyle(viewModel.profileDisplayNameDraft.count > 50 ? AppColors.error : AppColors.textSecondary)
+                        }
 
                         Button {
                             Task {
@@ -148,7 +156,7 @@ struct SettingsView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.isSavingProfileSetup)
+                        .disabled(viewModel.isSavingProfileSetup || viewModel.profileDisplayNameDraft.count > 50 || viewModel.profileDisplayNameDraft.count < 2)
                     }
                 } else {
                     HStack {
