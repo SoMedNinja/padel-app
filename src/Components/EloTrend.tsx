@@ -83,6 +83,12 @@ export default function EloTrend({ players = [] }) {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [hasCustomRange, setHasCustomRange] = useState(false);
+  const [legendOverlayState, setLegendOverlayState] = useState<{
+    label: string;
+    values: Array<{ name: string; color: string; value: number | null }>;
+    panelSide: "left" | "right";
+    panelVertical: "top" | "bottom";
+  } | null>(null);
 
   useEffect(() => {
     // Note for non-coders: we only auto-fill dates before the user customizes the range.
@@ -131,38 +137,33 @@ export default function EloTrend({ players = [] }) {
     return [min - padding, max + padding] as const;
   }, [filteredData, playerNames]);
 
+  const buildLegendValues = (row: any) => {
+    return playerNames.map((name) => ({
+      name,
+      color: getPlayerColor(name),
+      value: typeof row?.[name] === "number" ? row[name] : null,
+    }));
+  };
+
+  const latestLegendOverlayState = useMemo(() => {
+    if (!filteredData.length) return null;
+    const latestRow = filteredData[filteredData.length - 1];
+
+    return {
+      label: latestRow.date,
+      values: buildLegendValues(latestRow),
+      panelSide: "right" as const,
+      panelVertical: "top" as const,
+    };
+  }, [filteredData, playerNames]);
+
+  useEffect(() => {
+    setLegendOverlayState(latestLegendOverlayState);
+  }, [latestLegendOverlayState]);
+
   if (!data.length) return null;
   const getTodayDateString = () => new Date().toISOString().slice(0, 10);
 
-  const renderOverlayTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-
-    return (
-      <Box
-        sx={{
-          borderRadius: 2,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-          p: 1.5,
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(4px)',
-          border: 'none',
-          pointerEvents: 'none',
-          maxHeight: 220,
-          overflowY: 'auto'
-        }}
-      >
-        {/* Note for non-coders: this date title helps people connect the values to one day in history. */}
-        <Typography variant="caption" sx={{ display: 'block', color: 'error.main', fontWeight: 800, mb: 1 }}>
-          {formatDate(label, { dateStyle: 'long' })}
-        </Typography>
-        {payload.map((entry) => (
-          <Typography key={entry.name} variant="caption" sx={{ display: 'block', fontWeight: 700, color: entry.color }}>
-            {entry.name}: {Math.round(entry.value)}
-          </Typography>
-        ))}
-      </Box>
-    );
-  };
 
 
   return (
@@ -252,11 +253,43 @@ export default function EloTrend({ players = [] }) {
         </Stack>
       </Stack>
 
-      <Box sx={{ width: "100%", height: 350, minWidth: 0 }}>
+      <Box sx={{ width: "100%", height: 350, minWidth: 0, position: "relative" }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
           <LineChart
             data={filteredData}
             margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+            onMouseMove={(state: any) => {
+              if (!state?.isTooltipActive || !state?.activeLabel) return;
+
+              const row = filteredData.find((entry) => entry.date === state.activeLabel);
+              if (!row) return;
+
+              setLegendOverlayState({
+                label: state.activeLabel,
+                values: buildLegendValues(row),
+                panelSide: state.chartX > state.chartWidth / 2 ? "left" : "right",
+                panelVertical: state.chartY > state.chartHeight / 2 ? "top" : "bottom",
+              });
+            }}
+            onMouseLeave={() => {
+              setLegendOverlayState(latestLegendOverlayState);
+            }}
+            onTouchMove={(state: any) => {
+              if (!state?.isTooltipActive || !state?.activeLabel) return;
+
+              const row = filteredData.find((entry) => entry.date === state.activeLabel);
+              if (!row) return;
+
+              setLegendOverlayState({
+                label: state.activeLabel,
+                values: buildLegendValues(row),
+                panelSide: state.chartX > state.chartWidth / 2 ? "left" : "right",
+                panelVertical: state.chartY > state.chartHeight / 2 ? "top" : "bottom",
+              });
+            }}
+            onTouchEnd={() => {
+              setLegendOverlayState(latestLegendOverlayState);
+            }}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
             <XAxis
@@ -269,7 +302,7 @@ export default function EloTrend({ players = [] }) {
               style={{ fontSize: '0.75rem' }}
             />
             <RechartsTooltip
-              content={renderOverlayTooltip}
+              content={() => null}
               position={{ x: 16, y: 16 }}
               wrapperStyle={{ pointerEvents: 'none', zIndex: 20 }}
               cursor={{ stroke: '#d32f2f', strokeWidth: 1, strokeDasharray: '4 4' }}
@@ -295,36 +328,35 @@ export default function EloTrend({ players = [] }) {
             ))}
           </LineChart>
         </ResponsiveContainer>
-      </Box>
 
-      {/* ✅ EN enda legend (manuell) */}
-      <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-        {playerNames.map(name => (
-          <Box
-            key={name}
+        {legendOverlayState ? (
+          <Paper
+            elevation={4}
             sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              bgcolor: 'grey.50',
-              px: 1.5,
-              py: 0.5,
+              position: 'absolute',
+              top: legendOverlayState.panelVertical === 'top' ? 8 : 'auto',
+              bottom: legendOverlayState.panelVertical === 'bottom' ? 8 : 'auto',
+              left: legendOverlayState.panelSide === 'left' ? 8 : 'auto',
+              right: legendOverlayState.panelSide === 'right' ? 8 : 'auto',
+              maxWidth: 260,
+              p: 1.25,
               borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider'
+              pointerEvents: 'none',
+              bgcolor: 'rgba(255,255,255,0.96)',
+              zIndex: 2,
             }}
           >
-            <Box
-              sx={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                backgroundColor: getPlayerColor(name),
-                mr: 1
-              }}
-            />
-            <Typography variant="caption" sx={{ fontWeight: 700 }}>{name}</Typography>
-          </Box>
-        ))}
+            {/* Note for non-coders: this floating legend jumps to the opposite side of your finger so values stay visible while you drag on the chart. */}
+            <Typography variant="caption" sx={{ fontWeight: 800, color: 'error.main', display: 'block', mb: 0.5 }}>
+              {formatDate(legendOverlayState.label, { dateStyle: 'long' })}
+            </Typography>
+            {legendOverlayState.values.map((entry) => (
+              <Typography key={entry.name} variant="caption" sx={{ display: 'block', color: entry.color, fontWeight: 700 }}>
+                {entry.name}: {typeof entry.value === 'number' ? Math.round(entry.value) : '—'}
+              </Typography>
+            ))}
+          </Paper>
+        ) : null}
       </Box>
     </Paper>
   );
