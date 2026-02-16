@@ -257,3 +257,32 @@ export interface AvailabilityScheduledGame {
   created_at?: string;
   updated_at?: string;
 }
+
+export type TournamentStatus = "draft" | "in_progress" | "completed" | "abandoned";
+
+export interface Tournament {
+  id: string;
+  name: string;
+  location?: string | null;
+  scheduled_at?: string | null;
+  score_target?: number;
+  tournament_type?: string;
+  status: TournamentStatus | string;
+  created_by?: string;
+  created_at?: string;
+  completed_at?: string | null;
+  synced_to_matches?: boolean;
+}
+
+export interface TournamentCreate {
+  name: string;
+  location?: string | null;
+  scheduled_at?: string | null;
+  score_target?: number;
+  tournament_type?: string;
+  status?: TournamentStatus | string;
+  created_by?: string;
+  // Optional fields that are explicitly stripped by the service
+  id?: string;
+  created_at?: string;
+}
