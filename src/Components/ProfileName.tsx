@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Chip, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { getBadgeIconById, getBadgeTierLabelById, getBadgeDescriptionById } from "../utils/badges";
 import { stripBadgeLabelFromName } from "../utils/profileName";
 
@@ -27,18 +28,27 @@ export default function ProfileName({ name, badgeId, className = "" }: ProfileNa
   const badgeChip = (
     <Chip
       className="profile-name-badge"
-      aria-label={`Visad merit ${tier ? `${tier} ` : ""}${icon}`}
+      aria-label={`Visad merit ${tier ? `${tier} ` : ""}${icon}${description ? `. ${description}` : ""}`}
       label={badgeLabel}
       size="small"
       variant="outlined"
+      tabIndex={description ? 0 : -1}
+      role={description ? "button" : undefined}
       sx={{
         fontWeight: 700,
         fontSize: "0.65rem",
         height: 22,
         cursor: description ? 'help' : 'default',
+        transition: 'all 0.2s',
         "& .MuiChip-label": {
           px: 0.75,
         },
+        "&:focus-visible": {
+          outline: '2px solid',
+          outlineColor: 'primary.main',
+          outlineOffset: '1px',
+          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+        }
       }}
     />
   );
