@@ -14,6 +14,15 @@ export interface PadelPuzzle {
   targetCoordinate?: { x: number; y: number };
 }
 
+function shuffle<T>(array: T[]): T[] {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
 const toPadelPuzzle = (
   questionId: string,
   difficulty: PuzzleDifficulty,
@@ -37,13 +46,15 @@ const toPadelPuzzle = (
     throw new Error(`Puzzle ${questionId} must have exactly one option marked isCorrect: true.`);
   }
 
+  const shuffledOptions = shuffle(options);
+
   return {
     questionId,
     difficulty,
     type,
     title,
     scenario,
-    options: options.map((option) => option.text),
+    options: shuffledOptions.map((option) => option.text),
     correctAnswer: correctOptions[0].text,
     coachingTip,
     diagramUrl,
