@@ -223,9 +223,9 @@ export const editableEducationTopics: EditableEducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "/education/americano-scoreboard.svg",
-        alt: "Padelspelare som utför en underhandsserve",
-        caption: "Lokal illustration: servesituation med fokus på teknik och regler.",
+        src: "/education/video-serve.svg",
+        alt: "Diagram över korrekt serveteknik",
+        caption: "Illustration av servens faser: studs, träffpunkt och riktning.",
       },
       {
         src: "/education/rules-serve.svg",
@@ -306,9 +306,9 @@ export const editableEducationTopics: EditableEducationTopic[] = [
     ],
     articleIllustrations: [
       {
-        src: "/education/mexicana-rotation.svg",
-        alt: "Padelspelare i defensiv position som förbereder en lobb",
-        caption: "Lokal illustration: defensivt läge där lobben används för att vinna tid.",
+        src: "/education/video-net-position.svg",
+        alt: "Spelare backar från nät vid lobb",
+        caption: "Vid lobb måste nätspelarna snabbt backa för att försvara.",
       },
       {
         src: "/education/defense-reset.svg",

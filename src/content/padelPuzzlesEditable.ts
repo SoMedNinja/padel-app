@@ -221,10 +221,9 @@ export const editablePadelPuzzles: EditablePadelPuzzle[] = [
   {
     questionId: "v1",
     difficulty: "easy",
-    type: "video",
-    title: "Video: Grundläggande Serve",
-    scenario: "Titta på videon. Vilket är det viktigaste steget för en regelrätt serve enligt videon?",
-    videoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    title: "Diagram: Grundläggande Serve",
+    scenario: "Studera diagrammet. Vilket är det viktigaste steget för en regelrätt serve?",
+    diagramUrl: "/education/video-serve.svg",
     options: [
       { text: "Att bollen träffas under midjehöjd.", isCorrect: true },
       { text: "Att man hoppar vid träffögonblicket.", isCorrect: false },
@@ -235,10 +234,9 @@ export const editablePadelPuzzles: EditablePadelPuzzle[] = [
   {
     questionId: "v2",
     difficulty: "medium",
-    type: "video",
-    title: "Video: Positionering vid nät",
-    scenario: "Se hur spelarna rör sig i videon. Vad gör de när motståndaren slår en lobb?",
-    videoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    title: "Diagram: Positionering vid nät",
+    scenario: "Se diagrammet. Vad gör spelarna när motståndaren slår en lobb?",
+    diagramUrl: "/education/video-net-position.svg",
     options: [
       { text: "De backar tillsammans för att täcka bakplan.", isCorrect: true },
       { text: "En stannar vid nät medan den andra backar.", isCorrect: false },
@@ -249,10 +247,9 @@ export const editablePadelPuzzles: EditablePadelPuzzle[] = [
   {
     questionId: "v3",
     difficulty: "hard",
-    type: "video",
-    title: "Video: Avancerad Bandeja",
-    scenario: "Studera tekniken i videon. Vad är huvudsyftet med detta specifika slag?",
-    videoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    title: "Diagram: Avancerad Bandeja",
+    scenario: "Studera diagrammet. Vad är huvudsyftet med detta specifika slag?",
+    diagramUrl: "/education/video-bandeja.svg",
     options: [
       { text: "Att behålla nätposition genom kontroll.", isCorrect: true },
       { text: "Att slå bollen så hårt som möjligt för att vinna poängen.", isCorrect: false },

@@ -1,10 +1,46 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
-  <rect width='800' height='420' fill='#f0fdf4'/>
-  <rect x='120' y='60' width='560' height='300' fill='#bbf7d0' stroke='#166534' stroke-width='4'/>
-  <line x1='120' y1='210' x2='680' y2='210' stroke='#166534' stroke-width='3'/>
-  <circle cx='260' cy='290' r='18' fill='#166534'/><circle cx='360' cy='290' r='18' fill='#166534'/>
-  <circle cx='460' cy='140' r='18' fill='#ef4444'/><circle cx='560' cy='140' r='18' fill='#ef4444'/>
-  <path d='M290 260 Q430 60 560 110' stroke='#2563eb' stroke-width='6' fill='none' marker-end='url(#ar)'/>
-  <text x='30' y='42' font-size='28' fill='#0f172a' font-family='Arial'>Försvar: kontrollera, lobba, flytta fram</text>
-  <defs><marker id='ar' markerWidth='10' markerHeight='10' refX='6' refY='3' orient='auto'><path d='M0,0 L0,6 L7,3 z' fill='#2563eb'/></marker></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#f8fafc"/>
+
+  <!-- Court Surface -->
+  <rect x="100" y="50" width="600" height="350" fill="#bfdbfe" rx="4"/>
+
+  <!-- Court Lines -->
+  <g stroke="#ffffff" stroke-width="4" fill="none">
+    <rect x="100" y="50" width="600" height="350"/>
+    <line x1="400" y1="50" x2="400" y2="400" stroke="#9ca3af" stroke-width="6"/>
+    <line x1="250" y1="50" x2="250" y2="400"/>
+    <line x1="550" y1="50" x2="550" y2="400"/>
+    <line x1="250" y1="225" x2="550" y2="225"/>
+  </g>
+
+  <!-- Players (Defense) -->
+  <circle cx="600" y="100" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/> <!-- You -->
+  <circle cx="600" y="350" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/> <!-- Partner -->
+
+  <!-- Opponents (Net) -->
+  <circle cx="300" y="150" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="300" y="300" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Lobb Trajectory -->
+  <path d="M 600 100 Q 400 -50 200 100" stroke="#facc15" stroke-width="4" fill="none" stroke-dasharray="8 4" marker-end="url(#arrowhead)"/>
+  <text x="400" y="80" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#1e293b" font-weight="bold" transform="rotate(-10 400 80)">Hög Lobb</text>
+
+  <!-- Reset Movement -->
+  <path d="M 600 120 L 500 150" stroke="#ea580c" stroke-width="3" fill="none" marker-end="url(#arrowhead-red)"/>
+  <path d="M 600 330 L 500 300" stroke="#ea580c" stroke-width="3" fill="none" marker-end="url(#arrowhead-red)"/>
+  <text x="650" y="225" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#ea580c" font-weight="bold">Flytta fram!</text>
+
+  <!-- Defs -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#facc15"/>
+    </marker>
+    <marker id="arrowhead-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#1e293b">Försvar: Lobba &amp; Återta Nätet</text>
 </svg>

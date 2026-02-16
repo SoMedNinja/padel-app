@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#f8fafc"/>
+
+  <!-- Court Surface -->
+  <rect x="100" y="50" width="600" height="350" fill="#bfdbfe" rx="4"/>
+
+  <!-- Court Lines -->
+  <g stroke="#ffffff" stroke-width="4" fill="none">
+    <rect x="100" y="50" width="600" height="350"/>
+    <line x1="400" y1="50" x2="400" y2="400" stroke="#9ca3af" stroke-width="6"/>
+  </g>
+
+  <!-- Player -->
+  <circle cx="300" y="150" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Bandeja Trajectory (Controlled Slice to Corner) -->
+  <path d="M 300 150 Q 400 150 650 350" stroke="#8b5cf6" stroke-width="5" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="500" y="200" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#6d28d9" font-weight="bold">Låg &amp; Kontrollerad</text>
+
+  <!-- Opponents in Corner -->
+  <circle cx="650" y="350" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Defs -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#1e293b">Diagram: Avancerad Bandeja</text>
+</svg>

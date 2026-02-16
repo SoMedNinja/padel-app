@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#f8fafc"/>
+
+  <!-- Court Surface -->
+  <rect x="100" y="50" width="600" height="350" fill="#bfdbfe" rx="4"/>
+
+  <!-- Court Lines -->
+  <g stroke="#ffffff" stroke-width="4" fill="none">
+    <rect x="100" y="50" width="600" height="350"/>
+    <line x1="400" y1="50" x2="400" y2="400" stroke="#9ca3af" stroke-width="6"/>
+    <line x1="250" y1="50" x2="250" y2="400"/>
+    <line x1="550" y1="50" x2="550" y2="400"/>
+    <line x1="250" y1="225" x2="550" y2="225"/>
+  </g>
+
+  <!-- Player Serving -->
+  <circle cx="180" y="350" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+  <text x="180" y="385" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#1e293b">Du</text>
+
+  <!-- Serve Target Box -->
+  <rect x="400" y="225" width="150" height="175" fill="#facc15" fill-opacity="0.3" stroke="#eab308" stroke-width="3" stroke-dasharray="4 2"/>
+  <text x="475" y="312" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#b45309" font-weight="bold">Mål</text>
+
+  <!-- Bounce -->
+  <circle cx="210" y="350" r="5" fill="#facc15"/>
+
+  <!-- Trajectory -->
+  <path d="M 210 350 Q 300 280 450 300" stroke="#ea580c" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+
+  <!-- Waist Height Check -->
+  <line x1="160" y1="330" x2="200" y2="330" stroke="#1e293b" stroke-width="2" stroke-dasharray="2 2"/>
+  <text x="130" y="335" font-family="sans-serif" font-size="12" fill="#1e293b">Midja</text>
+
+  <!-- Defs -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#1e293b">Diagram: Grundläggande Serve</text>
+</svg>

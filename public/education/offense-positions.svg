@@ -1,9 +1,40 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
-  <rect width='800' height='420' fill='#fff7ed'/>
-  <rect x='120' y='60' width='560' height='300' fill='#fed7aa' stroke='#9a3412' stroke-width='4'/>
-  <line x1='120' y1='210' x2='680' y2='210' stroke='#9a3412' stroke-width='3'/>
-  <circle cx='280' cy='170' r='18' fill='#ea580c'/><circle cx='520' cy='170' r='18' fill='#ea580c'/>
-  <circle cx='250' cy='290' r='10' fill='#0f172a'/><circle cx='400' cy='290' r='10' fill='#0f172a'/><circle cx='550' cy='290' r='10' fill='#0f172a'/>
-  <text x='215' y='320' font-size='20' fill='#7c2d12' font-family='Arial'>Målområden: hörn • mitt • fötter</text>
-  <text x='30' y='42' font-size='28' fill='#0f172a' font-family='Arial'>Offensiv nätposition</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#f8fafc"/>
+
+  <!-- Court Surface -->
+  <rect x="100" y="50" width="600" height="350" fill="#bfdbfe" rx="4"/>
+
+  <!-- Court Lines -->
+  <g stroke="#ffffff" stroke-width="4" fill="none">
+    <rect x="100" y="50" width="600" height="350"/>
+    <line x1="400" y1="50" x2="400" y2="400" stroke="#9ca3af" stroke-width="6"/>
+    <line x1="250" y1="50" x2="250" y2="400"/>
+    <line x1="550" y1="50" x2="550" y2="400"/>
+    <line x1="250" y1="225" x2="550" y2="225"/>
+  </g>
+
+  <!-- Net Players (Offense) -->
+  <circle cx="350" y="150" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/> <!-- You -->
+  <circle cx="350" y="300" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/> <!-- Partner -->
+
+  <!-- Target Zones -->
+  <!-- 1. Feet -->
+  <circle cx="580" y="150" r="25" fill="#facc15" fill-opacity="0.4" stroke="#eab308" stroke-width="2" stroke-dasharray="4 2"/>
+  <text x="580" y="155" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#1e293b" font-weight="bold">Fötter</text>
+
+  <!-- 2. Middle (Gap) -->
+  <circle cx="500" y="225" r="30" fill="#facc15" fill-opacity="0.4" stroke="#eab308" stroke-width="2" stroke-dasharray="4 2"/>
+  <text x="500" y="230" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#1e293b" font-weight="bold">Luckan</text>
+
+  <!-- 3. Corner -->
+  <circle cx="650" y="350" r="25" fill="#facc15" fill-opacity="0.4" stroke="#eab308" stroke-width="2" stroke-dasharray="4 2"/>
+  <text x="650" y="355" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#1e293b" font-weight="bold">Hörn</text>
+
+  <!-- Opponents (Defending) -->
+  <circle cx="600" y="150" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="600" y="300" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#1e293b">Offensiva Målområden</text>
 </svg>
