@@ -372,11 +372,11 @@ const validateMatchSets = (sets: any, teamLabel: string) => {
 };
 
 const validateTeamNames = (names: any, teamLabel: string) => {
-  if (Array.isArray(names)) {
-    for (const name of names) {
-      if (typeof name === "string" && name.length > 50) {
-        throw new Error(`Namn i ${teamLabel} är för långt (max 50 tecken)`);
-      }
+  if (!Array.isArray(names)) return;
+
+  for (const name of names) {
+    if (typeof name === "string" && name.length > 50) {
+      throw new Error(`Namn i ${teamLabel} är för långt (max 50 tecken)`);
     }
   }
 };
