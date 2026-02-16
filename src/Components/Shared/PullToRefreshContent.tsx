@@ -26,7 +26,7 @@ export const RefreshingContent = () => {
 
   if (!isIos) {
     return (
-      <Box className="ptr-animation-container">
+      <Box className="ptr-animation-container" sx={{ zIndex: 1601, position: "relative" }}>
         <Box sx={{ position: "relative", height: 40, display: "flex", alignItems: "flex-end", justifyContent: "center", width: 40 }}>
           <Box className="padel-ball bouncing-ball" />
           <Box className="ball-shadow" sx={{ position: "absolute", bottom: -2 }} />
@@ -39,7 +39,7 @@ export const RefreshingContent = () => {
   }
 
   return (
-    <Box className="ptr-animation-container ptr-ios-refreshing">
+    <Box className="ptr-animation-container ptr-ios-refreshing" sx={{ zIndex: 1601, position: "relative" }}>
       <Box className="ptr-ios-ball-cluster" aria-hidden="true">
         {[0, 1, 2, 3].map((ballIndex) => (
           <Box key={ballIndex} className={`padel-ball ptr-ios-ball ptr-ios-ball-${ballIndex + 1}`}>
@@ -67,7 +67,7 @@ export const PullingContent = () => {
   }
 
   return (
-    <Box className="ptr-animation-container ptr-ios-pulling">
+    <Box className="ptr-animation-container ptr-ios-pulling" sx={{ zIndex: 1601, position: "relative" }}>
       <Box className="ptr-ios-pull-ball-wrapper" aria-hidden="true">
         <Box className="padel-ball ptr-ios-pull-ball" />
         <Box className="ball-shadow ptr-ios-pull-shadow" />
