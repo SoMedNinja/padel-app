@@ -93,6 +93,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
     setSavingId(profile.id);
     try {
       const data = await profileService.updateProfile(profile.id, { name: nextName });
+      navigator.vibrate?.(20);
       onProfileUpdate?.(data);
     } catch (error: any) {
       alert(error.message || "Kunde inte uppdatera profilen.");
@@ -106,6 +107,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
     setToggleId(profile.id);
     try {
       const data = await profileService.updateProfile(profile.id, { is_approved: nextApproved });
+      navigator.vibrate?.(10);
       onProfileUpdate?.(data);
     } catch (error: any) {
       alert(error.message || "Kunde inte uppdatera profilen.");
@@ -121,6 +123,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
     setRegularToggleId(profile.id);
     try {
       const data = await profileService.updateProfile(profile.id, { is_regular: nextRegular });
+      navigator.vibrate?.(10);
       onProfileUpdate?.(data);
     } catch (error: any) {
       alert(error.message || "Kunde inte uppdatera ordinarie-status.");
@@ -149,6 +152,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
         is_regular: false,
         avatar_url: null,
       });
+      navigator.vibrate?.([10, 50, 10]);
       onProfileDelete?.(data);
     } catch (error: any) {
       alert(error.message || "Kunde inte radera profilen.");
@@ -279,6 +283,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
                             slotProps={{
                               htmlInput: {
                                 maxLength: 50,
+                                "aria-required": "true",
                                 "aria-label": `Ändra namn för ${profile.name || "användare"}, ${currentName.length} av 50 tecken`,
                               },
                             }}

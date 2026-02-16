@@ -77,3 +77,7 @@
 ## 2026-06-25 - [A11y: Step Navigation & Focusable Landmarks]
 **Learning:** MUI `StepLabel` with `onClick` is not keyboard-accessible by default. Screen readers and keyboard users cannot "discover" that a step is clickable unless it uses a button-like component. Using `StepButton` provides the necessary focus states and keyboard interaction handlers automatically.
 **Action:** Use `StepButton` to wrap `StepLabel` in interactive `Stepper` components to ensure full keyboard support for form navigation.
+
+## 2026-02-16 - [A11y & UX: Haptics and Discovery]
+**Learning:** Merit badges with tooltips are invisible to keyboard users if not focusable. Tactile feedback (haptics) for administrative actions and animation steps provides a "premium" feel and confirmation in PWAs.
+**Action:** Always make tooltip-carrying chips focusable with `tabIndex={0}`. Use `navigator.vibrate` for key state changes and administrative successes.

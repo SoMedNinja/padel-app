@@ -38,9 +38,18 @@ export default function MatchSuccessCeremony({ recap }: MatchSuccessCeremonyProp
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setStep(1), 500),  // Show Score
-      setTimeout(() => setStep(2), 1500), // Show ELO Deltas
-      setTimeout(() => setStep(3), 3000), // Show Rank Info/Final
+      setTimeout(() => {
+        setStep(1);
+        navigator.vibrate?.(10);
+      }, 500),  // Show Score
+      setTimeout(() => {
+        setStep(2);
+        navigator.vibrate?.(10);
+      }, 1500), // Show ELO Deltas
+      setTimeout(() => {
+        setStep(3);
+        navigator.vibrate?.(20);
+      }, 3000), // Show Rank Info/Final
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
