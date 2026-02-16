@@ -37,17 +37,26 @@ const parsePollStatus = (poll: AvailabilityPoll): AvailabilityPoll => {
   return poll;
 };
 
-const mapCreatePollError = (error: any) => {
+interface DatabaseError {
+  code?: string;
+  message?: string;
+}
+
+const isDatabaseError = (error: unknown): error is DatabaseError => {
+  return typeof error === "object" && error !== null;
+};
+
+export const mapCreatePollError = (error: unknown) => {
   // Note for non-coders: Postgres error code 23505 means "already exists".
-  if (error?.code === "23505") {
+  if (isDatabaseError(error) && error.code === "23505") {
     return new Error("Det finns redan en omröstning för den veckan. Välj en annan vecka.");
   }
   return error;
 };
 
-const isMissingRpcFunctionError = (error: any): boolean => {
+const isMissingRpcFunctionError = (error: unknown): boolean => {
   // Note for non-coders: PGRST202 is returned when Supabase API cannot find an RPC function in its schema cache.
-  return error?.code === "PGRST202";
+  return isDatabaseError(error) && error.code === "PGRST202";
 };
 
 // Note for non-coders: if this flag becomes true, we skip the RPC call entirely to avoid repeated 404 noise in the browser.
