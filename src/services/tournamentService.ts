@@ -1,4 +1,5 @@
 import { supabase } from "../supabaseClient";
+import { TournamentRoundInsert } from "../types";
 import { GUEST_ID } from "../utils/guest";
 import { ensureAuthSessionReady, requireAdmin } from "./authUtils";
 
@@ -214,7 +215,7 @@ export const tournamentService = {
     return data;
   },
 
-  async createRounds(rounds: any[]) {
+  async createRounds(rounds: TournamentRoundInsert[]) {
     await requireAdmin("Endast administratörer kan skapa rundor.");
 
     const { error } = await supabase.from("mexicana_rounds").insert(rounds);
