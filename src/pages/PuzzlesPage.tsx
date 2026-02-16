@@ -129,7 +129,7 @@ export default function PuzzlesPage() {
         Math.pow(selectedCoordinate.x - currentPuzzle.targetCoordinate.x, 2) +
         Math.pow(selectedCoordinate.y - currentPuzzle.targetCoordinate.y, 2)
       );
-      isCorrect = dist < 0.15;
+      isCorrect = dist < 0.2;
       finalAnswer = isCorrect ? currentPuzzle.correctAnswer : "Fel position";
     } else {
       if (!selectedAnswer) return;
