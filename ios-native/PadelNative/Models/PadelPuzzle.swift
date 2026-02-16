@@ -1,5 +1,11 @@
 import Foundation
 
+enum PuzzleType: String, Codable, CaseIterable {
+    case text
+    case tapToTarget = "tap-to-target"
+    case video
+}
+
 enum PuzzleDifficulty: String, Codable, CaseIterable, Identifiable {
     case easy
     case medium
@@ -24,17 +30,40 @@ enum PuzzleDifficulty: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+struct TargetCoordinate: Codable, Equatable {
+    let x: Double
+    let y: Double
+}
+
 struct PadelPuzzle: Identifiable, Codable, Equatable {
     let id: String
     let difficulty: PuzzleDifficulty
+    let type: PuzzleType
     let title: String
     let scenario: String
     let options: [String]
     let correctAnswer: String
     let coachingTip: String
+    let diagramUrl: String?
+    let videoUrl: String?
+    let targetCoordinate: TargetCoordinate?
 
     // Identifiable requirement
     var questionId: String { id }
+
+    init(id: String, difficulty: PuzzleDifficulty, type: PuzzleType = .text, title: String, scenario: String, options: [String], correctAnswer: String, coachingTip: String, diagramUrl: String? = nil, videoUrl: String? = nil, targetCoordinate: TargetCoordinate? = nil) {
+        self.id = id
+        self.difficulty = difficulty
+        self.type = type
+        self.title = title
+        self.scenario = scenario
+        self.options = options
+        self.correctAnswer = correctAnswer
+        self.coachingTip = coachingTip
+        self.diagramUrl = diagramUrl
+        self.videoUrl = videoUrl
+        self.targetCoordinate = targetCoordinate
+    }
 }
 
 struct PadelPuzzleAnswerRecord: Codable, Identifiable {

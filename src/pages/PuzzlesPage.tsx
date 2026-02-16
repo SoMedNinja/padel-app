@@ -14,9 +14,11 @@ import {
   Typography,
 } from "@mui/material";
 import { CheckCircle as CheckCircleIcon, School as SchoolIcon } from "@mui/icons-material";
+import confetti from "canvas-confetti";
 import { useStore } from "../store/useStore";
 import { getPuzzlesByDifficulty, padelPuzzles, puzzleDifficulties, type PadelPuzzle } from "../content/padelPuzzles";
 import type { PuzzleDifficulty } from "../content/padelPuzzlesEditable";
+import PadelCourt from "../Components/PadelCourt";
 import {
   puzzleStorageKeyForUser,
   readPuzzleAnswerMap,
@@ -48,6 +50,7 @@ export default function PuzzlesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [difficulty, setDifficulty] = useState<PuzzleDifficulty>("easy");
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedCoordinate, setSelectedCoordinate] = useState<{ x: number; y: number } | null>(null);
   const [submittedRecord, setSubmittedRecord] = useState<PadelPuzzleAnswerRecord | null>(null);
   const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, PadelPuzzleAnswerRecord>>({});
 
@@ -90,6 +93,7 @@ export default function PuzzlesPage() {
 
   useEffect(() => {
     setSelectedAnswer(answerRecord?.selectedAnswer ?? null);
+    setSelectedCoordinate(null);
     setSubmittedRecord(null);
   }, [answerRecord?.selectedAnswer, currentPuzzle?.questionId]);
 
@@ -113,14 +117,31 @@ export default function PuzzlesPage() {
   };
 
   const handleCheckAnswer = () => {
-    if (!currentPuzzle || !selectedAnswer || answerRecord || submittedRecord) return;
+    if (!currentPuzzle) return;
+    if (answerRecord || submittedRecord) return;
+
+    let isCorrect = false;
+    let finalAnswer = selectedAnswer ?? "";
+
+    if (currentPuzzle.type === "tap-to-target") {
+      if (!selectedCoordinate || !currentPuzzle.targetCoordinate) return;
+      const dist = Math.sqrt(
+        Math.pow(selectedCoordinate.x - currentPuzzle.targetCoordinate.x, 2) +
+        Math.pow(selectedCoordinate.y - currentPuzzle.targetCoordinate.y, 2)
+      );
+      isCorrect = dist < 0.15;
+      finalAnswer = isCorrect ? currentPuzzle.correctAnswer : "Fel position";
+    } else {
+      if (!selectedAnswer) return;
+      isCorrect = selectedAnswer === currentPuzzle.correctAnswer;
+    }
 
     const nextRecord: PadelPuzzleAnswerRecord = {
       questionId: currentPuzzle.questionId,
       difficulty: currentPuzzle.difficulty,
-      selectedAnswer,
+      selectedAnswer: finalAnswer,
       correctAnswer: currentPuzzle.correctAnswer,
-      isCorrect: selectedAnswer === currentPuzzle.correctAnswer,
+      isCorrect,
       answeredAt: new Date().toISOString(),
     };
 
@@ -129,6 +150,12 @@ export default function PuzzlesPage() {
     setSubmittedRecord(nextRecord);
 
     if (nextRecord.isCorrect) {
+      void confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#d32f2f", "#ffffff", "#000000"],
+      });
       setAnswersByQuestionId((previous) => {
         const next = { ...previous, [currentPuzzle.questionId]: nextRecord };
         // Note for non-coders: we only store correct answers as permanently solved.
@@ -246,33 +273,75 @@ export default function PuzzlesPage() {
               </Typography>
               <Typography color="text.secondary">{currentPuzzle.scenario}</Typography>
 
-              <ToggleButtonGroup
-                exclusive
-                value={selectedAnswer}
-                onChange={(_, value) => {
-                  if (answerRecord || submittedRecord) return;
-                  setSelectedAnswer(value);
-                }}
-                orientation="vertical"
-                fullWidth
-              >
-                {currentPuzzle.options.map((option) => (
-                  <ToggleButton
-                    key={option}
-                    value={option}
-                    disabled={Boolean(answerRecord || submittedRecord)}
-                    sx={{ justifyContent: "flex-start", textTransform: "none" }}
-                  >
-                    {option}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
+              {currentPuzzle.diagramUrl && currentPuzzle.type !== "tap-to-target" && (
+                <Box
+                  component="img"
+                  src={currentPuzzle.diagramUrl}
+                  alt="Scenario diagram"
+                  sx={{
+                    width: "100%",
+                    maxHeight: 300,
+                    objectFit: "contain",
+                    borderRadius: 2,
+                    bgcolor: "background.paper",
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                />
+              )}
+
+              {currentPuzzle.type === "video" && currentPuzzle.videoUrl && (
+                <Box
+                  component="video"
+                  src={currentPuzzle.videoUrl}
+                  controls
+                  sx={{
+                    width: "100%",
+                    borderRadius: 2,
+                    bgcolor: "black",
+                  }}
+                />
+              )}
+
+              {currentPuzzle.type === "tap-to-target" && (
+                <PadelCourt
+                  onTap={(x, y) => setSelectedCoordinate({ x, y })}
+                  selectedTap={selectedCoordinate}
+                  correctTap={currentPuzzle.targetCoordinate ?? null}
+                  showResult={Boolean(answerRecord || submittedRecord)}
+                  imageUrl={currentPuzzle.diagramUrl}
+                />
+              )}
+
+              {currentPuzzle.type !== "tap-to-target" && (
+                <ToggleButtonGroup
+                  exclusive
+                  value={selectedAnswer}
+                  onChange={(_, value) => {
+                    if (answerRecord || submittedRecord) return;
+                    setSelectedAnswer(value);
+                  }}
+                  orientation="vertical"
+                  fullWidth
+                >
+                  {currentPuzzle.options.map((option) => (
+                    <ToggleButton
+                      key={option}
+                      value={option}
+                      disabled={Boolean(answerRecord || submittedRecord)}
+                      sx={{ justifyContent: "flex-start", textTransform: "none" }}
+                    >
+                      {option}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              )}
 
               <Stack direction="row" spacing={1.5}>
                 <Button
                   variant="contained"
                   onClick={handleCheckAnswer}
-                  disabled={!selectedAnswer || Boolean(answerRecord || submittedRecord)}
+                  disabled={(!selectedAnswer && !selectedCoordinate) || Boolean(answerRecord || submittedRecord)}
                 >
                   Kontrollera svar
                 </Button>

@@ -29,9 +29,16 @@ import {
   Shield as ShieldIcon,
   Shuffle as ShuffleIcon,
   SportsTennis as SportsTennisIcon,
+  Search as SearchIcon,
+  MenuBook as MenuBookIcon,
 } from "@mui/icons-material";
 import { useStore } from "../store/useStore";
 import { educationTopics, type EducationTopic } from "../content/educationTopics";
+import { glossary, padelRules } from "../content/glossary";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import { readCompletedQuizMap, storageKeyForUser, type CompletedQuizRecord } from "../utils/educationQuiz";
 
 const illustrationIcons = {
@@ -46,6 +53,14 @@ const illustrationIcons = {
 
 function TopicListView({ completedByTopicId }: { completedByTopicId: Record<string, CompletedQuizRecord> }) {
   const navigate = useNavigate();
+  const [tab, setTab] = useState(0);
+  const [search, setSearch] = useState("");
+
+  const filteredGlossary = glossary.filter(
+    (item) =>
+      item.term.toLowerCase().includes(search.toLowerCase()) ||
+      item.definition.toLowerCase().includes(search.toLowerCase()),
+  );
 
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
@@ -53,13 +68,19 @@ function TopicListView({ completedByTopicId }: { completedByTopicId: Record<stri
         Utbildning
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
-        Lär dig padel med korta artiklar och quiz som kan göras en gång per ämne.
+        Lär dig padel med korta artiklar, quiz och vår omfattande ordlista.
       </Typography>
 
-      <Card sx={{ borderRadius: 3 }}>
-        <CardContent>
-          <List disablePadding>
-            {educationTopics.map((topic, index) => {
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tab label="Ämnen" />
+        <Tab label="Ordlista & Regler" />
+      </Tabs>
+
+      {tab === 0 && (
+        <Card sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <List disablePadding>
+              {educationTopics.map((topic, index) => {
               const Icon = illustrationIcons[topic.illustration];
               const earnedBadge = completedByTopicId[topic.id];
 
@@ -82,13 +103,81 @@ function TopicListView({ completedByTopicId }: { completedByTopicId: Record<stri
                     ) : null}
                     <ArrowForwardIcon color="action" />
                   </ListItemButton>
-                  {index < educationTopics.length - 1 && <Divider component="li" />}
-                </Box>
-              );
-            })}
-          </List>
-        </CardContent>
-      </Card>
+                    {index < educationTopics.length - 1 && <Divider component="li" />}
+                  </Box>
+                );
+              })}
+            </List>
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === 1 && (
+        <Stack spacing={3}>
+          <Box>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Sök i ordlistan..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ bgcolor: "background.paper", borderRadius: 2 }}
+            />
+          </Box>
+
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                <MenuBookIcon color="primary" /> Ordlista
+              </Typography>
+              <List disablePadding>
+                {filteredGlossary.map((item, index) => (
+                  <Box key={item.term}>
+                    <ListItemButton sx={{ py: 1.5, cursor: "default" }}>
+                      <ListItemText
+                        primary={item.term}
+                        secondary={item.definition}
+                        primaryTypographyProps={{ fontWeight: 700, color: "primary.main" }}
+                      />
+                    </ListItemButton>
+                    {index < filteredGlossary.length - 1 && <Divider component="li" />}
+                  </Box>
+                ))}
+                {filteredGlossary.length === 0 && (
+                  <Typography color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
+                    Inga träffar i ordlistan.
+                  </Typography>
+                )}
+              </List>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                <GavelIcon color="primary" /> Grundregler
+              </Typography>
+              <Stack spacing={2}>
+                {padelRules.map((rule) => (
+                  <Box key={rule.title}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{rule.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">{rule.description}</Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </CardContent>
+          </Card>
+        </Stack>
+      )}
     </Container>
   );
 }

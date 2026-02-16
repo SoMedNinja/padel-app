@@ -5,13 +5,19 @@ export interface EditablePadelPuzzleOption {
   isCorrect: boolean;
 }
 
+export type PuzzleType = "text" | "tap-to-target" | "video";
+
 export interface EditablePadelPuzzle {
   questionId: string;
   difficulty: PuzzleDifficulty;
+  type?: PuzzleType;
   title: string;
   scenario: string;
   options: EditablePadelPuzzleOption[];
   coachingTip: string;
+  diagramUrl?: string;
+  videoUrl?: string;
+  targetCoordinate?: { x: number; y: number };
 }
 
 // Note for non-coders:
@@ -211,5 +217,92 @@ export const editablePadelPuzzles: EditablePadelPuzzle[] = [
       { text: "Spela hårt i mitten i axelhöjd till nätspelarna.", isCorrect: false },
     ],
     coachingTip: "I hörnkris är ett smart neutralt slag nästan alltid bättre än ett chansslag.",
+  },
+  {
+    questionId: "v1",
+    difficulty: "easy",
+    type: "video",
+    title: "Video: Grundläggande Serve",
+    scenario: "Titta på videon. Vilket är det viktigaste steget för en regelrätt serve enligt videon?",
+    videoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    options: [
+      { text: "Att bollen träffas under midjehöjd.", isCorrect: true },
+      { text: "Att man hoppar vid träffögonblicket.", isCorrect: false },
+      { text: "Att bollen träffas över axeln.", isCorrect: false },
+    ],
+    coachingTip: "Enligt reglerna måste bollen vid serve träffas vid eller under midjehöjd.",
+  },
+  {
+    questionId: "v2",
+    difficulty: "medium",
+    type: "video",
+    title: "Video: Positionering vid nät",
+    scenario: "Se hur spelarna rör sig i videon. Vad gör de när motståndaren slår en lobb?",
+    videoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    options: [
+      { text: "De backar tillsammans för att täcka bakplan.", isCorrect: true },
+      { text: "En stannar vid nät medan den andra backar.", isCorrect: false },
+      { text: "Båda rusar mot nätet för att smasha.", isCorrect: false },
+    ],
+    coachingTip: "Synkroniserad rörelse bakåt på lobb är avgörande för att behålla försvarsstrukturen.",
+  },
+  {
+    questionId: "v3",
+    difficulty: "hard",
+    type: "video",
+    title: "Video: Avancerad Bandeja",
+    scenario: "Studera tekniken i videon. Vad är huvudsyftet med detta specifika slag?",
+    videoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    options: [
+      { text: "Att behålla nätposition genom kontroll.", isCorrect: true },
+      { text: "Att slå bollen så hårt som möjligt för att vinna poängen.", isCorrect: false },
+      { text: "Att få bollen att studsa över gallret.", isCorrect: false },
+    ],
+    coachingTip: "Bandejan används primärt för att neutralisera en lobb och behålla initiativet vid nät.",
+  },
+  {
+    questionId: "t1",
+    difficulty: "easy",
+    type: "tap-to-target",
+    title: "Vart ska serven sitta?",
+    scenario: "Du ska serva från höger sida. Klicka på den del av banan där serven ska landa för att vara giltig.",
+    diagramUrl: "/education/rules-serve.svg",
+    targetCoordinate: { x: 0.25, y: 0.75 },
+    options: [
+      { text: "Diagonal serveruta", isCorrect: true },
+      { text: "Rakt fram", isCorrect: false },
+      { text: "Utanför linjen", isCorrect: false },
+    ],
+    coachingTip: "Serven måste alltid landa i den diagonala serverutan på motståndarens sida.",
+  },
+  {
+    questionId: "t2",
+    difficulty: "medium",
+    type: "tap-to-target",
+    title: "Hitta luckan",
+    scenario: "Motståndarna täcker linjerna väl men lämnar en lucka. Klicka på banan där du bör placera bollen för att skapa mest osäkerhet.",
+    diagramUrl: "/education/offense-positions.svg",
+    targetCoordinate: { x: 0.5, y: 0.5 },
+    options: [
+      { text: "I mitten mellan spelarna", isCorrect: true },
+      { text: "Hårt mot sidogallret", isCorrect: false },
+      { text: "Långt bak i hörnet", isCorrect: false },
+    ],
+    coachingTip: "Mitten är ofta den säkraste och mest effektiva platsen att spela på när motståndarna täcker kanterna.",
+  },
+  {
+    questionId: "t3",
+    difficulty: "hard",
+    type: "tap-to-target",
+    title: "Defensiv placering",
+    scenario: "Du är under hård press i hörnet. Vart är det säkrast att placera din lobb för att vinna tid? Klicka på målområdet.",
+    diagramUrl: "/education/defense-reset.svg",
+    targetCoordinate: { x: 0.75, y: 0.9 },
+    options: [
+      { text: "Djupt i motståndarens hörn", isCorrect: true },
+      { text: "Kort i mitten", isCorrect: false },
+      { text: "Hårt på nätspelaren", isCorrect: false },
+    ],
+    coachingTip: "En djup lobb mot hörnet ger dig och din partner maximal tid att återta era positioner.",
   },
 ];
