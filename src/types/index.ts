@@ -115,6 +115,17 @@ export interface TournamentRound {
   created_at?: string;
 }
 
+export interface TournamentRoundInsert {
+  tournament_id: string;
+  round_number: number;
+  team1_ids: (string | null)[];
+  team2_ids: (string | null)[];
+  resting_ids?: (string | null)[];
+  team1_score?: number | null;
+  team2_score?: number | null;
+  mode?: "americano" | "mexicano";
+}
+
 export interface AppUser extends Profile {
   id: string;
   email?: string | null;
