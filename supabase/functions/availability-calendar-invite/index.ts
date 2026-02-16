@@ -41,6 +41,15 @@ const toBase64 = (value: string) => {
   return btoa(unescape(encodeURIComponent(value)));
 };
 
+const escapeHtml = (unsafe: string) => {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
 const escapeIcs = (value: string) =>
   value
     .replace(/\\/g, "\\\\")
@@ -208,7 +217,11 @@ Deno.serve(async (req) => {
     ].join("\r\n");
 
     const subjectPrefix = action === "cancel" ? "Avbokad" : action === "update" ? "Uppdaterad" : "Inbjudan";
-    const schemaLink = pollId ? `${appBaseUrl}/schema?poll=${pollId}` : `${appBaseUrl}/schema`;
+    const schemaLinkParams = new URLSearchParams();
+    if (pollId) schemaLinkParams.set("poll", pollId);
+    const schemaLink = schemaLinkParams.toString()
+      ? `${appBaseUrl}/schema?${schemaLinkParams.toString()}`
+      : `${appBaseUrl}/schema`;
 
     const maxRetriesOnRateLimit = 2;
     const rateLimitWaitMs = 1200;
@@ -261,12 +274,12 @@ Deno.serve(async (req) => {
     const errors: Array<{ email: string; error: string }> = [];
 
     for (const recipient of recipients) {
-      const locationLine = location ? `<p><strong>Plats:</strong> ${location}</p>` : "";
+      const locationLine = location ? `<p><strong>Plats:</strong> ${escapeHtml(location)}</p>` : "";
       const html = `
         <html>
           <body style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2>${subjectPrefix}: ${title}</h2>
-            <p>Hej ${recipient.name}!</p>
+            <h2>${subjectPrefix}: ${escapeHtml(title)}</h2>
+            <p>Hej ${escapeHtml(recipient.name)}!</p>
             <p>Du får här en kalenderinbjudan för padelpasset. Öppna bilagan för att lägga till, uppdatera eller avbryta eventet i din kalender.</p>
             ${locationLine}
             <p><a href="${schemaLink}">Öppna schema</a></p>
