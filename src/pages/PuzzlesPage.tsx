@@ -20,8 +20,9 @@ import { getPuzzlesByDifficulty, padelPuzzles, puzzleDifficulties, type PadelPuz
 import type { PuzzleDifficulty } from "../content/padelPuzzlesEditable";
 import PadelCourt from "../Components/PadelCourt";
 import {
-  puzzleStorageKeyForUser,
+  clearPuzzleAnswers,
   readPuzzleAnswerMap,
+  savePuzzleAnswerMap,
   type PadelPuzzleAnswerRecord,
 } from "../utils/padelPuzzle";
 import { puzzleMeritService } from "../services/puzzleMeritService";
@@ -160,7 +161,7 @@ export default function PuzzlesPage() {
         const next = { ...previous, [currentPuzzle.questionId]: nextRecord };
         // Note for non-coders: we only store correct answers as permanently solved.
         // Wrong answers are temporary attempts and will come back in the queue later.
-        window.localStorage.setItem(puzzleStorageKeyForUser(user?.id), JSON.stringify(next));
+        savePuzzleAnswerMap(user?.id, next);
         return next;
       });
     }
@@ -188,7 +189,7 @@ export default function PuzzlesPage() {
   const resetProgress = () => {
     // Note for non-coders: this button clears only puzzle progress for the current user key.
     // It does not remove matches, profile data, or other app history.
-    window.localStorage.removeItem(puzzleStorageKeyForUser(user?.id));
+    clearPuzzleAnswers(user?.id);
     setAnswersByQuestionId({});
     setDifficulty("easy");
     setSelectedAnswer(null);
