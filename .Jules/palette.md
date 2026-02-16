@@ -69,3 +69,11 @@
 ## 2026-06-20 - [PWA UX: Haptic Delight & Discovery Landmarks]
 **Learning:** PWAs can achieve parity with native iOS apps by using `navigator.vibrate` for tactile feedback on key interactions like player selection, score toggles, and search clearing. Non-interactive text that triggers tooltips (like table headers) remains invisible to keyboard users; making them focusable with `tabIndex={0}` and adding visual cues like `cursor: help` ensures accessibility and discovery.
 **Action:** Use `navigator.vibrate` for micro-interactions in PWA components. Always ensure tooltip-carrying elements are focusable and use appropriate ARIA labels and cursor styles to signal interactivity.
+
+## 2026-06-25 - [A11y: Keyboard Discovery & Row Summaries]
+**Learning:** Dense data tables (like ELO leaderboards) are cognitively expensive for screen reader users if they have to navigate every cell. Providing a summarized `aria-label` on the row allows for rapid scanning. Interactive elements within these rows (like rivalry modals) must be explicitly focusable via `tabIndex` and respond to keyboard events (`Enter`/`Space`) to ensure discovery.
+**Action:** Always add summarized `aria-label` to rows in dense tables. Ensure clickable `TableRows` have `tabIndex={0}` and a corresponding `onKeyDown` listener.
+
+## 2026-06-25 - [A11y: Step Navigation & Focusable Landmarks]
+**Learning:** MUI `StepLabel` with `onClick` is not keyboard-accessible by default. Screen readers and keyboard users cannot "discover" that a step is clickable unless it uses a button-like component. Using `StepButton` provides the necessary focus states and keyboard interaction handlers automatically.
+**Action:** Use `StepButton` to wrap `StepLabel` in interactive `Stepper` components to ensure full keyboard support for form navigation.

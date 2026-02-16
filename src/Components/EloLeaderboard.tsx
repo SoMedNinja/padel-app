@@ -327,6 +327,14 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     ref={measureElement(virtualItem.index)}
                     data-index={virtualItem.index}
                     aria-rowindex={virtualItem.index + 1}
+                    aria-label={`Rank ${virtualItem.index + 1}: ${p.name}, ELO ${Math.round(p.elo)}, ${p.wins + p.losses} matcher, ${winPct(p.wins, p.losses)}% vinstprocent. ${isMe || !user ? '' : 'Tryck för rivalitet.'}`}
+                    tabIndex={isMe || !user ? -1 : 0}
+                    onKeyDown={(e) => {
+                      if (!isMe && user && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        handlePlayerClick(p);
+                      }
+                    }}
                     hover
                     onClick={() => handlePlayerClick(p)}
                     sx={{
@@ -345,6 +353,11 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       cursor: isMe || !user ? 'default' : 'pointer',
                       '&:hover': {
                         bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.12) : undefined
+                      },
+                      '&:focus-visible': {
+                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                        outline: 'none',
+                        boxShadow: (theme) => `inset 0 0 0 2px ${theme.palette.primary.main}`
                       }
                     }}
                   >

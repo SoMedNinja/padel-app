@@ -41,6 +41,8 @@ export default function MatchHighlightCard({ highlight, match, onDismiss, deltas
     <>
     <Paper
       elevation={0}
+      role="article"
+      aria-label={`Matchhöjdpunkt: ${highlight.title}. ${highlight.description} ${team1} mot ${team2}, resultat ${match.team1_sets}–${match.team2_sets}`}
       sx={{
         p: 2,
         mb: 2,

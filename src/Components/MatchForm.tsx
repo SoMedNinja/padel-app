@@ -15,6 +15,7 @@ import {
   Stepper,
   Step,
   StepLabel,
+  StepButton,
   ButtonBase,
   Tooltip,
   TextField,
@@ -738,18 +739,30 @@ export default function MatchForm({
             <>
               {/* Note for non-coders: the Stepper is the progress bar that shows which stage of the form you're in. */}
               <Stepper activeStep={activeWizardStep} alternativeLabel sx={{ mb: 2 }}>
-                {wizardSteps.map((label, index) => (
-                  <Step key={label} completed={index < activeWizardStep}>
-                    <StepLabel
-                      onClick={() => handleWizardStepClick(index)}
-                      sx={{
-                        cursor: index <= activeWizardStep ? "pointer" : "default",
-                      }}
-                    >
-                      {label}
-                    </StepLabel>
-                  </Step>
-                ))}
+                {wizardSteps.map((label, index) => {
+                  const isClickable = index <= activeWizardStep;
+                  return (
+                    <Step key={label} completed={index < activeWizardStep}>
+                      <StepButton
+                        onClick={() => isClickable && handleWizardStepClick(index)}
+                        disabled={!isClickable}
+                        icon={null} // Use default icon logic from Step
+                        sx={{
+                          p: 0,
+                          '& .MuiStepButton-touchRipple': { display: isClickable ? 'block' : 'none' },
+                        }}
+                      >
+                        <StepLabel
+                          sx={{
+                            cursor: isClickable ? "pointer" : "default",
+                          }}
+                        >
+                          {label}
+                        </StepLabel>
+                      </StepButton>
+                    </Step>
+                  );
+                })}
               </Stepper>
             </>
           )}
