@@ -4,7 +4,7 @@ import {
   resolveTeamIds,
 } from "./profileMap";
 import { getStreak, getTrendIndicator } from "./stats";
-import { Match, Profile, PlayerStats } from "../types";
+import { Match, Profile, PlayerStats, PartnerStats } from "../types";
 
 const BASE_K = 20;
 const HIGH_K = 40;
@@ -359,7 +359,7 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     const trend = getTrendIndicator(player.recentResults);
 
     // Optimization: find best partner in a single pass instead of map + filter + sort
-    let bestPartnerEntry: any = null;
+    let bestPartnerEntry: (PartnerStats & { partnerId: string; winRate: number }) | null = null;
     let bestWinRate = -1;
     let bestGames = -1;
     let bestWins = -1;
