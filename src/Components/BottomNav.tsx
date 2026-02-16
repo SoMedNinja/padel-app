@@ -86,10 +86,14 @@ const BottomNav: React.FC<BottomNavProps> = ({
           bgcolor: 'transparent',
           '& .MuiBottomNavigationAction-root': {
             minWidth: 0,
-            padding: '8px 0',
+            padding: '12px 0',
+          },
+          '& .MuiSvgIcon-root': {
+            fontSize: '1.6rem',
+            mb: 0.25,
           },
           '& .MuiBottomNavigationAction-label': {
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: '0.65rem',
             '&.Mui-selected': {
               fontSize: '0.65rem',
@@ -111,32 +115,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
           <BottomNavigationAction
             label="Match"
             value="match"
-            icon={
-              isGuest ? (
-                <LockIcon />
-              ) : (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 48, // Increased from 40
-                    height: 48, // Increased from 40
-                    borderRadius: '50%',
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    mb: 0.5,
-                    boxShadow: (theme) => `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
-                    transition: 'transform 0.2s',
-                    '&:active': {
-                      transform: 'scale(0.92)',
-                    }
-                  }}
-                >
-                  <MatchIcon sx={{ fontSize: '1.8rem' }} />
-                </Box>
-              )
-            }
+            icon={isGuest ? <LockIcon /> : <MatchIcon />}
             disabled={isGuest}
           />
         )}
