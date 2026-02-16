@@ -82,11 +82,18 @@ const BottomNav: React.FC<BottomNavProps> = ({
         value={getActiveValue()}
         onChange={handleChange}
         sx={{
-          height: 64,
+          height: 72, // Increased from 64
           bgcolor: 'transparent',
           '& .MuiBottomNavigationAction-root': {
             minWidth: 0,
-            padding: '6px 0',
+            padding: '8px 0',
+          },
+          '& .MuiBottomNavigationAction-label': {
+            fontWeight: 700,
+            fontSize: '0.65rem',
+            '&.Mui-selected': {
+              fontSize: '0.65rem',
+            }
           }
         }}
       >
@@ -113,15 +120,20 @@ const BottomNav: React.FC<BottomNavProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: 40,
-                    height: 40,
+                    width: 48, // Increased from 40
+                    height: 48, // Increased from 40
                     borderRadius: '50%',
                     bgcolor: 'primary.main',
                     color: 'white',
                     mb: 0.5,
+                    boxShadow: (theme) => `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                    transition: 'transform 0.2s',
+                    '&:active': {
+                      transform: 'scale(0.92)',
+                    }
                   }}
                 >
-                  <MatchIcon />
+                  <MatchIcon sx={{ fontSize: '1.8rem' }} />
                 </Box>
               )
             }

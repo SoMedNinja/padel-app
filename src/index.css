@@ -42,6 +42,11 @@ body,
   overscroll-behavior-y: none;
 }
 
+/* Note for non-coders: this ensures the pull-to-refresh animation is not hidden behind sticky headers or notifications. */
+.app-pull-to-refresh .ptr {
+  z-index: 1000;
+}
+
 /* Legacy support for tables if needed, but transitioning to MUI Table */
 .styled-table {
   width:100%;
