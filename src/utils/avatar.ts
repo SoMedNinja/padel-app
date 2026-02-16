@@ -1,3 +1,5 @@
+import { Area } from "react-easy-crop";
+
 export const getInitial = (name: string = "") => {
   const trimmed = name.trim();
   if (!trimmed) return "?";
@@ -51,25 +53,36 @@ export const removeStoredAvatar = (id: string | null | undefined) => {
   }
 };
 
-export const cropAvatarImage = (source: string, zoom = 1, outputSize = 300): Promise<string> =>
+const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => {
-      const minSide = Math.min(image.width, image.height);
-      const cropSize = minSide / Math.max(zoom, 1);
-      const sx = (image.width - cropSize) / 2;
-      const sy = (image.height - cropSize) / 2;
-      const canvas = document.createElement("canvas");
-      canvas.width = outputSize;
-      canvas.height = outputSize;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Canvas not supported"));
-        return;
-      }
-      ctx.drawImage(image, sx, sy, cropSize, cropSize, 0, 0, outputSize, outputSize);
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
-    };
-    image.onerror = () => reject(new Error("Failed to load image"));
-    image.src = source;
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", (error) => reject(error));
+    image.setAttribute("crossOrigin", "anonymous");
+    image.src = url;
   });
+
+export const getCroppedImg = async (imageSrc: string, pixelCrop: Area): Promise<string> => {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return "";
+
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+
+  return canvas.toDataURL("image/jpeg");
+};

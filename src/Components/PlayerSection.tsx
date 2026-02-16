@@ -16,7 +16,8 @@ import Cropper, { Area } from "react-easy-crop";
 import {
   getStoredAvatar,
   removeStoredAvatar,
-  setStoredAvatar
+  setStoredAvatar,
+  getCroppedImg
 } from "../utils/avatar";
 import {
   ELO_BASELINE,
@@ -85,7 +86,6 @@ import { alpha } from "@mui/material/styles";
 // backgrounds are soft instead of solid blocks.
 import "./PlayerSection.css";
 import { formatDate, formatScore } from "../utils/format";
-import { getCroppedImg } from "../utils/image";
 
 const percent = (wins: number, losses: number) => {
   const total = wins + losses;
