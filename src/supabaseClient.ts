@@ -14,30 +14,96 @@ const isSupabaseConfigured = !supabaseConfigWarning;
 const missingSupabaseMessage = supabaseConfigWarning
   || "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.";
 
-const createMockQuery = (): any => {
-  const response = { data: [], error: null };
-  return {
-    select: () => createMockQuery(),
-    insert: () => createMockQuery(),
-    update: () => createMockQuery(),
-    upsert: () => createMockQuery(),
-    delete: () => createMockQuery(),
-    eq: () => createMockQuery(),
-    lt: () => createMockQuery(),
-    lte: () => createMockQuery(),
-    or: () => createMockQuery(),
-    order: () => createMockQuery(),
-    limit: () => createMockQuery(),
-    single: () => createMockQuery(),
-    filter: () => createMockQuery(),
-    not: () => createMockQuery(),
-    then: (onFulfilled: any, onRejected: any) => Promise.resolve(response).then(onFulfilled, onRejected),
-    catch: (onRejected: any) => Promise.resolve(response).catch(onRejected),
-    finally: (onFinally: any) => Promise.resolve(response).finally(onFinally),
+/**
+ * Note for non-coders: this interface describes the minimal set of methods
+ * we expect from a Supabase query builder when the real database is missing.
+ */
+interface MockResponse<T = any> {
+  data: T;
+  error: any;
+  count?: number | null;
+}
+
+interface MockQueryBuilder {
+  select: (columns?: string) => MockQueryBuilder;
+  insert: (values: any) => MockQueryBuilder;
+  update: (values: any) => MockQueryBuilder;
+  upsert: (values: any) => MockQueryBuilder;
+  delete: () => MockQueryBuilder;
+  eq: (column: string, value: any) => MockQueryBuilder;
+  lt: (column: string, value: any) => MockQueryBuilder;
+  lte: (column: string, value: any) => MockQueryBuilder;
+  or: (filters: string) => MockQueryBuilder;
+  order: (column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) => MockQueryBuilder;
+  limit: (count: number) => MockQueryBuilder;
+  single: () => MockQueryBuilder;
+  filter: (column: string, operator: string, value: any) => MockQueryBuilder;
+  not: (column: string, operator: string, value: any) => MockQueryBuilder;
+  then: <TResult1 = MockResponse, TResult2 = never>(
+    onFulfilled?: ((value: MockResponse) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+    onRejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+  ) => Promise<TResult1 | TResult2>;
+  catch: <TResult = never>(
+    onRejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null
+  ) => Promise<MockResponse | TResult>;
+  finally: (onFinally?: (() => void) | undefined | null) => Promise<MockResponse>;
+}
+
+/**
+ * Note for non-coders: this interface describes the minimal set of methods
+ * we expect from a Supabase auth client when the real database is missing.
+ */
+interface MockAuth {
+  getUser: () => Promise<{ data: { user: any }; error: any }>;
+  onAuthStateChange: (callback: any) => { data: { subscription: { unsubscribe: () => void } } };
+  signUp: (credentials: any) => Promise<{ data: any; error: any }>;
+  signInWithPassword: (credentials: any) => Promise<{ data: any; error: any }>;
+  resetPasswordForEmail: (email: string, options?: any) => Promise<{ data: any; error: any }>;
+  signOut: () => Promise<{ error: any }>;
+  getSession: () => Promise<{ data: { session: any }; error: any }>;
+  refreshSession: () => Promise<{ data: { session: any }; error: any }>;
+}
+
+/**
+ * Note for non-coders: this interface describes the minimal set of methods
+ * we expect from the main Supabase client when the real database is missing.
+ */
+interface MockSupabase {
+  auth: MockAuth;
+  from: (table: string) => MockQueryBuilder;
+  channel: (name: string) => any;
+  removeChannel: (channel: any) => void;
+  functions: {
+    invoke: (name: string, options?: any) => Promise<{ data: any; error: any }>;
   };
+  rpc: (name: string, args?: any) => Promise<{ data: any; error: any }>;
+}
+
+const createMockQuery = (): MockQueryBuilder => {
+  const response: MockResponse = { data: [], error: null, count: 0 };
+  const query: MockQueryBuilder = {
+    select: () => query,
+    insert: () => query,
+    update: () => query,
+    upsert: () => query,
+    delete: () => query,
+    eq: () => query,
+    lt: () => query,
+    lte: () => query,
+    or: () => query,
+    order: () => query,
+    limit: () => query,
+    single: () => query,
+    filter: () => query,
+    not: () => query,
+    then: (onFulfilled, onRejected) => Promise.resolve(response).then(onFulfilled, onRejected),
+    catch: (onRejected) => Promise.resolve(response).catch(onRejected),
+    finally: (onFinally) => Promise.resolve(response).finally(onFinally),
+  };
+  return query;
 };
 
-const createMockSupabase = (): any => ({
+const createMockSupabase = (): MockSupabase => ({
   // Note for non-coders: this mock makes configuration mistakes obvious without crashing the whole app.
   auth: {
     getUser: () => Promise.resolve({ data: { user: null }, error: null }),
@@ -49,7 +115,8 @@ const createMockSupabase = (): any => ({
     resetPasswordForEmail: () => Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
     signOut: () => Promise.resolve({ error: new Error(missingSupabaseMessage) }),
     getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    refreshSession: () => Promise.resolve({ data: { session: null }, error: new Error(missingSupabaseMessage) }),
+    refreshSession: () =>
+      Promise.resolve({ data: { session: null }, error: new Error(missingSupabaseMessage) }),
   },
   from: () => createMockQuery(),
   channel: () => {
@@ -60,6 +127,12 @@ const createMockSupabase = (): any => ({
     return channel;
   },
   removeChannel: () => {},
+  functions: {
+    invoke: (_name: string, _options?: any) =>
+      Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
+  },
+  rpc: (_name: string, _args?: any) =>
+    Promise.resolve({ data: null, error: new Error(missingSupabaseMessage) }),
 });
 
 export const supabase: SupabaseClient = isSupabaseConfigured
