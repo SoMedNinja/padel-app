@@ -370,6 +370,14 @@ export const matchService = {
       if (range?.end) {
         query = query.lte("created_at", range.end.toISOString());
       }
+
+      // Note for non-coders: bounding the result set prevents fetching too much data at once.
+      const limit = typeof filter.limit === "number" ? filter.limit : 100;
+      const offset = typeof filter.offset === "number" ? filter.offset : 0;
+      query = query.range(offset, offset + limit - 1);
+    } else {
+      // Default bounding to 100 if no filter is specified
+      query = query.limit(100);
     }
 
     const { data, error } = await query;
