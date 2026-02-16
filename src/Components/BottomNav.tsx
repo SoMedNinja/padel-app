@@ -8,9 +8,9 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
-  Assessment as AssessmentIcon,
-  Person as PersonIcon,
-  Add as MatchIcon,
+  ShowChart as AssessmentIcon,
+  AccountCircle as PersonIcon,
+  LibraryAdd as MatchIcon,
   CalendarMonth as CalendarIcon,
   MoreHoriz as MoreIcon,
   Lock as LockIcon,
