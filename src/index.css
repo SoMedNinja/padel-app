@@ -44,7 +44,12 @@ body,
 
 /* Note for non-coders: this ensures the pull-to-refresh animation is always on top of the screen content, including headers and notifications. */
 .app-pull-to-refresh .ptr {
-  z-index: 1600;
+  z-index: 1600 !important;
+  position: relative;
+}
+
+.app-pull-to-refresh .ptr__children {
+  z-index: 0;
   position: relative;
 }
 
@@ -261,6 +266,8 @@ body.chart-fullscreen-active {
   justify-content: center;
   padding: 20px;
   gap: 12px;
+  z-index: 1601 !important;
+  position: relative;
 }
 
 .padel-ball {
