@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import confetti from "canvas-confetti";
 import {
   Alert,
   Box,
@@ -24,7 +23,6 @@ import {
   type PadelPuzzleAnswerRecord,
 } from "../utils/padelPuzzle";
 import { puzzleMeritService } from "../services/puzzleMeritService";
-import PadelCourtInteraction from "../Components/PadelCourtInteraction";
 
 const difficultyLabels: Record<PuzzleDifficulty, string> = {
   easy: "Easy",
@@ -50,7 +48,6 @@ export default function PuzzlesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [difficulty, setDifficulty] = useState<PuzzleDifficulty>("easy");
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState<{ x: number; y: number } | null>(null);
   const [submittedRecord, setSubmittedRecord] = useState<PadelPuzzleAnswerRecord | null>(null);
   const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, PadelPuzzleAnswerRecord>>({});
 
@@ -93,7 +90,6 @@ export default function PuzzlesPage() {
 
   useEffect(() => {
     setSelectedAnswer(answerRecord?.selectedAnswer ?? null);
-    setSelectedTarget(null);
     setSubmittedRecord(null);
   }, [answerRecord?.selectedAnswer, currentPuzzle?.questionId]);
 
@@ -117,28 +113,14 @@ export default function PuzzlesPage() {
   };
 
   const handleCheckAnswer = () => {
-    if (!currentPuzzle || answerRecord || submittedRecord) return;
-    if (currentPuzzle.type === "tap-to-target" && !selectedTarget) return;
-    if (currentPuzzle.type !== "tap-to-target" && !selectedAnswer) return;
-
-    let isCorrect = false;
-    if (currentPuzzle.type === "tap-to-target" && currentPuzzle.targetCoordinate && selectedTarget) {
-      // Allow for some margin of error in tapping (e.g., 10% distance)
-      const dist = Math.sqrt(
-        Math.pow(currentPuzzle.targetCoordinate.x - selectedTarget.x, 2) +
-        Math.pow(currentPuzzle.targetCoordinate.y - selectedTarget.y, 2)
-      );
-      isCorrect = dist < 15;
-    } else {
-      isCorrect = selectedAnswer === currentPuzzle.correctAnswer;
-    }
+    if (!currentPuzzle || !selectedAnswer || answerRecord || submittedRecord) return;
 
     const nextRecord: PadelPuzzleAnswerRecord = {
       questionId: currentPuzzle.questionId,
       difficulty: currentPuzzle.difficulty,
-      selectedAnswer: selectedAnswer || "Interactive Target",
+      selectedAnswer,
       correctAnswer: currentPuzzle.correctAnswer,
-      isCorrect,
+      isCorrect: selectedAnswer === currentPuzzle.correctAnswer,
       answeredAt: new Date().toISOString(),
     };
 
@@ -147,13 +129,6 @@ export default function PuzzlesPage() {
     setSubmittedRecord(nextRecord);
 
     if (nextRecord.isCorrect) {
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#d32f2f", "#ffffff", "#4caf50"],
-      });
-
       setAnswersByQuestionId((previous) => {
         const next = { ...previous, [currentPuzzle.questionId]: nextRecord };
         // Note for non-coders: we only store correct answers as permanently solved.
@@ -271,76 +246,33 @@ export default function PuzzlesPage() {
               </Typography>
               <Typography color="text.secondary">{currentPuzzle.scenario}</Typography>
 
-              {currentPuzzle.type === "tap-to-target" && (
-                <PadelCourtInteraction
-                  selectedCoord={selectedTarget}
-                  onSelect={setSelectedTarget}
-                  showResult={Boolean(answerRecord || submittedRecord)}
-                  correctCoord={currentPuzzle.targetCoordinate}
-                />
-              )}
-
-              {currentPuzzle.type === "video" && currentPuzzle.videoUrl && (
-                <Box
-                  component="video"
-                  src={currentPuzzle.videoUrl}
-                  controls
-                  sx={{
-                    width: "100%",
-                    maxHeight: 400,
-                    borderRadius: 2,
-                    bgcolor: "black",
-                  }}
-                />
-              )}
-
-              {currentPuzzle.diagramUrl && currentPuzzle.type !== "tap-to-target" && (
-                <Box
-                  component="img"
-                  src={currentPuzzle.diagramUrl}
-                  alt="Scenario diagram"
-                  sx={{
-                    width: "100%",
-                    maxHeight: 300,
-                    objectFit: "contain",
-                    borderRadius: 2,
-                    bgcolor: "background.muted",
-                  }}
-                />
-              )}
-
-              {currentPuzzle.type !== "tap-to-target" && (
-                <ToggleButtonGroup
-                  exclusive
-                  value={selectedAnswer}
-                  onChange={(_, value) => {
-                    if (answerRecord || submittedRecord) return;
-                    setSelectedAnswer(value);
-                  }}
-                  orientation="vertical"
-                  fullWidth
-                >
-                  {currentPuzzle.options.map((option) => (
-                    <ToggleButton
-                      key={option}
-                      value={option}
-                      disabled={Boolean(answerRecord || submittedRecord)}
-                      sx={{ justifyContent: "flex-start", textTransform: "none" }}
-                    >
-                      {option}
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              )}
+              <ToggleButtonGroup
+                exclusive
+                value={selectedAnswer}
+                onChange={(_, value) => {
+                  if (answerRecord || submittedRecord) return;
+                  setSelectedAnswer(value);
+                }}
+                orientation="vertical"
+                fullWidth
+              >
+                {currentPuzzle.options.map((option) => (
+                  <ToggleButton
+                    key={option}
+                    value={option}
+                    disabled={Boolean(answerRecord || submittedRecord)}
+                    sx={{ justifyContent: "flex-start", textTransform: "none" }}
+                  >
+                    {option}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
 
               <Stack direction="row" spacing={1.5}>
                 <Button
                   variant="contained"
                   onClick={handleCheckAnswer}
-                  disabled={
-                    (currentPuzzle.type === "tap-to-target" ? !selectedTarget : !selectedAnswer) ||
-                    Boolean(answerRecord || submittedRecord)
-                  }
+                  disabled={!selectedAnswer || Boolean(answerRecord || submittedRecord)}
                 >
                   Kontrollera svar
                 </Button>

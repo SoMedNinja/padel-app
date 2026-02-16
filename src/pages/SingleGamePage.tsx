@@ -7,8 +7,12 @@ import { Box, Container, Typography, Button } from "@mui/material";
 import AppAlert from "../Components/Shared/AppAlert";
 
 export default function SingleGamePage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const mode = (searchParams.get("mode") as "1v1" | "2v2") || "2v2";
+
+  const setMode = (newMode: "1v1" | "2v2") => {
+    setSearchParams({ mode: newMode });
+  };
 
   const { user, isGuest, setIsGuest } = useStore();
 
@@ -54,6 +58,7 @@ export default function SingleGamePage() {
           eloPlayers={eloPlayers}
           eloDeltaByMatch={eloDeltaByMatch}
           mode={mode}
+          setMode={setMode}
         />
       )}
     </div>
