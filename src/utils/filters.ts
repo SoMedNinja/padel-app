@@ -24,36 +24,48 @@ const getDateRangeISO = (filter: MatchFilter) => {
 };
 
 export function filterMatches(matches: Match[], filter: MatchFilter): Match[] {
-  if (!matches) return [];
-  if (filter.type === "short") {
-    return matches.filter(
-      m => (m.score_type || "sets") === "sets" && Math.max(m.team1_sets, m.team2_sets) <= 3
-    );
-  }
-  if (filter.type === "long") {
-    return matches.filter(
-      m => (m.score_type || "sets") === "sets" && Math.max(m.team1_sets, m.team2_sets) >= 6
-    );
-  }
-  if (filter.type === "tournaments") {
-    return matches.filter(m => !!m.source_tournament_id);
+  if (!matches || !matches.length) return [];
+  if (filter.type === "all") return matches;
+
+  const result: Match[] = [];
+  const type = filter.type;
+
+  // Optimization: Pre-calculate date range parameters once outside the loop
+  let start: string | undefined;
+  let end: string | undefined;
+
+  if (type === "last7" || type === "last30" || type === "range") {
+    const range = getDateRangeISO(filter);
+    if (!range) return type === "range" ? [] : matches;
+    start = range.start;
+    end = range.end;
   }
 
-  // Optimization: Only calculate date range if the filter type requires it
-  if (filter.type === "last7" || filter.type === "last30" || filter.type === "range") {
-    const range = getDateRangeISO(filter);
-    if (range) {
-      const { start, end } = range;
-      return matches.filter(match => {
-        const dateStr = match.created_at;
-        if (!dateStr) return false;
-        // Pre-calculated ISO strings allow for fast lexicographical comparison
-        if (start && dateStr < start) return false;
-        if (end && dateStr > end) return false;
-        return true;
-      });
+  // Optimization: Use a single pass for-loop instead of .filter() to avoid intermediate array allocations.
+  // This also allows us to handle all filter types in a unified, high-performance way.
+  for (let i = 0, len = matches.length; i < len; i++) {
+    const m = matches[i];
+    let keep = false;
+
+    if (type === "short") {
+      keep = (m.score_type || "sets") === "sets" && Math.max(m.team1_sets, m.team2_sets) <= 3;
+    } else if (type === "long") {
+      keep = (m.score_type || "sets") === "sets" && Math.max(m.team1_sets, m.team2_sets) >= 6;
+    } else if (type === "tournaments") {
+      keep = !!m.source_tournament_id;
+    } else if (start || end) {
+      const dateStr = m.created_at;
+      if (dateStr) {
+        keep = (!start || dateStr >= start) && (!end || dateStr <= end);
+      }
+    } else {
+      keep = true;
+    }
+
+    if (keep) {
+      result.push(m);
     }
   }
 
-  return matches;
+  return result;
 }

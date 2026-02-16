@@ -168,16 +168,18 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
     playerId?: string,
     eloDeltaByMatch?: Record<string, Record<string, number>>
   ) {
+    if (!matches || !matches.length) return null;
     const synergy: Record<string, { games: number; wins: number; eloGain: number }> = {};
     const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const isDescending = matches.length > 1 && matches[0].created_at > matches[matches.length - 1].created_at;
+    const isDescending = matches[0].created_at > matches[matches.length - 1].created_at;
 
     if (eloDeltaByMatch && playerId) {
       // High-performance path: use pre-calculated deltas and player IDs
-      for (let i = 0; i < matches.length; i++) {
+      for (let i = 0, len = matches.length; i < len; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) {
+        const date = m.created_at;
+        if (date && date < thirtyDaysAgoISO) {
           if (isDescending) break;
           continue;
         }
@@ -185,8 +187,9 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
 
         // Optimization: use direct indexed access instead of includes() + find()
         // for small team arrays (max 2 players).
-        const isT1 = m.team1_ids[0] === playerId || m.team1_ids[1] === playerId;
-        const team = isT1 ? m.team1_ids : m.team2_ids;
+        const t1 = m.team1_ids;
+        const isT1 = t1[0] === playerId || t1[1] === playerId;
+        const team = isT1 ? t1 : m.team2_ids;
         const partnerId = team[0] === playerId ? team[1] : team[0];
 
         if (!partnerId || partnerId === GUEST_ID) continue;
@@ -194,37 +197,45 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
         const team1Won = m.team1_sets > m.team2_sets;
         const won = (isT1 && team1Won) || (!isT1 && !team1Won);
 
-        if (!synergy[partnerId]) synergy[partnerId] = { games: 0, wins: 0, eloGain: 0 };
-        synergy[partnerId].games++;
-        if (won) synergy[partnerId].wins++;
+        let s = synergy[partnerId];
+        if (!s) {
+          s = { games: 0, wins: 0, eloGain: 0 };
+          synergy[partnerId] = s;
+        }
+        s.games++;
+        if (won) s.wins++;
       }
     } else {
       // Fallback: use player name (legacy/less efficient)
-      for (let i = 0; i < matches.length; i++) {
+      for (let i = 0, len = matches.length; i < len; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) {
+        const date = m.created_at;
+        if (date && date < thirtyDaysAgoISO) {
           if (isDescending) break;
           continue;
         }
 
         const team1 = normalizeTeam(m.team1);
-        const team2 = normalizeTeam(m.team2);
-        const isTeam1 = team1.includes(playerName);
-        const isTeam2 = team2.includes(playerName);
+        const inT1 = team1[0] === playerName || team1[1] === playerName;
+        const team2 = !inT1 ? normalizeTeam(m.team2) : null;
+        const inT2 = team2 ? (team2[0] === playerName || team2[1] === playerName) : false;
 
-        if (!isTeam1 && !isTeam2) continue;
+        if (!inT1 && !inT2) continue;
 
-        const partner = isTeam1
-          ? team1.find(p => p !== playerName)
-          : team2.find(p => p !== playerName);
+        const team = inT1 ? team1 : (team2 as string[]);
+        const partner = team[0] === playerName ? team[1] : team[0];
 
         if (!partner || partner === "Gäst") continue;
 
-        const won = (isTeam1 && m.team1_sets > m.team2_sets) || (isTeam2 && m.team2_sets > m.team1_sets);
+        const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
 
-        if (!synergy[partner]) synergy[partner] = { games: 0, wins: 0, eloGain: 0 };
-        synergy[partner].games++;
-        if (won) synergy[partner].wins++;
+        let s = synergy[partner];
+        if (!s) {
+          s = { games: 0, wins: 0, eloGain: 0 };
+          synergy[partner] = s;
+        }
+        s.games++;
+        if (won) s.wins++;
       }
     }
 
@@ -262,60 +273,73 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
     playerId?: string,
     eloDeltaByMatch?: Record<string, Record<string, number>>
   ) {
+    if (!matches || !matches.length) return null;
     const rivals: Record<string, { games: number; losses: number }> = {};
     const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const isDescending = matches.length > 1 && matches[0].created_at > matches[matches.length - 1].created_at;
+    const isDescending = matches[0].created_at > matches[matches.length - 1].created_at;
 
     if (eloDeltaByMatch && playerId) {
       // High-performance path: use pre-calculated deltas and player IDs
-      for (let i = 0; i < matches.length; i++) {
+      for (let i = 0, len = matches.length; i < len; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) {
+        const date = m.created_at;
+        if (date && date < thirtyDaysAgoISO) {
           if (isDescending) break;
           continue;
         }
         if (eloDeltaByMatch[m.id]?.[playerId] === undefined) continue;
 
         // Optimization: use direct indexed access instead of includes()
-        const isT1 = m.team1_ids[0] === playerId || m.team1_ids[1] === playerId;
-        const opponents = isT1 ? m.team2_ids : m.team1_ids;
+        const t1 = m.team1_ids;
+        const isT1 = t1[0] === playerId || t1[1] === playerId;
+        const opponents = isT1 ? m.team2_ids : t1;
         const team1Won = m.team1_sets > m.team2_sets;
         const won = (isT1 && team1Won) || (!isT1 && !team1Won);
 
         for (let j = 0; j < opponents.length; j++) {
           const oppId = opponents[j];
           if (!oppId || oppId === GUEST_ID) continue;
-          if (!rivals[oppId]) rivals[oppId] = { games: 0, losses: 0 };
-          rivals[oppId].games++;
-          if (!won) rivals[oppId].losses++;
+          let r = rivals[oppId];
+          if (!r) {
+            r = { games: 0, losses: 0 };
+            rivals[oppId] = r;
+          }
+          r.games++;
+          if (!won) r.losses++;
         }
       }
     } else {
       // Fallback: use player name (legacy/less efficient)
-      for (let i = 0; i < matches.length; i++) {
+      for (let i = 0, len = matches.length; i < len; i++) {
         const m = matches[i];
-        if (m.created_at < thirtyDaysAgoISO) {
+        const date = m.created_at;
+        if (date && date < thirtyDaysAgoISO) {
           if (isDescending) break;
           continue;
         }
 
         const team1 = normalizeTeam(m.team1);
-        const team2 = normalizeTeam(m.team2);
-        const isTeam1 = team1.includes(playerName);
-        const isTeam2 = team2.includes(playerName);
+        const inT1 = team1[0] === playerName || team1[1] === playerName;
+        const team2 = !inT1 ? normalizeTeam(m.team2) : null;
+        const inT2 = team2 ? (team2[0] === playerName || team2[1] === playerName) : false;
 
-        if (!isTeam1 && !isTeam2) continue;
+        if (!inT1 && !inT2) continue;
 
-        const opponents = isTeam1 ? team2 : team1;
-        const won = (isTeam1 && m.team1_sets > m.team2_sets) || (isTeam2 && m.team2_sets > m.team1_sets);
+        const opponents = inT1 ? normalizeTeam(m.team2) : team1;
+        const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
 
-        opponents.forEach(opp => {
-          if (opp === "Gäst") return;
-          if (!rivals[opp]) rivals[opp] = { games: 0, losses: 0 };
-          rivals[opp].games++;
-          if (!won) rivals[opp].losses++;
-        });
+        for (let j = 0; j < opponents.length; j++) {
+          const opp = opponents[j];
+          if (opp === "Gäst") continue;
+          let r = rivals[opp];
+          if (!r) {
+            r = { games: 0, losses: 0 };
+            rivals[opp] = r;
+          }
+          r.games++;
+          if (!won) r.losses++;
+        }
       }
     }
 

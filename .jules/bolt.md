@@ -133,3 +133,11 @@
 ## 2024-05-24 - [Caching Capability Checks]
 **Learning:** Performing a write/delete operation on `localStorage` to check for capability (canUseStorage) inside a frequent getter (like `getStoredAvatar`) adds significant synchronous overhead on every call. In a list of 50 players, this means 50 disk-touching operations just to show avatars.
 **Action:** Perform capability checks once and cache the result in a module-level variable.
+
+## 2026-06-26 - [Consolidated Filtering and Single-Pass Mapping]
+**Learning:** Chained array operations like `.filter().map()` or multiple `.filter()` passes create redundant intermediate array allocations and iterator overhead. For core data processing functions like match filtering and MVP scoring, this can lead to measurable latency as the history grows.
+**Action:** Use single-pass `for` loops to combine filtering and transformation. In `filterMatches`, unified all filter types into one loop. In `scorePlayersForMvp`, replaced `.map()` with a `for` loop that pre-allocates or uses `push` for better throughput.
+
+## 2026-06-26 - [Direct Index vs .includes for Fixed-Size Arrays]
+**Learning:** Calling `.includes()` on small, fixed-size arrays (like padel teams of 1-2 players) incurs unnecessary function call overhead and iterator setup.
+**Action:** Use direct index comparisons `arr[0] === target || arr[1] === target` for performance-critical path ID checks.
