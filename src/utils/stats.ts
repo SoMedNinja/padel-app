@@ -2,7 +2,7 @@
 import { Match, PlayerStats } from "../types";
 import { GUEST_ID } from "./guest";
 
-const normalizeTeam = (team: any): string[] => {
+const normalizeTeam = (team: string | string[]): string[] => {
   if (Array.isArray(team)) {
     // Optimization: if it is already an array of 2 strings (most common for padel),
     // we can return it directly to avoid the loop if we trust the data source.
