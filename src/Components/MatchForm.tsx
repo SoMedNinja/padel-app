@@ -197,6 +197,7 @@ export default function MatchForm({
   };
 
   const togglePlayerInPool = (playerId: string) => {
+    navigator.vibrate?.(10);
     if (playerId === GUEST_ID) {
       setPool(prev => [...prev, GUEST_ID]);
       return;
@@ -228,6 +229,7 @@ export default function MatchForm({
     // Find first empty slot
     const emptyIndex = currentTeam.indexOf("");
     if (emptyIndex !== -1) {
+      navigator.vibrate?.(10);
       const newTeam = [...currentTeam];
       newTeam[emptyIndex] = playerId;
       setTeam(newTeam);
@@ -240,6 +242,7 @@ export default function MatchForm({
   };
 
   const removePlayerFromTeam = (index: number, team: 1 | 2) => {
+    navigator.vibrate?.(10);
     const currentTeam = team === 1 ? team1 : team2;
     const setTeam = team === 1 ? setTeam1 : setTeam2;
     const newTeam = [...currentTeam];
@@ -398,6 +401,7 @@ export default function MatchForm({
       created_at: new Date().toISOString(),
     };
 
+    navigator.vibrate?.(50);
     createRecap(team1, team2, scoreA, scoreB);
     buildEveningRecap(matches, newMatch);
     resetWizard(true);
@@ -438,6 +442,7 @@ export default function MatchForm({
       .sort((a, b) => b.fairness - a.fairness);
 
     const best = scored[0];
+    navigator.vibrate?.(10);
     setMatchSuggestion({
       mode: "single",
       fairness: best.fairness,
@@ -461,6 +466,7 @@ export default function MatchForm({
       return;
     }
 
+    navigator.vibrate?.(10);
     setMatchSuggestion({
       mode: "rotation",
       rounds: rotation.rounds,
@@ -498,7 +504,10 @@ export default function MatchForm({
                   <InputAdornment position="end">
                     <IconButton
                       size="small"
-                      onClick={() => setQuery("")}
+                      onClick={() => {
+                        setQuery("");
+                        navigator.vibrate?.(10);
+                      }}
                       aria-label="Rensa sökning"
                     >
                       <CloseIcon fontSize="small" />
@@ -602,7 +611,10 @@ export default function MatchForm({
           <Button
             key={s}
             variant={value === s ? "contained" : "outlined"}
-            onClick={() => onChange(s)}
+            onClick={() => {
+              onChange(s);
+              navigator.vibrate?.(10);
+            }}
             aria-label={`Välj resultat: ${s}`}
             aria-pressed={value === s}
             sx={{
@@ -619,7 +631,10 @@ export default function MatchForm({
           <Button
             key={s}
             variant={value === s ? "contained" : "outlined"}
-            onClick={() => onChange(s)}
+            onClick={() => {
+              onChange(s);
+              navigator.vibrate?.(10);
+            }}
             aria-label={`Välj resultat: ${s}`}
             aria-pressed={value === s}
             sx={{

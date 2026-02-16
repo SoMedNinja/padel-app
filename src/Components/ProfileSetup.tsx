@@ -201,10 +201,28 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     label="Spelarnamn"
                     required
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.length === 50 && name.length < 50) {
+                        navigator.vibrate?.(20);
+                      }
+                      setName(val);
+                    }}
                     placeholder="Skriv ditt namn"
                     helperText={`${name.length}/50`}
-                    slotProps={{ htmlInput: { maxLength: 50, "aria-required": "true" } }}
+                    FormHelperTextProps={{
+                      sx: {
+                        color: name.length >= 50 ? 'error.main' : 'inherit',
+                        fontWeight: name.length >= 50 ? 700 : 'inherit',
+                      }
+                    }}
+                    slotProps={{
+                      htmlInput: {
+                        maxLength: 50,
+                        "aria-required": "true",
+                        "aria-label": `Ditt spelarnamn, ${name.length} av 50 tecken`
+                      }
+                    }}
                   />
 
                   <Stack direction="row" spacing={1}>
