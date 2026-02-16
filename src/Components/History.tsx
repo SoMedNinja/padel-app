@@ -36,6 +36,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Collapse,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -43,6 +47,8 @@ import {
   Delete as DeleteIcon,
   Save as SaveIcon,
   Close as CloseIcon,
+  ExpandMore as ExpandMoreIcon,
+  HelpOutline as HelpIcon,
 } from "@mui/icons-material";
 import { formatDate } from "../utils/format";
 
@@ -54,6 +60,58 @@ const toDateTimeInput = (value: string) => {
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
+
+function EloBreakdown({ explanation }: { explanation: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const lines = explanation.split("\n");
+
+  return (
+    <Box sx={{ mt: 0.5 }}>
+      <Button
+        size="small"
+        startIcon={<HelpIcon sx={{ fontSize: '0.9rem !important' }} />}
+        endIcon={<ExpandMoreIcon sx={{
+          fontSize: '0.9rem !important',
+          transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.2s'
+        }} />}
+        onClick={() => setExpanded(!expanded)}
+        sx={{
+          textTransform: 'none',
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          color: 'primary.main',
+          p: 0,
+          minWidth: 0,
+          '&:hover': { bgcolor: 'transparent', opacity: 0.8 }
+        }}
+      >
+        Varför ändrades min ELO?
+      </Button>
+      <Collapse in={expanded}>
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: 1,
+            p: 1.5,
+            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+            borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+            borderRadius: 2
+          }}
+        >
+          {lines.map((line, i) => (
+            <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: i === lines.length - 1 ? 0 : 1 }}>
+              <InfoIcon sx={{ fontSize: '0.8rem', mt: 0.3, color: 'primary.main' }} />
+              <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'text.primary', textAlign: 'left' }}>
+                {line}
+              </Typography>
+            </Box>
+          ))}
+        </Paper>
+      </Collapse>
+    </Box>
+  );
+}
 
 interface HistoryProps {
   matches?: Match[];
@@ -527,26 +585,21 @@ export default function History({
                           }
 
                           return (
-                            <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
-                              <ListItemText
-                                primary={entry.name}
-                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                secondaryTypographyProps={{ variant: 'caption' }}
-                              />
-                              <Stack direction="row" spacing={0.5} alignItems="center">
+                            <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                <ListItemText
+                                  primary={entry.name}
+                                  secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                  secondaryTypographyProps={{ variant: 'caption' }}
+                                />
                                 <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
                                   {formatDelta(delta)}
                                 </Typography>
-                                {explanation && (
-                                  <Tooltip title={<Box component="pre" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{explanation}</Box>} arrow>
-                                    <InfoIcon
-                                      sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }}
-                                      aria-label="ELO-förklaring"
-                                    />
-                                  </Tooltip>
-                                )}
-                              </Stack>
+                              </Box>
+                              {explanation && (
+                                <EloBreakdown explanation={explanation} />
+                              )}
                             </ListItem>
                           );
                         })}
@@ -598,26 +651,21 @@ export default function History({
                           }
 
                           return (
-                            <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5 }}>
-                              <ListItemText
-                                primary={entry.name}
-                                secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                secondaryTypographyProps={{ variant: 'caption' }}
-                              />
-                              <Stack direction="row" spacing={0.5} alignItems="center">
+                            <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                <ListItemText
+                                  primary={entry.name}
+                                  secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                                  secondaryTypographyProps={{ variant: 'caption' }}
+                                />
                                 <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
                                   {formatDelta(delta)}
                                 </Typography>
-                                {explanation && (
-                                  <Tooltip title={<Box component="pre" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{explanation}</Box>} arrow>
-                                    <InfoIcon
-                                      sx={{ fontSize: '0.9rem', color: 'text.disabled', cursor: 'help' }}
-                                      aria-label="ELO-förklaring"
-                                    />
-                                  </Tooltip>
-                                )}
-                              </Stack>
+                              </Box>
+                              {explanation && (
+                                <EloBreakdown explanation={explanation} />
+                              )}
                             </ListItem>
                           );
                         })}

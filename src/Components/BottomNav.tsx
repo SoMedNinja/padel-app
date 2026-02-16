@@ -4,53 +4,56 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   Paper,
+  Box,
 } from "@mui/material";
 import {
+  Assessment as AssessmentIcon,
   Person as PersonIcon,
-  Add as AddIcon,
-  Menu as MenuIcon,
-  Close as CloseIcon,
+  Add as MatchIcon,
+  CalendarMonth as CalendarIcon,
+  MoreHoriz as MoreIcon,
   Lock as LockIcon,
 } from "@mui/icons-material";
 
-// Note for non-coders: this type says the button click sends us a "mouse click" event object.
-type FabToggleHandler = React.MouseEventHandler<HTMLButtonElement>;
-
 interface BottomNavProps {
   isMenuOpen: boolean;
-  isFabOpen: boolean;
   toggleMenu: () => void;
-  toggleFab: FabToggleHandler;
   closeMenu: () => void;
   isGuest?: boolean;
+  canSeeSchedule?: boolean;
+  canUseSingleGame?: boolean;
 }
 
 const BottomNav: React.FC<BottomNavProps> = ({
   isMenuOpen,
-  isFabOpen,
   toggleMenu,
-  toggleFab,
   closeMenu,
-  isGuest = false
+  isGuest = false,
+  canSeeSchedule = false,
+  canUseSingleGame = true,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Note for non-coders: these helpers run when you tap a tab, so each button
-  // always reacts even if it was already selected before.
-  const handleHomeClick = () => {
-    closeMenu();
-    navigate('/');
-  };
-
-  const handleMenuClick = () => {
-    toggleMenu();
-  };
-
   const getActiveValue = () => {
-    if (isMenuOpen) return 'menu';
-    if (location.pathname === '/') return 'home';
+    if (isMenuOpen) return 'more';
+    if (location.pathname === '/dashboard') return 'dashboard';
+    if (location.pathname === '/') return 'profile';
+    if (location.pathname === '/single-game') return 'match';
+    if (location.pathname === '/schedule') return 'schedule';
     return null;
+  };
+
+  const handleChange = (_event: React.SyntheticEvent, newValue: string) => {
+    if (newValue === 'more') {
+      toggleMenu();
+    } else {
+      closeMenu();
+      if (newValue === 'dashboard') navigate('/dashboard');
+      if (newValue === 'profile') navigate('/');
+      if (newValue === 'match') navigate('/single-game');
+      if (newValue === 'schedule') navigate('/schedule');
+    }
   };
 
   return (
@@ -63,48 +66,67 @@ const BottomNav: React.FC<BottomNavProps> = ({
         display: { xs: 'block', sm: 'none' },
         zIndex: 1100,
         borderTop: 1,
-        borderColor: 'divider'
+        borderColor: 'divider',
+        // Support for iPhones with home indicator
+        pb: 'env(safe-area-inset-bottom, 0px)',
       }}
       elevation={3}
     >
       <BottomNavigation
         showLabels
         value={getActiveValue()}
+        onChange={handleChange}
+        sx={{ height: 64 }}
       >
         <BottomNavigationAction
-          // Note for non-coders: this label is just the visible text for the "/" (profile) tab.
+          label="Översikt"
+          value="dashboard"
+          icon={<AssessmentIcon />}
+        />
+        <BottomNavigationAction
           label="Profil"
-          value="home"
+          value="profile"
           icon={<PersonIcon />}
-          onClick={handleHomeClick}
         />
-        <BottomNavigationAction
-          label={isGuest ? "Spela (logga in)" : "Spela"}
-          value="fab"
-          icon={
-            isGuest
-              ? <LockIcon sx={{ fontSize: '2rem' }} />
-              : isFabOpen
-                ? <CloseIcon sx={{ fontSize: '2rem' }} />
-                : <AddIcon sx={{ fontSize: '2rem' }} />
-          }
-          onClick={isGuest ? undefined : toggleFab}
-          disabled={isGuest}
-          sx={{
-            '& .MuiBottomNavigationAction-label': {
-              color: 'primary.main',
-              fontWeight: 800
-            },
-            '& .MuiSvgIcon-root': {
-              color: 'primary.main',
+        {canUseSingleGame && (
+          <BottomNavigationAction
+            label="Match"
+            value="match"
+            icon={
+              isGuest ? (
+                <LockIcon />
+              ) : (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    mb: 0.5,
+                  }}
+                >
+                  <MatchIcon />
+                </Box>
+              )
             }
-          }}
-        />
+            disabled={isGuest}
+          />
+        )}
+        {canSeeSchedule && (
+          <BottomNavigationAction
+            label="Schema"
+            value="schedule"
+            icon={<CalendarIcon />}
+          />
+        )}
         <BottomNavigationAction
-          label="Meny"
-          value="menu"
-          icon={isMenuOpen ? <CloseIcon /> : <MenuIcon />}
-          onClick={handleMenuClick}
+          label="Mer"
+          value="more"
+          icon={<MoreIcon />}
         />
       </BottomNavigation>
     </Paper>
