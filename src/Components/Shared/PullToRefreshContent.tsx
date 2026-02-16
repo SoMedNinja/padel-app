@@ -8,16 +8,14 @@ const IOS_REFRESH_LABEL = "Padelbollarna studsar medan vi laddar...";
 const DEFAULT_REFRESH_LABEL = "Hämtar senaste resultaten...";
 
 export const getPullToRefreshTuning = () => {
-  if (!isIosDevice()) {
-    return {};
-  }
+  const isIos = isIosDevice();
 
-  // Note for non-coders: these values make the animation appear immediately when the user starts pulling,
-  // while still keeping enough travel distance to feel like the native iOS pull-to-refresh gesture.
+  // Note for non-coders: these values ensure the content stays down enough to show the full
+  // animation without overlapping the page content, matching the height of our custom balls/text.
   return {
-    pullDownThreshold: 24,
-    maxPullDownDistance: 104,
-    resistance: 0.72,
+    pullDownThreshold: isIos ? 100 : 100,
+    maxPullDownDistance: isIos ? 150 : 150,
+    resistance: isIos ? 0.72 : 1,
   };
 };
 
