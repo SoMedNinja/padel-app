@@ -336,6 +336,22 @@ const getDateRange = (filter: MatchFilter) => {
   return null;
 };
 
+const validateMatchSets = (sets: any, teamLabel: string) => {
+  if (sets !== undefined && (typeof sets !== "number" || sets < 0)) {
+    throw new Error(`Ogiltigt resultat för ${teamLabel}`);
+  }
+};
+
+const validateTeamNames = (names: any, teamLabel: string) => {
+  if (Array.isArray(names)) {
+    for (const name of names) {
+      if (typeof name === "string" && name.length > 50) {
+        throw new Error(`Namn i ${teamLabel} är för långt (max 50 tecken)`);
+      }
+    }
+  }
+};
+
 export const matchService = {
   initMutationQueue(): void {
     installOnlineListenerIfNeeded();
@@ -408,24 +424,10 @@ export const matchService = {
     }
 
     for (const m of matches) {
-      if (m.team1_sets !== undefined && (typeof m.team1_sets !== "number" || m.team1_sets < 0)) {
-        throw new Error("Ogiltigt resultat för Lag 1");
-      }
-      if (m.team2_sets !== undefined && (typeof m.team2_sets !== "number" || m.team2_sets < 0)) {
-        throw new Error("Ogiltigt resultat för Lag 2");
-      }
-
-      const validateNames = (names: any, teamLabel: string) => {
-        if (Array.isArray(names)) {
-          for (const name of names) {
-            if (typeof name === "string" && name.length > 50) {
-              throw new Error(`Namn i ${teamLabel} är för långt (max 50 tecken)`);
-            }
-          }
-        }
-      };
-      validateNames(m.team1, "Lag 1");
-      validateNames(m.team2, "Lag 2");
+      validateMatchSets(m.team1_sets, "Lag 1");
+      validateMatchSets(m.team2_sets, "Lag 2");
+      validateTeamNames(m.team1, "Lag 1");
+      validateTeamNames(m.team2, "Lag 2");
 
       if (typeof m.source_tournament_id === "string" && m.source_tournament_id.length > 50) {
         throw new Error("Ogiltigt turnerings-ID");
@@ -452,12 +454,8 @@ export const matchService = {
   async updateMatch(matchId: string, updates: any): Promise<void> {
     await requireAdmin("Endast administratörer kan ändra registrerade matcher.");
 
-    if (updates.team1_sets !== undefined && (typeof updates.team1_sets !== "number" || updates.team1_sets < 0)) {
-      throw new Error("Ogiltigt resultat för Lag 1");
-    }
-    if (updates.team2_sets !== undefined && (typeof updates.team2_sets !== "number" || updates.team2_sets < 0)) {
-      throw new Error("Ogiltigt resultat för Lag 2");
-    }
+    validateMatchSets(updates.team1_sets, "Lag 1");
+    validateMatchSets(updates.team2_sets, "Lag 2");
 
     const filteredUpdates = { ...updates };
     delete filteredUpdates.id;
