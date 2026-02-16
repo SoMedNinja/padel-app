@@ -105,8 +105,7 @@ const scheduleQueueRetry = (attempts: number) => {
   }, getRetryDelayMs(attempts));
 };
 
-const refreshQueueStatusFromStorage = () => {
-  const queue = readQueue();
+const refreshQueueStatusFromStorage = (queue: QueuedMatchMutation[] = readQueue()) => {
   const failedCount = queue.filter(item => item.attempts >= MAX_AUTO_RETRY_ATTEMPTS).length;
   updateQueueState({
     pendingCount: queue.length,
@@ -250,15 +249,22 @@ const processQueuedMutations = async (options: { manual?: boolean } = {}) => {
 
   queueProcessing = true;
   const mutableQueue = [...queue];
+  let hasChanges = false;
 
   while (mutableQueue.length) {
     const current = mutableQueue[0];
     if (!manual && current.attempts >= MAX_AUTO_RETRY_ATTEMPTS) {
+      if (hasChanges) {
+        writeQueue(mutableQueue);
+        refreshQueueStatusFromStorage(mutableQueue);
+        updateQueueState({ lastSyncedAt: new Date().toISOString() });
+      }
       updateQueueState({
         lastError: current.attempts === MAX_AUTO_RETRY_ATTEMPTS
           ? "Automatisk synkning pausad efter flera försök. Kontrollera anslutning eller data och tryck sedan på 'Försök synka igen'."
           : queueState.lastError,
       });
+      hasChanges = false;
       break;
     }
 
@@ -268,28 +274,34 @@ const processQueuedMutations = async (options: { manual?: boolean } = {}) => {
         current.attempts = Math.max(current.attempts, MAX_AUTO_RETRY_ATTEMPTS);
         mutableQueue[0] = current;
         writeQueue(mutableQueue);
-        refreshQueueStatusFromStorage();
+        refreshQueueStatusFromStorage(mutableQueue);
         updateQueueState({ lastError: result.message });
+        hasChanges = false;
         break;
       }
 
       mutableQueue.shift();
-      writeQueue(mutableQueue);
-      refreshQueueStatusFromStorage();
-      updateQueueState({ lastSyncedAt: new Date().toISOString(), lastError: null });
+      hasChanges = true;
     } catch (error) {
       current.attempts += 1;
       mutableQueue[0] = current;
       writeQueue(mutableQueue);
-      refreshQueueStatusFromStorage();
+      refreshQueueStatusFromStorage(mutableQueue);
       updateQueueState({
         lastError: error instanceof Error ? error.message : "Kunde inte synka offline-kö.",
       });
       if (current.attempts < MAX_AUTO_RETRY_ATTEMPTS) {
         scheduleQueueRetry(current.attempts);
       }
+      hasChanges = false;
       break;
     }
+  }
+
+  if (hasChanges) {
+    writeQueue(mutableQueue);
+    refreshQueueStatusFromStorage(mutableQueue);
+    updateQueueState({ lastSyncedAt: new Date().toISOString(), lastError: null });
   }
 
   queueProcessing = false;
