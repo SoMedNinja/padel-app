@@ -68,9 +68,7 @@ async function ensureWebPushSubscription(
   const resolvedRegistration = registration ?? (await navigator.serviceWorker.ready);
   const existingSubscription = await resolvedRegistration.pushManager.getSubscription();
   if (existingSubscription) return existingSubscription;
-  if (!WEB_PUSH_PUBLIC_KEY) {
-    throw new Error("VAPID-nyckel saknas (VITE_WEB_PUSH_PUBLIC_KEY). Kontakta admin.");
-  }
+  if (!WEB_PUSH_PUBLIC_KEY) return null;
 
   return resolvedRegistration.pushManager.subscribe({
     userVisibleOnly: true,
@@ -129,15 +127,10 @@ async function syncCurrentPushSubscriptionWithBackend(registration?: ServiceWork
   if (!userId) return;
 
   const activeRegistration = registration ?? (await navigator.serviceWorker.ready);
-  try {
-    const existingSubscription = await ensureWebPushSubscription(activeRegistration);
-    if (!existingSubscription) return;
+  const existingSubscription = await ensureWebPushSubscription(activeRegistration);
+  if (!existingSubscription) return;
 
-    await upsertBackendPushSubscription(userId, existingSubscription);
-  } catch (error) {
-    console.error("Failed to sync push subscription with backend:", error);
-    throw error;
-  }
+  await upsertBackendPushSubscription(userId, existingSubscription);
 }
 
 // Note for non-coders:
@@ -464,7 +457,7 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
           : notificationPermission === "granted" && hasPushEndpoint
             ? `${sharedPermissionGuidance("notifications", "allowed")} Behörighet är tillåten och push-endpoint är fullt aktiverad.${isInstalledPwa ? " Installerat appläge upptäckt." : ""}`
             : notificationPermission === "granted"
-              ? `${sharedPermissionGuidance("notifications", "action_needed")} Behörighet är tillåten men push-endpoint saknas. ${!WEB_PUSH_PUBLIC_KEY ? "VAPID-nyckel saknas i miljön." : 'Tryck på "Kör konfiguration igen" för att slutföra endpoint-registreringen.'}`
+              ? `${sharedPermissionGuidance("notifications", "action_needed")} Behörighet är tillåten men push-endpoint saknas. Tryck på "Kör konfiguration igen" för att slutföra endpoint-registreringen.`
               : `${sharedPermissionGuidance("notifications", "action_needed")} Webbläsarbehörigheten är standard.`;
 
   const notifications: PermissionStatusSnapshot = {

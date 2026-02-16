@@ -8,14 +8,16 @@ const IOS_REFRESH_LABEL = "Padelbollarna studsar medan vi laddar...";
 const DEFAULT_REFRESH_LABEL = "Hämtar senaste resultaten...";
 
 export const getPullToRefreshTuning = () => {
-  const isIos = isIosDevice();
+  if (!isIosDevice()) {
+    return {};
+  }
 
-  // Note for non-coders: these values ensure the content stays down enough to show the full
-  // animation without overlapping the page content, matching the height of our custom balls/text.
+  // Note for non-coders: these values make the animation appear immediately when the user starts pulling,
+  // while still keeping enough travel distance to feel like the native iOS pull-to-refresh gesture.
   return {
-    pullDownThreshold: isIos ? 100 : 100,
-    maxPullDownDistance: isIos ? 150 : 150,
-    resistance: isIos ? 0.72 : 1,
+    pullDownThreshold: 24,
+    maxPullDownDistance: 104,
+    resistance: 0.72,
   };
 };
 
@@ -24,7 +26,7 @@ export const RefreshingContent = () => {
 
   if (!isIos) {
     return (
-      <Box className="ptr-animation-container" sx={{ zIndex: 1601, position: "relative" }}>
+      <Box className="ptr-animation-container">
         <Box sx={{ position: "relative", height: 40, display: "flex", alignItems: "flex-end", justifyContent: "center", width: 40 }}>
           <Box className="padel-ball bouncing-ball" />
           <Box className="ball-shadow" sx={{ position: "absolute", bottom: -2 }} />
@@ -37,7 +39,7 @@ export const RefreshingContent = () => {
   }
 
   return (
-    <Box className="ptr-animation-container ptr-ios-refreshing" sx={{ zIndex: 1601, position: "relative" }}>
+    <Box className="ptr-animation-container ptr-ios-refreshing">
       <Box className="ptr-ios-ball-cluster" aria-hidden="true">
         {[0, 1, 2, 3].map((ballIndex) => (
           <Box key={ballIndex} className={`padel-ball ptr-ios-ball ptr-ios-ball-${ballIndex + 1}`}>
@@ -65,7 +67,7 @@ export const PullingContent = () => {
   }
 
   return (
-    <Box className="ptr-animation-container ptr-ios-pulling" sx={{ zIndex: 1601, position: "relative" }}>
+    <Box className="ptr-animation-container ptr-ios-pulling">
       <Box className="ptr-ios-pull-ball-wrapper" aria-hidden="true">
         <Box className="padel-ball ptr-ios-pull-ball" />
         <Box className="ball-shadow ptr-ios-pull-shadow" />
