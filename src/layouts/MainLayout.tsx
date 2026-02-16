@@ -176,34 +176,22 @@ export default function MainLayout({ children }: MainLayoutProps) {
         onOpenPermissionGuide={() => requestOpenPermissionGuide("menu")}
       />
 
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
+      <Container
+        maxWidth="lg"
+        sx={{
+          mt: 2,
+          // Note for non-coders: only visible banners become real DOM elements,
+          // so this selector adds spacing only between banners that actually show.
+          '& > * + *': { mt: 2 },
+        }}
+      >
         <SupabaseConfigBanner />
-      </Container>
-
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
         {/* Note for non-coders: this banner distinguishes "must update now" from "good to update soon" using server policy rules. */}
         <AppVersionPolicyBanner />
-      </Container>
-
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
         {/* Note for non-coders: this card helps people install the web app like a normal phone app. */}
         <InstallPrompt />
-      </Container>
-
-      {isStandaloneApp && (
-        <PostInstallChecklist
-          isStandalone={isStandaloneApp}
-          // Note for non-coders: guests can browse, but this step only completes when a real account session exists.
-          isSignedIn={Boolean(user) && !hasGuestAccess}
-        />
-      )}
-
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
         <MatchSyncStatusBanner />
-      </Container>
-
-      {hasGuestAccess && (
-        <Container maxWidth="lg" sx={{ mt: 2 }}>
+        {hasGuestAccess && (
           <Alert
             severity="warning"
             action={(
@@ -216,10 +204,26 @@ export default function MainLayout({ children }: MainLayoutProps) {
             {/* Note for non-coders: this button exits guest mode so the login screen can open. */}
             Utforska statistik, men inga ändringar sparas.
           </Alert>
-        </Container>
+        )}
+      </Container>
+
+      {isStandaloneApp && (
+        <PostInstallChecklist
+          isStandalone={isStandaloneApp}
+          // Note for non-coders: guests can browse, but this step only completes when a real account session exists.
+          isSignedIn={Boolean(user) && !hasGuestAccess}
+        />
       )}
 
-      <Box component="main" sx={{ flexGrow: 1 }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          // Note for non-coders: this adds a small breathing space below the top controls
+          // so page content does not feel glued to the very top edge.
+          pt: { xs: 1, sm: 1.5 },
+        }}
+      >
         {children}
       </Box>
 
