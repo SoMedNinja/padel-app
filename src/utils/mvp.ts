@@ -56,19 +56,38 @@ export function scorePlayersForMvp(
         const delta = deltas[pid];
         s.periodEloGain += delta;
 
-        // Determine if this player won by checking team participation
-        const inT1 = m.team1_ids.includes(pid);
+        // Optimization: Use direct index check instead of .includes() for small team arrays (max 2)
+        const inT1 = m.team1_ids[0] === pid || m.team1_ids[1] === pid;
         const won = (inT1 && team1Won) || (!inT1 && !team1Won);
         if (won) s.wins++;
       }
     }
 
-    return players.map(player => {
-      const s = stats[player.id] || { wins: 0, games: 0, periodEloGain: 0 };
-      const winRate = s.games > 0 ? s.wins / s.games : 0;
+    const result: MvpScoreResult[] = [];
+    for (let i = 0, len = players.length; i < len; i++) {
+      const player = players[i];
+      const s = stats[player.id];
+
+      if (!s) {
+        result.push({
+          name: player.name,
+          id: player.id,
+          wins: 0,
+          games: 0,
+          winRate: 0,
+          periodEloGain: 0,
+          eloNet: player.elo,
+          score: 0,
+          isEligible: false,
+          badgeId: player.featuredBadgeId || null,
+        });
+        continue;
+      }
+
+      const winRate = s.wins / s.games;
       const score = calculateMvpScore(s.wins, s.games, s.periodEloGain);
 
-      return {
+      result.push({
         name: player.name,
         id: player.id,
         wins: s.wins,
@@ -79,8 +98,9 @@ export function scorePlayersForMvp(
         score,
         isEligible: s.games >= minGames,
         badgeId: player.featuredBadgeId || null,
-      };
-    });
+      });
+    }
+    return result;
   }
 
   // Fallback for when deltas aren't provided (e.g. tests or legacy calls)
