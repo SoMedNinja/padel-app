@@ -59,7 +59,8 @@ struct PadelPuzzle: Identifiable, Codable, Equatable {
         self.type = type
         self.title = title
         self.scenario = scenario
-        self.options = options
+        // Note for non-coders: we shuffle the options so the correct answer isn't always in the same spot.
+        self.options = options.shuffled()
         self.correctAnswer = correctAnswer
         self.coachingTip = coachingTip
         self.diagramUrl = diagramUrl

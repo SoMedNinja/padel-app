@@ -128,7 +128,8 @@ export default function PuzzlesPage() {
         Math.pow(currentPuzzle.targetCoordinate.x - selectedTarget.x, 2) +
         Math.pow(currentPuzzle.targetCoordinate.y - selectedTarget.y, 2)
       );
-      isCorrect = dist < 15;
+      // Note for non-coders: we increased the hit tolerance to make it easier to tap on small screens.
+      isCorrect = dist < 25;
     } else {
       isCorrect = selectedAnswer === currentPuzzle.correctAnswer;
     }

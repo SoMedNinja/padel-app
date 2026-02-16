@@ -230,7 +230,8 @@ struct PuzzlesView: View {
 
         if puzzle.type == .tapToTarget, let target = selectedTarget, let correct = puzzle.targetCoordinate {
             let dist = sqrt(pow(target.x - correct.x, 2) + pow(target.y - correct.y, 2))
-            isCorrect = dist < 15
+            // Note for non-coders: we increased the hit tolerance to make it easier to tap on small screens.
+            isCorrect = dist < 25
             selected = "Interactive Target"
         } else {
             guard let sel = selectedAnswer else { return }
@@ -383,7 +384,7 @@ struct PadelCourtInteractionView: View {
                     if let selected = selectedCoord {
                         Circle()
                             .fill(AppColors.brandPrimary)
-                            .frame(width: 12, height: 12)
+                            .frame(width: 20, height: 20)
                             .overlay(Circle().stroke(Color.white, lineWidth: 2))
                             .position(x: geometry.size.width * (selected.x / 100),
                                       y: geometry.size.height * (selected.y / 100))
@@ -393,7 +394,7 @@ struct PadelCourtInteractionView: View {
                     if showResult, let correct = correctCoord {
                         Circle()
                             .fill(AppColors.success)
-                            .frame(width: 16, height: 16)
+                            .frame(width: 28, height: 28)
                             .overlay(Circle().stroke(Color.white, lineWidth: 2))
                             .position(x: geometry.size.width * (correct.x / 100),
                                       y: geometry.size.height * (correct.y / 100))

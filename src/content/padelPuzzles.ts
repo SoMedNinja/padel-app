@@ -14,6 +14,15 @@ export interface PadelPuzzle {
   targetCoordinate?: TargetCoordinate;
 }
 
+const shuffleArray = <T>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 const toPadelPuzzle = (
   questionId: string,
   difficulty: PuzzleDifficulty,
@@ -37,13 +46,16 @@ const toPadelPuzzle = (
     throw new Error(`Puzzle ${questionId} must have exactly one option marked isCorrect: true.`);
   }
 
+  // Note for non-coders: we shuffle the options so the correct answer isn't always in the same spot.
+  const shuffledOptions = shuffleArray(options);
+
   return {
     questionId,
     difficulty,
     type: type ?? "text",
     title,
     scenario,
-    options: options.map((option) => option.text),
+    options: shuffledOptions.map((option) => option.text),
     correctAnswer: correctOptions[0].text,
     coachingTip,
     diagramUrl,
