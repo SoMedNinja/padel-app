@@ -265,6 +265,18 @@ export default function Heatmap({
   }, [allRows, currentUserOnly, playerFilter]);
 
   // Optimization: Memoize sorted rows
+  const currentUserName = useMemo(() => {
+    if (!currentUserOnly) return null;
+    const profile = profileMap.get(currentUserOnly);
+    return profile ? getProfileDisplayName(profile) : null;
+  }, [currentUserOnly, profileMap]);
+
+  const focusPlayerName = useMemo(() => {
+    if (currentUserOnly) return currentUserName;
+    if (playerFilter !== "all") return playerFilter;
+    return null;
+  }, [currentUserOnly, currentUserName, playerFilter]);
+
   const rows = useMemo(() => {
     const sorted = [...filteredRows];
     sorted.sort((a: any, b: any) => {
@@ -368,10 +380,12 @@ export default function Heatmap({
                 <TableRow key={r.players.join("-")} hover>
                   <TableCell>
                     <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                      {r.players.map((name, index) => (
+                      {r.players
+                        .filter((name) => name !== focusPlayerName)
+                        .map((name, index, filteredArray) => (
                         <Box key={`${name}-${index}`} sx={{ display: 'flex', alignItems: 'center' }}>
                           <ProfileName name={name} badgeId={badgeNameMap.get(name) || null} />
-                          {index < r.players.length - 1 && (
+                          {index < filteredArray.length - 1 && (
                             <Typography variant="body2" sx={{ mx: 0.5, opacity: 0.5 }}>&</Typography>
                           )}
                         </Box>
