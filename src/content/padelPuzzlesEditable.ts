@@ -1,17 +1,27 @@
 export type PuzzleDifficulty = "easy" | "medium" | "hard";
+export type PuzzleType = "text" | "tap-to-target" | "video";
 
 export interface EditablePadelPuzzleOption {
   text: string;
   isCorrect: boolean;
 }
 
+export interface TargetCoordinate {
+  x: number; // 0-100 percentage of court width
+  y: number; // 0-100 percentage of court height
+}
+
 export interface EditablePadelPuzzle {
   questionId: string;
   difficulty: PuzzleDifficulty;
+  type?: PuzzleType;
   title: string;
   scenario: string;
   options: EditablePadelPuzzleOption[];
   coachingTip: string;
+  diagramUrl?: string;
+  videoUrl?: string;
+  targetCoordinate?: TargetCoordinate;
 }
 
 // Note for non-coders:
@@ -211,5 +221,34 @@ export const editablePadelPuzzles: EditablePadelPuzzle[] = [
       { text: "Spela hårt i mitten i axelhöjd till nätspelarna.", isCorrect: false },
     ],
     coachingTip: "I hörnkris är ett smart neutralt slag nästan alltid bättre än ett chansslag.",
+  },
+  {
+    questionId: "301",
+    difficulty: "easy",
+    type: "tap-to-target",
+    title: "Var ska du placera lobben?",
+    scenario: "Du står i bakplan och motståndarna har tagit nätet. De står ganska tätt ihop i mitten. Klicka på den plats på banan där det är mest fördelaktigt att placera en lobb.",
+    options: [
+      { text: "I hörnet bakom motståndaren", isCorrect: true },
+      { text: "Mitt på motståndaren", isCorrect: false },
+      { text: "Kort i mitten", isCorrect: false },
+    ],
+    targetCoordinate: { x: 15, y: 10 }, // Top left corner (approx)
+    diagramUrl: "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&q=80&w=400",
+    coachingTip: "Sikta mot hörnen för att tvinga motståndarna att backa och vända sig om.",
+  },
+  {
+    questionId: "302",
+    difficulty: "medium",
+    type: "video",
+    title: "Analysera motståndarens position",
+    scenario: "Se videoklippet. Motståndaren gör en slice-serve som studsar lågt i glaset. Vad är ditt bästa drag?",
+    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4", // Placeholder video
+    options: [
+      { text: "En låg chipp-retur mot nätspelaren", isCorrect: false },
+      { text: "En hög lobb djupt i banan", isCorrect: true },
+      { text: "En hård drive längs linjen", isCorrect: false },
+    ],
+    coachingTip: "När bollen studsar lågt i glaset är det ofta säkrast att lyfta en hög lobb.",
   },
 ];
