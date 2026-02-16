@@ -8,17 +8,27 @@ import {
   CardContent,
   Chip,
   Container,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { CheckCircle as CheckCircleIcon, School as SchoolIcon } from "@mui/icons-material";
+import {
+  CheckCircle as CheckCircleIcon,
+  EmojiEvents as TrophyIcon,
+  School as SchoolIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 import confetti from "canvas-confetti";
 import { useStore } from "../store/useStore";
 import { getPuzzlesByDifficulty, padelPuzzles, puzzleDifficulties, type PadelPuzzle } from "../content/padelPuzzles";
 import type { PuzzleDifficulty } from "../content/padelPuzzlesEditable";
 import PadelCourt from "../Components/PadelCourt";
+import PuzzleLeaderboard from "../Components/PuzzleLeaderboard";
 import {
   clearPuzzleAnswers,
   readPuzzleAnswerMap,
@@ -26,6 +36,7 @@ import {
   type PadelPuzzleAnswerRecord,
 } from "../utils/padelPuzzle";
 import { puzzleMeritService } from "../services/puzzleMeritService";
+import { puzzleScoreService } from "../services/puzzleScoreService";
 
 const difficultyLabels: Record<PuzzleDifficulty, string> = {
   easy: "Easy",
@@ -55,6 +66,9 @@ export default function PuzzlesPage() {
   const [submittedRecord, setSubmittedRecord] = useState<PadelPuzzleAnswerRecord | null>(null);
   const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, PadelPuzzleAnswerRecord>>({});
 
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [currentScore, setCurrentScore] = useState<number>(0);
+
   const puzzles = useMemo(() => getPuzzlesByDifficulty(difficulty), [difficulty]);
 
   // Note for non-coders: this list contains every puzzle ID available in the app.
@@ -83,6 +97,12 @@ export default function PuzzlesPage() {
 
   useEffect(() => {
     setAnswersByQuestionId(readPuzzleAnswerMap(user?.id));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      puzzleScoreService.getUserScore(user.id).then(setCurrentScore).catch(console.error);
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -149,6 +169,14 @@ export default function PuzzlesPage() {
     // Note for non-coders: once a player has saved an answer for the current question,
     // we lock that specific question view so the same answer can't be edited immediately.
     setSubmittedRecord(nextRecord);
+
+    if (user?.id) {
+      if (nextRecord.isCorrect) {
+        puzzleScoreService.incrementScore(100).then(() => setCurrentScore((s) => s + 100));
+      } else {
+        puzzleScoreService.incrementScore(-50).then(() => setCurrentScore((s) => Math.max(0, s - 50)));
+      }
+    }
 
     if (nextRecord.isCorrect) {
       void confetti({
@@ -218,10 +246,28 @@ export default function PuzzlesPage() {
                 <Button variant="contained" onClick={resetProgress}>
                   Spela om alla scenarion
                 </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<TrophyIcon />}
+                  onClick={() => setShowLeaderboard(true)}
+                >
+                  Topplista
+                </Button>
               </Stack>
             </Stack>
           </CardContent>
         </Card>
+        <Dialog open={showLeaderboard} onClose={() => setShowLeaderboard(false)} fullWidth maxWidth="sm">
+          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            Topplista
+            <IconButton onClick={() => setShowLeaderboard(false)}>
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            <PuzzleLeaderboard />
+          </DialogContent>
+        </Dialog>
       </Container>
     );
   }
@@ -237,14 +283,24 @@ export default function PuzzlesPage() {
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Stack spacing={2}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-            Padel Puzzles
-          </Typography>
-          <Typography color="text.secondary">
-            Välj svårighetsgrad, läs scenariot och välj ett av tre svarsalternativ.
-          </Typography>
-        </Box>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
+              Padel Puzzles
+            </Typography>
+            <Typography color="text.secondary">
+              Välj svårighetsgrad, läs scenariot och välj ett av tre svarsalternativ.
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<TrophyIcon />}
+            onClick={() => setShowLeaderboard(true)}
+            sx={{ flexShrink: 0, ml: 2, whiteSpace: "nowrap" }}
+          >
+            {currentScore} p
+          </Button>
+        </Stack>
 
         <Card sx={{ borderRadius: 3 }}>
           <CardContent>
@@ -365,6 +421,18 @@ export default function PuzzlesPage() {
           </CardContent>
         </Card>
       </Stack>
+
+      <Dialog open={showLeaderboard} onClose={() => setShowLeaderboard(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          Topplista
+          <IconButton onClick={() => setShowLeaderboard(false)}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <PuzzleLeaderboard />
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 }
