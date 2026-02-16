@@ -1,11 +1,43 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
-  <rect width='800' height='420' fill='#ecfeff'/>
-  <rect x='120' y='60' width='560' height='300' fill='#bbf7d0' stroke='#14532d' stroke-width='4'/>
-  <line x1='400' y1='60' x2='400' y2='360' stroke='#14532d' stroke-width='3'/>
-  <line x1='120' y1='210' x2='680' y2='210' stroke='#14532d' stroke-width='3'/>
-  <text x='30' y='42' font-size='28' fill='#0f172a' font-family='Arial'>Lobb, volley, bandeja, vibora</text>
-  <path d='M220 310 Q320 120 500 90' stroke='#2563eb' stroke-width='6' fill='none'/>
-  <path d='M520 120 Q470 150 430 170' stroke='#dc2626' stroke-width='6' fill='none'/>
-  <path d='M300 90 Q380 150 550 220' stroke='#16a34a' stroke-width='6' fill='none'/>
-  <path d='M280 110 Q340 180 420 250' stroke='#9333ea' stroke-width='6' fill='none'/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#f8fafc"/>
+
+  <!-- Court Surface -->
+  <rect x="100" y="50" width="600" height="350" fill="#bfdbfe" rx="4"/>
+
+  <!-- Court Lines -->
+  <g stroke="#ffffff" stroke-width="4" fill="none">
+    <rect x="100" y="50" width="600" height="350"/>
+    <line x1="400" y1="50" x2="400" y2="400" stroke="#9ca3af" stroke-width="6"/>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(50, 420)">
+    <circle cx="10" cy="0" r="5" fill="#facc15" stroke="#ca8a04"/><text x="25" y="5" font-family="sans-serif" font-size="12">Lobb</text>
+    <circle cx="100" cy="0" r="5" fill="#ef4444" stroke="#b91c1c"/><text x="115" y="5" font-family="sans-serif" font-size="12">Volley</text>
+    <circle cx="200" cy="0" r="5" fill="#8b5cf6" stroke="#6d28d9"/><text x="215" y="5" font-family="sans-serif" font-size="12">Bandeja</text>
+  </g>
+
+  <!-- Shot Paths -->
+
+  <!-- Lobb: From Defense to Back Corner -->
+  <path d="M 650 350 Q 400 50 150 350" stroke="#facc15" stroke-width="4" fill="none" stroke-dasharray="8 4" marker-end="url(#arrow-lobb)"/>
+  <text x="400" y="100" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#b45309" font-weight="bold">Lobb (Höjd &amp; Djup)</text>
+
+  <!-- Volley: From Net to Feet/Gap -->
+  <path d="M 300 150 L 550 200" stroke="#ef4444" stroke-width="4" fill="none" marker-end="url(#arrow-volley)"/>
+  <text x="425" y="170" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#b91c1c" font-weight="bold">Volley (Attack)</text>
+
+  <!-- Bandeja: From Mid-Court to Corner -->
+  <path d="M 350 250 Q 450 250 600 350" stroke="#8b5cf6" stroke-width="4" fill="none" marker-end="url(#arrow-bandeja)"/>
+  <text x="475" y="270" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#6d28d9" font-weight="bold">Bandeja (Kontroll)</text>
+
+  <!-- Defs -->
+  <defs>
+    <marker id="arrow-lobb" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#facc15"/></marker>
+    <marker id="arrow-volley" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/></marker>
+    <marker id="arrow-bandeja" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/></marker>
+  </defs>
+
+  <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#1e293b">Vanliga Slagtyper</text>
 </svg>

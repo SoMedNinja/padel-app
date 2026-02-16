@@ -1,10 +1,47 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 420'>
-  <rect width='800' height='420' fill='#f8fafc'/>
-  <rect x='120' y='60' width='560' height='300' fill='#d9f99d' stroke='#3f6212' stroke-width='4'/>
-  <line x1='120' y1='210' x2='680' y2='210' stroke='#3f6212' stroke-width='3'/>
-  <circle cx='250' cy='130' r='18' fill='#1d4ed8'/><circle cx='360' cy='130' r='18' fill='#1d4ed8'/>
-  <circle cx='450' cy='290' r='18' fill='#dc2626'/><circle cx='560' cy='290' r='18' fill='#dc2626'/>
-  <path d='M250 155 l0 40 M360 155 l0 40 M450 265 l0 -40 M560 265 l0 -40' stroke='#0f172a' stroke-width='5' marker-end='url(#a)'/>
-  <defs><marker id='a' markerWidth='10' markerHeight='10' refX='6' refY='3' orient='auto'><path d='M0,0 L0,6 L7,3 z' fill='#0f172a'/></marker></defs>
-  <text x='30' y='42' font-size='28' fill='#0f172a' font-family='Arial'>Synkroniserad rörelse i par</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#f8fafc"/>
+
+  <!-- Court Surface -->
+  <rect x="100" y="50" width="600" height="350" fill="#bfdbfe" rx="4"/>
+
+  <!-- Court Lines -->
+  <g stroke="#ffffff" stroke-width="4" fill="none">
+    <rect x="100" y="50" width="600" height="350"/>
+    <line x1="400" y1="50" x2="400" y2="400" stroke="#9ca3af" stroke-width="6"/>
+    <line x1="250" y1="50" x2="250" y2="400"/>
+    <line x1="550" y1="50" x2="550" y2="400"/>
+  </g>
+
+  <!-- Movement Arrows -->
+  <g stroke="#ea580c" stroke-width="3" fill="none" marker-end="url(#arrowhead)">
+    <!-- Pair moving forward together -->
+    <path d="M 600 150 L 450 150"/>
+    <path d="M 600 300 L 450 300"/>
+
+    <!-- Pair moving back together -->
+    <path d="M 350 150 L 200 150" opacity="0.5"/>
+    <path d="M 350 300 L 200 300" opacity="0.5"/>
+  </g>
+
+  <!-- Connecting Lines (Elastic Band) -->
+  <line x1="600" y1="150" x2="600" y2="300" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 2"/>
+  <text x="620" y="225" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#ef4444">Håll avståndet</text>
+
+  <!-- Players -->
+  <circle cx="600" y="150" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="600" y="300" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+
+  <circle cx="350" y="150" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="350" y="300" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Defs -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#1e293b">Rör er som en enhet</text>
 </svg>

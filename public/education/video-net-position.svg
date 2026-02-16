@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#f8fafc"/>
+
+  <!-- Court Surface -->
+  <rect x="100" y="50" width="600" height="350" fill="#bfdbfe" rx="4"/>
+
+  <!-- Court Lines -->
+  <g stroke="#ffffff" stroke-width="4" fill="none">
+    <rect x="100" y="50" width="600" height="350"/>
+    <line x1="400" y1="50" x2="400" y2="400" stroke="#9ca3af" stroke-width="6"/>
+  </g>
+
+  <!-- Players at Net -->
+  <circle cx="350" y="150" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="350" y="300" r="15" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Opponent Lobbing -->
+  <circle cx="650" y="225" r="15" fill="#10b981" stroke="#ffffff" stroke-width="2"/>
+
+  <!-- Lob Trajectory -->
+  <path d="M 650 225 Q 400 -50 150 225" stroke="#facc15" stroke-width="4" fill="none" stroke-dasharray="8 4"/>
+
+  <!-- Backward Movement Arrows -->
+  <path d="M 350 150 L 200 150" stroke="#ea580c" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 350 300 L 200 300" stroke="#ea580c" stroke-width="4" fill="none" marker-end="url(#arrowhead)"/>
+
+  <text x="275" y="140" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#ea580c" font-weight="bold">Backa!</text>
+  <text x="275" y="290" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#ea580c" font-weight="bold">Backa!</text>
+
+  <!-- Defs -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#1e293b">Diagram: Positionering vid nät (Lobb)</text>
+</svg>
