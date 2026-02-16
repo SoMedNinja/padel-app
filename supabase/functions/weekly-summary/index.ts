@@ -174,11 +174,11 @@ const formatShortDate = (value: string | Date) => {
 const formatScore = (s1: number, s2: number) => `${s1}–${s2}`;
 
 // Non-coder note: this helper turns player ids into a readable "Team A vs Team B" label.
-const buildTeamLabel = (match: Match, profiles: Profile[]) => {
+const buildTeamLabel = (match: Match, profileMap: Map<string, Profile>) => {
   const resolveName = (pid: string | null) => {
     if (!pid || pid === GUEST_ID) return "Gästspelare";
     if (pid.startsWith("name:")) return escapeHtml(pid.replace("name:", ""));
-    return profiles.find(p => p.id === pid)?.name || "Gästspelare";
+    return profileMap.get(pid)?.name || "Gästspelare";
   };
   const team1 = match.team1_ids.map(resolveName).join(" + ");
   const team2 = match.team2_ids.map(resolveName).join(" + ");
@@ -306,16 +306,16 @@ const getBearerToken = (req: Request) => {
 };
 
 // --- CORE LOGIC ---
-function calculateEloAt(matches: Match[], profiles: Profile[], untilDate?: string): Record<string, PlayerStats> {
+function calculateEloAt(matches: Match[], profileMap: Map<string, Profile>, untilDate?: string): Record<string, PlayerStats> {
   const players: Record<string, PlayerStats> = {};
   const ensurePlayer = (id: string) => {
     if (players[id]) return;
-    const p = profiles.find(p => p.id === id);
+    const p = profileMap.get(id);
     const name = p ? p.name : (id.startsWith("name:") ? escapeHtml(id.replace("name:", "")) : "Okänd");
     players[id] = { id, name, elo: ELO_BASELINE, wins: 0, losses: 0, games: 0, history: [] };
   };
 
-  profiles.forEach(p => {
+  profileMap.forEach(p => {
     ensurePlayer(p.id);
   });
 
@@ -392,7 +392,7 @@ function findWeekHighlight(
   weekMatches: Match[],
   playersEnd: Record<string, PlayerStats>,
   playersStart: Record<string, PlayerStats>,
-  profiles: Profile[]
+  profileMap: Map<string, Profile>
 ) {
   if (!weekMatches.length) return null;
 
@@ -424,7 +424,7 @@ function findWeekHighlight(
     const winnerExp = team1Won ? exp1 : (1 - exp1);
     const margin = Math.abs(match.team1_sets - match.team2_sets);
 
-    const teamsLabel = buildTeamLabel(match, profiles);
+    const teamsLabel = buildTeamLabel(match, profileMap);
     const totalElo = avg1 + avg2;
 
     // 1. Upset?
@@ -662,6 +662,8 @@ Deno.serve(async (req) => {
       email: p.email ?? null
     }));
 
+    const profileMap = new Map(profiles.map(p => [p.id, p]));
+
     const { data: matches, error: matchesError } = await supabase.from('matches').select('*');
     if (matchesError) {
       console.error("Matches fetch error:", matchesError);
@@ -734,8 +736,8 @@ Deno.serve(async (req) => {
     // Non-coder note: Auth is the primary email source, but we fall back to profile emails so weekly
     // sends still go out if Auth doesn't return an address for someone.
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
-    const eloStart = calculateEloAt(matches, profiles, startOfWeekISO);
-    const eloEnd = calculateEloAt(matches, profiles, endOfWeekISO);
+    const eloStart = calculateEloAt(matches, profileMap, startOfWeekISO);
+    const eloEnd = calculateEloAt(matches, profileMap, endOfWeekISO);
     const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
 
     const activePlayerIds = new Set<string>();
@@ -758,7 +760,7 @@ Deno.serve(async (req) => {
     const weeklyStats: Record<string, any> = {};
     Array.from(activePlayerIds).forEach(id => {
       const pStart = eloStart[id] || { elo: ELO_BASELINE };
-      const profile = profiles.find(p => p.id === id);
+      const profile = profileMap.get(id);
       const pEnd = eloEnd[id] || { elo: ELO_BASELINE, name: profile?.name || "Okänd" };
       const pMatches = weeklyMatches.filter(m => m.team1_ids.includes(id) || m.team2_ids.includes(id));
       const wins = pMatches.filter(m => {
@@ -803,8 +805,8 @@ Deno.serve(async (req) => {
       const synergy = bestPartnerEntry
         ? {
           id: bestPartnerEntry[0],
-          name: profiles.find(p => p.id === bestPartnerEntry[0])?.name || "Okänd",
-          avatarUrl: profiles.find(p => p.id === bestPartnerEntry[0])?.avatar_url || null,
+          name: profileMap.get(bestPartnerEntry[0])?.name || "Okänd",
+          avatarUrl: profileMap.get(bestPartnerEntry[0])?.avatar_url || null,
           games: bestPartnerEntry[1].games,
           winRate: Math.round((bestPartnerEntry[1].wins / bestPartnerEntry[1].games) * 100),
         }
@@ -814,8 +816,8 @@ Deno.serve(async (req) => {
       const rivalry = topOpponentEntry
         ? {
           id: topOpponentEntry[0],
-          name: profiles.find(p => p.id === topOpponentEntry[0])?.name || "Okänd",
-          avatarUrl: profiles.find(p => p.id === topOpponentEntry[0])?.avatar_url || null,
+          name: profileMap.get(topOpponentEntry[0])?.name || "Okänd",
+          avatarUrl: profileMap.get(topOpponentEntry[0])?.avatar_url || null,
           games: topOpponentEntry[1].games,
           winRate: Math.round((topOpponentEntry[1].wins / topOpponentEntry[1].games) * 100),
         }
@@ -857,7 +859,7 @@ Deno.serve(async (req) => {
         currentElo: pEnd.elo,
         winRate: pMatches.length > 0 ? Math.round((wins / pMatches.length) * 100) : 0,
         partners: Object.entries(partners).map(([pid, count]) => ({
-          name: profiles.find(p => p.id === pid)?.name || "Okänd",
+          name: profileMap.get(pid)?.name || "Okänd",
           count
         })),
         avatarUrl: profile?.avatar_url || null,
@@ -867,7 +869,7 @@ Deno.serve(async (req) => {
           ? {
             score: `${comebackMatch.match.team1_sets}-${comebackMatch.match.team2_sets}`,
             margin: comebackMatch.margin,
-            teamsLabel: buildTeamLabel(comebackMatch.match, profiles),
+            teamsLabel: buildTeamLabel(comebackMatch.match, profileMap),
           }
           : null,
         recentResults,
@@ -886,7 +888,7 @@ Deno.serve(async (req) => {
     }));
 
     const mvp = getMvpWinner(mvpCandidates);
-    const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart, profiles);
+    const highlight = findWeekHighlight(weeklyMatches, eloEnd, eloStart, profileMap);
     // Non-coder note: we compare the current leaderboard to last week's to show movement arrows.
     const previousRanks = new Map(
       Object.values(eloStart)
@@ -902,7 +904,7 @@ Deno.serve(async (req) => {
         const previousRank = previousRanks.get(player.id);
         const movement = previousRank ? previousRank - currentRank : 0;
         const trend = movement > 0 ? "up" : movement < 0 ? "down" : "same";
-        const avatarUrl = profiles.find(p => p.id === player.id)?.avatar_url || null;
+        const avatarUrl = profileMap.get(player.id)?.avatar_url || null;
         return {
           id: player.id,
           name: player.name,
