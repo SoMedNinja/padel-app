@@ -147,7 +147,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
         pb: { xs: 8, sm: 0 },
       }}
     >
-      <Container maxWidth="lg" sx={{ pt: 1, display: "flex", justifyContent: "flex-end", gap: 1 }}>
+      {/* Note for non-coders: desktop keeps this normal top row, but on phones we use a floating button to avoid reserving extra vertical space. */}
+      <Container
+        maxWidth="lg"
+        sx={{
+          pt: 1,
+          display: { xs: "none", sm: "flex" },
+          justifyContent: "flex-end",
+          gap: 1,
+        }}
+      >
         <IconButton
           edge="end"
           color="primary"
@@ -166,6 +175,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <MoreVertIcon />
         </IconButton>
       </Container>
+
+      <IconButton
+        color="primary"
+        aria-label="fler alternativ"
+        onClick={handleOverflowOpen}
+        sx={{
+          display: { xs: "inline-flex", sm: "none" },
+          position: "fixed",
+          right: 12,
+          top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+          zIndex: 1201,
+        }}
+      >
+        <MoreVertIcon />
+      </IconButton>
 
       <SideMenu
         isMenuOpen={isMenuOpen}
