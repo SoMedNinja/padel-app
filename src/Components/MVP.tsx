@@ -3,7 +3,9 @@ import {
   getMvpWinner,
   scorePlayersForMvp,
   EVENING_MIN_GAMES,
-  MONTH_MIN_GAMES
+  MONTH_MIN_GAMES,
+  MVP_WINDOW_DAYS,
+  MILLISECONDS_PER_DAY
 } from "../utils/mvp";
 import ProfileName from "./ProfileName";
 import { Match, PlayerStats } from "../types";
@@ -55,7 +57,7 @@ export default function MVP({
       if (!latestCreatedAt) return null;
 
       const latestTime = new Date(latestCreatedAt).getTime();
-      const cutoffStr = new Date(latestTime - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const cutoffStr = new Date(latestTime - MVP_WINDOW_DAYS * MILLISECONDS_PER_DAY).toISOString();
 
       relevantMatches = matches.filter(m => m.created_at > cutoffStr);
     }
@@ -68,8 +70,8 @@ export default function MVP({
 
   const titleEmoji = title?.toLowerCase().includes("kvällens mvp") ? "🚀" : "🏆";
   const explanation = mode === "evening"
-    ? "MVP-poängen är utformad för att belöna höga ELO-vinster samtidigt som den tar hänsyn till vinsteffektivitet och deltagandevolym. Beräknas på senaste spelkvällens matcher. Kräver minst 3 matcher."
-    : "MVP-poängen är utformad för att belöna höga ELO-vinster samtidigt som den tar hänsyn till vinsteffektivitet och deltagandevolym. Beräknas på rullande 30 dagar. Kräver minst 6 matcher.";
+    ? `MVP-poängen är utformad för att belöna höga ELO-vinster samtidigt som den tar hänsyn till vinsteffektivitet och deltagandevolym. Beräknas på senaste spelkvällens matcher. Kräver minst ${EVENING_MIN_GAMES} matcher.`
+    : `MVP-poängen är utformad för att belöna höga ELO-vinster samtidigt som den tar hänsyn till vinsteffektivitet och deltagandevolym. Beräknas på rullande ${MVP_WINDOW_DAYS} dagar. Kräver minst ${MONTH_MIN_GAMES} matcher.`;
 
   if (!mvp) {
     return (
