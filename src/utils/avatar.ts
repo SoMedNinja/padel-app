@@ -4,16 +4,22 @@ export const getInitial = (name: string = "") => {
   return trimmed[0].toUpperCase();
 };
 
+let _canUseStorage: boolean | null = null;
 const canUseStorage = () => {
-  if (typeof localStorage === "undefined") return false;
+  if (_canUseStorage !== null) return _canUseStorage;
+  if (typeof localStorage === "undefined") {
+    _canUseStorage = false;
+    return false;
+  }
   try {
     const testKey = "__padel_storage_test__";
     localStorage.setItem(testKey, "ok");
     localStorage.removeItem(testKey);
-    return true;
+    _canUseStorage = true;
   } catch {
-    return false;
+    _canUseStorage = false;
   }
+  return _canUseStorage;
 };
 
 export const getStoredAvatar = (id: string | null | undefined) => {

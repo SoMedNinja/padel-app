@@ -1,7 +1,8 @@
+import React from 'react';
 import { Avatar as MuiAvatar } from "@mui/material";
 import { getInitial } from "../utils/avatar";
 
-export default function Avatar({ name, src, alt, className = "", size, sx = {} }) {
+const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {} }: any) => {
   const label = alt || name || "Avatar";
 
   const mergedSx = {
@@ -20,4 +21,6 @@ export default function Avatar({ name, src, alt, className = "", size, sx = {} }
       {getInitial(name)}
     </MuiAvatar>
   );
-}
+});
+
+export default Avatar;

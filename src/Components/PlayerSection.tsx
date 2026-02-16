@@ -136,12 +136,14 @@ const formatMvpDays = (days: number) => {
 };
 
 
+// Optimization: Pre-define options as constants to leverage identity-based cache hits in formatDate
+const CHART_DATE_OPTIONS: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
+const CHART_DATETIME_OPTIONS: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" };
+
 const formatChartTimestamp = (value: string | number, includeTime = false) => {
   if (!value) return "";
   const date = typeof value === "number" ? new Date(value) : value;
-  const options: Intl.DateTimeFormatOptions = includeTime
-    ? { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
-    : { year: "numeric", month: "short", day: "numeric" };
+  const options = includeTime ? CHART_DATETIME_OPTIONS : CHART_DATE_OPTIONS;
   return formatDate(date, options);
 };
 
@@ -708,20 +710,33 @@ export default function PlayerSection({
 
   const last30DaysDelta = useMemo(() => {
     const history = globalStats?.history ?? [];
-    if (history.length === 0) return 0;
+    const len = history.length;
+    if (len === 0) return 0;
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    return history
-      .filter(h => h.timestamp >= thirtyDaysAgo)
-      .reduce((sum, h) => sum + h.delta, 0);
+
+    // Optimization: use a reverse loop and break early as history is chronological.
+    // This reduces O(H) to O(H_recent) and avoids extra array allocation from .filter().
+    let sum = 0;
+    for (let i = len - 1; i >= 0; i--) {
+      if (history[i].timestamp < thirtyDaysAgo) break;
+      sum += history[i].delta;
+    }
+    return sum;
   }, [globalStats]);
 
   const lastSessionDelta = useMemo(() => {
     const history = globalStats?.history ?? [];
-    if (history.length === 0) return 0;
-    const lastDate = history[history.length - 1].date?.slice(0, 10);
-    return history
-      .filter(h => h.date?.slice(0, 10) === lastDate)
-      .reduce((sum, h) => sum + h.delta, 0);
+    const len = history.length;
+    if (len === 0) return 0;
+    const lastDate = history[len - 1].date?.slice(0, 10);
+
+    // Optimization: use a reverse loop and break early once the date changes.
+    let sum = 0;
+    for (let i = len - 1; i >= 0; i--) {
+      if (history[i].date?.slice(0, 10) !== lastDate) break;
+      sum += history[i].delta;
+    }
+    return sum;
   }, [globalStats]);
 
   // Optimization: memoize synergy/rivalry stats to avoid expensive O(M) re-scans on every render.
