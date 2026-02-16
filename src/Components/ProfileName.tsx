@@ -63,7 +63,12 @@ export default function ProfileName({ name, badgeId, className = "" }: ProfileNa
         {displayName}
       </Box>
       {description ? (
-        <Tooltip title={description} arrow>
+        <Tooltip
+          title={description}
+          arrow
+          enterTouchDelay={0}
+          leaveTouchDelay={3000}
+        >
           {badgeChip}
         </Tooltip>
       ) : badgeChip}

@@ -77,7 +77,12 @@ export default function MVP({
         <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
             {titleEmoji} {title}
-            <Tooltip title={explanation} arrow>
+            <Tooltip
+              title={explanation}
+              arrow
+              enterTouchDelay={0}
+              leaveTouchDelay={5000}
+            >
               <IconButton
                 size="small"
                 sx={{ ml: 0.5, opacity: 0.6 }}
@@ -102,7 +107,12 @@ export default function MVP({
       <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontWeight: 700 }}>
           {titleEmoji} {title}
-          <Tooltip title={explanation} arrow>
+          <Tooltip
+            title={explanation}
+            arrow
+            enterTouchDelay={0}
+            leaveTouchDelay={5000}
+          >
             <IconButton
               size="small"
               sx={{ ml: 0.5, opacity: 0.6 }}

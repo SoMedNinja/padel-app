@@ -351,8 +351,9 @@ export default function Dashboard() {
             {!filteredMatches.length ? (
               <EmptyState
                 title="Inga matcher ännu"
-                description="Lägg in din första match för att börja se statistik och klättra på rankingen!"
-                actionLabel="Registrera match"
+                // Note for non-coders: keeping the description identical to the iOS Swedish Localizable.strings.
+                description="Lägg till din första match för att låsa upp trender, highlights och MVP-kort."
+                actionLabel="Registrera första matchen"
                 onAction={() => window.location.hash = "#match-form"} // Simple jump
               />
             ) : (

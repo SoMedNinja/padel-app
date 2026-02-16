@@ -50,7 +50,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   HelpOutline as HelpIcon,
 } from "@mui/icons-material";
-import { formatDate } from "../utils/format";
+import { formatHistoryDateLabel } from "../utils/format";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -455,7 +455,7 @@ export default function History({
                           slotProps={{ htmlInput: { "aria-label": "Välj datum och tid för matchen" } }}
                         />
                       ) : (
-                        `Datum: ${formatDate(m.created_at)}`
+                        `Datum: ${formatHistoryDateLabel(m.created_at)}`
                       )}
                     </Typography>
                   </Box>

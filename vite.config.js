@@ -63,7 +63,7 @@ export default defineConfig({
         description: "Den officiella appen för Padel Native – hantera matcher, statistik och turneringar.",
         categories: ["sports", "social"],
         theme_color: "#d32f2f",
-        background_color: "#ffffff",
+        background_color: "#f6f7fb",
         display: "standalone",
         start_url: "/",
         // PWA_ASSETS:MANIFEST_ICONS_START

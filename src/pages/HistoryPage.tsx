@@ -131,7 +131,7 @@ export default function HistoryPage() {
             </Stack>
           ) : !filteredMatches.length ? (
             <EmptyState
-              title="Ingen historik"
+              title="Inga matcher spelade ännu"
               description="Inga matcher matchar ditt nuvarande filter. Prova att ändra filtret eller registrera en ny match."
               actionLabel="Registrera match"
               onAction={() => navigate("/single-game")}
