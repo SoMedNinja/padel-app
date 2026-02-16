@@ -306,8 +306,6 @@ const buildMvpSummary = (
 
 const buildComparisonChartData = (players: PlayerStats[], profiles: Profile[], playerIds: string[]) => {
   if (!playerIds.length) return [];
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
   const profileNameMap = profiles.reduce((acc, profile) => {
     acc[profile.id] = getProfileDisplayName(profile);
@@ -320,8 +318,6 @@ const buildComparisonChartData = (players: PlayerStats[], profiles: Profile[], p
     if (!player) return;
     player.history.forEach((entry) => {
       if (!entry.date) return;
-      const entryDate = new Date(entry.date);
-      if (Number.isNaN(entryDate.getTime()) || entryDate < oneYearAgo) return;
       const key = `${entry.date}::${entry.matchId}`;
       if (!timelineEntries.has(key)) {
         timelineEntries.set(key, { date: entry.date, timestamp: entry.timestamp, matchId: entry.matchId });
@@ -342,7 +338,9 @@ const buildComparisonChartData = (players: PlayerStats[], profiles: Profile[], p
       name: profileNameMap[id] || "Okänd",
       history: (player?.history || []).filter(h => h.date),
       index: 0,
-      lastElo: player?.startElo ?? ELO_BASELINE
+      lastElo: player?.startElo ?? ELO_BASELINE,
+      wins: 0,
+      games: 0
     };
   });
 
@@ -359,10 +357,14 @@ const buildComparisonChartData = (players: PlayerStats[], profiles: Profile[], p
         pointer.index < pointer.history.length &&
         isEntryBeforeOrEqual(pointer.history[pointer.index], dateEntry)
       ) {
-        pointer.lastElo = pointer.history[pointer.index].elo;
+        const entry = pointer.history[pointer.index];
+        pointer.lastElo = entry.elo;
+        pointer.games += 1;
+        if (entry.result === "W") pointer.wins += 1;
         pointer.index += 1;
       }
-      row[pointer.name] = pointer.lastElo;
+      row[`${pointer.name}_elo`] = pointer.lastElo;
+      row[`${pointer.name}_winRate`] = pointer.games > 0 ? (pointer.wins / pointer.games) * 100 : 0;
     });
     return row;
   });
@@ -772,10 +774,11 @@ export default function PlayerSection({
 
   const [compareTarget, setCompareTarget] = useState<string>("none");
   const [isEloChartFullscreen, setIsEloChartFullscreen] = useState(false);
+  const [trendTimeRange, setTrendTimeRange] = useState<string>("year1");
+  const [trendMetric, setTrendMetric] = useState<string>("elo");
   const [eloTrendStartDate, setEloTrendStartDate] = useState<string>("");
   const [eloTrendEndDate, setEloTrendEndDate] = useState<string>("");
   const [eloTrendRangeTouched, setEloTrendRangeTouched] = useState(false);
-  const getTodayDateString = () => new Date().toISOString().slice(0, 10);
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
     playerProfile?.featured_badge_id || null
   );
@@ -851,10 +854,26 @@ export default function PlayerSection({
   }, [eloTrendRangeTouched, maxComparisonDate, minComparisonDate]);
 
   const filteredComparisonData = useMemo(() => {
-    if (!eloTrendStartDate && !eloTrendEndDate) return comparisonData;
+    let start: Date | null = null;
+    let end: Date | null = null;
+    const now = new Date();
 
-    const start = eloTrendStartDate ? new Date(`${eloTrendStartDate}T00:00:00`) : null;
-    const end = eloTrendEndDate ? new Date(`${eloTrendEndDate}T23:59:59`) : null;
+    if (trendTimeRange === "custom") {
+      start = eloTrendStartDate ? new Date(`${eloTrendStartDate}T00:00:00`) : null;
+      end = eloTrendEndDate ? new Date(`${eloTrendEndDate}T23:59:59`) : null;
+    } else {
+      end = now;
+      if (trendTimeRange === "days30") {
+        start = new Date(now);
+        start.setDate(now.getDate() - 30);
+      } else if (trendTimeRange === "days90") {
+        start = new Date(now);
+        start.setDate(now.getDate() - 90);
+      } else if (trendTimeRange === "year1") {
+        start = new Date(now);
+        start.setFullYear(now.getFullYear() - 1);
+      }
+    }
 
     return comparisonData.filter(row => {
       const rowDate = new Date(row.date);
@@ -862,18 +881,18 @@ export default function PlayerSection({
       if (end && rowDate > end) return false;
       return true;
     });
-  }, [comparisonData, eloTrendEndDate, eloTrendStartDate]);
+  }, [comparisonData, trendTimeRange, eloTrendStartDate, eloTrendEndDate]);
 
   const comparisonYDomain = useMemo(() => {
-    // Note for non-coders: we only use the dates to zoom the chart, not to recalculate any ELO numbers.
     if (!filteredComparisonData.length) return ["dataMin - 20", "dataMax + 20"] as const;
+    if (trendMetric === "winRate") return [0, 100] as const;
 
     let min = Infinity;
     let max = -Infinity;
 
     filteredComparisonData.forEach(row => {
       comparisonNames.forEach(name => {
-        const value = row[name];
+        const value = row[`${name}_elo`];
         if (typeof value === "number") {
           min = Math.min(min, value);
           max = Math.max(max, value);
@@ -885,7 +904,7 @@ export default function PlayerSection({
 
     const padding = Math.max(5, Math.round((max - min) * 0.05));
     return [min - padding, max + padding] as const;
-  }, [comparisonNames, filteredComparisonData]);
+  }, [comparisonNames, filteredComparisonData, trendMetric]);
 
   useEffect(() => {
     // Lock the page scroll while the full-screen chart is open so it feels like a modal.
@@ -1045,26 +1064,91 @@ export default function PlayerSection({
       >
         <CardContent sx={{ height: isEloChartFullscreen ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}>
           <Stack
-            direction={{ xs: "column", sm: "row" }}
+            direction="column"
             spacing={2}
-            alignItems={{ xs: "stretch", sm: "flex-start" }}
-            justifyContent="space-between"
             sx={{ mb: 2 }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>ELO-utveckling (senaste året)</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>Trend-analys</Typography>
+              <MuiTooltip title={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"} arrow>
+                <IconButton
+                  onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}
+                  aria-label={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"}
+                >
+                  {isEloChartFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                </IconButton>
+              </MuiTooltip>
+            </Box>
+
+            <Stack direction="row" spacing={1} overflow="auto" sx={{ pb: 1, '&::-webkit-scrollbar': { display: 'none' } }}>
+              {[
+                { id: 'days30', label: '30d' },
+                { id: 'days90', label: '90d' },
+                { id: 'year1', label: '1y' },
+                { id: 'all', label: 'Alla' },
+                { id: 'custom', label: 'Anpassat' }
+              ].map((range) => (
+                <Chip
+                  key={range.id}
+                  label={range.label}
+                  onClick={() => setTrendTimeRange(range.id)}
+                  color={trendTimeRange === range.id ? "primary" : "default"}
+                  variant={trendTimeRange === range.id ? "contained" : "outlined"}
+                  size="small"
+                  sx={{ fontWeight: 700 }}
+                />
+              ))}
+            </Stack>
+
+            {trendTimeRange === "custom" && (
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  id="elo-trend-start-date"
+                  label="Från"
+                  type="date"
+                  size="small"
+                  value={eloTrendStartDate}
+                  onChange={(e) => { setEloTrendRangeTouched(true); setEloTrendStartDate(e.target.value); }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  id="elo-trend-end-date"
+                  label="Till"
+                  type="date"
+                  size="small"
+                  value={eloTrendEndDate}
+                  onChange={(e) => { setEloTrendRangeTouched(true); setEloTrendEndDate(e.target.value); }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  sx={{ flex: 1 }}
+                />
+              </Stack>
+            )}
+
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={2}
               alignItems={{ xs: "stretch", sm: "center" }}
-              flexWrap="wrap"
             >
+              <TextField
+                select
+                size="small"
+                label="Mått"
+                value={trendMetric}
+                onChange={(e) => setTrendMetric(e.target.value)}
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="elo">ELO</MenuItem>
+                <MenuItem value="winRate">Win Rate %</MenuItem>
+              </TextField>
+
               <TextField
                 select
                 size="small"
                 label="Jämför med"
                 value={compareTarget}
                 onChange={(e) => setCompareTarget(e.target.value)}
-                sx={{ minWidth: { sm: 160 }, width: { xs: "100%", sm: "auto" } }}
+                sx={{ minWidth: 160, flex: { sm: 1 } }}
               >
                 <MenuItem value="none">Ingen</MenuItem>
                 <MenuItem value="all">Alla</MenuItem>
@@ -1074,81 +1158,6 @@ export default function PlayerSection({
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                id="elo-trend-start-date"
-                label="Startdatum"
-                aria-label="Välj startdatum för ELO-trend"
-                type="date"
-                size="small"
-                value={eloTrendStartDate}
-                onChange={(event) => {
-                  setEloTrendRangeTouched(true);
-                  setEloTrendStartDate(event.target.value);
-                }}
-                slotProps={{ inputLabel: { shrink: true } }}
-                InputProps={{
-                  endAdornment: eloTrendStartDate ? (
-                    <InputAdornment position="end">
-                      <MuiTooltip title="Återställ till tidigaste datum" arrow>
-                        <IconButton
-                          aria-label="Återställ startdatum"
-                          size="small"
-                          onClick={() => {
-                            // Note for non-coders: this reset jumps to the first day we have ELO data for.
-                            setEloTrendRangeTouched(true);
-                            setEloTrendStartDate(minComparisonDate ? toInputDate(minComparisonDate) : "");
-                          }}
-                        >
-                          <ResetIcon fontSize="small" />
-                        </IconButton>
-                      </MuiTooltip>
-                    </InputAdornment>
-                  ) : undefined
-                }}
-                sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
-              />
-              <TextField
-                id="elo-trend-end-date"
-                label="Slutdatum"
-                aria-label="Välj slutdatum för ELO-trend"
-                type="date"
-                size="small"
-                value={eloTrendEndDate}
-                onChange={(event) => {
-                  setEloTrendRangeTouched(true);
-                  setEloTrendEndDate(event.target.value);
-                }}
-                slotProps={{ inputLabel: { shrink: true } }}
-                InputProps={{
-                  endAdornment: eloTrendEndDate ? (
-                    <InputAdornment position="end">
-                      <MuiTooltip title="Återställ till idag" arrow>
-                        <IconButton
-                          aria-label="Återställ slutdatum"
-                          size="small"
-                          onClick={() => {
-                            // Note for non-coders: end date resets to today so newer matches show up again.
-                            setEloTrendRangeTouched(true);
-                            setEloTrendEndDate(getTodayDateString());
-                          }}
-                        >
-                          <ResetIcon fontSize="small" />
-                        </IconButton>
-                      </MuiTooltip>
-                    </InputAdornment>
-                  ) : undefined
-                }}
-                sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { sm: 160 } }}
-              />
-              <MuiTooltip title={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"} arrow>
-                <IconButton
-                  onClick={() => setIsEloChartFullscreen(!isEloChartFullscreen)}
-                  aria-label={isEloChartFullscreen ? "Stäng helskärm" : "Visa i helskärm"}
-                  sx={{ alignSelf: { xs: "flex-end", sm: "center" } }}
-                >
-                  {isEloChartFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                </IconButton>
-              </MuiTooltip>
             </Stack>
           </Stack>
 
@@ -1210,11 +1219,12 @@ export default function PlayerSection({
                     <Line
                       key={name}
                       type="monotone"
-                      dataKey={(row) => row[name]}
+                      dataKey={(row) => row[`${name}_${trendMetric}`]}
                       name={name}
                       stroke={chartPalette[index % chartPalette.length]}
                       strokeWidth={3}
                       dot={false}
+                      animationDuration={300}
                     />
                   ))}
                 </LineChart>
@@ -1566,9 +1576,29 @@ export function HeadToHeadSection({
 
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
   const [mode, setMode] = useState<string>("against");
+
+  const playerMatchCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const uid = user?.id;
+    if (!uid) return counts;
+
+    for (const m of matches) {
+      const t1 = normalizeTeam(resolveTeamIds(m.team1_ids, m.team1, nameToIdMap));
+      const t2 = normalizeTeam(resolveTeamIds(m.team2_ids, m.team2, nameToIdMap));
+      if (t1.includes(uid) || t2.includes(uid)) {
+        [...t1, ...t2].forEach(id => {
+          if (id !== uid) counts.set(id, (counts.get(id) || 0) + 1);
+        });
+      }
+    }
+    return counts;
+  }, [matches, user?.id, nameToIdMap]);
+
   const selectablePlayers = useMemo(
-    () => profiles.filter(profile => profile.id !== user?.id),
-    [profiles, user]
+    () => profiles
+      .filter(profile => profile.id !== user?.id)
+      .sort((a, b) => (playerMatchCounts.get(b.id) || 0) - (playerMatchCounts.get(a.id) || 0)),
+    [profiles, user, playerMatchCounts]
   );
 
   const [opponentId, setOpponentId] = useState<string>("");

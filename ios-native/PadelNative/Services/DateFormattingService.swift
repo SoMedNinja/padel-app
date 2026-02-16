@@ -65,7 +65,9 @@ struct DateFormattingService {
 
     func historyDateLabel(_ date: Date) -> String {
         if let relative = relativeDayLabel(for: date) {
-            return "\(relative) \(shortTime(date))"
+            // Note for non-coders: adding "kl" (short for "klockan") is the natural Swedish
+            // way to prefix a time, e.g. "Idag kl 14:00" instead of "Idag 14:00".
+            return "\(relative) kl \(shortTime(date))"
         }
         return historyDateFormatter.string(from: date)
     }

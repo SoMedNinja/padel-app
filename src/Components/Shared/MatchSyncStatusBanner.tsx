@@ -26,7 +26,11 @@ export default function MatchSyncStatusBanner() {
       >
         <AlertTitle>{hasConflict ? "Konflikt kräver åtgärd" : "Synkningen behöver hjälp"}</AlertTitle>
         {/* Note for non-coders: failed means the app kept your data locally, but server sync paused after repeated failures or a conflict. */}
-        {sync.failedCount} ändring(ar) väntar på manuell hantering. {sync.lastError || "Kontrollera internet och försök igen."}
+        {hasConflict ? (
+          "Konflikt upptäckt: en offline-sparad match skiljer sig från matchen som redan synkats. Öppna historiken och avgör vilken version som gäller innan du försöker igen."
+        ) : (
+          `${sync.failedCount} ändring(ar) väntar på manuell hantering. ${sync.lastError || "Kontrollera internet och försök igen."}`
+        )}
       </Alert>
     );
   }

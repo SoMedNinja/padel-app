@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { Dialog, DialogTitle, DialogContent, Grid, Button, Typography, Paper, IconButton, ButtonBase, LinearProgress, Box, Tooltip, Tab, Tabs, Stack } from "@mui/material";
-import { Close as CloseIcon, Lock as LockIcon } from "@mui/icons-material";
+import { Grid, Button, Typography, Paper, ButtonBase, LinearProgress, Box, Tooltip, Tab, Tabs, Stack } from "@mui/material";
+import { Lock as LockIcon } from "@mui/icons-material";
 import { buildPlayerBadges } from "../utils/badges";
+import AppBottomSheet from "./Shared/AppBottomSheet";
 import { useState } from "react";
 import { Profile } from "../types";
 
@@ -28,23 +29,18 @@ export default function BadgeGallery({
   const { earnedBadges, lockedBadges } = useMemo(() => buildPlayerBadges(stats, allPlayerStats, playerId), [stats, allPlayerStats, playerId]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
-      <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Meriter
-        <IconButton onClick={onClose} size="small" aria-label="Stäng"><CloseIcon /></IconButton>
-      </DialogTitle>
-
+    <AppBottomSheet open={open} onClose={onClose} title="Meriter">
       <Tabs
         value={tab}
         onChange={(_, newValue) => setTab(newValue)}
-        sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
+        sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
         variant="fullWidth"
       >
         <Tab label={`Intjänade (${earnedBadges.length})`} sx={{ fontWeight: 700 }} />
         <Tab label="Kommande" sx={{ fontWeight: 700 }} />
       </Tabs>
 
-      <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: 4, pt: 2 }}>
+      <Box sx={{ pb: 2 }}>
         {tab === 0 ? (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -66,7 +62,12 @@ export default function BadgeGallery({
                 const isSelected = currentBadgeId === badge.id;
                 return (
                   <Grid size={{ xs: 4, sm: 3 }} key={badge.id}>
-                    <Tooltip title={badge.description} arrow>
+                    <Tooltip
+                      title={badge.description}
+                      arrow
+                      enterTouchDelay={0}
+                      leaveTouchDelay={3000}
+                    >
                       <ButtonBase
                         component={Paper}
                         variant="outlined"
@@ -154,7 +155,7 @@ export default function BadgeGallery({
             )}
           </Stack>
         )}
-      </DialogContent>
-    </Dialog>
+      </Box>
+    </AppBottomSheet>
   );
 }

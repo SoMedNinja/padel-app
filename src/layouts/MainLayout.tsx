@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
 import SideMenu from "../Components/SideMenu";
@@ -24,6 +24,9 @@ import {
   AlertTitle,
   Container,
   Button,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -35,7 +38,9 @@ import {
   Groups as GroupsIcon,
   Logout as LogoutIcon,
   Refresh as RefreshIcon,
+  HelpOutline as HelpIcon,
 } from "@mui/icons-material";
+import AppBottomSheet from "../Components/Shared/AppBottomSheet";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -48,6 +53,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const [overflowAnchorEl, setOverflowAnchorEl] = useState<null | HTMLElement>(null);
   const [isStandaloneApp, setIsStandaloneApp] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path === "/dashboard") return "Översikt";
+    if (path === "/") return "Profil";
+    if (path === "/history") return "Historik";
+    if (path === "/schedule") return "Schema";
+    if (path === "/tournament") return "Turnering";
+    if (path === "/single-game") return "Match";
+    if (path === "/admin") return "Admin";
+    if (path === "/puzzles") return "Pussel";
+    if (path === "/education") return "Utbildning";
+    if (path.startsWith("/match/")) return "Matchdetaljer";
+    return "Padel Native";
+  };
 
   const guestModeMaxAgeMs = 1000 * 60 * 60 * 24;
   const [now] = useState(() => Date.now());
@@ -176,20 +199,39 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </IconButton>
       </Container>
 
-      <IconButton
-        color="primary"
-        aria-label="fler alternativ"
-        onClick={handleOverflowOpen}
+      {/* Note for non-coders: this sticky header provides the "Liquid Glass" (blur) effect
+          matching the native iOS navigation bar. */}
+      <Box
+        component="header"
         sx={{
-          display: { xs: "inline-flex", sm: "none" },
-          position: "fixed",
-          right: 12,
-          top: "calc(env(safe-area-inset-top, 0px) + 6px)",
-          zIndex: 1201,
+          position: 'sticky',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1100,
+          bgcolor: (theme) => alpha(theme.palette.background.default, 0.72),
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          height: 'calc(env(safe-area-inset-top, 0px) + 56px)',
+          display: { xs: 'flex', sm: 'none' },
+          alignItems: 'center',
+          px: 2,
+          pt: 'env(safe-area-inset-top, 0px)',
         }}
       >
-        <MoreVertIcon />
-      </IconButton>
+        <Typography variant="h6" sx={{ fontWeight: 800, flexGrow: 1, textAlign: 'center', ml: 6 }}>
+          {getPageTitle()}
+        </Typography>
+        <IconButton
+          color="primary"
+          aria-label="fler alternativ"
+          onClick={handleOverflowOpen}
+        >
+          <MoreVertIcon />
+        </IconButton>
+      </Box>
 
       <SideMenu
         isMenuOpen={isMenuOpen}
@@ -315,9 +357,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
         )}
       </Menu>
 
+      {/* Overflow options for desktop/large screens */}
       <Menu
         anchorEl={overflowAnchorEl}
-        open={Boolean(overflowAnchorEl)}
+        open={Boolean(overflowAnchorEl) && !isStandaloneApp}
         onClose={handleOverflowClose}
         anchorOrigin={{
           vertical: 'bottom',
@@ -332,6 +375,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             sx: {
               minWidth: 180,
               borderRadius: 2,
+              display: { xs: 'none', sm: 'block' }
             }
           }
         }}
@@ -351,6 +395,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             requestOpenPermissionGuide("menu");
           }}
         >
+          <ListItemIcon><HelpIcon fontSize="small" /></ListItemIcon>
           <ListItemText>Behörighetshjälp</ListItemText>
         </MenuItem>
         <MenuItem
@@ -363,6 +408,61 @@ export default function MainLayout({ children }: MainLayoutProps) {
           <ListItemText>Logga ut</ListItemText>
         </MenuItem>
       </Menu>
+
+      {/* Overflow options for mobile (Native-style Bottom Sheet) */}
+      {isMobile && (
+        <AppBottomSheet
+          open={Boolean(overflowAnchorEl)}
+          onClose={handleOverflowClose}
+          title="Alternativ"
+        >
+        <List disablePadding>
+          <ListItem disableGutters>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={() => {
+                handleOverflowClose();
+                handleReloadApp();
+              }}
+              sx={{ justifyContent: 'flex-start', py: 1.5 }}
+            >
+              Ladda om appen
+            </Button>
+          </ListItem>
+          <ListItem disableGutters>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<HelpIcon />}
+              onClick={() => {
+                handleOverflowClose();
+                requestOpenPermissionGuide("menu");
+              }}
+              sx={{ justifyContent: 'flex-start', py: 1.5 }}
+            >
+              Behörighetshjälp
+            </Button>
+          </ListItem>
+          <ListItem disableGutters>
+            <Button
+              fullWidth
+              variant="contained"
+              color="error"
+              startIcon={<LogoutIcon />}
+              onClick={() => {
+                handleOverflowClose();
+                void handleAuthAction();
+              }}
+              sx={{ justifyContent: 'flex-start', py: 1.5, mt: 1 }}
+            >
+              Logga ut
+            </Button>
+          </ListItem>
+          </List>
+        </AppBottomSheet>
+      )}
 
       <BottomNav
         isMenuOpen={isMenuOpen}

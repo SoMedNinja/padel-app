@@ -1,20 +1,16 @@
 import React, { useMemo } from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
   Typography,
   Box,
   Stack,
   Divider,
-  IconButton,
-  AvatarGroup,
   Chip
 } from "@mui/material";
-import { Close as CloseIcon, TrendingUp, TrendingDown, People } from "@mui/icons-material";
+import { TrendingUp, People } from "@mui/icons-material";
 import Avatar from "./Avatar";
 import { Match, PlayerStats } from "../types";
 import { getStoredAvatar } from "../utils/avatar";
+import AppBottomSheet from "./Shared/AppBottomSheet";
 
 interface RivalryModalProps {
   open: boolean;
@@ -85,12 +81,8 @@ export default function RivalryModal({
     : 0;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
-      <DialogTitle sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>Rivalitet</Typography>
-        <IconButton onClick={onClose} size="small" aria-label="Stäng"><CloseIcon /></IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ px: 2, pb: 4 }}>
+    <AppBottomSheet open={open} onClose={onClose} title="Rivalitet">
+      <Box sx={{ pb: 2 }}>
         <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ mb: 4, mt: 1 }}>
           <Stack alignItems="center" spacing={1} sx={{ flex: 1 }}>
             <Avatar
@@ -177,7 +169,7 @@ export default function RivalryModal({
             Ni har inte spelat med eller mot varandra ännu.
           </Typography>
         )}
-      </DialogContent>
-    </Dialog>
+      </Box>
+    </AppBottomSheet>
   );
 }

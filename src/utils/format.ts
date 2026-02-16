@@ -18,6 +18,7 @@ const DEFAULT_OPTIONS: Intl.DateTimeFormatOptions = {
 // in getFormatter and skip expensive JSON.stringify calls.
 const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
 const FULL_DATE_OPTIONS: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "short" };
+const TIME_OPTIONS: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
 
 const getFormatter = (options: Intl.DateTimeFormatOptions) => {
   // Optimization: Use a constant key for default options to avoid JSON.stringify overhead
@@ -60,6 +61,52 @@ export const formatShortDate = (date: string | Date | undefined) => {
  */
 export const formatFullDate = (date: string | Date | undefined) => {
   return formatDate(date, FULL_DATE_OPTIONS);
+};
+
+/**
+ * Formats a date to a time string.
+ * Example: "14:00"
+ */
+export const formatTime = (date: string | Date | undefined) => {
+  return formatDate(date, TIME_OPTIONS);
+};
+
+/**
+ * Formats a date with relative Swedish labels (Idag/Imorgon) when possible.
+ * Matches iOS DateFormattingService.historyDateLabel.
+ * Example: "Idag kl 14:00" or "12 maj 2024, 14:00"
+ */
+export const formatHistoryDateLabel = (date: string | Date | undefined) => {
+  if (!date) return "";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
+
+  const now = new Date();
+  const isSameDay = (d1: Date, d2: Date) =>
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+
+  const timeStr = formatTime(d);
+
+  if (isSameDay(d, now)) {
+    return `Idag kl ${timeStr}`;
+  }
+  if (isSameDay(d, tomorrow)) {
+    return `Imorgon kl ${timeStr}`;
+  }
+
+  // Fallback to medium date with time
+  return formatDate(d, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).replace(",", " kl"); // Unify the time separator to " kl" for consistency
 };
 
 /**

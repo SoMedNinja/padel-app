@@ -6,6 +6,7 @@ import {
   Paper,
   Box,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   Assessment as AssessmentIcon,
   Person as PersonIcon,
@@ -69,14 +70,25 @@ const BottomNav: React.FC<BottomNavProps> = ({
         borderColor: 'divider',
         // Support for iPhones with home indicator
         pb: 'env(safe-area-inset-bottom, 0px)',
+        // Note for non-coders: this matches the "Liquid Glass" blur effect from the top header and iOS native UI.
+        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.72),
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
       }}
-      elevation={3}
+      elevation={0}
     >
       <BottomNavigation
         showLabels
         value={getActiveValue()}
         onChange={handleChange}
-        sx={{ height: 64 }}
+        sx={{
+          height: 64,
+          bgcolor: 'transparent',
+          '& .MuiBottomNavigationAction-root': {
+            minWidth: 0,
+            padding: '6px 0',
+          }
+        }}
       >
         <BottomNavigationAction
           label="Översikt"
