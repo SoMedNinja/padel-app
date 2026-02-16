@@ -1,9 +1,36 @@
 import { supabase } from "../supabaseClient";
-import { Match, MatchFilter } from "../types";
+import { Match, MatchFilter, ScoreType } from "../types";
+import { ContractMatchMode } from "../contracts/generated/contractModels";
 import { checkIsAdmin, ensureAuthSessionReady, requireAdmin } from "./authUtils";
 import { buildMatchCreateRequest } from "./contract/contractTransforms";
 
-type MatchCreateInput = any;
+export interface MatchCreateData {
+  team1: string | string[];
+  team2: string | string[];
+  team1_sets: number;
+  team2_sets: number;
+
+  team1_ids?: (string | null)[];
+  team2_ids?: (string | null)[];
+
+  score_type?: ScoreType;
+  score_target?: number | null;
+
+  source_tournament_id?: string | null;
+  source_tournament_type?: string | null;
+
+  team1_serves_first?: boolean;
+  match_mode?: ContractMatchMode;
+
+  client_submission_id?: string;
+  client_payload_hash?: string;
+
+  created_by?: string;
+  created_at?: string;
+  id?: string;
+}
+
+export type MatchCreateInput = MatchCreateData | MatchCreateData[];
 
 type MatchSubmissionStatus = "synced" | "pending" | "failed" | "conflict";
 
@@ -16,7 +43,7 @@ interface QueuedMatchMutation {
   queueId: string;
   createdAt: string;
   attempts: number;
-  payload: MatchCreateInput[];
+  payload: MatchCreateData[];
 }
 
 interface MutationQueueSnapshot {
@@ -77,7 +104,7 @@ const writeQueue = (queue: QueuedMatchMutation[]) => {
   localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
 };
 
-const computeHash = (input: MatchCreateInput) => {
+const computeHash = (input: MatchCreateData) => {
   // Note for non-coders: this turns the payload into a deterministic "fingerprint" so retries can
   // verify whether an older queued request would overwrite newer data.
   const normalized = JSON.stringify(input, Object.keys(input).sort());
@@ -119,15 +146,17 @@ const isRetryableMutationError = (error: unknown) => {
   return RETRYABLE_ERROR_SIGNATURES.some(signature => message.includes(signature));
 };
 
-const enrichMatchPayload = (match: MatchCreateInput, userId: string) => {
+const enrichMatchPayload = (match: MatchCreateData, userId: string) => {
   const contractMatch = buildMatchCreateRequest({ ...match, created_by: userId });
+  // Note for non-coders: `contractMatch` technically only has contract fields, but at runtime it carries
+  // extra properties from `match`. We cast to `any` here to safely extract them.
   const {
     id: _id,
     created_at: _created_at,
     created_by: _created_by,
     match_mode: _match_mode,
     ...rest
-  } = contractMatch;
+  } = contractMatch as any;
 
   const clientSubmissionId =
     typeof rest.client_submission_id === "string" && rest.client_submission_id.trim().length
@@ -144,7 +173,7 @@ const enrichMatchPayload = (match: MatchCreateInput, userId: string) => {
   };
 };
 
-const detectSubmissionConflict = async (createdBy: string, payload: MatchCreateInput[]) => {
+const detectSubmissionConflict = async (createdBy: string, payload: MatchCreateData[]) => {
   const submissionIds = payload
     .map(item => item.client_submission_id)
     .filter((id): id is string => typeof id === "string" && id.length > 0);
@@ -179,7 +208,7 @@ const detectSubmissionConflict = async (createdBy: string, payload: MatchCreateI
     : null;
 };
 
-const submitMatchPayload = async (payload: MatchCreateInput[]): Promise<MatchCreateResult> => {
+const submitMatchPayload = async (payload: MatchCreateData[]): Promise<MatchCreateResult> => {
   const { data: sessionData } = await supabase.auth.getSession();
   const currentUser = sessionData.session?.user;
 
@@ -213,7 +242,7 @@ const submitMatchPayload = async (payload: MatchCreateInput[]): Promise<MatchCre
   throw error;
 };
 
-const enqueueMatchMutation = (matches: MatchCreateInput[]): MatchCreateResult => {
+const enqueueMatchMutation = (matches: MatchCreateData[]): MatchCreateResult => {
   const queue = readQueue();
   queue.push({
     queueId: (typeof crypto !== "undefined" && crypto.randomUUID)
