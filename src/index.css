@@ -42,17 +42,6 @@ body,
   overscroll-behavior-y: none;
 }
 
-/* Note for non-coders: this ensures the pull-to-refresh animation is always on top of the screen content, including headers and notifications. */
-.app-pull-to-refresh .ptr {
-  z-index: 1600 !important;
-  position: relative;
-}
-
-.app-pull-to-refresh .ptr__children {
-  z-index: 0;
-  position: relative;
-}
-
 /* Legacy support for tables if needed, but transitioning to MUI Table */
 .styled-table {
   width:100%;
@@ -264,19 +253,8 @@ body.chart-fullscreen-active {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* Note for non-coders: keeping padding tight ensures the animation fits within the threshold height
-     so it does not overlap the content below when released. */
-  padding: 12px 20px;
-  gap: 8px;
-  z-index: 1601 !important;
-  position: relative;
-  min-height: 100px;
-  box-sizing: border-box;
-}
-
-/* Note for non-coders: we ensure the pull-down area itself is properly layered. */
-.app-pull-to-refresh .ptr__pull-down {
-  z-index: 1600;
+  padding: 20px;
+  gap: 12px;
 }
 
 .padel-ball {

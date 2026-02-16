@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { supabase } from "../supabaseClient";
+import { alpha } from "@mui/material/styles";
 import SideMenu from "../Components/SideMenu";
 import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
@@ -19,9 +20,9 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  ListItem,
   ListItemText,
   List,
-  ListItem,
   Alert,
   AlertTitle,
   Container,
@@ -30,7 +31,6 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import {
   Menu as MenuIcon,
   Add as AddIcon,

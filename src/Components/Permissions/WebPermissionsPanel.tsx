@@ -132,20 +132,15 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
   };
 
   const handleAction = async (snapshot: PermissionStatusSnapshot) => {
-    try {
-      if (snapshot.capability === "notifications") {
-        await handleNotificationsAction(snapshot);
-      } else if (snapshot.capability === "background_refresh") {
-        await handleBackgroundRefreshAction();
-      } else if (snapshot.capability === "biometric_passkey") {
-        await handlePasskeyAction();
-      }
-    } catch (error) {
-      console.error("Permission action failed:", error);
-      setActionMessage(`Ett fel uppstod: ${error instanceof Error ? error.message : "Okänt fel"}. Kontrollera din internetanslutning och försök igen.`);
-    } finally {
-      await reloadSnapshots();
+    if (snapshot.capability === "notifications") {
+      await handleNotificationsAction(snapshot);
+    } else if (snapshot.capability === "background_refresh") {
+      await handleBackgroundRefreshAction();
+    } else if (snapshot.capability === "biometric_passkey") {
+      await handlePasskeyAction();
     }
+
+    await reloadSnapshots();
   };
 
   return (
