@@ -129,3 +129,7 @@
 ## 2026-06-25 - [O(1) Delta Lookups and Match-Centric MVP]
 **Learning:** Performing O(H) searches in every match of a loop results in O(M * H) complexity, which is effectively O(N^2) for active players. Additionally, scanning all player histories (O(P * H)) for a filtered MVP window is highly redundant.
 **Action:** Pre-index ELO deltas into a [PlayerID: [MatchID: Int]] map once. Refactor MVP logic to iterate over the match list (O(M_filtered)) instead of scanning player histories (O(P * H)), using the pre-indexed map for O(1) delta lookups.
+
+## 2024-05-24 - [Caching Capability Checks]
+**Learning:** Performing a write/delete operation on `localStorage` to check for capability (canUseStorage) inside a frequent getter (like `getStoredAvatar`) adds significant synchronous overhead on every call. In a list of 50 players, this means 50 disk-touching operations just to show avatars.
+**Action:** Perform capability checks once and cache the result in a module-level variable.

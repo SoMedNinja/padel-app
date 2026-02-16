@@ -7,7 +7,7 @@ interface SparklineProps {
   color?: string;
 }
 
-export const Sparkline: React.FC<SparklineProps> = ({ data, width = 80, height = 30, color = '#d32f2f' }) => {
+export const Sparkline: React.FC<SparklineProps> = React.memo(({ data, width = 80, height = 30, color = '#d32f2f' }) => {
   if (!data || data.length < 2) return <span style={{ color: '#999', fontSize: '0.8rem' }}>—</span>;
 
   const min = Math.min(...data);
@@ -45,4 +45,4 @@ export const Sparkline: React.FC<SparklineProps> = ({ data, width = 80, height =
       />
     </svg>
   );
-};
+});

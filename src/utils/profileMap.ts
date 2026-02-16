@@ -14,8 +14,6 @@ const GUEST_NAME_ALIASES = new Set([
   normalizeName("guest player"),
 ]);
 
-const isGuestName = (name: string) => GUEST_NAME_ALIASES.has(normalizeName(name));
-
 export const makeProfileMap = (profiles: Profile[]) => {
   const map = new Map<string, Profile>();
   profiles.forEach(p => map.set(p.id, p));
@@ -53,10 +51,15 @@ export const resolveTeamIds = (
     nameArray = names.split(",").map(n => n.trim()).filter(Boolean);
   }
   return nameArray.map((name) => {
+    // Optimization: Check for direct match first to avoid expensive normalization
+    const directMatch = nameToIdMap.get(name);
+    if (directMatch) return directMatch;
+
     const normalizedName = normalizeName(name);
-    return nameToIdMap.get(name)
-      || nameToIdMap.get(normalizedName)
-      || (isGuestName(name) ? GUEST_ID : null);
+    const normMatch = nameToIdMap.get(normalizedName);
+    if (normMatch) return normMatch;
+
+    return GUEST_NAME_ALIASES.has(normalizedName) ? GUEST_ID : null;
   });
 };
 
