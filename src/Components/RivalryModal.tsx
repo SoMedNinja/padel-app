@@ -88,7 +88,7 @@ export default function RivalryModal({
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
       <DialogTitle sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>Rivalitet</Typography>
-        <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
+        <IconButton onClick={onClose} size="small" aria-label="Stäng"><CloseIcon /></IconButton>
       </DialogTitle>
       <DialogContent sx={{ px: 2, pb: 4 }}>
         <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ mb: 4, mt: 1 }}>

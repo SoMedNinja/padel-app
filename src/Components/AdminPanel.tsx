@@ -266,6 +266,12 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
                             value={currentName}
                             onChange={(e) => handleNameChange(profile.id, e.target.value)}
                             helperText={`${currentName.length}/50`}
+                            FormHelperTextProps={{
+                              sx: {
+                                color: currentName.length >= 50 ? 'error.main' : 'inherit',
+                                fontWeight: currentName.length >= 50 ? 700 : 'inherit',
+                              }
+                            }}
                             slotProps={{
                               htmlInput: {
                                 maxLength: 50,

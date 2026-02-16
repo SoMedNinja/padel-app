@@ -244,7 +244,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "name"}
                     direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("name")}
-                    aria-label="Sortera efter spelare"
+                    aria-label={`Sortera efter spelare, nuvarande ${sortKey === "name" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     Spelare
                   </TableSortLabel>
@@ -254,7 +254,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "elo"}
                     direction={sortKey === "elo" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("elo")}
-                    aria-label="Sortera efter ELO"
+                    aria-label={`Sortera efter ELO, nuvarande ${sortKey === "elo" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     ELO
                   </TableSortLabel>
@@ -264,7 +264,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "games"}
                     direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("games")}
-                    aria-label="Sortera efter matcher"
+                    aria-label={`Sortera efter matcher, nuvarande ${sortKey === "games" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     Matcher
                   </TableSortLabel>
@@ -274,14 +274,14 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "wins"}
                     direction={sortKey === "wins" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("wins")}
-                    aria-label="Sortera efter vinster"
+                    aria-label={`Sortera efter vinster, nuvarande ${sortKey === "wins" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     Vinster
                   </TableSortLabel>
                 </TableCell>
                 <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none', cursor: 'help' }}>
                   <Tooltip title="ELO-kurvan över dina senaste matcher" arrow>
-                    <Box component="span">Form</Box>
+                    <Box component="span" aria-label="Form: ELO-kurvan över dina senaste matcher">Form</Box>
                   </Tooltip>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
@@ -289,7 +289,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     active={sortKey === "winPct"}
                     direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => toggleSort("winPct")}
-                    aria-label="Sortera efter vinstprocent"
+                    aria-label={`Sortera efter vinstprocent, nuvarande ${sortKey === "winPct" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     Vinst %
                   </TableSortLabel>
