@@ -49,8 +49,17 @@ const buildVoteLink = ({
 
 const formatDate = (date: string) => {
   const parsed = new Date(`${date}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) return date;
+  if (Number.isNaN(parsed.getTime())) return escapeHtml(date);
   return new Intl.DateTimeFormat("sv-SE", { weekday: "long", day: "numeric", month: "short" }).format(parsed);
+};
+
+const escapeHtml = (unsafe: string) => {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -340,7 +349,7 @@ Deno.serve(async (req) => {
               </tr>
               <tr>
                 <td style="padding:24px; color:#222;">
-                  <p style="margin:0 0 12px 0;">Hej ${recipient.name}!</p>
+                  <p style="margin:0 0 12px 0;">Hej ${escapeHtml(recipient.name)}!</p>
                   <p style="margin:0 0 12px 0; color:#222; font-size:15px; line-height:1.6;">
                     Vi planerar kommande padelmatcher och behöver ditt svar.
                     Markera vilka datum och tider du kan spela genom att använda länkarna nedan.

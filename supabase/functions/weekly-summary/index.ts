@@ -177,7 +177,7 @@ const formatScore = (s1: number, s2: number) => `${s1}–${s2}`;
 const buildTeamLabel = (match: Match, profiles: Profile[]) => {
   const resolveName = (pid: string | null) => {
     if (!pid || pid === GUEST_ID) return "Gästspelare";
-    if (pid.startsWith("name:")) return pid.replace("name:", "");
+    if (pid.startsWith("name:")) return escapeHtml(pid.replace("name:", ""));
     return profiles.find(p => p.id === pid)?.name || "Gästspelare";
   };
   const team1 = match.team1_ids.map(resolveName).join(" + ");
@@ -311,7 +311,7 @@ function calculateEloAt(matches: Match[], profiles: Profile[], untilDate?: strin
   const ensurePlayer = (id: string) => {
     if (players[id]) return;
     const p = profiles.find(p => p.id === id);
-    const name = p ? p.name : (id.startsWith("name:") ? id.replace("name:", "") : "Okänd");
+    const name = p ? p.name : (id.startsWith("name:") ? escapeHtml(id.replace("name:", "")) : "Okänd");
     players[id] = { id, name, elo: ELO_BASELINE, wins: 0, losses: 0, games: 0, history: [] };
   };
 
