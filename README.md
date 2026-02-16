@@ -15,8 +15,17 @@ To connect the frontend to Supabase in any environment (local, staging, producti
 - `VITE_SUPABASE_ANON_KEY`: your Supabase **public app key**. Both of these are accepted:
   - Legacy anon key (often starts with `ey...` or includes `anon`)
   - New publishable key (starts with `sb_publishable_`)
+- `VITE_WEB_PUSH_PUBLIC_KEY`: your VAPID public key (generated via `web-push`).
 
 Note for non-coders: both key formats above are public browser keys (safe to expose in frontend code). Security still comes from Supabase Row Level Security policies and authenticated user tokens. 
+
+### Push Notifications Setup
+
+To enable push notifications, you need to generate a VAPID key pair:
+
+1. Run `npx web-push generate-vapid-keys` in your terminal.
+2. Copy the **Public Key** output and set it as `VITE_WEB_PUSH_PUBLIC_KEY` in your `.env` file (or deployment settings).
+3. The **Private Key** should be kept secret and used in your backend configuration (e.g. Supabase Edge Functions secrets).
 
 ## React Compiler
 
