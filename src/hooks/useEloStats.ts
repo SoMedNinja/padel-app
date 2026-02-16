@@ -19,7 +19,9 @@ export interface EloStats {
 }
 
 export function useEloStats(): EloStats {
-  const matchesQuery = useMatches({ type: "all" });
+  // Note for non-coders: ELO calculation requires a comprehensive history. We request a large
+  // bounded set to maintain correctness while avoiding completely unbounded results.
+  const matchesQuery = useMatches({ type: "all", limit: 5000 });
   const profilesQuery = useProfiles();
   const { data: allMatches = [], isLoading: isLoadingMatches, isError: isMatchesError, error: matchesError } = matchesQuery;
   const { data: profiles = [], isLoading: isLoadingProfiles, isError: isProfilesError, error: profilesError } = profilesQuery;

@@ -23,6 +23,8 @@ export interface MatchFilter {
   type: MatchFilterType;
   startDate?: string | null;
   endDate?: string | null;
+  limit?: number;
+  offset?: number;
 }
 
 export type ScoreType = "sets" | "points";

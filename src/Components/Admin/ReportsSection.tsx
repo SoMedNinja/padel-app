@@ -56,7 +56,9 @@ export default function ReportsSection() {
     isError: isMatchesError,
     error: matchesError,
     refetch: refetchMatches,
-  } = useMatches({ type: "all" });
+    // Note for non-coders: reports require a comprehensive history. We request a large
+    // bounded set to maintain correctness while avoiding completely unbounded results.
+  } = useMatches({ type: "all", limit: 5000 });
   const {
     data: tournamentDetails,
     isLoading: isLoadingDetails,
