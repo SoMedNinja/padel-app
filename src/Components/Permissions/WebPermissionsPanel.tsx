@@ -1,14 +1,16 @@
-import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Stack, Typography, Divider, FormControlLabel, Switch, TextField } from "@mui/material";
 import { useEffect, useState } from "react";
 import {
   buildWebPermissionSnapshots,
   ensureNotificationPermission,
   loadNotificationPreferences,
+  saveNotificationPreferencesWithSync,
   registerPushServiceWorker,
 } from "../../services/webNotificationService";
 import { SHARED_PERMISSION_CAPABILITY_LABELS, SHARED_PERMISSION_STATE_LABELS, WEB_PERMISSION_CAPABILITY_HELP } from "../../shared/permissionsCopy";
 import { SHARED_PERMISSION_PLATFORM_DIFFERENCES } from "../../shared/permissionCapabilityMatrix";
 import { PermissionStatusSnapshot } from "../../types/permissions";
+import { NotificationEventType, NotificationPreferences, NOTIFICATION_EVENT_TYPES } from "../../types/notifications";
 
 const LAST_CHECKED_AT_KEY = "permissions.lastCheckedAt.v1";
 const LAST_SUCCESSFUL_PUSH_SETUP_AT_KEY = "permissions.lastSuccessfulPushSetupAt.v1";
@@ -38,8 +40,16 @@ function notificationSettingsGuidance(): string {
   return "Öppna webbläsarens webbplatsinställningar för sidan, sätt Notiser till Tillåt och uppdatera.";
 }
 
+const EVENT_LABELS: Record<NotificationEventType, string> = {
+  scheduled_match_new: "Ny schemalagd match",
+  match_result_new: "Nytt matchresultat",
+  availability_poll_reminder: "Påminnelse om tillgänglighetspoll",
+  admin_announcement: "Adminmeddelanden",
+};
+
 export default function WebPermissionsPanel({ onNotificationPermissionChanged }: WebPermissionsPanelProps) {
   const [snapshots, setSnapshots] = useState<PermissionStatusSnapshot[]>([]);
+  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(() => localStorage.getItem(LAST_CHECKED_AT_KEY));
   const [lastSuccessfulPushSetupAt, setLastSuccessfulPushSetupAt] = useState<string | null>(() =>
@@ -56,6 +66,9 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
     const data = await buildWebPermissionSnapshots();
     setSnapshots(data);
 
+    // Note for non-coders: we load the raw preferences so the UI switches match stored state.
+    setPreferences(loadNotificationPreferences());
+
     const nowIso = new Date().toISOString();
     setLastCheckedAt(nowIso);
     localStorage.setItem(LAST_CHECKED_AT_KEY, nowIso);
@@ -70,6 +83,51 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
   useEffect(() => {
     void reloadSnapshots();
   }, []);
+
+  const handlePreferenceChange = async (newPrefs: NotificationPreferences) => {
+    setPreferences(newPrefs);
+    await saveNotificationPreferencesWithSync(newPrefs);
+  };
+
+  const toggleMaster = () => {
+    if (!preferences) return;
+    handlePreferenceChange({ ...preferences, enabled: !preferences.enabled });
+  };
+
+  const toggleEvent = (type: NotificationEventType) => {
+    if (!preferences) return;
+    handlePreferenceChange({
+      ...preferences,
+      eventToggles: {
+        ...preferences.eventToggles,
+        [type]: !preferences.eventToggles[type],
+      },
+    });
+  };
+
+  const toggleQuietHours = () => {
+    if (!preferences) return;
+    handlePreferenceChange({
+      ...preferences,
+      quietHours: {
+        ...preferences.quietHours,
+        enabled: !preferences.quietHours.enabled,
+      },
+    });
+  };
+
+  const updateQuietHours = (field: "startHour" | "endHour", value: string) => {
+    if (!preferences) return;
+    const num = parseInt(value, 10);
+    if (isNaN(num) || num < 0 || num > 23) return;
+    handlePreferenceChange({
+      ...preferences,
+      quietHours: {
+        ...preferences.quietHours,
+        [field]: num,
+      },
+    });
+  };
 
   const handleNotificationsAction = async (snapshot: PermissionStatusSnapshot) => {
     if (snapshot.state === "blocked" || snapshot.state === "limited") {
@@ -210,6 +268,68 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
       <Alert severity="info" sx={{ mt: 2 }}>
         {SHARED_PERMISSION_PLATFORM_DIFFERENCES}
       </Alert>
+
+      {preferences && (
+        <>
+          <Divider sx={{ my: 3 }} />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Inställningar för notiser</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Anpassa vilka notiser du vill ha och när.
+          </Typography>
+
+          <FormControlLabel
+            control={<Switch checked={preferences.enabled} onChange={toggleMaster} />}
+            label={<Typography fontWeight={600}>Tillåt notiser</Typography>}
+            sx={{ mb: 2, display: 'block' }}
+          />
+
+          <Box sx={{ opacity: preferences.enabled ? 1 : 0.5, pointerEvents: preferences.enabled ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 2, mb: 1 }}>Händelser</Typography>
+            <Stack spacing={1} sx={{ ml: 1 }}>
+              {NOTIFICATION_EVENT_TYPES.map((type) => (
+                <FormControlLabel
+                  key={type}
+                  control={<Switch size="small" checked={preferences.eventToggles[type]} onChange={() => toggleEvent(type)} />}
+                  label={<Typography variant="body2">{EVENT_LABELS[type]}</Typography>}
+                />
+              ))}
+            </Stack>
+
+            <Divider sx={{ my: 2 }} />
+
+            <FormControlLabel
+              control={<Switch checked={preferences.quietHours.enabled} onChange={toggleQuietHours} />}
+              label={<Typography variant="subtitle2" fontWeight={700}>Aktivera tysta timmar</Typography>}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ml: 4, mb: 2 }}>
+              Tysta timmar pausar notiser mellan start och slut. Exempel: 22 till 07 stoppar nattnotiser.
+            </Typography>
+
+            {preferences.quietHours.enabled && (
+              <Stack direction="row" spacing={2} sx={{ ml: 4 }}>
+                <TextField
+                  label="Start"
+                  type="number"
+                  size="small"
+                  value={preferences.quietHours.startHour}
+                  onChange={(e) => updateQuietHours("startHour", e.target.value)}
+                  slotProps={{ htmlInput: { min: 0, max: 23 } }}
+                  sx={{ width: 80 }}
+                />
+                <TextField
+                  label="Slut"
+                  type="number"
+                  size="small"
+                  value={preferences.quietHours.endHour}
+                  onChange={(e) => updateQuietHours("endHour", e.target.value)}
+                  slotProps={{ htmlInput: { min: 0, max: 23 } }}
+                  sx={{ width: 80 }}
+                />
+              </Stack>
+            )}
+          </Box>
+        </>
+      )}
     </Box>
   );
 }

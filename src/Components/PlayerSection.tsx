@@ -1306,6 +1306,7 @@ export default function PlayerSection({
                   slotProps={{
                     htmlInput: {
                       maxLength: 50,
+                      "aria-required": "true",
                       "aria-label": `Ändra ditt namn, ${editedName.length} av 50 tecken`,
                     }
                   }}
