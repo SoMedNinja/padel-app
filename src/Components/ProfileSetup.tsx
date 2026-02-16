@@ -5,7 +5,8 @@ import Cropper, { Area } from "react-easy-crop";
 import {
   getStoredAvatar,
   removeStoredAvatar,
-  setStoredAvatar
+  setStoredAvatar,
+  getCroppedImg
 } from "../utils/avatar";
 import {
   Box,
@@ -34,7 +35,6 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { stripBadgeLabelFromName } from "../utils/profileName";
-import { getCroppedImg } from "../utils/image";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [name, setName] = useState(initialName);
