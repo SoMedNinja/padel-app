@@ -71,9 +71,10 @@ function TopicListView({ completedByTopicId }: { completedByTopicId: Record<stri
         Lär dig padel med korta artiklar, quiz och vår omfattande ordlista.
       </Typography>
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }} variant="scrollable" scrollButtons="auto">
         <Tab label="Ämnen" />
-        <Tab label="Ordlista & Regler" />
+        <Tab label="Ordlista" />
+        <Tab label="Regler" />
       </Tabs>
 
       {tab === 0 && (
@@ -160,23 +161,25 @@ function TopicListView({ completedByTopicId }: { completedByTopicId: Record<stri
               </List>
             </CardContent>
           </Card>
-
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
-                <GavelIcon color="primary" /> Grundregler
-              </Typography>
-              <Stack spacing={2}>
-                {padelRules.map((rule) => (
-                  <Box key={rule.title}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{rule.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">{rule.description}</Typography>
-                  </Box>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
         </Stack>
+      )}
+
+      {tab === 2 && (
+        <Card sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <GavelIcon color="primary" /> Grundregler
+            </Typography>
+            <Stack spacing={2}>
+              {padelRules.map((rule) => (
+                <Box key={rule.title}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{rule.title}</Typography>
+                  <Typography variant="body2" color="text.secondary">{rule.description}</Typography>
+                </Box>
+              ))}
+            </Stack>
+          </CardContent>
+        </Card>
       )}
     </Container>
   );

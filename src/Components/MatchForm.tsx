@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { matchService } from "../services/matchService";
 import {
@@ -124,6 +124,14 @@ export default function MatchForm({
   const wizardSteps = ["Lag A", "Lag B", "Resultat", "Granska"];
   const activeWizardStep = step >= 0 && step <= 3 ? step : 0;
   // Note for non-coders: "activeWizardStep" tells the Stepper which stage we're on so the UI can show progress.
+
+  const stepHeaderRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (stepHeaderRef.current) {
+      stepHeaderRef.current.focus();
+    }
+  }, [step]);
 
   const handleWizardStepClick = (targetStep: number) => {
     if (step !== 10 && targetStep <= activeWizardStep) {
@@ -707,7 +715,12 @@ export default function MatchForm({
                   </IconButton>
                 </Tooltip>
               )}
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 800, outline: 'none' }}
+                ref={stepHeaderRef}
+                tabIndex={-1}
+              >
                 {step === 0 && (mode === "1v1" ? "Välj Spelare A" : "Välj Lag A")}
                 {step === 1 && (mode === "1v1" ? "Välj Spelare B" : "Välj Lag B")}
                 {step === 2 && "Ange resultat"}
