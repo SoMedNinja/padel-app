@@ -330,7 +330,7 @@ export default function Heatmap({
                     active={sortKey === "games"}
                     direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => handleSort("games")}
-                    aria-label="Sortera efter matcher"
+                    aria-label={`Sortera efter matcher, nuvarande ${sortKey === "games" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     Matcher
                   </TableSortLabel>
@@ -340,14 +340,14 @@ export default function Heatmap({
                     active={sortKey === "winPct"}
                     direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => handleSort("winPct")}
-                    aria-label="Sortera efter vinstprocent"
+                    aria-label={`Sortera efter vinstprocent, nuvarande ${sortKey === "winPct" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     Vinst %
                   </TableSortLabel>
                 </TableCell>
                 <TableCell align="center" sx={{ fontWeight: 700 }}>
                   <Tooltip title="Vinstprocent vid Start-serve (S) respektive Mottagning (M)." arrow>
-                    <Box component="span">S/M %</Box>
+                    <Box component="span" aria-label="S/M %: Vinstprocent vid Start-serve respektive Mottagning">S/M %</Box>
                   </Tooltip>
                 </TableCell>
                 <TableCell align="center" sortDirection={sortKey === "avgElo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
@@ -355,7 +355,7 @@ export default function Heatmap({
                     active={sortKey === "avgElo"}
                     direction={sortKey === "avgElo" ? (asc ? "asc" : "desc") : "asc"}
                     onClick={() => handleSort("avgElo")}
-                    aria-label="Sortera efter genomsnittlig ELO"
+                    aria-label={`Sortera efter genomsnittlig ELO, nuvarande ${sortKey === "avgElo" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
                   >
                     Snitt-ELO
                   </TableSortLabel>

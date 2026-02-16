@@ -32,6 +32,7 @@ import {
   Share as ShareIcon,
   ArrowForward as ArrowForwardIcon,
   Search as SearchIcon,
+  SearchOff as SearchOffIcon,
 } from "@mui/icons-material";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
@@ -477,6 +478,17 @@ export default function MatchForm({
                     <SearchIcon fontSize="small" />
                   </InputAdornment>
                 ),
+                endAdornment: query && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setQuery("")}
+                      aria-label="Rensa sökning"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 "aria-label": "Sök spelare",
               },
             }}
@@ -554,7 +566,12 @@ export default function MatchForm({
           );
           })}
         </Grid>
-        {filtered.length === 0 && <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>Inga träffar för "{query}"</Typography>}
+        {filtered.length === 0 && (
+          <Box sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+            <SearchOffIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
+            <Typography variant="body2">Inga spelare hittades för "{query}"</Typography>
+          </Box>
+        )}
       </Box>
     );
   };
