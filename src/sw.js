@@ -11,6 +11,7 @@ const defaultPreferences = {
   enabled: true,
   eventToggles: {
     scheduled_match_new: true,
+    match_result_new: true,
     availability_poll_reminder: true,
     admin_announcement: true,
   },

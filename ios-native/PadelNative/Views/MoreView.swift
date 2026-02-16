@@ -40,6 +40,11 @@ struct MoreView: View {
                         }
                         Divider().padding(.leading, 44)
 
+                        moreLink(title: "Padel Puzzles", icon: "puzzlepiece") {
+                            PuzzlesView()
+                        }
+                        Divider().padding(.leading, 44)
+
                         moreLink(title: "Inställningar", icon: "gearshape") {
                             SettingsView()
                         }

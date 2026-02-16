@@ -36,7 +36,7 @@ struct MainTabView: View {
 
             MoreView()
                 .tabItem {
-                    Label("More", systemImage: "ellipsis.circle")
+                    Label("Mer", systemImage: "ellipsis.circle")
                 }
                 .tag(4)
         }

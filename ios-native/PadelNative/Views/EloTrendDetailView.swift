@@ -66,13 +66,26 @@ struct EloTrendDetailView: View {
     // Note for non-coders:
     // You can choose a time window and two metrics so the same chart answers more questions at once.
     private var controls: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             Picker("Tidsintervall", selection: $timeRange) {
                 ForEach(TrendChartTimeRange.allCases) { range in
                     Text(range.title).tag(range)
                 }
             }
             .pickerStyle(.segmented)
+
+            if timeRange == .custom {
+                HStack {
+                    DatePicker("Från", selection: $viewModel.globalCustomStartDate, displayedComponents: .date)
+                        .labelsHidden()
+                    Image(systemName: "arrow.right")
+                        .foregroundStyle(AppColors.textSecondary)
+                    DatePicker("Till", selection: $viewModel.globalCustomEndDate, displayedComponents: .date)
+                        .labelsHidden()
+                }
+                .padding(8)
+                .background(AppColors.surfaceMuted, in: RoundedRectangle(cornerRadius: 8))
+            }
 
             HStack {
                 Picker("Primär", selection: $primaryMetric) {
@@ -101,7 +114,8 @@ struct EloTrendDetailView: View {
         let xDomain = (dataset.points.first?.id ?? 0)...(dataset.points.last?.id ?? 0)
 
         return VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .topLeading) {
+            ChartReader { proxy in
+            ZStack {
                 Chart {
                 if primaryMetric == .elo || secondaryMetric == .elo {
                     ForEach(dataset.playerIds, id: \.self) { pid in
@@ -153,8 +167,8 @@ struct EloTrendDetailView: View {
                     }
                 }
 
-                chartOverlayLegend(dataset: dataset)
-                    .padding(10)
+                chartOverlayLegend(dataset: dataset, proxy: proxy)
+            }
             }
 
             Button("Rensa markör") { chartSelectionIndex = nil }
@@ -162,12 +176,22 @@ struct EloTrendDetailView: View {
         }
     }
 
-    private func chartOverlayLegend(dataset: ComparisonChartDataset) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let selected = chartSelectionIndex,
+    private func chartOverlayLegend(dataset: ComparisonChartDataset, proxy: ChartProxy) -> some View {
+        let alignment: Alignment
+        if let selected = chartSelectionIndex,
+           let xPos = proxy.position(forX: selected) {
+            alignment = xPos > proxy.plotSize.width / 2 ? .topLeading : .topTrailing
+        } else {
+            alignment = .topLeading
+        }
+
+        return VStack(alignment: .leading, spacing: 4) {
+            if let selected = chartSelectionIndex ?? dataset.points.last?.id,
                let point = dataset.points.first(where: { $0.id == selected }) {
                 Text(point.date, format: .dateTime.day().month().year())
                     .font(.inter(.subheadline, weight: .bold))
+                    .foregroundStyle(AppColors.brandPrimary)
+
                 ForEach(Array(dataset.playerIds.enumerated()), id: \.element) { index, pid in
                     let label = viewModel.chartDisplayName(for: pid)
                     if let elo = point.elos[pid] {
@@ -187,8 +211,12 @@ struct EloTrendDetailView: View {
                     .foregroundStyle(AppColors.textSecondary)
             }
         }
-        .padding(8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .padding(10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.1), radius: 4)
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+        .animation(.spring(duration: 0.3), value: chartSelectionIndex)
     }
 
     private func legendView(playerIds: [UUID]) -> some View {

@@ -16,6 +16,7 @@ describe("normalizeNotificationPreferencesForPersistence", () => {
       enabled: true,
       eventToggles: {
         scheduled_match_new: false,
+        match_result_new: true,
         availability_poll_reminder: true,
         admin_announcement: true,
       },
@@ -29,6 +30,7 @@ describe("normalizeNotificationPreferencesForPersistence", () => {
     expect(Object.keys(normalized)).toEqual(["enabled", "eventToggles", "quietHours"]);
     expect(Object.keys(normalized.eventToggles)).toEqual([
       "scheduled_match_new",
+      "match_result_new",
       "availability_poll_reminder",
       "admin_announcement",
     ]);
