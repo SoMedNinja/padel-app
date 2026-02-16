@@ -169,7 +169,7 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
     eloDeltaByMatch?: Record<string, Record<string, number>>
   ) {
     if (!matches || !matches.length) return null;
-    const synergy: Record<string, { games: number; wins: number; eloGain: number }> = {};
+    const synergy: Record<string, { games: number; wins: number }> = {};
     const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const isDescending = matches[0].created_at > matches[matches.length - 1].created_at;
@@ -199,7 +199,7 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
 
         let s = synergy[partnerId];
         if (!s) {
-          s = { games: 0, wins: 0, eloGain: 0 };
+          s = { games: 0, wins: 0 };
           synergy[partnerId] = s;
         }
         s.games++;
@@ -231,7 +231,7 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
 
         let s = synergy[partner];
         if (!s) {
-          s = { games: 0, wins: 0, eloGain: 0 };
+          s = { games: 0, wins: 0 };
           synergy[partner] = s;
         }
         s.games++;
