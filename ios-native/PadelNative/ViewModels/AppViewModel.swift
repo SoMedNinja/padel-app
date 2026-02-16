@@ -23,6 +23,7 @@ enum TrendChartTimeRange: String, CaseIterable, Identifiable {
     case days90
     case year1
     case all
+    case custom
 
     var id: String { rawValue }
 
@@ -32,6 +33,7 @@ enum TrendChartTimeRange: String, CaseIterable, Identifiable {
         case .days90: return "90d"
         case .year1: return "1y"
         case .all: return "All"
+        case .custom: return "Anpassat"
         }
     }
 }
@@ -1934,7 +1936,13 @@ final class AppViewModel: ObservableObject {
     }
 
     private func includes(_ date: Date, in range: TrendChartTimeRange) -> Bool {
-        guard range != .all else { return true }
+        if range == .all { return true }
+        if range == .custom {
+            let start = Calendar.current.startOfDay(for: globalCustomStartDate)
+            let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: globalCustomEndDate))?.addingTimeInterval(-0.001) ?? globalCustomEndDate
+            return date >= start && date <= end
+        }
+
         let now = Date()
         let calendar = Calendar.current
         let dayOffset: Int
@@ -1943,7 +1951,7 @@ final class AppViewModel: ObservableObject {
         case .days30: dayOffset = -30
         case .days90: dayOffset = -90
         case .year1: dayOffset = -365
-        case .all: dayOffset = 0
+        case .all, .custom: dayOffset = 0
         }
 
         guard let cutoff = calendar.date(byAdding: .day, value: dayOffset, to: now) else { return true }
@@ -4451,23 +4459,23 @@ final class AppViewModel: ObservableObject {
                 candidates.append(Candidate(
                     match: match,
                     reason: .upset,
-                    score: (0.35 - winnerExpected) * 100 + 50,
+                    score: (0.5 - winnerExpected) * 100,
                     title: "Kvällens Skräll",
                     description: "Underdog-seger! \(teamAWon ? "Lag 1" : "Lag 2") vann trots endast \(Int(round(winnerExpected * 100)))% vinstchans."
                 ))
             }
 
-            if margin <= 1 && match.scoreType == "sets" {
+            if margin <= 1 {
                 candidates.append(Candidate(
                     match: match,
                     reason: .thriller,
-                    score: 50 - abs(winnerExpected - 0.5) * 40,
+                    score: 50 - (abs(winnerExpected - 0.5)) * 20,
                     title: "Kvällens Rysare",
-                    description: "En extremt jämn match som avgjordes med minsta möjliga marginal (\(match.teamAScore)-\(match.teamBScore))."
+                    description: "En riktig nagelbitare som avgjordes med minsta möjliga marginal (\(match.teamAScore)-\(match.teamBScore))."
                 ))
             }
 
-            if margin >= 3 && match.scoreType == "sets" {
+            if margin >= 3 {
                 candidates.append(Candidate(
                     match: match,
                     reason: .crush,
@@ -4481,9 +4489,9 @@ final class AppViewModel: ObservableObject {
                 candidates.append(Candidate(
                     match: match,
                     reason: .titans,
-                    score: (totalElo - 2200) / 5,
+                    score: (totalElo - 2000) / 10,
                     title: "Giganternas Kamp",
-                    description: "Kvällens tyngsta möte med en samlad ELO på \(Int(totalElo.rounded()))."
+                    description: "Mötet med kvällens högsta samlade ELO-poäng (\(Int(totalElo.rounded())))."
                 ))
             }
         }

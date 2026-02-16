@@ -13,8 +13,8 @@ import {
   Chip,
 } from "@mui/material";
 import {
-  Home as HomeIcon,
-  EmojiEvents as TrophyIcon,
+  Person as PersonIcon,
+  Assessment as AssessmentIcon,
   History as HistoryIcon,
   CalendarMonth as CalendarIcon,
   AdminPanelSettings as AdminIcon,
@@ -39,11 +39,11 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
 
   const menuItems = [
     // Note for non-coders: this is the menu text users see for the "/" profile page.
-    { text: "Profil", icon: <HomeIcon />, path: "/" },
-    { text: "Översikt", icon: <TrophyIcon />, path: "/dashboard" },
-    { text: "Matchhistorik", icon: <HistoryIcon />, path: "/history" },
+    { text: "Profil", icon: <PersonIcon />, path: "/" },
+    { text: "Översikt", icon: <AssessmentIcon />, path: "/dashboard" },
+    { text: "Historik", icon: <HistoryIcon />, path: "/history" },
     { text: "Utbildning", icon: <SchoolIcon />, path: "/education" },
-    { text: "Puzzles", icon: <ExtensionIcon />, path: "/puzzles" },
+    { text: "Padel Puzzles", icon: <ExtensionIcon />, path: "/puzzles" },
   ];
 
   if (user?.is_regular) {

@@ -3,6 +3,7 @@
 // Keeping one shared list avoids mismatches between clients and backend payloads.
 export const NOTIFICATION_EVENT_TYPES = [
   "scheduled_match_new",
+  "match_result_new",
   "availability_poll_reminder",
   "admin_announcement",
 ] as const;
@@ -30,6 +31,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   enabled: true,
   eventToggles: {
     scheduled_match_new: true,
+    match_result_new: true,
     availability_poll_reminder: true,
     admin_announcement: true,
   },

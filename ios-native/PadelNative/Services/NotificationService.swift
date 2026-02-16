@@ -4,6 +4,7 @@ import UIKit
 
 enum NotificationEventType: String, CaseIterable {
     case scheduledMatchNew = "scheduled_match_new"
+    case matchResultNew = "match_result_new"
     case availabilityPollReminder = "availability_poll_reminder"
     case adminAnnouncement = "admin_announcement"
 }
@@ -64,12 +65,14 @@ struct NotificationPreferences: Codable {
     private static let defaultEnabled = true
     private static let defaultEventToggles: [String: Bool] = [
         NotificationEventType.scheduledMatchNew.rawValue: true,
+        NotificationEventType.matchResultNew.rawValue: true,
         NotificationEventType.availabilityPollReminder.rawValue: true,
         NotificationEventType.adminAnnouncement.rawValue: true,
     ]
 
     static let eventOrder: [NotificationEventType] = [
         .scheduledMatchNew,
+        .matchResultNew,
         .availabilityPollReminder,
         .adminAnnouncement,
     ]
