@@ -21,6 +21,9 @@ import {
   TextField,
   InputAdornment,
   LinearProgress,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -82,6 +85,7 @@ interface MatchFormProps {
   eloPlayers: PlayerStats[];
   eloDeltaByMatch?: Record<string, Record<string, number>>;
   mode?: "1v1" | "2v2";
+  setMode?: (mode: "1v1" | "2v2") => void;
 }
 
 export default function MatchForm({
@@ -91,6 +95,7 @@ export default function MatchForm({
   eloPlayers = [],
   eloDeltaByMatch = {},
   mode = "2v2",
+  setMode,
 }: MatchFormProps) {
   const teamSize = mode === "1v1" ? 1 : 2;
   const [step, setStep] = useState(0); // 0: Start/TeamA, 1: TeamB, 2: Score, 3: Review, 10: Pool Selection (Matchmaker)
@@ -734,6 +739,43 @@ export default function MatchForm({
               </Tooltip>
             )}
           </Box>
+
+          {(step === 0 || step === 1) && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                bgcolor: (theme) => alpha(theme.palette.text.secondary, 0.08),
+                borderRadius: 2.5,
+                px: 2,
+                py: 1,
+                mb: 3
+              }}
+            >
+              <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Spelform
+              </Typography>
+              <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
+                <Select
+                  value={mode}
+                  onChange={(e) => setMode?.(e.target.value as "1v1" | "2v2")}
+                  disableUnderline
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    color: 'primary.main',
+                    textAlign: 'right',
+                    '& .MuiSelect-select': { pr: '24px !important' }
+                  }}
+                  aria-label="Välj matchtyp"
+                >
+                  <MenuItem value="2v2">2 mot 2</MenuItem>
+                  <MenuItem value="1v1">1 mot 1</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          )}
 
           {step !== 10 && (
             <>
