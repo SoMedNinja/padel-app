@@ -70,7 +70,10 @@ const getExpectedScore = (rating: number, opponentRating: number) =>
   1 / (1 + Math.pow(10, (opponentRating - rating) / EXPECTED_SCORE_DIVISOR));
 const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
   if (!Number.isFinite(team1Sets) || !Number.isFinite(team2Sets)) return 1;
-  const margin = Math.min(2, Math.abs(team1Sets - team2Sets));
+  const diff = Math.abs(team1Sets - team2Sets);
+  // User request: 2 set difference (e.g. 8-6) should have same impact as 1 set difference (1.1x).
+  // This means margin 1 for diff 1 or 2, and margin 2 for diff 3 or more.
+  const margin = diff > 2 ? 2 : (diff > 0 ? 1 : 0);
   return 1 + Math.min(MAX_MARGIN_MULTIPLIER - 1, margin * 0.1);
 };
 const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
