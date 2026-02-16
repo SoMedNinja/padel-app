@@ -1,22 +1,52 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
-
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+}
 
 console.log("Hello from Functions!")
 
 Deno.serve(async (req) => {
-  const { name } = await req.json()
-  const data = {
-    message: `Hello ${name}!`,
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders })
   }
 
-  return new Response(
-    JSON.stringify(data),
-    { headers: { "Content-Type": "application/json" } },
-  )
+  try {
+    const body = await req.json()
+    const name = body?.name
+
+    if (!name || typeof name !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid 'name' in request body" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      )
+    }
+
+    const data = {
+      message: `Hello ${name}!`,
+    }
+
+    return new Response(
+      JSON.stringify(data),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    )
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON body", details: error instanceof Error ? error.message : String(error) }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    )
+  }
 })
 
 /* To invoke locally:
