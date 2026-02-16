@@ -24,48 +24,17 @@ enum PuzzleDifficulty: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum PuzzleType: String, Codable, CaseIterable, Identifiable {
-    case text
-    case tapToTarget = "tap-to-target"
-    case video
-
-    var id: String { rawValue }
-}
-
-struct TargetCoordinate: Codable, Equatable {
-    let x: Double
-    let y: Double
-}
-
 struct PadelPuzzle: Identifiable, Codable, Equatable {
     let id: String
     let difficulty: PuzzleDifficulty
-    let type: PuzzleType
     let title: String
     let scenario: String
     let options: [String]
     let correctAnswer: String
     let coachingTip: String
-    let diagramUrl: String?
-    let videoUrl: String?
-    let targetCoordinate: TargetCoordinate?
 
     // Identifiable requirement
     var questionId: String { id }
-
-    init(id: String, difficulty: PuzzleDifficulty, type: PuzzleType = .text, title: String, scenario: String, options: [String], correctAnswer: String, coachingTip: String, diagramUrl: String? = nil, videoUrl: String? = nil, targetCoordinate: TargetCoordinate? = nil) {
-        self.id = id
-        self.difficulty = difficulty
-        self.type = type
-        self.title = title
-        self.scenario = scenario
-        self.options = options
-        self.correctAnswer = correctAnswer
-        self.coachingTip = coachingTip
-        self.diagramUrl = diagramUrl
-        self.videoUrl = videoUrl
-        self.targetCoordinate = targetCoordinate
-    }
 }
 
 struct PadelPuzzleAnswerRecord: Codable, Identifiable {
@@ -83,7 +52,6 @@ struct PadelPuzzleData {
         PadelPuzzle(
             id: "188",
             difficulty: .easy,
-            type: .text,
             title: "Nätpress efter lobb",
             scenario: "Du och din partner försvarar långt bak. Motståndarna står stabilt vid nät. Du får en hög boll på backhandsidan med tid att slå en kontrollerad lobb mot hörnet på motståndarnas högerspelare.",
             options: ["Slå en djup lobb och flytta fram tillsammans mot nätet.", "Slå hårt rakt fram från bakplan för att vinna poängen direkt.", "Stanna kvar bak även om lobben blir djup."],
@@ -215,29 +183,6 @@ struct PadelPuzzleData {
             options: ["Prioritera en hög defensiv lobb och återhämta position.", "Försök slå vinnare längs linjen från obalans.", "Spela hårt i mitten i axelhöjd till nätspelarna."],
             correctAnswer: "Prioritera en hög defensiv lobb och återhämta position.",
             coachingTip: "I hörnkris är ett smart neutralt slag nästan alltid bättre än ett chansslag."
-        ),
-        PadelPuzzle(
-            id: "301",
-            difficulty: .easy,
-            type: .tapToTarget,
-            title: "Var ska du placera lobben?",
-            scenario: "Du står i bakplan och motståndarna har tagit nätet. De står ganska tätt ihop i mitten. Klicka på den plats på banan där det är mest fördelaktigt att placera en lobb.",
-            options: ["I hörnet bakom motståndaren", "Mitt på motståndaren", "Kort i mitten"],
-            correctAnswer: "I hörnet bakom motståndaren",
-            coachingTip: "Sikta mot hörnen för att tvinga motståndarna att backa och vända sig om.",
-            diagramUrl: "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&q=80&w=400",
-            targetCoordinate: TargetCoordinate(x: 15, y: 10)
-        ),
-        PadelPuzzle(
-            id: "302",
-            difficulty: .medium,
-            type: .video,
-            title: "Analysera motståndarens position",
-            scenario: "Se videoklippet. Motståndaren gör en slice-serve som studsar lågt i glaset. Vad är ditt bästa drag?",
-            options: ["En låg chipp-retur mot nätspelaren", "En hög lobb djupt i banan", "En hård drive längs linjen"],
-            correctAnswer: "En hög lobb djupt i banan",
-            coachingTip: "När bollen studsar lågt i glaset är det ofta säkrast att lyfta en hög lobb.",
-            videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4"
         )
     ]
 }

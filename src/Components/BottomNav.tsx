@@ -8,9 +8,9 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
-  Assessment as AssessmentIcon,
-  Person as PersonIcon,
-  Add as MatchIcon,
+  ShowChart as AssessmentIcon,
+  AccountCircle as PersonIcon,
+  LibraryAdd as MatchIcon,
   CalendarMonth as CalendarIcon,
   MoreHoriz as MoreIcon,
   Lock as LockIcon,
@@ -82,11 +82,22 @@ const BottomNav: React.FC<BottomNavProps> = ({
         value={getActiveValue()}
         onChange={handleChange}
         sx={{
-          height: 64,
+          height: 72, // Increased from 64
           bgcolor: 'transparent',
           '& .MuiBottomNavigationAction-root': {
             minWidth: 0,
-            padding: '6px 0',
+            padding: '12px 0',
+          },
+          '& .MuiSvgIcon-root': {
+            fontSize: '1.6rem',
+            mb: 0.25,
+          },
+          '& .MuiBottomNavigationAction-label': {
+            fontWeight: 600,
+            fontSize: '0.65rem',
+            '&.Mui-selected': {
+              fontSize: '0.65rem',
+            }
           }
         }}
       >
@@ -104,27 +115,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
           <BottomNavigationAction
             label="Match"
             value="match"
-            icon={
-              isGuest ? (
-                <LockIcon />
-              ) : (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    mb: 0.5,
-                  }}
-                >
-                  <MatchIcon />
-                </Box>
-              )
-            }
+            icon={isGuest ? <LockIcon /> : <MatchIcon />}
             disabled={isGuest}
           />
         )}
