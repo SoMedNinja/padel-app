@@ -203,7 +203,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Container
         maxWidth="lg"
         sx={{
-          mt: { xs: 0.5, sm: 2 },
+          mt: 2,
           // Note for non-coders: only visible banners become real DOM elements,
           // so this selector adds spacing only between banners that actually show.
           '& > * + *': { mt: 2 },
@@ -239,7 +239,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
         />
       )}
 
-      <Box component="main" sx={{ flexGrow: 1 }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          // Note for non-coders: this adds a small breathing space below the top controls
+          // so page content does not feel glued to the very top edge.
+          pt: { xs: 1, sm: 1.5 },
+        }}
+      >
         {children}
       </Box>
 
