@@ -1279,9 +1279,26 @@ export default function PlayerSection({
                   size="small"
                   label="Spelarnamn"
                   value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.length === 50 && editedName.length < 50) {
+                      navigator.vibrate?.(20);
+                    }
+                    setEditedName(val);
+                  }}
                   helperText={`${editedName.length}/50`}
-                  slotProps={{ htmlInput: { maxLength: 50 } }}
+                  FormHelperTextProps={{
+                    sx: {
+                      color: editedName.length >= 50 ? 'error.main' : 'inherit',
+                      fontWeight: editedName.length >= 50 ? 700 : 'inherit',
+                    }
+                  }}
+                  slotProps={{
+                    htmlInput: {
+                      maxLength: 50,
+                      "aria-label": `Ändra ditt namn, ${editedName.length} av 50 tecken`,
+                    }
+                  }}
                   disabled={isSavingName}
                 />
                 <Button

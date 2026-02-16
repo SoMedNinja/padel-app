@@ -75,6 +75,10 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
   }, [profiles]);
 
   const handleNameChange = (id: string, value: string) => {
+    const prevValue = editNames[id] || "";
+    if (value.length === 50 && prevValue.length < 50) {
+      navigator.vibrate?.(20);
+    }
     setEditNames(prev => ({ ...prev, [id]: value }));
   };
 
@@ -275,7 +279,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
                             slotProps={{
                               htmlInput: {
                                 maxLength: 50,
-                                "aria-label": `Ändra namn för ${profile.name || "användare"}`,
+                                "aria-label": `Ändra namn för ${profile.name || "användare"}, ${currentName.length} av 50 tecken`,
                               },
                             }}
                             sx={{

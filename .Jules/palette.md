@@ -65,3 +65,7 @@
 ## 2026-06-15 - [iOS UX: Tactile Constraints & Search Efficiency]
 **Learning:** Reaching a character limit in a text field is a silent failure if not accompanied by tactile feedback. A "clear" button in search bars is a standard expectation on iOS that reduces friction when resetting filters. Accessibility tools need explicit values for counters (e.g., "X av Y tecken") to provide context beyond the raw text.
 **Action:** Use `UIImpactFeedbackGenerator(style: .medium)` when character limits are hit. Always add a clear button (X) with haptics to custom search fields. Provide detailed `accessibilityValue` for all progress/count indicators.
+
+## 2026-06-20 - [PWA UX: Haptic Delight & Discovery Landmarks]
+**Learning:** PWAs can achieve parity with native iOS apps by using `navigator.vibrate` for tactile feedback on key interactions like player selection, score toggles, and search clearing. Non-interactive text that triggers tooltips (like table headers) remains invisible to keyboard users; making them focusable with `tabIndex={0}` and adding visual cues like `cursor: help` ensures accessibility and discovery.
+**Action:** Use `navigator.vibrate` for micro-interactions in PWA components. Always ensure tooltip-carrying elements are focusable and use appropriate ARIA labels and cursor styles to signal interactivity.

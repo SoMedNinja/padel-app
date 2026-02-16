@@ -279,9 +279,27 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     Vinster
                   </TableSortLabel>
                 </TableCell>
-                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none', cursor: 'help' }}>
+                <TableCell component="div" sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
                   <Tooltip title="ELO-kurvan över dina senaste matcher" arrow>
-                    <Box component="span" aria-label="Form: ELO-kurvan över dina senaste matcher">Form</Box>
+                    <Box
+                      component="span"
+                      tabIndex={0}
+                      sx={{
+                        cursor: 'help',
+                        borderBottom: '1px dotted',
+                        borderColor: 'text.secondary',
+                        outline: 'none',
+                        '&:focus-visible': {
+                          outline: '2px solid',
+                          outlineColor: 'primary.main',
+                          outlineOffset: '2px',
+                          borderRadius: '2px'
+                        }
+                      }}
+                      aria-label="Form: ELO-kurvan över dina senaste matcher. Fokusera för mer info."
+                    >
+                      Form
+                    </Box>
                   </Tooltip>
                 </TableCell>
                 <TableCell component="div" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, textAlign: 'center', borderBottom: 'none' }}>
