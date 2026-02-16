@@ -107,12 +107,16 @@ export default function Dashboard() {
   }, []);
 
   // Note for non-coders: this collects all the data refresh tasks into one pull-to-refresh handler.
-  const handleRefresh = useRefreshInvalidations([
-    () => invalidateProfileData(queryClient),
-    () => invalidateMatchData(queryClient),
-    () => invalidateTournamentData(queryClient),
-    () => invalidateAvailabilityData(queryClient),
-  ]);
+  const refreshActions = useMemo(
+    () => [
+      () => invalidateProfileData(queryClient),
+      () => invalidateMatchData(queryClient),
+      () => invalidateTournamentData(queryClient),
+      () => invalidateAvailabilityData(queryClient),
+    ],
+    [queryClient]
+  );
+  const handleRefresh = useRefreshInvalidations(refreshActions);
   // Note for non-coders: this adjusts pull distances on iOS so the full custom animation is visible before refresh starts.
   const pullToRefreshTuning = getPullToRefreshTuning();
 
