@@ -1,12 +1,15 @@
 import SwiftUI
+import AVKit
 
 struct PuzzlesView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var difficulty: PuzzleDifficulty = .easy
     @State private var selectedAnswer: String?
     @State private var submittedRecord: PadelPuzzleAnswerRecord?
+    @State private var selectedCoordinate: CGPoint?
     @State private var answersByQuestionId: [String: PadelPuzzleAnswerRecord] = [:]
     @State private var currentPuzzleIndex = 0
+    @State private var confettiTrigger = 0
 
     private var puzzles: [PadelPuzzle] {
         PadelPuzzleData.puzzles.filter { $0.difficulty == difficulty }
@@ -45,6 +48,10 @@ struct PuzzlesView: View {
             .padding()
         }
         .background(AppColors.background)
+        .overlay {
+            ConfettiTriggerView(trigger: $confettiTrigger)
+                .allowsHitTesting(false)
+        }
         .navigationTitle("Padel Puzzles")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -92,6 +99,7 @@ struct PuzzlesView: View {
                 .onChange(of: difficulty) { _, _ in
                     currentPuzzleIndex = 0
                     selectedAnswer = nil
+                    selectedCoordinate = nil
                     submittedRecord = nil
                 }
 
@@ -121,7 +129,43 @@ struct PuzzlesView: View {
                     .font(.inter(.body))
                     .foregroundStyle(AppColors.textSecondary)
 
-                VStack(spacing: 10) {
+                if let diagramUrl = puzzle.diagramUrl, puzzle.type != .tapToTarget {
+                    if diagramUrl.hasPrefix("/") {
+                        Image(diagramUrl.replacingOccurrences(of: "/education/", with: ""))
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 200)
+                            .cornerRadius(10)
+                    } else {
+                        AsyncImage(url: URL(string: diagramUrl)) { image in
+                            image.resizable().scaledToFit()
+                        } placeholder: {
+                            ProgressView()
+                        }
+                        .frame(maxHeight: 200)
+                        .cornerRadius(10)
+                    }
+                }
+
+                if puzzle.type == .video, let videoUrl = puzzle.videoUrl, let url = URL(string: videoUrl) {
+                    VideoPlayer(player: AVPlayer(url: url))
+                        .frame(height: 200)
+                        .cornerRadius(10)
+                }
+
+                if puzzle.type == .tapToTarget {
+                    PadelCourtView(
+                        onTap: { selectedCoordinate = $0 },
+                        selectedTap: selectedCoordinate,
+                        correctTap: puzzle.targetCoordinate.map { CGPoint(x: $0.x, y: $0.y) },
+                        showResult: submittedRecord != nil || answersByQuestionId[puzzle.id] != nil,
+                        diagramUrl: puzzle.diagramUrl
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+
+                if puzzle.type != .tapToTarget {
+                    VStack(spacing: 10) {
                     ForEach(puzzle.options, id: \.self) { option in
                         Button {
                             if submittedRecord == nil && answersByQuestionId[puzzle.id] == nil {
@@ -159,7 +203,7 @@ struct PuzzlesView: View {
                         checkAnswer(puzzle)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(selectedAnswer == nil || submittedRecord != nil || answersByQuestionId[puzzle.id] != nil)
+                    .disabled((selectedAnswer == nil && selectedCoordinate == nil) || submittedRecord != nil || answersByQuestionId[puzzle.id] != nil)
 
                     Button("Nästa puzzle") {
                         goToNextPuzzle()
@@ -185,14 +229,26 @@ struct PuzzlesView: View {
     }
 
     private func checkAnswer(_ puzzle: PadelPuzzle) {
-        guard let selected = selectedAnswer else { return }
+        var isCorrect = false
+        var finalAnswer = selectedAnswer ?? ""
+
+        if puzzle.type == .tapToTarget {
+            guard let tap = selectedCoordinate, let target = puzzle.targetCoordinate else { return }
+            let dist = sqrt(pow(tap.x - target.x, 2) + pow(tap.y - target.y, 2))
+            isCorrect = dist < 0.15
+            finalAnswer = isCorrect ? puzzle.correctAnswer : "Fel position"
+        } else {
+            guard let selected = selectedAnswer else { return }
+            isCorrect = selected == puzzle.correctAnswer
+            finalAnswer = selected
+        }
 
         let record = PadelPuzzleAnswerRecord(
             questionId: puzzle.id,
             difficulty: puzzle.difficulty,
-            selectedAnswer: selected,
+            selectedAnswer: finalAnswer,
             correctAnswer: puzzle.correctAnswer,
-            isCorrect: selected == puzzle.correctAnswer,
+            isCorrect: isCorrect,
             answeredAt: Date()
         )
 
@@ -201,6 +257,7 @@ struct PuzzlesView: View {
         if record.isCorrect {
             answersByQuestionId[puzzle.id] = record
             saveProgress()
+            confettiTrigger += 1
         }
 
         UIImpactFeedbackGenerator(style: record.isCorrect ? .medium : .light).impactOccurred()
@@ -222,6 +279,7 @@ struct PuzzlesView: View {
         }
 
         selectedAnswer = nil
+        selectedCoordinate = nil
         submittedRecord = nil
     }
 
