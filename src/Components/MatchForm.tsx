@@ -19,6 +19,7 @@ import {
   Tooltip,
   TextField,
   InputAdornment,
+  LinearProgress,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -166,6 +167,21 @@ export default function MatchForm({
     });
     return map;
   }, [eloPlayers]);
+
+  const simulatorStats = useMemo(() => {
+    const hasEmpty = team1.some(id => !id) || team2.some(id => !id);
+    if (hasEmpty) return null;
+
+    const teamAElo = getTeamAverageElo(team1, eloMap);
+    const teamBElo = getTeamAverageElo(team2, eloMap);
+    const winProb = getExpectedScore(teamAElo, teamBElo);
+    const fairness = Math.round((1 - Math.abs(0.5 - winProb) * 2) * 100);
+
+    return {
+      winProb: Math.round(winProb * 100),
+      fairness
+    };
+  }, [team1, team2, eloMap]);
 
   const resetWizard = (silent = false) => {
     const hasProgress = team1.some(id => id !== "") || team2.some(id => id !== "") || pool.length > 0;
@@ -835,6 +851,43 @@ export default function MatchForm({
                   </Box>
                   {renderScoreButtons(b, setB)}
                 </Box>
+                {simulatorStats && (
+                  <Box sx={{ mt: 2, mb: 4, px: 1 }}>
+                    <Grid container spacing={3}>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, display: 'block', mb: 0.5, textAlign: 'left', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Rättvisa: {simulatorStats.fairness}%
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={simulatorStats.fairness}
+                          sx={{
+                            height: 6,
+                            borderRadius: 3,
+                            bgcolor: alpha('#4caf50', 0.1),
+                            '& .MuiLinearProgress-bar': { bgcolor: '#4caf50', borderRadius: 3 }
+                          }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, display: 'block', mb: 0.5, textAlign: 'right', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Vinstchans {mode === '1v1' ? 'A' : 'Lag A'}: {simulatorStats.winProb}%
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={simulatorStats.winProb}
+                          sx={{
+                            height: 6,
+                            borderRadius: 3,
+                            bgcolor: alpha('#d32f2f', 0.1),
+                            '& .MuiLinearProgress-bar': { bgcolor: '#d32f2f', borderRadius: 3 }
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
+
                 <Button
                   variant="contained"
                   fullWidth
@@ -843,9 +896,9 @@ export default function MatchForm({
                   onClick={() => setStep(3)}
                   endIcon={<ArrowForwardIcon />}
                   aria-label="Nästa steg: Granska och spara match"
-                  sx={{ mt: 2, height: 56, fontSize: "1.1rem" }}
+                  sx={{ mt: 2, height: 56, fontSize: "1.1rem", borderRadius: 3, fontWeight: 800, textTransform: 'none' }}
                 >
-                  Fortsätt
+                  Nästa
                 </Button>
               </Box>
             )}

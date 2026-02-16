@@ -366,11 +366,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       <BottomNav
         isMenuOpen={isMenuOpen}
-        isFabOpen={Boolean(anchorEl)}
         toggleMenu={toggleMenu}
-        toggleFab={handleFabClick}
         closeMenu={closeMenu}
         isGuest={hasGuestAccess}
+        canSeeSchedule={Boolean(user?.is_regular)}
+        canUseSingleGame={!hasGuestAccess}
       />
 
       <PermissionActionGuide />
