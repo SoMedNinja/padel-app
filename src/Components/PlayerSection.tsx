@@ -39,7 +39,12 @@ import { buildAllPlayersBadgeStats } from "../utils/badges";
 import {
   getMvpWinner,
   scorePlayersForMvp,
-  EVENING_MIN_GAMES
+  EVENING_MIN_GAMES,
+  MVP_WINDOW_DAYS,
+  MILLISECONDS_PER_DAY,
+  MVP_WIN_RATE_WEIGHT,
+  MVP_GAMES_WEIGHT,
+  MVP_SCORE_EPSILON
 } from "../utils/mvp";
 import ProfileName from "./ProfileName";
 import BadgeGallery from "./BadgeGallery";
@@ -217,9 +222,9 @@ const buildMvpSummary = (
     ) {
       const dateKey = cursor.toISOString().slice(0, 10);
       const dayEndTime = new Date(`${dateKey}T23:59:59.999Z`).getTime();
-      const cutoff = dayEndTime - 30 * 24 * 60 * 60 * 1000;
+      const cutoff = dayEndTime - MVP_WINDOW_DAYS * MILLISECONDS_PER_DAY;
 
-      // Add matches entering the 30-day window
+      // Add matches entering the window
       while (windowEndIndex < sortedEntries.length && sortedEntries[windowEndIndex].time <= dayEndTime) {
         const m = sortedEntries[windowEndIndex].match;
         matchDeltaMap.get(m.id)?.forEach(({ delta, result }, pid) => {
@@ -233,7 +238,7 @@ const buildMvpSummary = (
         windowEndIndex += 1;
       }
 
-      // Remove matches leaving the 30-day window
+      // Remove matches leaving the window
       while (windowStartIndex < windowEndIndex && sortedEntries[windowStartIndex].time <= cutoff) {
         const m = sortedEntries[windowStartIndex].match;
         matchDeltaMap.get(m.id)?.forEach(({ delta, result }, pid) => {
@@ -258,15 +263,15 @@ const buildMvpSummary = (
         if (s.games === 0) return;
 
         const winRate = s.wins / s.games;
-        const score = s.eloGain + winRate * 15 + s.games * 0.5;
+        const score = s.eloGain + winRate * MVP_WIN_RATE_WEIGHT + s.games * MVP_GAMES_WEIGHT;
         const player = playerMap.get(pid);
         if (!player) return;
 
         let isBetter = false;
-        if (score > bestScore + 0.001) isBetter = true;
-        else if (Math.abs(score - bestScore) <= 0.001) {
-          if (s.eloGain > bestEloGain + 0.001) isBetter = true;
-          else if (Math.abs(s.eloGain - bestEloGain) <= 0.001) {
+        if (score > bestScore + MVP_SCORE_EPSILON) isBetter = true;
+        else if (Math.abs(score - bestScore) <= MVP_SCORE_EPSILON) {
+          if (s.eloGain > bestEloGain + MVP_SCORE_EPSILON) isBetter = true;
+          else if (Math.abs(s.eloGain - bestEloGain) <= MVP_SCORE_EPSILON) {
             if (player.elo > bestEloNet) isBetter = true;
             else if (player.elo === bestEloNet) {
               if (s.wins > bestWins) isBetter = true;
@@ -714,7 +719,7 @@ export default function PlayerSection({
     const history = globalStats?.history ?? [];
     const len = history.length;
     if (len === 0) return 0;
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = Date.now() - MVP_WINDOW_DAYS * MILLISECONDS_PER_DAY;
 
     // Optimization: use a reverse loop and break early as history is chronological.
     // This reduces O(H) to O(H_recent) and avoids extra array allocation from .filter().
@@ -1093,7 +1098,7 @@ export default function PlayerSection({
                   label={range.label}
                   onClick={() => setTrendTimeRange(range.id)}
                   color={trendTimeRange === range.id ? "primary" : "default"}
-                  variant={trendTimeRange === range.id ? "contained" : "outlined"}
+                  variant={trendTimeRange === range.id ? "filled" : "outlined"}
                   size="small"
                   sx={{ fontWeight: 700 }}
                 />
@@ -1462,7 +1467,7 @@ export default function PlayerSection({
               label: "Vinst/förlust utan start-serve",
               value: renderWinLossSplit(serveSplitStats.serveSecondWins, serveSplitStats.serveSecondLosses, true),
             },
-            { label: "ELO +/- (30d)", value: formatEloDelta(last30DaysDelta), color: getEloDeltaClass(last30DaysDelta) },
+            { label: `ELO +/- (${MVP_WINDOW_DAYS}d)`, value: formatEloDelta(last30DaysDelta), color: getEloDeltaClass(last30DaysDelta) },
             { label: "ELO +/- (Kväll)", value: formatEloDelta(lastSessionDelta), color: getEloDeltaClass(lastSessionDelta) },
             { label: "Form (L5)", value: `${recentFormStats.wins}V - ${recentFormStats.losses}F` },
           ].map(stat => (
@@ -1490,7 +1495,7 @@ export default function PlayerSection({
 
         {mode === "overview" && (
           <Box sx={{ mt: 6 }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Synergi & Rivalitet (30d)</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Synergi & Rivalitet ({MVP_WINDOW_DAYS}d)</Typography>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 {/* Note for non-coders: We use a lighter tinted background so the text is easier to read. */}

@@ -2,6 +2,11 @@ import { Match, PlayerStats } from "../types";
 
 export const EVENING_MIN_GAMES = 3;
 export const MONTH_MIN_GAMES = 6;
+export const MVP_WINDOW_DAYS = 30;
+export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+export const MVP_WIN_RATE_WEIGHT = 15;
+export const MVP_GAMES_WEIGHT = 0.5;
+export const MVP_SCORE_EPSILON = 0.001;
 
 export interface MvpScoreResult {
   name: string;
@@ -26,7 +31,7 @@ export function calculateMvpScore(
   periodEloGain: number
 ): number {
   const winRate = games > 0 ? wins / games : 0;
-  return periodEloGain + winRate * 15 + games * 0.5;
+  return periodEloGain + winRate * MVP_WIN_RATE_WEIGHT + games * MVP_GAMES_WEIGHT;
 }
 
 /**
@@ -157,13 +162,13 @@ export function getMvpWinner(results: MvpScoreResult[]): MvpScoreResult | null {
     }
 
     const scoreDiff = r.score - winner.score;
-    if (scoreDiff > 0.001) {
+    if (scoreDiff > MVP_SCORE_EPSILON) {
       winner = r;
-    } else if (scoreDiff > -0.001) {
+    } else if (scoreDiff > -MVP_SCORE_EPSILON) {
       const eloGainDiff = r.periodEloGain - winner.periodEloGain;
-      if (eloGainDiff > 0.001) {
+      if (eloGainDiff > MVP_SCORE_EPSILON) {
         winner = r;
-      } else if (eloGainDiff > -0.001) {
+      } else if (eloGainDiff > -MVP_SCORE_EPSILON) {
         if (r.eloNet > winner.eloNet) {
           winner = r;
         } else if (r.eloNet === winner.eloNet) {
