@@ -197,6 +197,7 @@ struct PuzzlesView: View {
                         .disabled(submittedRecord != nil || answersByQuestionId[puzzle.id] != nil)
                     }
                 }
+            }
 
                 HStack(spacing: 12) {
                     Button("Kontrollera svar") {
