@@ -121,23 +121,17 @@ export const tournamentService = {
 
     // Note for non-coders: we delete child rows first and then the tournament row. This
     // avoids relying on a custom RPC function that is missing in some Supabase projects.
-    const { error: participantsError } = await supabase
-      .from("mexicana_participants")
-      .delete()
-      .eq("tournament_id", tournamentId);
-    if (participantsError) throw participantsError;
+    // We parallelize the child deletions to improve performance.
+    const results = await Promise.all([
+      supabase.from("mexicana_participants").delete().eq("tournament_id", tournamentId),
+      supabase.from("mexicana_rounds").delete().eq("tournament_id", tournamentId),
+      supabase.from("mexicana_results").delete().eq("tournament_id", tournamentId),
+    ]);
 
-    const { error: roundsError } = await supabase
-      .from("mexicana_rounds")
-      .delete()
-      .eq("tournament_id", tournamentId);
-    if (roundsError) throw roundsError;
-
-    const { error: resultsError } = await supabase
-      .from("mexicana_results")
-      .delete()
-      .eq("tournament_id", tournamentId);
-    if (resultsError) throw resultsError;
+    // Check for errors in any of the child deletions
+    for (const { error } of results) {
+      if (error) throw error;
+    }
 
     const { error: tournamentError } = await supabase
       .from("mexicana_tournaments")

@@ -105,4 +105,31 @@ describe('tournamentService', () => {
       await expect(tournamentService.createTournament(input)).rejects.toThrow("Turneringsnamn får inte vara tomt");
     });
   });
+
+  describe('deleteTournament', () => {
+    it('should delete tournament and all child rows', async () => {
+      const mockEq = vi.fn().mockResolvedValue({ error: null });
+      const mockDelete = vi.fn(() => ({ eq: mockEq }));
+      (supabase.from as any).mockReturnValue({ delete: mockDelete });
+
+      await tournamentService.deleteTournament('tourney-123');
+
+      expect(supabase.from).toHaveBeenCalledWith('mexicana_participants');
+      expect(supabase.from).toHaveBeenCalledWith('mexicana_rounds');
+      expect(supabase.from).toHaveBeenCalledWith('mexicana_results');
+      expect(supabase.from).toHaveBeenCalledWith('mexicana_tournaments');
+
+      expect(mockEq).toHaveBeenCalledWith('tournament_id', 'tourney-123');
+      expect(mockEq).toHaveBeenCalledWith('id', 'tourney-123');
+      expect(mockDelete).toHaveBeenCalledTimes(4);
+    });
+
+    it('should throw error if any deletion fails', async () => {
+      const mockEq = vi.fn().mockResolvedValue({ error: new Error('Delete failed') });
+      const mockDelete = vi.fn(() => ({ eq: mockEq }));
+      (supabase.from as any).mockReturnValue({ delete: mockDelete });
+
+      await expect(tournamentService.deleteTournament('tourney-123')).rejects.toThrow('Delete failed');
+    });
+  });
 });
