@@ -40,6 +40,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import { readCompletedQuizMap, storageKeyForUser, type CompletedQuizRecord } from "../utils/educationQuiz";
+import SelfAssessment from "../components/SelfAssessment/SelfAssessment";
 
 const illustrationIcons = {
   sports_tennis: SportsTennisIcon,
@@ -78,10 +79,12 @@ function TopicListView({ completedByTopicId }: { completedByTopicId: Record<stri
       </Tabs>
 
       {tab === 0 && (
-        <Card sx={{ borderRadius: 3 }}>
-          <CardContent>
-            <List disablePadding>
-              {educationTopics.map((topic, index) => {
+        <>
+          <SelfAssessment />
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <List disablePadding>
+                {educationTopics.map((topic, index) => {
               const Icon = illustrationIcons[topic.illustration];
               const earnedBadge = completedByTopicId[topic.id];
 
@@ -105,12 +108,13 @@ function TopicListView({ completedByTopicId }: { completedByTopicId: Record<stri
                     <ArrowForwardIcon color="action" />
                   </ListItemButton>
                     {index < educationTopics.length - 1 && <Divider component="li" />}
-                  </Box>
-                );
-              })}
-            </List>
-          </CardContent>
-        </Card>
+                    </Box>
+                  );
+                })}
+              </List>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {tab === 1 && (
