@@ -22,10 +22,62 @@
 **Learning:** For dense forms (like score selection), allowing users to collapse extra options ("Göm") keeps the UI tidy and reduces cognitive load. Providing immediate, contextual loading feedback (like a spinner inside a button) for administrative actions prevents double-clicks and uncertainty.
 **Action:** Use "Mer.../Göm" patterns for optional high-density inputs. Always replace icons with a `CircularProgress` (size 16) in buttons during active async operations. Use `cursor: 'help'` on tooltipped headers to signal interactivity.
 
-## 2026-01-29 - [Micro-UX: Visual Feedback for Async Actions]
-**Learning:** Buttons performing asynchronous operations (save, delete, start) without visual loading states can lead to user uncertainty and double-clicks.
-**Action:** Always implement a `CircularProgress` (size 16) spinner within the button's `startIcon` or as the main icon during active async states (e.g., `isSaving`, `deleteId === id`). Use `color="inherit"` to ensure the spinner matches the button's text color.
+## 2026-01-31 - [UX: Contextual Feedback & A11y States]
+**Learning:** For dense selection grids (like score entry), screen readers need explicit state cues like `aria-pressed`. Visual feedback for async operations (changing "Spara" to "Sparar...") prevents user uncertainty. Tooltips on disabled buttons require a wrapper `span` to ensure the tooltip is triggerable.
+**Action:** Always use `aria-pressed` on selection buttons. Implement "Sparar..." text changes in submit buttons. Wrap disabled tooltipped buttons in a `span`.
 
-## 2026-01-31 - [Micro-UX: Enhanced Loading Feedback]
-**Learning:** Static "Laddar data..." text without a moving visual indicator can feel stalled. Adding a CircularProgress spinner reinforces the active state of data fetching.
-**Action:** Always pair loading text with a `CircularProgress` (size 24) and use `flexDirection: 'column'` with appropriate `gap` to maintain visual balance in overlays.
+## 2026-02-05 - [A11y: Native Validation & Sort Labels]
+**Learning:** MUI `TextField` does not always apply `aria-required` to the underlying input element when the `required` prop is used on the component. Explicitly passing it via `slotProps.htmlInput` ensures screen reader compliance. Table sorting headers require descriptive `aria-label` attributes on `TableSortLabel` to explain the action to non-visual users.
+**Action:** Use `slotProps.htmlInput` for `aria-required` in `TextField`. Always add `aria-label` to `TableSortLabel` describing the column being sorted.
+
+## 2026-02-12 - [UX: Contextual Clarity & Scannability]
+**Learning:** In multi-slot forms (like match editing), missing labels on identical inputs cause cognitive friction. Visual cues like bolding/coloring winners in dense brackets significantly reduce scanning time. Lowering search thresholds (e.g., from 8 to 5) for player grids ensures filter tools are available before the list becomes overwhelming.
+**Action:** Always label repeating form slots (e.g., "Spelare 1"). Use `primary.main` highlighting for winners in tournament views. Standardize search visibility at 5+ items.
+
+## 2026-02-15 - [A11y: Tournament Bracket & Region Landmarks]
+**Learning:** Densely packed tournament brackets are notoriously difficult for screen reader users to navigate without landmarks. Providing a `role="region"` with a descriptive `aria-label` for the scrollable container, combined with summary `aria-label` attributes for each match card (e.g., "Rond 1: Lag A mot Lag B, resultat 2-1"), significantly improves the experience for non-visual users.
+**Action:** Always wrap complex horizontal scroll areas in a region landmark and provide semantic summary labels for repeated data cards.
+
+## 2025-05-25 - [iOS UX: Tactile Feedback & Async Clarity]
+**Learning:** Native iOS users expect tactile feedback for primary actions and discrete selections. Adding haptics to custom buttons and pickers significantly enhances the "premium" feel. For long-running async operations like match submission, changing the button label to "Sparar..." and adding a ProgressView prevents redundant clicks and uncertainty.
+**Action:** Use UIImpactFeedbackGenerator in custom ButtonStyles and sensoryFeedback on pickers. Always implement a "Sparar..." state for primary submission buttons.
+
+## 2025-05-28 - [iOS UX: Pulse Animations & Haptic Hierarchy]
+**Learning:** Pulse animations on icons (Symbol Effects) provide a non-intrusive way to signal live events (like tournaments). Using a hierarchy of haptics (Light for navigation, Medium for primary creation/submission) makes the app feel tactile and responsive. Sorting headers in dense tables require both an accessibilityLabel and an accessibilityHint to explain state changes to VoiceOver users.
+**Action:** Use `.symbolEffect(.pulse)` for live status indicators. Apply Light/Medium haptic feedback consistently based on action importance. Always add hints to sortable table headers.
+
+## 2026-06-01 - [iOS UX: Coherent Accessibility & Tactile Wizard]
+**Learning:** Horizontal data rows (like leaderboards) are best served to VoiceOver as a single, ignored-children element with a summarized `accessibilityLabel`. Multi-step wizards benefit significantly from combining step indicators into a single accessibility element with clear `accessibilityValue` (e.g., "Aktivt/Slutfört") and `accessibilityAddTraits(.isButton)`. Adding light haptics (`UIImpactFeedbackGenerator(style: .light)`) to previous-step navigation makes the wizard feel more tactile and forgiving.
+**Action:** Summarize dense rows in a single label. Use `.combine` and button traits for custom progress steppers. Implement haptics for "go back" interactions in forms.
+
+## 2026-06-05 - [iOS UX: Confirmation Safety & Empty State Guidance]
+**Learning:** Destructive actions on mobile (logout, match deletion) require explicit confirmation dialogs to prevent accidental taps. Empty states that offer a clear path forward (e.g., "Registrera match" button) reduce user frustration when data is missing. In-place editors should maintain their state until async operations finish to avoid jarring UI transitions.
+**Action:** Always use `.confirmationDialog` for destructive actions. Provide helpful navigation CTAs in empty states. Use loading states (ProgressView) inside buttons to provide immediate feedback for save actions.
+
+## 2026-06-10 - [iOS UX: Search Feedback & Field Constraints]
+**Learning:** Empty search results in player grids can feel like a "dead" UI if no feedback is given. Providing a localized message ("Inga spelare hittades") and an icon confirms the search was active. Character counters for text fields with strict limits (like profile names) are essential on mobile to prevent silent input truncation and provide immediate validation feedback.
+**Action:** Always implement empty states for searchable lists. Add character counters and disabling logic to `TextFields` with `maxLength` or `minLength` constraints.
+
+## 2026-06-12 - [A11y: Dynamic Sort State & Actionable Hints]
+**Learning:** VoiceOver users need to know not just that a header is sortable, but its current sort direction. Using `accessibilityValue` to announce "Sorterat stigande" or "Sorterat fallande" and `accessibilityHint` to explain the toggle action ("Tryck för att sortera efter...") makes data tables navigable for non-visual users.
+**Action:** Use `accessibilityValue` for dynamic state and `accessibilityHint` for instructions on all interactive table headers.
+
+## 2026-06-15 - [iOS UX: Tactile Constraints & Search Efficiency]
+**Learning:** Reaching a character limit in a text field is a silent failure if not accompanied by tactile feedback. A "clear" button in search bars is a standard expectation on iOS that reduces friction when resetting filters. Accessibility tools need explicit values for counters (e.g., "X av Y tecken") to provide context beyond the raw text.
+**Action:** Use `UIImpactFeedbackGenerator(style: .medium)` when character limits are hit. Always add a clear button (X) with haptics to custom search fields. Provide detailed `accessibilityValue` for all progress/count indicators.
+
+## 2026-06-20 - [PWA UX: Haptic Delight & Discovery Landmarks]
+**Learning:** PWAs can achieve parity with native iOS apps by using `navigator.vibrate` for tactile feedback on key interactions like player selection, score toggles, and search clearing. Non-interactive text that triggers tooltips (like table headers) remains invisible to keyboard users; making them focusable with `tabIndex={0}` and adding visual cues like `cursor: help` ensures accessibility and discovery.
+**Action:** Use `navigator.vibrate` for micro-interactions in PWA components. Always ensure tooltip-carrying elements are focusable and use appropriate ARIA labels and cursor styles to signal interactivity.
+
+## 2026-06-25 - [A11y: Keyboard Discovery & Row Summaries]
+**Learning:** Dense data tables (like ELO leaderboards) are cognitively expensive for screen reader users if they have to navigate every cell. Providing a summarized `aria-label` on the row allows for rapid scanning. Interactive elements within these rows (like rivalry modals) must be explicitly focusable via `tabIndex` and respond to keyboard events (`Enter`/`Space`) to ensure discovery.
+**Action:** Always add summarized `aria-label` to rows in dense tables. Ensure clickable `TableRows` have `tabIndex={0}` and a corresponding `onKeyDown` listener.
+
+## 2026-06-25 - [A11y: Step Navigation & Focusable Landmarks]
+**Learning:** MUI `StepLabel` with `onClick` is not keyboard-accessible by default. Screen readers and keyboard users cannot "discover" that a step is clickable unless it uses a button-like component. Using `StepButton` provides the necessary focus states and keyboard interaction handlers automatically.
+**Action:** Use `StepButton` to wrap `StepLabel` in interactive `Stepper` components to ensure full keyboard support for form navigation.
+
+## 2026-02-16 - [A11y & UX: Haptics and Discovery]
+**Learning:** Merit badges with tooltips are invisible to keyboard users if not focusable. Tactile feedback (haptics) for administrative actions and animation steps provides a "premium" feel and confirmation in PWAs.
+**Action:** Always make tooltip-carrying chips focusable with `tabIndex={0}`. Use `navigator.vibrate` for key state changes and administrative successes.
