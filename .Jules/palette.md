@@ -81,3 +81,7 @@
 ## 2026-02-16 - [A11y & UX: Haptics and Discovery]
 **Learning:** Merit badges with tooltips are invisible to keyboard users if not focusable. Tactile feedback (haptics) for administrative actions and animation steps provides a "premium" feel and confirmation in PWAs.
 **Action:** Always make tooltip-carrying chips focusable with `tabIndex={0}`. Use `navigator.vibrate` for key state changes and administrative successes.
+
+## 2024-05-22 - [Accessibility Wins]
+**Learning:** Adding `aria-label` to icon-only buttons is a small change with huge impact. Also, `role="radiogroup"` is essential for custom button groups that act as radio inputs.
+**Action:** Always check `IconButton` for `aria-label` and use semantic roles for custom inputs.

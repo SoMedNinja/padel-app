@@ -18,6 +18,8 @@ export default function ScoreSelector({
 
   return (
     <Box
+      role="radiogroup"
+      aria-label="Välj poäng"
       sx={{
         display: "flex",
         flexWrap: "wrap",
@@ -28,13 +30,14 @@ export default function ScoreSelector({
       {mainScores.map((s) => (
         <Button
           key={s}
+          role="radio"
           variant={value === s ? "contained" : "outlined"}
           onClick={() => {
             onChange(s);
             navigator.vibrate?.(10);
           }}
-          aria-label={`Välj resultat: ${s}`}
-          aria-pressed={value === s}
+          aria-label={`Poäng: ${s}`}
+          aria-checked={value === s}
           sx={{
             minWidth: 50,
             height: 50,
@@ -49,13 +52,14 @@ export default function ScoreSelector({
         extraScores.map((s) => (
           <Button
             key={s}
+            role="radio"
             variant={value === s ? "contained" : "outlined"}
             onClick={() => {
               onChange(s);
               navigator.vibrate?.(10);
             }}
-            aria-label={`Välj resultat: ${s}`}
-            aria-pressed={value === s}
+            aria-label={`Poäng: ${s}`}
+            aria-checked={value === s}
             sx={{
               minWidth: 50,
               height: 50,

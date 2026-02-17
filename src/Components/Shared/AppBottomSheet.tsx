@@ -51,7 +51,12 @@ export default function AppBottomSheet({
             </Typography>
           )}
           {showCloseButton && (
-            <IconButton onClick={onClose} size="small" edge="end">
+            <IconButton
+              onClick={onClose}
+              size="small"
+              edge="end"
+              aria-label="Stäng"
+            >
               <CloseIcon />
             </IconButton>
           )}
@@ -100,7 +105,12 @@ export default function AppBottomSheet({
             </Typography>
           )}
           {showCloseButton && (
-            <IconButton onClick={onClose} size="small" edge="end">
+            <IconButton
+              onClick={onClose}
+              size="small"
+              edge="end"
+              aria-label="Stäng"
+            >
               <CloseIcon />
             </IconButton>
           )}
