@@ -5462,6 +5462,15 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func submitPuzzleScore(delta: Int) async {
+        guard isAuthenticated && !isGuestMode else { return }
+        do {
+            try await apiClient.incrementPuzzleScore(delta: delta)
+        } catch {
+            print("Failed to submit puzzle score: \(error)")
+        }
+    }
+
     func submitSingleGame(
         teamAPlayerIds: [String?],
         teamBPlayerIds: [String?],

@@ -259,6 +259,13 @@ struct PuzzlesView: View {
             answersByQuestionId[puzzle.id] = record
             saveProgress()
             confettiTrigger += 1
+            Task {
+                await viewModel.submitPuzzleScore(delta: 100)
+            }
+        } else {
+            Task {
+                await viewModel.submitPuzzleScore(delta: -100)
+            }
         }
 
         UIImpactFeedbackGenerator(style: record.isCorrect ? .medium : .light).impactOccurred()
