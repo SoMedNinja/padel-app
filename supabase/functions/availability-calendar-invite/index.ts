@@ -157,15 +157,22 @@ Deno.serve(async (req) => {
     if (invitedProfilesError) throw invitedProfilesError;
 
     const allUsers: Array<{ id: string; email?: string }> = [];
-    let page = 1;
-    const perPage = 200;
-    while (true) {
-      const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
-      if (error) throw error;
-      const users = data?.users || [];
-      users.forEach((entry) => allUsers.push({ id: entry.id, email: entry.email || undefined }));
-      if (users.length < perPage) break;
-      page += 1;
+    // Performance Optimization: Fetch only invited users (who exist in profiles) instead of all users.
+    const inviteeIds = (invitedProfiles || []).map((p) => p.id);
+    const uniqueInviteeIds = Array.from(new Set(inviteeIds));
+    const BATCH_SIZE = 10;
+
+    for (let i = 0; i < uniqueInviteeIds.length; i += BATCH_SIZE) {
+      const batch = uniqueInviteeIds.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map((id) => adminClient.auth.admin.getUserById(id)));
+
+      results.forEach((result) => {
+        if (result.data && result.data.user) {
+          allUsers.push({ id: result.data.user.id, email: result.data.user.email });
+        } else if (result.error) {
+          console.warn(`Could not fetch user: ${result.error.message}`, result.error);
+        }
+      });
     }
 
     const emailByUser = new Map<string, string>();
