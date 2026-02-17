@@ -24,6 +24,7 @@ export default function AppRoutes() {
       <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
       <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
       <Route path="/history" element={<PageTransition><HistoryPage /></PageTransition>} />
+      <Route path="/matchhistory" element={<Navigate to="/history" replace />} />
       <Route path="/education" element={<PageTransition><EducationPage /></PageTransition>} />
       <Route path="/education/:topicId" element={<PageTransition><EducationPage /></PageTransition>} />
       <Route path="/puzzles" element={<PageTransition><PuzzlesPage /></PageTransition>} />

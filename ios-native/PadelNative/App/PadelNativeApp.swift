@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             var urlString = route
             // If the server sends a relative path (e.g. "/schedule"), we make it a full deep-link URL.
             if urlString.hasPrefix("/") {
-                urlString = "padelnative:\(urlString)"
+                urlString = "padelnative:/\(urlString)"
             } else if !urlString.contains("://") {
                 urlString = "padelnative://\(urlString)"
             }

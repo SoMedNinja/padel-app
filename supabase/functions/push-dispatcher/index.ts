@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       title = "Ny match registrerad!";
       body = `${team1Name} vs ${team2Name}: ${match.team1_sets} - ${match.team2_sets}`;
       eventType = "match_result_new";
-      route = `/matches/${match.id}`;
+      route = "/matchhistory";
     } else if (table === "availability_scheduled_games") {
       const game = record;
       // Scheduled games don't have a direct 'created_by' in the schema shown,
@@ -135,14 +135,14 @@ Deno.serve(async (req) => {
       const time = game.start_time ? game.start_time.substring(0, 5) : "";
       body = `En match har bokats ${date} kl ${time}. ${game.location ? `Plats: ${game.location}` : ""}`;
       eventType = "scheduled_match_new";
-      route = "/schedule"; // Or deep link if available
+      route = "/schema"; // Or deep link if available
     } else if (table === "availability_polls") {
       const poll = record;
       // Polls are created by admins usually.
       title = "Ny tillgänglighetspoll!";
       body = "Nu kan du rösta på tider för kommande vecka.";
       eventType = "availability_poll_reminder"; // Using existing type for "Poll" events
-      route = "/availability";
+      route = "/schema";
     } else {
        console.log(`Unsupported table: ${table}, skipping.`);
        return new Response(
