@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { matchService, MatchCreateInput } from "../services/matchService";
 import { Match } from "../types";
 import { queryKeys } from "../utils/queryKeys";
+import { invalidateStatsData } from "../data/queryInvalidation";
 
 export const useCreateMatch = () => {
   const queryClient = useQueryClient();
@@ -56,11 +57,7 @@ export const useCreateMatch = () => {
     },
     onSettled: () => {
       // Always refetch after error or success.
-      // We invalidate the base key to refresh all filtered lists (all, short, long, etc).
-      queryClient.invalidateQueries({ queryKey: queryKeys.matches() });
-      // Also invalidate other related queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.profiles() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
+      invalidateStatsData(queryClient);
     },
   });
 };

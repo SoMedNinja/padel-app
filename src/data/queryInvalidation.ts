@@ -3,8 +3,10 @@ import { queryKeys } from "../utils/queryKeys";
 
 // Note for non-coders: these helpers group "refresh" calls so every page stays in sync.
 export const invalidateMatchData = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: queryKeys.matches() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.matchesInfiniteBase() });
+  // Note for non-coders: refetchType: 'all' ensures we refresh the data even if you're not
+  // looking at the History page right now (it might be in the background).
+  queryClient.invalidateQueries({ queryKey: queryKeys.matches(), refetchType: 'all' });
+  queryClient.invalidateQueries({ queryKey: queryKeys.matchesInfiniteBase(), refetchType: 'all' });
 };
 
 export const invalidateProfileData = (queryClient: QueryClient) => {
