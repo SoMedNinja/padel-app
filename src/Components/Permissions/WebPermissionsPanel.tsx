@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Chip, Stack, Typography, Divider, FormControlLabel, Switch, TextField } from "@mui/material";
+import { Alert, Box, Button, Chip, Stack, Typography, Divider, FormControlLabel, Switch, TextField, MenuItem } from "@mui/material";
 import { useEffect, useState } from "react";
 import {
   buildWebPermissionSnapshots,
@@ -116,9 +116,9 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
     });
   };
 
-  const updateQuietHours = (field: "startHour" | "endHour", value: string) => {
+  const updateQuietHours = (field: "startHour" | "endHour", value: string | number) => {
     if (!preferences) return;
-    const num = parseInt(value, 10);
+    const num = typeof value === 'string' ? parseInt(value, 10) : value;
     if (isNaN(num) || num < 0 || num > 23) return;
     handlePreferenceChange({
       ...preferences,
@@ -272,7 +272,7 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
       {preferences && (
         <>
           <Divider sx={{ my: 3 }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Inställningar för notiser</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Notifieringsinställningar</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Anpassa vilka notiser du vill ha och när.
           </Typography>
@@ -308,23 +308,25 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
             {preferences.quietHours.enabled && (
               <Stack direction="row" spacing={2} sx={{ ml: 4 }}>
                 <TextField
-                  label="Start"
-                  type="number"
+                  select
                   size="small"
+                  label="Start"
                   value={preferences.quietHours.startHour}
                   onChange={(e) => updateQuietHours("startHour", e.target.value)}
-                  slotProps={{ htmlInput: { min: 0, max: 23 } }}
-                  sx={{ width: 80 }}
-                />
+                  sx={{ width: 100 }}
+                >
+                  {Array.from({ length: 24 }).map((_, hour) => <MenuItem key={`start-${hour}`} value={hour}>{`${hour.toString().padStart(2, "0")}:00`}</MenuItem>)}
+                </TextField>
                 <TextField
-                  label="Slut"
-                  type="number"
+                  select
                   size="small"
+                  label="Slut"
                   value={preferences.quietHours.endHour}
                   onChange={(e) => updateQuietHours("endHour", e.target.value)}
-                  slotProps={{ htmlInput: { min: 0, max: 23 } }}
-                  sx={{ width: 80 }}
-                />
+                  sx={{ width: 100 }}
+                >
+                  {Array.from({ length: 24 }).map((_, hour) => <MenuItem key={`end-${hour}`} value={hour}>{`${hour.toString().padStart(2, "0")}:00`}</MenuItem>)}
+                </TextField>
               </Stack>
             )}
           </Box>
