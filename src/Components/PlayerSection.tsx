@@ -1020,19 +1020,35 @@ export default function PlayerSection({
   } | null>(null);
   const [isChartTooltipLocked, setIsChartTooltipLocked] = useState(false);
 
+  const buildLegendValues = (row: any) => {
+    const values = comparisonNames.map((name, index) => ({
+      name,
+      value: row[`${name}_elo`],
+      color: chartPalette[index % chartPalette.length]
+    }));
+
+    if (showWinRate && comparisonNames.length > 0) {
+      values.push({
+        name: "Vinst %",
+        value: row[`${comparisonNames[0]}_winRate`],
+        color: "#ff9800"
+      });
+    }
+
+    return values
+      .map(v => ({ ...v, name: String(v.name), value: Number(v.value), color: String(v.color) }))
+      .filter(v => v.name && Number.isFinite(v.value));
+  };
+
   const updateChartTooltip = (state: any) => {
     if (!state?.isTooltipActive || !state?.activeLabel) return;
 
-    const values = Array.isArray(state.activePayload)
-      ? state.activePayload
-          .map((entry: any) => ({
-            name: String(entry.name ?? ""),
-            value: Number(entry.value),
-            color: String(entry.color ?? "#1976d2"),
-          }))
-          .filter((entry: { name: string; value: number }) => entry.name && Number.isFinite(entry.value))
-      : [];
+    // Note for non-coders: this ensures we get the exact data point even if the user is slightly off,
+    // which fixes the "tooltip doesn't show up" issue on touch screens.
+    const row = filteredComparisonData.find(d => d.date === state.activeLabel);
+    if (!row) return;
 
+    const values = buildLegendValues(row);
     if (!values.length) return;
 
     const chartWidth = Number(state.chartWidth) || 0;
