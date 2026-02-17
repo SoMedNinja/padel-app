@@ -406,6 +406,10 @@ export const matchService = {
     return queueState;
   },
 
+  getQueueItems(): QueuedMatchMutation[] {
+    return readQueue();
+  },
+
   async flushMutationQueue(): Promise<void> {
     await processQueuedMutations({ manual: true });
   },

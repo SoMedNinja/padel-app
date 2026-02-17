@@ -21,7 +21,7 @@ export default function AppRoutes() {
   const canAccessSchedule = Boolean(user?.is_regular);
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence>
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><PlayerProfilePage /></PageTransition>} />
         <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
