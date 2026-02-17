@@ -420,4 +420,5 @@ entrypoint = "./functions/tournament-summary/index.ts"
 [functions.push-dispatcher]
 enabled = true
 verify_jwt = true
+import_map = "./functions/push-dispatcher/deno.json"
 entrypoint = "./functions/push-dispatcher/index.ts"
