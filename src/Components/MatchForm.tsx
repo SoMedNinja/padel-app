@@ -348,7 +348,7 @@ export default function MatchForm({
     if (
       team1.includes("") ||
       team2.includes("") ||
-      team1.some(p => team2.includes(p))
+      team1.some(p => p !== GUEST_ID && team2.includes(p))
     ) {
       toast.error("Ogiltiga lag.");
       return;
