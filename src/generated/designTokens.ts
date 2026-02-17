@@ -63,7 +63,7 @@ export const designTokens = {
     "xxl": 32
   },
   "typography": {
-    "fontFamily": "\"Inter\", \"Segoe UI\", \"Roboto\", \"Helvetica Neue\", Arial, sans-serif",
+    "fontFamily": "-apple-system, BlinkMacSystemFont, \"Inter\", \"Segoe UI\", \"Roboto\", \"Helvetica Neue\", Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\"",
     "scale": {
       "body": 14,
       "bodyLarge": 16,

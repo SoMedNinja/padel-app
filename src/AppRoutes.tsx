@@ -11,18 +11,8 @@ import OfflinePage from "./pages/OfflinePage";
 import EducationPage from "./pages/EducationPage";
 import PuzzlesPage from "./pages/PuzzlesPage";
 import { useStore } from "./store/useStore";
-import { motion, AnimatePresence } from "framer-motion";
-
-const PageWrapper = ({ children }: { children: React.ReactNode }) => (
-  <motion.div
-    initial={{ opacity: 0, x: 10 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -10 }}
-    transition={{ duration: 0.2, ease: "easeOut" }}
-  >
-    {children}
-  </motion.div>
-);
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "./Components/Shared/PageTransition";
 
 export default function AppRoutes() {
   const { user, isGuest } = useStore();
@@ -33,23 +23,23 @@ export default function AppRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageWrapper><PlayerProfilePage /></PageWrapper>} />
-        <Route path="/dashboard" element={<PageWrapper><Dashboard /></PageWrapper>} />
+        <Route path="/" element={<PageTransition><PlayerProfilePage /></PageTransition>} />
+        <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
         <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/history" element={<PageWrapper><HistoryPage /></PageWrapper>} />
-        <Route path="/education" element={<PageWrapper><EducationPage /></PageWrapper>} />
-        <Route path="/education/:topicId" element={<PageWrapper><EducationPage /></PageWrapper>} />
-        <Route path="/puzzles" element={<PageWrapper><PuzzlesPage /></PageWrapper>} />
-        {canAccessSchedule && <Route path="/schedule" element={<PageWrapper><SchedulePage /></PageWrapper>} />}
+        <Route path="/history" element={<PageTransition><HistoryPage /></PageTransition>} />
+        <Route path="/education" element={<PageTransition><EducationPage /></PageTransition>} />
+        <Route path="/education/:topicId" element={<PageTransition><EducationPage /></PageTransition>} />
+        <Route path="/puzzles" element={<PageTransition><PuzzlesPage /></PageTransition>} />
+        {canAccessSchedule && <Route path="/schedule" element={<PageTransition><SchedulePage /></PageTransition>} />}
         {canAccessSchedule && <Route path="/schema" element={<Navigate to="/schedule" replace />} />}
-        {!isGuest && <Route path="/tournament" element={<PageWrapper><TournamentPage /></PageWrapper>} />}
+        {!isGuest && <Route path="/tournament" element={<PageTransition><TournamentPage /></PageTransition>} />}
         <Route path="/profile" element={<Navigate to="/" replace />} />
         <Route path="/mexicana" element={<Navigate to="/tournament" replace />} />
-        {!isGuest && <Route path="/single-game" element={<PageWrapper><SingleGamePage /></PageWrapper>} />}
-        <Route path="/match/:matchId" element={<PageWrapper><MatchShareRedirectPage /></PageWrapper>} />
-        <Route path="/offline" element={<PageWrapper><OfflinePage /></PageWrapper>} />
-        {isAdmin && <Route path="/admin" element={<PageWrapper><AdminPage /></PageWrapper>} />}
-        {isAdmin && <Route path="/admin/email" element={<PageWrapper><AdminPage /></PageWrapper>} />}
+        {!isGuest && <Route path="/single-game" element={<PageTransition><SingleGamePage /></PageTransition>} />}
+        <Route path="/match/:matchId" element={<PageTransition><MatchShareRedirectPage /></PageTransition>} />
+        <Route path="/offline" element={<PageTransition><OfflinePage /></PageTransition>} />
+        {isAdmin && <Route path="/admin" element={<PageTransition><AdminPage /></PageTransition>} />}
+        {isAdmin && <Route path="/admin/email" element={<PageTransition><AdminPage /></PageTransition>} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>

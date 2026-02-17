@@ -83,6 +83,7 @@ import {
 import TheShareable from "./Shared/TheShareable";
 import { formatScore } from "../utils/format";
 import MatchSuccessCeremony from "./MatchSuccessCeremony";
+import { useCreateMatch } from "../hooks/useMatchMutations";
 
 
 interface MatchFormProps {
@@ -130,6 +131,7 @@ export default function MatchForm({
   const [query, setQuery] = useState("");
   useEffect(() => { setQuery(""); }, [step]);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const createMatchMutation = useCreateMatch();
   const wizardSteps = ["Lag A", "Lag B", "Resultat", "Granska"];
   const activeWizardStep = step >= 0 && step <= 3 ? step : 0;
   // Note for non-coders: "activeWizardStep" tells the Stepper which stage we're on so the UI can show progress.
@@ -399,7 +401,7 @@ export default function MatchForm({
     setIsSubmitting(true);
     let createResult;
     try {
-      createResult = await matchService.createMatch({
+      createResult = await createMatchMutation.mutateAsync({
         team1: team1Names,
         team2: team2Names,
         team1_ids: team1IdsForDb,

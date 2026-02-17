@@ -1,7 +1,18 @@
 @import "./generated/design-tokens.css";
 
 * {
-  box-sizing:border-box;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:active {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS-style active press effect */
+.MuiButtonBase-root:not(.Mui-disabled):active {
+  transform: scale(0.96);
+  transition: transform 0.1s ease-out;
 }
 
 :root {
@@ -19,7 +30,7 @@
 }
 
 body {
-  font-family:"Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   background:var(--color-bg);
   margin:0;
   padding:0;
