@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { matchService } from "../services/matchService";
+import { invalidateStatsData } from "../data/queryInvalidation";
 import {
   CircularProgress,
   Box,
@@ -102,6 +104,7 @@ export default function MatchForm({
   mode = "2v2",
   setMode,
 }: MatchFormProps) {
+  const queryClient = useQueryClient();
   const teamSize = mode === "1v1" ? 1 : 2;
   const [step, setStep] = useState(0); // 0: Start/TeamA, 1: TeamB, 2: Score, 3: Review, 10: Pool Selection (Matchmaker)
   const [team1, setTeam1] = useState<string[]>(Array(teamSize).fill(""));
@@ -416,6 +419,8 @@ export default function MatchForm({
         setIsSubmitting(false);
         return;
       }
+
+      invalidateStatsData(queryClient);
     } catch (error: any) {
       toast.error(error.message || "Kunde inte spara matchen.");
       setIsSubmitting(false);
