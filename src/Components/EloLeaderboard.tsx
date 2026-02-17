@@ -71,7 +71,31 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
     // Optimization: If NOT filtered (showing all matches), we can use pre-calculated all-time stats
     // that are already populated in calculateEloWithStats.
     if (!isFiltered) {
-      return players;
+      return players.map(player => {
+        const history = player.history || [];
+        const hLen = history.length;
+        const eloHistory: number[] = [];
+        // Optimization: fetch last 6 points to show the trend over 5 matches
+        const startIdx = Math.max(0, hLen - 6);
+        for (let j = startIdx; j < hLen; j++) {
+          eloHistory.push(history[j].elo);
+        }
+
+        if (player.elo && (eloHistory.length === 0 || eloHistory[eloHistory.length - 1] !== player.elo)) {
+          eloHistory.push(player.elo);
+        }
+
+        // Determine trend color: Green if current >= start, else Red
+        const sparklineColor = (eloHistory.length > 0 && eloHistory[eloHistory.length - 1] >= eloHistory[0])
+          ? '#34C759'
+          : '#FF3B30';
+
+        return {
+          ...player,
+          eloHistory,
+          sparklineColor,
+        };
+      });
     }
 
     // Optimization: Instead of O(P * H) where we scan every player's history,
