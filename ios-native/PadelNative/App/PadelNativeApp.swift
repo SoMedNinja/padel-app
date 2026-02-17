@@ -51,6 +51,27 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+
+        // Note for non-coders:
+        // We look for a "route" parameter (just like web notifications) and pass it to the main app
+        // so it can navigate to the correct screen (e.g. schedule or match recap).
+        if let route = userInfo["route"] as? String {
+            var urlString = route
+            // If the server sends a relative path (e.g. "/schedule"), we make it a full deep-link URL.
+            if urlString.hasPrefix("/") {
+                urlString = "padelnative:/\(urlString)"
+            } else if !urlString.contains("://") {
+                urlString = "padelnative://\(urlString)"
+            }
+
+            if let url = URL(string: urlString) {
+                DispatchQueue.main.async {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                }
+            }
+        }
+
         completionHandler()
     }
 }
