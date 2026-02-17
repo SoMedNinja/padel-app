@@ -59,8 +59,6 @@ export const useCreateMatch = () => {
       // We invalidate the base key to refresh all filtered lists (all, short, long, etc).
       queryClient.invalidateQueries({ queryKey: queryKeys.matches() });
       // Also invalidate other related queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.elo() }); // Doesn't exist in queryKeys.ts but used in Dashboard?
-      // Wait, queryKeys.ts didn't show 'elo'. Let's check queryKeys.ts again.
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
     },
