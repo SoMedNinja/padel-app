@@ -1,14 +1,28 @@
 import React from 'react';
 import { Box, Typography, Grid, Stack } from '@mui/material';
 import { EmojiEvents } from '@mui/icons-material';
-import { Tournament } from '../../../types';
+import { Tournament, TournamentResult } from '../../../types';
+import { TournamentPlayerStats } from '../../../utils/tournamentLogic';
 import { safeFormatDate } from './utils';
 
-export const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { tournament: Tournament; results: any[]; profileMap: Record<string, string>; variant?: number }) => {
+type TemplateResult = TournamentResult | TournamentPlayerStats;
+
+const getProfileId = (res: TemplateResult): string => {
+  if ('profile_id' in res && res.profile_id) return res.profile_id;
+  return res.id;
+};
+
+const getPoints = (res: TemplateResult): number => {
+  if ('points_for' in res) return res.points_for;
+  if ('totalPoints' in res) return res.totalPoints;
+  return 0;
+};
+
+export const TournamentTemplate = ({ tournament, results, profileMap, variant = 0 }: { tournament: Tournament; results: TemplateResult[]; profileMap: Record<string, string>; variant?: number }) => {
   const topCount = variant === 1 ? 8 : 3;
   const topPlayers = Array.isArray(results) ? results.slice(0, topCount) : [];
   const winner = topPlayers[0];
-  const winnerId = winner?.profile_id || winner?.id || '';
+  const winnerId = winner ? getProfileId(winner) : '';
 
   const themes = [
     { bg: 'linear-gradient(180deg, #ff8f00 0%, #ff6f00 100%)', color: 'white', accent: '#ffca28', font: 'Inter' }, // Classic Gold
@@ -56,7 +70,7 @@ export const TournamentTemplate = ({ tournament, results, profileMap, variant = 
               <Grid container spacing={4}>
                  <Grid size={{ xs: 4 }}>
                     <Typography variant="h6" sx={{ opacity: 0.6 }}>Poäng</Typography>
-                    <Typography variant="h3" sx={{ fontWeight: 800 }}>{winner?.points_for ?? winner?.totalPoints ?? 0}</Typography>
+                    <Typography variant="h3" sx={{ fontWeight: 800 }}>{winner ? getPoints(winner) : 0}</Typography>
                  </Grid>
                  <Grid size={{ xs: 4 }}>
                     <Typography variant="h6" sx={{ opacity: 0.6 }}>Vinster</Typography>
@@ -97,7 +111,7 @@ export const TournamentTemplate = ({ tournament, results, profileMap, variant = 
                 {profileMap?.[winnerId] || 'Okänd spelare'}
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 700, opacity: 0.7, textTransform: 'uppercase' }}>
-                {winner?.points_for ?? winner?.totalPoints ?? 0} Poäng • {winner?.wins ?? 0} Vinster
+                {winner ? getPoints(winner) : 0} Poäng • {winner?.wins ?? 0} Vinster
               </Typography>
             </Box>
           )}
@@ -108,17 +122,21 @@ export const TournamentTemplate = ({ tournament, results, profileMap, variant = 
             </Typography>
             {isStats ? (
               <Stack spacing={1} sx={{ width: '90%', mx: 'auto' }}>
-                {topPlayers.map((res, i) => (
-                   <Box key={res?.profile_id || res?.id || i} sx={{ display: 'flex', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: i === 0 ? `2px solid ${theme?.accent || 'transparent'}` : 'none' }}>
-                     <Typography variant="h5" sx={{ fontWeight: 800 }}>{i + 1}. {profileMap?.[res?.profile_id || res?.id] || 'Okänd'}</Typography>
-                     <Typography variant="h5" sx={{ fontWeight: 800, color: theme?.accent || 'inherit' }}>{res?.points_for ?? res?.totalPoints ?? 0}p</Typography>
+                {topPlayers.map((res, i) => {
+                   const pid = getProfileId(res);
+                   const points = getPoints(res);
+                   return (
+                   <Box key={pid || i} sx={{ display: 'flex', justifyContent: 'space-between', p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: i === 0 ? `2px solid ${theme?.accent || 'transparent'}` : 'none' }}>
+                     <Typography variant="h5" sx={{ fontWeight: 800 }}>{i + 1}. {profileMap?.[pid] || 'Okänd'}</Typography>
+                     <Typography variant="h5" sx={{ fontWeight: 800, color: theme?.accent || 'inherit' }}>{points}p</Typography>
                    </Box>
-                ))}
+                )})}
               </Stack>
             ) : (
               <Stack direction="row" spacing={4} justifyContent="center" alignItems="flex-end">
                 {topPlayers.map((res, i) => {
-                   const pid = res?.profile_id || res?.id || '';
+                   const pid = getProfileId(res);
+                   const points = getPoints(res);
                    const isWinner = i === 0;
                    return (
                      <Box key={pid || i} sx={{ textAlign: 'center', order: i === 0 ? 2 : (i === 1 ? 1 : 3) }}>
@@ -137,7 +155,7 @@ export const TournamentTemplate = ({ tournament, results, profileMap, variant = 
                          <Typography variant="h4" sx={{ fontWeight: 900, color: theme?.bg || '#000' }}>{i + 1}</Typography>
                        </Box>
                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{profileMap?.[pid] || 'Okänd'}</Typography>
-                       <Typography variant="body1" sx={{ opacity: 0.7 }}>{res?.points_for ?? res?.totalPoints ?? 0}p</Typography>
+                       <Typography variant="body1" sx={{ opacity: 0.7 }}>{points}p</Typography>
                      </Box>
                    );
                 })}
