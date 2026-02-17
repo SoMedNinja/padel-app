@@ -5034,7 +5034,7 @@ final class AppViewModel: ObservableObject {
             guard let s = s, !s.isEmpty else { return nil }
             if let cached = uuidCache[s] { return cached }
             let u = UUID(uuidString: s)
-            uuidCache[s] = u
+            uuidCache[s] = .some(u)
             return u
         }
 
@@ -5223,7 +5223,7 @@ final class AppViewModel: ObservableObject {
             // Fix: Cache nil results too (e.g. for "guest")
             if let cached = uuidCache[s] { return cached }
             let u = UUID(uuidString: s)
-            uuidCache[s] = u
+            uuidCache[s] = .some(u)
             return u
         }
 
@@ -5367,7 +5367,7 @@ final class AppViewModel: ObservableObject {
             // Fix: Cache nil results too (e.g. for "guest")
             if let cached = uuidCache[s] { return cached }
             let u = UUID(uuidString: s)
-            uuidCache[s] = u
+            uuidCache[s] = .some(u)
             return u
         }
 
