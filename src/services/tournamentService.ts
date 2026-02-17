@@ -1,5 +1,5 @@
 import { supabase } from "../supabaseClient";
-import { TournamentRoundInsert } from "../types";
+import { TournamentRoundInsert, TournamentCreate, Tournament } from "../types";
 import { GUEST_ID } from "../utils/guest";
 import { ensureAuthSessionReady, requireAdmin } from "./authUtils";
 
@@ -185,7 +185,7 @@ export const tournamentService = {
     if (error) throw error;
   },
 
-  async createTournament(tournament: any) {
+  async createTournament(tournament: TournamentCreate): Promise<Tournament> {
     await requireAdmin("Endast administratörer kan skapa turneringar.");
 
     const sanitized = {
