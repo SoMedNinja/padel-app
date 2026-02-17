@@ -71,40 +71,74 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const payload = await req.json();
 
-    // Verify this is a match insert event
-    // Note: The payload structure depends on how the trigger sends it.
-    // If using pg_net with json_build_object('type', 'INSERT', 'record', ...), it will be { type, record }.
-    const { type, record } = payload;
+    // Verify this is a valid INSERT event
+    // The payload structure is { type: 'INSERT', table: 'matches', record: { ... } }
+    const { type, table, record } = payload;
 
-    if (type !== "INSERT" || !record) {
+    if (type !== "INSERT" || !record || !table) {
       return new Response(
-        JSON.stringify({ message: "Not a match INSERT event, skipping." }),
+        JSON.stringify({ message: "Invalid payload or not an INSERT event, skipping." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const match = record;
-    const creatorId = match.created_by;
+    let title = "";
+    let body = "";
+    let eventType = "";
+    let route = "/";
+    let creatorId: string | null = null;
 
-    // Construct notification content
-    const team1Name = Array.isArray(match.team1) ? match.team1.join(" & ") : match.team1;
-    const team2Name = Array.isArray(match.team2) ? match.team2.join(" & ") : match.team2;
-    const title = "Ny match registrerad!";
-    const body = `${team1Name} vs ${team2Name}: ${match.team1_sets} - ${match.team2_sets}`;
-    const eventType = "match_result_new";
+    if (table === "matches") {
+      const match = record;
+      creatorId = match.created_by;
+      const team1Name = Array.isArray(match.team1) ? match.team1.join(" & ") : match.team1;
+      const team2Name = Array.isArray(match.team2) ? match.team2.join(" & ") : match.team2;
+      title = "Ny match registrerad!";
+      body = `${team1Name} vs ${team2Name}: ${match.team1_sets} - ${match.team2_sets}`;
+      eventType = "match_result_new";
+      route = `/matches/${match.id}`;
+    } else if (table === "availability_scheduled_games") {
+      const game = record;
+      // Scheduled games don't have a direct 'created_by' in the schema shown,
+      // but usually associated with a poll. We'll broadcast to all.
+      // If we want to exclude someone, we'd need that info.
+      // Assuming open broadcast for now as per instructions.
+      title = "Ny schemalagd match!";
+      // Format date/time if possible
+      const date = new Date(game.date).toLocaleDateString('sv-SE');
+      const time = game.start_time ? game.start_time.substring(0, 5) : "";
+      body = `En match har bokats ${date} kl ${time}. ${game.location ? `Plats: ${game.location}` : ""}`;
+      eventType = "scheduled_match_new";
+      route = "/schedule"; // Or deep link if available
+    } else if (table === "availability_polls") {
+      const poll = record;
+      // Polls are created by admins usually.
+      title = "Ny tillgänglighetspoll!";
+      body = "Nu kan du rösta på tider för kommande vecka.";
+      eventType = "availability_poll_reminder"; // Using existing type for "Poll" events
+      route = "/availability";
+    } else {
+       return new Response(
+        JSON.stringify({ message: `Unsupported table: ${table}, skipping.` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    console.log(`Processing match ${match.id} from user ${creatorId}`);
+    console.log(`Processing ${eventType} for table ${table}`);
 
     // Fetch all push subscriptions for other users
     // We only target 'web' platform here as 'ios' requires APNs (unless using web-push for iOS PWA).
-    // Note: iOS 16.4+ supports Web Push if installed as PWA. They will have platform='web' in that case?
-    // The frontend sends platform='web' for PWA.
 
-    const { data: subscriptions, error: subError } = await supabase
+    let query = supabase
       .from("push_subscriptions")
       .select("profile_id, platform, device_token, subscription")
-      .eq("platform", "web")
-      .neq("profile_id", creatorId);
+      .eq("platform", "web");
+
+    if (creatorId) {
+      query = query.neq("profile_id", creatorId);
+    }
+
+    const { data: subscriptions, error: subError } = await query;
 
     if (subError) throw subError;
     if (!subscriptions || subscriptions.length === 0) {
@@ -158,7 +192,7 @@ Deno.serve(async (req) => {
               title,
               body,
               eventType,
-              route: `/matches/${match.id}`, // Deep link to match
+              route,
             })
           );
           return { status: "sent" };

@@ -1,8 +1,5 @@
--- Enable pg_net extension if not already enabled (it should be)
-create extension if not exists pg_net;
-
--- Function to handle new match inserts and trigger the push notification function
-create or replace function public.handle_new_match()
+-- Rename and update the trigger function to be generic
+create or replace function public.handle_push_event()
 returns trigger
 language plpgsql
 security definer
@@ -25,7 +22,8 @@ begin
         'Authorization', 'Bearer ' || anon_key
       ),
       body := jsonb_build_object(
-        'type', 'INSERT',
+        'type', TG_OP,
+        'table', TG_TABLE_NAME,
         'record', row_to_json(new)
       )
     );
@@ -33,8 +31,24 @@ begin
 end;
 $$;
 
--- Create the trigger
+-- Drop the old trigger if it exists (renaming function usage)
 drop trigger if exists on_match_created on public.matches;
+
+-- Create triggers for relevant tables using the shared function
+
+-- 1. Matches (New match result)
 create trigger on_match_created
 after insert on public.matches
-for each row execute function public.handle_new_match();
+for each row execute function public.handle_push_event();
+
+-- 2. Availability Polls (New poll created)
+drop trigger if exists on_poll_created on public.availability_polls;
+create trigger on_poll_created
+after insert on public.availability_polls
+for each row execute function public.handle_push_event();
+
+-- 3. Scheduled Games (New scheduled match)
+drop trigger if exists on_scheduled_game_created on public.availability_scheduled_games;
+create trigger on_scheduled_game_created
+after insert on public.availability_scheduled_games
+for each row execute function public.handle_push_event();
