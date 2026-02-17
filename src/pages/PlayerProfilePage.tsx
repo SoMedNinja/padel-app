@@ -15,11 +15,6 @@ import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } 
 import { useEloStats } from "../hooks/useEloStats";
 import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
-import WebPermissionsPanel from "../Components/Permissions/WebPermissionsPanel";
-import { requestOpenPermissionGuide } from "../services/permissionGuidanceService";
-
-// Note for non-coders: keeping this text in one constant ensures the PWA tab title and section heading always use the same Swedish translation.
-const NOTIFICATION_SETTINGS_LABEL = "Notifieringsinställningar";
 
 export default function PlayerProfilePage() {
   const queryClient = useQueryClient();
@@ -171,7 +166,6 @@ export default function PlayerProfilePage() {
                 <Tab label="Översikt" />
                 <Tab label="ELO-Trend" />
                 <Tab label="Meriter" />
-                <Tab label={NOTIFICATION_SETTINGS_LABEL} />
               </Tabs>
 
               {activeTab === 0 && (
@@ -213,24 +207,6 @@ export default function PlayerProfilePage() {
                     tournamentResults={tournamentResults}
                     onProfileUpdate={() => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() })}
                   />
-                </Box>
-              )}
-
-              {activeTab === 3 && (
-                <Box id="notifications" component="section" sx={{ p: 2, bgcolor: "background.paper", borderRadius: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>{NOTIFICATION_SETTINGS_LABEL}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {/* Note for non-coders: this is where users decide which alerts they want to receive on web and in the service worker push channel. */}
-                    Slå av/på notiser per händelsetyp. Tysta timmar pausar leverans mellan vald start- och sluttid.
-                  </Typography>
-
-                  <Button size="small" sx={{ mb: 2 }} onClick={() => requestOpenPermissionGuide("settings")}>
-                    Steg-för-steg: behörighetshjälp
-                  </Button>
-
-                  <WebPermissionsPanel onNotificationPermissionChanged={async () => {
-                    // No-op: panel handles sync internally
-                  }} />
                 </Box>
               )}
             </>
