@@ -40,7 +40,6 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Non-coder note: call this function on a schedule (for example every 10-15 minutes) so queued emails go out on time.
   const jsonResponse = (payload: Record<string, unknown>, status = 200) =>
     new Response(JSON.stringify(payload), {
       status,
