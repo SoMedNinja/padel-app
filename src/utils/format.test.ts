@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getISOWeek, getISOWeekRange } from './format';
+import { getISOWeek, getISOWeekRange, percent } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -58,5 +58,28 @@ describe('ISO Week Utilities', () => {
       expect(end.getMonth()).toBe(0);
       expect(end.getDate()).toBe(6);
     });
+  });
+});
+
+describe('Percent', () => {
+  it('should handle zero total', () => {
+    expect(percent(0, 0)).toBe(0);
+  });
+
+  it('should calculate 100% correctly', () => {
+    expect(percent(5, 0)).toBe(100);
+  });
+
+  it('should calculate 0% correctly', () => {
+    expect(percent(0, 5)).toBe(0);
+  });
+
+  it('should calculate 50% correctly', () => {
+    expect(percent(1, 1)).toBe(50);
+  });
+
+  it('should round correctly', () => {
+    expect(percent(1, 2)).toBe(33); // 1/3 = 0.333... -> 33
+    expect(percent(2, 1)).toBe(67); // 2/3 = 0.666... -> 67
   });
 });
