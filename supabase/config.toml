@@ -416,3 +416,8 @@ entrypoint = "./functions/availability-calendar-invite/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/tournament-summary/index.ts"
+
+[functions.push-dispatcher]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/push-dispatcher/index.ts"
