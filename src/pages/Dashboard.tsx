@@ -13,6 +13,7 @@ import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Co
 import AppAlert from "../Components/Shared/AppAlert";
 import EmptyState from "../Components/Shared/EmptyState";
 import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
+import OfflineQueueList from "../Components/Shared/OfflineQueueList";
 import { useStore } from "../store/useStore";
 
 import { useEloStats } from "../hooks/useEloStats";
@@ -203,6 +204,7 @@ export default function Dashboard() {
           hasError={hasError}
           lastUpdatedAt={Math.max(eloLastUpdatedAt, 0)}
         />
+        <OfflineQueueList />
         {shouldShowScheduledGameNotice && upcomingScheduledGame && (
           <AppAlert
             severity="info"
@@ -329,17 +331,36 @@ export default function Dashboard() {
           </AppAlert>
         )}
         {isLoading ? (
-          <Stack spacing={2} sx={{ mb: 2 }}>
-            <Skeleton variant="rectangular" width={160} height={40} sx={{ borderRadius: "12px" }} />
+          <Stack spacing={3} sx={{ mb: 2 }}>
+            <Box>
+              <Skeleton variant="rounded" width={120} height={32} sx={{ borderRadius: "8px", mb: 1 }} />
+              <Skeleton variant="rounded" width={240} height={20} sx={{ borderRadius: "6px" }} />
+            </Box>
+
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 6 }}>
-                <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
               </Grid>
             </Grid>
-            <Skeleton variant="rectangular" height={400} sx={{ borderRadius: "14px" }} />
+
+            <Box>
+              <Skeleton variant="text" width={150} sx={{ fontSize: '1.25rem', mb: 1.5, fontWeight: 'bold' }} />
+              {[...Array(5)].map((_, i) => (
+                <Box key={i} sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                   <Skeleton variant="circular" width={40} height={40} sx={{ mr: 2 }} />
+                   <Box sx={{ flex: 1 }}>
+                     <Skeleton variant="text" width="60%" height={24} />
+                     <Skeleton variant="text" width="40%" height={16} />
+                   </Box>
+                   <Skeleton variant="rounded" width={40} height={24} sx={{ borderRadius: '6px' }} />
+                </Box>
+              ))}
+            </Box>
+
+            <Skeleton variant="rectangular" height={240} sx={{ borderRadius: "16px" }} />
           </Stack>
         ) : (
           <>

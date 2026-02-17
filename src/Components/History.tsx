@@ -50,6 +50,7 @@ import {
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
 import AppBottomSheet from "./Shared/AppBottomSheet";
+import { motion, useMotionValue, useTransform } from "framer-motion";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -59,6 +60,57 @@ const toDateTimeInput = (value: string) => {
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
+
+interface SwipeableMatchCardProps {
+  children: React.ReactNode;
+  onDelete: () => void;
+  canDelete: boolean;
+}
+
+function SwipeableMatchCard({ children, onDelete, canDelete }: SwipeableMatchCardProps) {
+  const x = useMotionValue(0);
+  const deleteOpacity = useTransform(x, [-100, -50], [1, 0]);
+
+  return (
+    <Box sx={{ position: "relative" }}>
+      {canDelete && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            right: 0,
+            width: "100%",
+            bgcolor: "error.main",
+            borderRadius: 3,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            pr: 4,
+            zIndex: 0,
+          }}
+          component={motion.div}
+          style={{ opacity: deleteOpacity }}
+        >
+          <DeleteIcon sx={{ color: "white" }} />
+        </Box>
+      )}
+      <motion.div
+        style={{ x, touchAction: "pan-y", backgroundColor: "white", borderRadius: "12px", zIndex: 1, position: "relative" }}
+        drag={canDelete ? "x" : false}
+        dragConstraints={{ left: -100, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={(e, info) => {
+          if (info.offset.x < -80) {
+            onDelete();
+          }
+        }}
+      >
+        {children}
+      </motion.div>
+    </Box>
+  );
+}
 
 function EloBreakdown({ explanation }: { explanation: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -430,8 +482,12 @@ export default function History({
                   : tournamentType;
 
           return (
-            <Card
+            <SwipeableMatchCard
               key={m.id}
+              canDelete={canDelete(m) && !isEditing}
+              onDelete={() => setDeleteDialogMatchId(m.id)}
+            >
+            <Card
               id={`match-${m.id}`}
               variant="outlined"
               sx={{
@@ -726,6 +782,7 @@ export default function History({
                 </Box>
               </AppBottomSheet>
             </Card>
+            </SwipeableMatchCard>
           );
         })}
       </Stack>

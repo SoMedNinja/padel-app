@@ -311,6 +311,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
+          display: "grid",
+          gridTemplateColumns: "100%",
+          alignItems: "start",
           // Note for non-coders: this adds a small breathing space below the top controls
           // so page content does not feel glued to the very top edge.
           pt: { xs: 1, sm: 1.5 },

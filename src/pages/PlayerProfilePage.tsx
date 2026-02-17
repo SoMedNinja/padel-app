@@ -117,17 +117,25 @@ export default function PlayerProfilePage() {
             </Alert>
           )}
           {isLoading ? (
-            <Stack spacing={2} sx={{ mb: 2 }}>
-              <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+            <Stack spacing={3} sx={{ mb: 2 }}>
+              {/* Profile Header Skeleton */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                 <Skeleton variant="circular" width={100} height={100} sx={{ mb: 2 }} />
+                 <Skeleton variant="text" width={180} height={32} sx={{ mb: 1 }} />
+                 <Skeleton variant="text" width={120} height={20} />
+              </Box>
+
+              <Skeleton variant="rounded" width="100%" height={48} sx={{ borderRadius: "12px" }} />
+
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+                  <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "14px" }} />
+                  <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "16px" }} />
                 </Grid>
               </Grid>
-              <Skeleton variant="rectangular" height={240} sx={{ borderRadius: "14px" }} />
+              <Skeleton variant="rectangular" height={240} sx={{ borderRadius: "16px" }} />
             </Stack>
           ) : (
             <>
