@@ -1183,25 +1183,23 @@ export default function PlayerSection({
                   onMouseMove={(state) => {
                     updateChartTooltip(state);
                   }}
+                  onTouchStart={(state) => {
+                    updateChartTooltip(state);
+                  }}
+                  onTouchMove={(state) => {
+                    updateChartTooltip(state);
+                  }}
                   onMouseLeave={() => {
                     if (!isChartTooltipLocked) {
                       setChartTooltipState(null);
                     }
                   }}
-                  onMouseUp={() => {
-                    if (chartTooltipState) {
-                      // Note for non-coders: releasing the finger keeps the details visible, which helps on iOS when users scroll after inspecting a point.
-                      setIsChartTooltipLocked(true);
-                    }
-                  }}
-                  onTouchEnd={() => {
-                    if (chartTooltipState) {
-                      setIsChartTooltipLocked(true);
-                    }
-                  }}
-                  onClick={() => {
+                  onClick={(state) => {
                     if (isChartTooltipLocked) {
                       unlockChartTooltip();
+                    } else {
+                      updateChartTooltip(state);
+                      setIsChartTooltipLocked(true);
                     }
                   }}
                 >
