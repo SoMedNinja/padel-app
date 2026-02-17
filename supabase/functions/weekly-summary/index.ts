@@ -309,8 +309,15 @@ const getBearerToken = (req: Request) => {
 };
 
 // --- CORE LOGIC ---
-function calculateEloAt(matches: Match[], profileMap: Map<string, Profile>, untilDate?: string): Record<string, PlayerStats> {
+function calculateElo(matches: Match[], profileMap: Map<string, Profile>, initialState?: Record<string, PlayerStats>): Record<string, PlayerStats> {
   const players: Record<string, PlayerStats> = {};
+
+  if (initialState) {
+    for (const [id, stats] of Object.entries(initialState)) {
+      players[id] = { ...stats, history: [...stats.history] };
+    }
+  }
+
   const ensurePlayer = (id: string) => {
     if (players[id]) return;
     const p = profileMap.get(id);
@@ -322,9 +329,7 @@ function calculateEloAt(matches: Match[], profileMap: Map<string, Profile>, unti
     ensurePlayer(p.id);
   });
 
-  const sortedMatches = [...matches]
-    .filter(m => !untilDate || m.created_at < untilDate)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const sortedMatches = [...matches].sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   sortedMatches.forEach(m => {
     const t1Raw = m.team1_ids.filter(id => id && id !== GUEST_ID) as string[];
@@ -739,8 +744,16 @@ Deno.serve(async (req) => {
     // Non-coder note: Auth is the primary email source, but we fall back to profile emails so weekly
     // sends still go out if Auth doesn't return an address for someone.
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
-    const eloStart = calculateEloAt(matches, profileMap, startOfWeekISO);
-    const eloEnd = calculateEloAt(matches, profileMap, endOfWeekISO);
+
+    // Optimization: Calculate ELO incrementally to avoid reprocessing full history twice.
+    const sortedAllMatches = [...matches].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const matchesBefore = sortedAllMatches.filter(m => m.created_at < startOfWeekISO);
+    // Note: eloEnd uses matches < endOfWeekISO, so we filter accordingly.
+    const matchesWeekForElo = sortedAllMatches.filter(m => m.created_at >= startOfWeekISO && m.created_at < endOfWeekISO);
+
+    const eloStart = calculateElo(matchesBefore, profileMap);
+    const eloEnd = calculateElo(matchesWeekForElo, profileMap, eloStart);
+
     const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
 
     const activePlayerIds = new Set<string>();
