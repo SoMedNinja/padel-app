@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeExpandedPollsState } from "./SchedulePage";
+import { mergeExpandedPollsState } from "../utils/scheduleUtils";
 
 describe("mergeExpandedPollsState", () => {
   it("keeps previous state reference when poll ids are unchanged", () => {
