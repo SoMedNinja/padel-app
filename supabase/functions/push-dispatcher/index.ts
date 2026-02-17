@@ -48,34 +48,61 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("Push dispatcher started");
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const vapidPublicKey = Deno.env.get("WEB_PUSH_PUBLIC_KEY") || Deno.env.get("VITE_WEB_PUSH_PUBLIC_KEY");
     const vapidPrivateKey = Deno.env.get("WEB_PUSH_PRIVATE_KEY");
 
-    if (!supabaseUrl || !supabaseServiceKey || !vapidPublicKey || !vapidPrivateKey) {
-      console.error("Missing environment variables");
+    const missingEnvVars = [];
+    if (!supabaseUrl) missingEnvVars.push("SUPABASE_URL");
+    if (!supabaseServiceKey) missingEnvVars.push("SUPABASE_SERVICE_ROLE_KEY");
+    if (!vapidPublicKey) missingEnvVars.push("WEB_PUSH_PUBLIC_KEY/VITE_WEB_PUSH_PUBLIC_KEY");
+    if (!vapidPrivateKey) missingEnvVars.push("WEB_PUSH_PRIVATE_KEY");
+
+    if (missingEnvVars.length > 0) {
+      console.error("Missing environment variables:", missingEnvVars.join(", "));
       return new Response(
-        JSON.stringify({ error: "Server configuration error: Missing secrets." }),
+        JSON.stringify({ error: `Server configuration error: Missing secrets: ${missingEnvVars.join(", ")}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Configure web-push
-    webpush.setVapidDetails(
-      "mailto:admin@padelapp.com",
-      vapidPublicKey,
-      vapidPrivateKey
-    );
+    try {
+      // Configure web-push
+      webpush.setVapidDetails(
+        "mailto:admin@padelapp.com",
+        vapidPublicKey!,
+        vapidPrivateKey!
+      );
+    } catch (e) {
+      console.error("Failed to configure web-push:", e);
+      return new Response(
+        JSON.stringify({ error: "Failed to configure web-push VAPID keys. Check your secrets." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const payload = await req.json();
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    let payload;
+    try {
+        payload = await req.json();
+    } catch (e) {
+        console.error("Failed to parse request JSON:", e);
+        return new Response(
+            JSON.stringify({ error: "Invalid JSON payload" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+    }
 
     // Verify this is a valid INSERT event
     // The payload structure is { type: 'INSERT', table: 'matches', record: { ... } }
     const { type, table, record } = payload;
 
     if (type !== "INSERT" || !record || !table) {
+      console.log("Invalid payload or not an INSERT event, skipping.", { type, table });
       return new Response(
         JSON.stringify({ message: "Invalid payload or not an INSERT event, skipping." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -118,6 +145,7 @@ Deno.serve(async (req) => {
       eventType = "availability_poll_reminder"; // Using existing type for "Poll" events
       route = "/availability";
     } else {
+       console.log(`Unsupported table: ${table}, skipping.`);
        return new Response(
         JSON.stringify({ message: `Unsupported table: ${table}, skipping.` }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -140,8 +168,13 @@ Deno.serve(async (req) => {
 
     const { data: subscriptions, error: subError } = await query;
 
-    if (subError) throw subError;
+    if (subError) {
+        console.error("Error fetching subscriptions:", subError);
+        throw subError;
+    }
+
     if (!subscriptions || subscriptions.length === 0) {
+      console.log("No subscriptions found.");
       return new Response(
         JSON.stringify({ message: "No subscriptions found." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -155,7 +188,10 @@ Deno.serve(async (req) => {
       .select("profile_id, preferences")
       .in("profile_id", userIds);
 
-    if (prefError) throw prefError;
+    if (prefError) {
+        console.error("Error fetching preferences:", prefError);
+        throw prefError;
+    }
 
     const prefsMap = new Map<string, NotificationPreferences>();
     preferences?.forEach((row: any) => {
@@ -167,12 +203,6 @@ Deno.serve(async (req) => {
     const results = await Promise.all(
       subscriptions.map(async (sub: PushSubscriptionRow) => {
         const prefs = prefsMap.get(sub.profile_id);
-
-        // Default to enabled if no preferences found?
-        // Codebase seems to imply default enabled.
-        // But let's check strict enabled check if prefs exist.
-        // If prefs don't exist, we might skip or default to true.
-        // Based on `webNotificationService.ts`, default is enabled.
 
         const isEnabled = prefs ? prefs.enabled : true;
         const isEventEnabled = prefs ? (prefs.eventToggles?.[eventType] ?? true) : true;
@@ -215,6 +245,8 @@ Deno.serve(async (req) => {
     const sentCount = results.filter(r => r.status === "sent").length;
     const removedCount = results.filter(r => r.status === "removed").length;
 
+    console.log(`Processed ${results.length} subscriptions. Sent: ${sentCount}, Removed: ${removedCount}`);
+
     return new Response(
       JSON.stringify({ message: `Processed ${results.length} subscriptions. Sent: ${sentCount}, Removed: ${removedCount}` }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -222,8 +254,10 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error("Error in push-dispatcher:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: errorMessage, stack: errorStack }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
