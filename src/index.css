@@ -19,7 +19,11 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 /* iOS-style active press effect */
-.MuiButtonBase-root:not(.Mui-disabled):active {
+.MuiButtonBase-root:not(.Mui-disabled):active,
+.MuiListItemButton-root:not(.Mui-disabled):active,
+.MuiCardActionArea-root:not(.Mui-disabled):active,
+.MuiBottomNavigationAction-root:not(.Mui-disabled):active,
+.interactive-press:active {
   transform: scale(0.96);
   transition: transform 0.1s ease-out;
 }
@@ -45,6 +49,12 @@ body {
   padding:0;
   color:var(--color-text);
   line-height:1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Global touch optimization */
+button, a, input, select, textarea, [role="button"], .MuiButtonBase-root {
+  touch-action: manipulation;
 }
 
 /* Note for non-coders: we force toast notifications to stick to the phone screen (not the page content), so they stay visible after scrolling. */

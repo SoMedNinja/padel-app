@@ -382,6 +382,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         }
                       }}
                       hover
+                      className={isMe || !user ? "" : "interactive-press"}
                       onClick={() => handlePlayerClick(p)}
                       sx={{
                         position: 'absolute',
