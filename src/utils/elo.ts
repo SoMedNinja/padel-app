@@ -260,8 +260,8 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
       }
     }
 
-    if (!t1Active.length || !t2Active.length) return;
-    if (!Number.isFinite(m.team1_sets) || !Number.isFinite(m.team2_sets)) return;
+    if (!t1Active.length || !t2Active.length) continue;
+    if (!Number.isFinite(m.team1_sets) || !Number.isFinite(m.team2_sets)) continue;
 
     const e1 = avg(t1Active);
     const e2 = avg(t2Active);
