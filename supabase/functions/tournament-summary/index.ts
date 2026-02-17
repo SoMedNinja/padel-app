@@ -35,6 +35,40 @@ const getBearerToken = (req: Request) => {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Simple p-limit implementation for concurrency control
+const pLimit = (concurrency: number) => {
+  const queue: (() => void)[] = [];
+  let activeCount = 0;
+
+  const next = () => {
+    activeCount--;
+    if (queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  const run = async <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    activeCount++;
+    const result = (async () => fn())();
+    try {
+      const res = await result;
+      resolve(res);
+    } catch (err) {
+      reject(err);
+    }
+    next();
+  };
+
+  const enqueue = <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    queue.push(run.bind(null, fn, resolve, reject));
+    if (activeCount < concurrency && queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  return <T>(fn: () => Promise<T>) => new Promise<T>((resolve, reject) => enqueue(fn, resolve, reject));
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -184,7 +218,8 @@ Deno.serve(async (req) => {
     const errors: Array<{ email: string; error: string }> = [];
     const maxRetriesOnRateLimit = 2;
     const rateLimitWaitMs = 1200;
-    const perEmailDelayMs = 600;
+    // NOTE: Increased delay to 1000ms to allow concurrency of 2 while respecting the 2 requests/second rate limit.
+    const perEmailDelayMs = 1000;
 
     const sendEmailWithRetry = async (recipientEmail: string, htmlContent: string, subject: string) => {
       let retries = 0;
@@ -506,23 +541,29 @@ Deno.serve(async (req) => {
         break;
       }
 
-      for (const email of uniqueEmails) {
-        const result = await sendEmailWithRetry(
-          email,
-          emailHtml,
-          `Turneringssammanfattning: ${tournament.name || "Turnering"}`,
-        );
+      // Concurrency limited to 2 to respect the 2 requests/second rate limit while allowing some parallelism.
+      const limit = pLimit(2);
+      await Promise.all(uniqueEmails.map(email => limit(async () => {
+        try {
+          const result = await sendEmailWithRetry(
+            email,
+            emailHtml,
+            `Turneringssammanfattning: ${tournament.name || "Turnering"}`,
+          );
 
-        if (!result.ok) {
-          console.error(`Failed to send tournament email to ${email}:`, result.errorMessage);
-          errors.push({ email, error: result.errorMessage });
-        } else {
-          sentCount += 1;
+          if (!result.ok) {
+            console.error(`Failed to send tournament email to ${email}:`, result.errorMessage);
+            errors.push({ email, error: result.errorMessage });
+          } else {
+            sentCount += 1;
+          }
+
+          await delay(perEmailDelayMs);
+        } catch (error) {
+          console.error(`Unexpected error sending to ${email}:`, error);
+          errors.push({ email, error: String(error) });
         }
-
-        // Non-coder note: short pauses reduce the chance of hitting email provider rate limits.
-        await delay(perEmailDelayMs);
-      }
+      })));
 
       if (!previewOnly) {
         await supabase
