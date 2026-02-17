@@ -254,32 +254,55 @@ export function getBestStat<T extends { games: number }>(
   return bestEntry;
 }
 
+function getRelationStats(
+  matches: Match[],
+  playerName: string,
+  playerId: string | undefined,
+  eloDeltaByMatch: Record<string, Record<string, number>> | undefined,
+  getTargets: (stats: { partner: string | any; opponents: string[]; won: boolean }) => string[],
+  shouldCount: (won: boolean) => boolean
+) {
+  if (!matches || !matches.length) return null;
+  const statsMap: Record<string, { games: number; count: number }> = {};
+
+  for (const m of getRecentMatchesIterator(matches)) {
+    const stats = getMatchPlayerStats(m, playerName, playerId, eloDeltaByMatch);
+    if (!stats) continue;
+
+    const targets = getTargets(stats);
+    for (const t of targets) {
+      if (!t || t === GUEST_ID || t === "Gäst") continue;
+
+      let s = statsMap[t];
+      if (!s) {
+        s = { games: 0, count: 0 };
+        statsMap[t] = s;
+      }
+      s.games++;
+      if (shouldCount(stats.won)) s.count++;
+    }
+  }
+
+  return getBestStat(statsMap, (s) => s.count / s.games);
+}
+
 export function getPartnerSynergy(
   matches: Match[],
   playerName: string,
   playerId?: string,
   eloDeltaByMatch?: Record<string, Record<string, number>>
 ) {
-  if (!matches || !matches.length) return null;
-  const synergy: Record<string, { games: number; wins: number }> = {};
+  const best = getRelationStats(
+    matches,
+    playerName,
+    playerId,
+    eloDeltaByMatch,
+    (stats) => (stats.partner ? [stats.partner] : []),
+    (won) => won
+  );
 
-  for (const m of getRecentMatchesIterator(matches)) {
-    const stats = getMatchPlayerStats(m, playerName, playerId, eloDeltaByMatch);
-    if (!stats) continue;
-
-    const { partner, won } = stats;
-    if (!partner || partner === GUEST_ID || partner === "Gäst") continue;
-
-    let s = synergy[partner];
-    if (!s) {
-      s = { games: 0, wins: 0 };
-      synergy[partner] = s;
-    }
-    s.games++;
-    if (won) s.wins++;
-  }
-
-  return getBestStat(synergy, (s) => s.wins / s.games);
+  if (!best) return null;
+  return { name: best.name, games: best.games, wins: best.count };
 }
 
 export function getToughestOpponent(
@@ -288,25 +311,15 @@ export function getToughestOpponent(
   playerId?: string,
   eloDeltaByMatch?: Record<string, Record<string, number>>
 ) {
-  if (!matches || !matches.length) return null;
-  const rivals: Record<string, { games: number; losses: number }> = {};
+  const best = getRelationStats(
+    matches,
+    playerName,
+    playerId,
+    eloDeltaByMatch,
+    (stats) => stats.opponents,
+    (won) => !won
+  );
 
-  for (const m of getRecentMatchesIterator(matches)) {
-    const stats = getMatchPlayerStats(m, playerName, playerId, eloDeltaByMatch);
-    if (!stats) continue;
-
-    const { opponents, won } = stats;
-    for (const opp of opponents) {
-      if (!opp || opp === GUEST_ID || opp === "Gäst") continue;
-      let r = rivals[opp];
-      if (!r) {
-        r = { games: 0, losses: 0 };
-        rivals[opp] = r;
-      }
-      r.games++;
-      if (!won) r.losses++;
-    }
-  }
-
-  return getBestStat(rivals, (s) => s.losses / s.games);
+  if (!best) return null;
+  return { name: best.name, games: best.games, losses: best.count };
 }
