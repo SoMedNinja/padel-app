@@ -673,19 +673,6 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to fetch matches: ${matchesError.message}`);
     }
 
-    // Paginated user fetch to ensure we get all players
-    const allUsers = [];
-    let page = 1;
-    let hasMore = true;
-    while (hasMore) {
-      const { data: usersData, error } = await supabase.auth.admin.listUsers({ page, perPage: 50 });
-      if (error) throw error;
-      if (!usersData?.users) break;
-      allUsers.push(...usersData.users);
-      hasMore = usersData.users.length === 50;
-      page++;
-    }
-
     if (!profiles || !matches) throw new Error("Failed to fetch data from database");
 
     // Security: Verify admin status from database and enforce test email ownership
@@ -719,6 +706,38 @@ Deno.serve(async (req) => {
       });
     }
 
+    const eloStart = calculateEloAt(matches, profileMap, startOfWeekISO);
+    const eloEnd = calculateEloAt(matches, profileMap, endOfWeekISO);
+    const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
+
+    const activePlayerIds = new Set<string>();
+    if (targetPlayerId) {
+      activePlayerIds.add(targetPlayerId);
+    } else {
+      weeklyMatches.forEach(m => {
+        [...m.team1_ids, ...m.team2_ids].forEach(id => { if (id && id !== GUEST_ID) activePlayerIds.add(id); });
+      });
+    }
+
+    // Performance Optimization: Fetch only active users instead of all users.
+    // Fetching users individually is much faster when active users are few compared to total users.
+    const activeIdsArray = Array.from(activePlayerIds);
+    const allUsers: any[] = [];
+
+    // Batch processing to avoid rate limits
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < activeIdsArray.length; i += BATCH_SIZE) {
+      const batch = activeIdsArray.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(id => supabase.auth.admin.getUserById(id)));
+      results.forEach(result => {
+        if (result.data && result.data.user) {
+          allUsers.push(result.data.user);
+        } else if (result.error) {
+          console.error(`Failed to fetch user (active player check):`, result.error);
+        }
+      });
+    }
+
     // Non-coder note: Supabase stores emails in slightly different places depending on sign-in method,
     // so we look in a few common spots before deciding an email is missing.
     const resolveUserEmail = (user: any) => {
@@ -739,18 +758,6 @@ Deno.serve(async (req) => {
     // Non-coder note: Auth is the primary email source, but we fall back to profile emails so weekly
     // sends still go out if Auth doesn't return an address for someone.
     const profileNameMap = new Map(profiles.map(profile => [profile.id, profile.name]));
-    const eloStart = calculateEloAt(matches, profileMap, startOfWeekISO);
-    const eloEnd = calculateEloAt(matches, profileMap, endOfWeekISO);
-    const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
-
-    const activePlayerIds = new Set<string>();
-    if (targetPlayerId) {
-      activePlayerIds.add(targetPlayerId);
-    } else {
-      weeklyMatches.forEach(m => {
-        [...m.team1_ids, ...m.team2_ids].forEach(id => { if (id && id !== GUEST_ID) activePlayerIds.add(id); });
-      });
-    }
 
     if (activePlayerIds.size === 0 && !targetPlayerId) {
       console.log("No active players and no targetPlayerId provided");
