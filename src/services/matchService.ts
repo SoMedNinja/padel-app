@@ -283,19 +283,21 @@ const processQueuedMutations = async (options: { manual?: boolean } = {}) => {
   }
 
   queueProcessing = true;
-  const mutableQueue = [...queue];
+  let mutableQueue = [...queue];
   let hasChanges = false;
+  const CONCURRENCY = 5;
 
   while (mutableQueue.length) {
-    const current = mutableQueue[0];
-    if (!manual && current.attempts >= MAX_AUTO_RETRY_ATTEMPTS) {
+    // 1. Check blocking condition on the head (preserve existing logic)
+    const head = mutableQueue[0];
+    if (!manual && head.attempts >= MAX_AUTO_RETRY_ATTEMPTS) {
       if (hasChanges) {
         writeQueue(mutableQueue);
         refreshQueueStatusFromStorage(mutableQueue);
         updateQueueState({ lastSyncedAt: new Date().toISOString() });
       }
       updateQueueState({
-        lastError: current.attempts === MAX_AUTO_RETRY_ATTEMPTS
+        lastError: head.attempts === MAX_AUTO_RETRY_ATTEMPTS
           ? "Automatisk synkning pausad efter flera försök. Kontrollera anslutning eller data och tryck sedan på 'Försök synka igen'."
           : queueState.lastError,
       });
@@ -303,40 +305,82 @@ const processQueuedMutations = async (options: { manual?: boolean } = {}) => {
       break;
     }
 
-    try {
-      const result = await submitMatchPayload(current.payload);
-      if (result.status === "conflict") {
-        current.attempts = Math.max(current.attempts, MAX_AUTO_RETRY_ATTEMPTS);
-        mutableQueue[0] = current;
-        writeQueue(mutableQueue);
-        refreshQueueStatusFromStorage(mutableQueue);
-        updateQueueState({ lastError: result.message });
-        hasChanges = false;
-        break;
-      }
+    // 2. Select batch
+    const batch: QueuedMatchMutation[] = [];
+    for (const item of mutableQueue) {
+      if (!manual && item.attempts >= MAX_AUTO_RETRY_ATTEMPTS) break;
+      batch.push(item);
+      if (batch.length >= CONCURRENCY) break;
+    }
 
-      mutableQueue.shift();
+    if (batch.length === 0) break; // Should not happen given check above, but for safety
+
+    // 3. Process batch in parallel
+    const results = await Promise.all(batch.map(async (item) => {
+      try {
+        const result = await submitMatchPayload(item.payload);
+        return { status: "success", item, result } as const;
+      } catch (error) {
+        return { status: "error", item, error } as const;
+      }
+    }));
+
+    // 4. Handle results
+    let batchHasChanges = false;
+    let stopProcessing = false;
+    const successes = new Set<string>();
+
+    for (const res of results) {
+      if (res.status === "success") {
+        if (res.result.status === "conflict") {
+          // Mark as conflict/failed
+          res.item.attempts = Math.max(res.item.attempts, MAX_AUTO_RETRY_ATTEMPTS);
+          updateQueueState({ lastError: res.result.message });
+          stopProcessing = true;
+        } else {
+          // Success
+          successes.add(res.item.queueId);
+          batchHasChanges = true;
+        }
+      } else {
+        // Error
+        res.item.attempts += 1;
+        updateQueueState({
+          lastError: res.error instanceof Error ? res.error.message : "Kunde inte synka offline-kö.",
+        });
+        if (res.item.attempts < MAX_AUTO_RETRY_ATTEMPTS) {
+          scheduleQueueRetry(res.item.attempts);
+        }
+        stopProcessing = true;
+      }
+    }
+
+    // 5. Update queue
+    if (batchHasChanges || stopProcessing) {
       hasChanges = true;
-    } catch (error) {
-      current.attempts += 1;
-      mutableQueue[0] = current;
+
+      // Remove successes
+      mutableQueue = mutableQueue.filter(item => !successes.has(item.queueId));
+
+      // Write to storage immediately to persist progress/attempts
       writeQueue(mutableQueue);
       refreshQueueStatusFromStorage(mutableQueue);
-      updateQueueState({
-        lastError: error instanceof Error ? error.message : "Kunde inte synka offline-kö.",
-      });
-      if (current.attempts < MAX_AUTO_RETRY_ATTEMPTS) {
-        scheduleQueueRetry(current.attempts);
+
+      // If we removed items, update syncedAt
+      if (batchHasChanges) {
+        updateQueueState({ lastSyncedAt: new Date().toISOString() });
       }
-      hasChanges = false;
+    }
+
+    // 6. Stop if needed
+    if (stopProcessing) {
       break;
     }
   }
 
-  if (hasChanges) {
-    writeQueue(mutableQueue);
-    refreshQueueStatusFromStorage(mutableQueue);
-    updateQueueState({ lastSyncedAt: new Date().toISOString(), lastError: null });
+  // Final cleanup if we successfully processed everything or just part of it without error
+  if (mutableQueue.length === 0 && hasChanges) {
+    updateQueueState({ lastError: null });
   }
 
   queueProcessing = false;
