@@ -55,6 +55,7 @@ export const useAuthProfile = () => {
   const syncPromiseRef = useRef<Promise<void> | null>(null);
   const syncCounterRef = useRef(0);
   const userRef = useRef(currentUser);
+  const isGuestRef = useRef(isGuest);
   const recoveryAttemptRef = useRef(0);
   const recoveryPromiseRef = useRef<Promise<User | null> | null>(null);
   const nullGracePromiseRef = useRef<Promise<boolean> | null>(null);
@@ -89,7 +90,8 @@ export const useAuthProfile = () => {
   // Keep userRef in sync with the latest store value
   useEffect(() => {
     userRef.current = currentUser;
-  }, [currentUser]);
+    isGuestRef.current = isGuest;
+  }, [currentUser, isGuest]);
 
   const startLoadingHintTimeout = useCallback(() => {
     // Note for non-coders: if checks take a while, we show a friendly hint but keep waiting.
@@ -399,7 +401,7 @@ export const useAuthProfile = () => {
 
       resumeRecoveryStartedAtRef.current = now;
       resumeRecoveryPromiseRef.current = (async () => {
-        if (source !== "bootstrap" && !userRef.current && !isGuest) {
+        if (source !== "bootstrap" && !userRef.current && !isGuestRef.current) {
           setIsAutoRecoveryRetry(true);
         }
 
@@ -445,7 +447,7 @@ export const useAuthProfile = () => {
           }
         }
 
-        if (!userRef.current && !isGuest) {
+        if (!userRef.current && !isGuestRef.current) {
           recoveryAttemptRef.current = 0;
         }
 
@@ -453,6 +455,14 @@ export const useAuthProfile = () => {
         if (recoveredUser) {
           debugAuth(source, "session recovered via refreshSession");
           await syncProfile(recoveredUser);
+          return;
+        }
+
+        if (isGuestRef.current) {
+          debugAuth(source, "guest mode preserved");
+          setIsLoading(false);
+          setAuthStatus("unauthenticated");
+          setHasCheckedProfile(true);
           return;
         }
 
