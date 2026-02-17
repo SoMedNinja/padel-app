@@ -622,7 +622,7 @@ export default function History({
                       </Stack>
                     ) : (
                       <List disablePadding sx={{ mt: 1 }}>
-                        {teamAEntries.map(entry => {
+                        {teamAEntries.map((entry, index) => {
                           const delta = entry.id ? matchDeltas[entry.id] : undefined;
                           const currentElo = entry.id ? matchRatings[entry.id] : undefined;
 
@@ -643,7 +643,7 @@ export default function History({
                           }
 
                           return (
-                            <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
+                            <ListItem key={`${m.id}-team1-${entry.name}-${index}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                 <ListItemText
                                   primary={entry.name}
@@ -688,7 +688,7 @@ export default function History({
                       </Stack>
                     ) : (
                       <List disablePadding sx={{ mt: 1 }}>
-                        {teamBEntries.map(entry => {
+                        {teamBEntries.map((entry, index) => {
                           const delta = entry.id ? matchDeltas[entry.id] : undefined;
                           const currentElo = entry.id ? matchRatings[entry.id] : undefined;
 
@@ -709,7 +709,7 @@ export default function History({
                           }
 
                           return (
-                            <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
+                            <ListItem key={`${m.id}-team2-${entry.name}-${index}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                 <ListItemText
                                   primary={entry.name}
