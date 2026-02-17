@@ -70,6 +70,8 @@ import {
   CircularProgress,
   MenuItem,
   Chip,
+  Switch,
+  FormControlLabel,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -780,7 +782,7 @@ export default function PlayerSection({
   const [compareTarget, setCompareTarget] = useState<string>("none");
   const [isEloChartFullscreen, setIsEloChartFullscreen] = useState(false);
   const [trendTimeRange, setTrendTimeRange] = useState<string>("year1");
-  const [trendMetric, setTrendMetric] = useState<string>("elo");
+  const [showWinRate, setShowWinRate] = useState(false);
   const [eloTrendStartDate, setEloTrendStartDate] = useState<string>("");
   const [eloTrendEndDate, setEloTrendEndDate] = useState<string>("");
   const [eloTrendRangeTouched, setEloTrendRangeTouched] = useState(false);
@@ -890,7 +892,6 @@ export default function PlayerSection({
 
   const comparisonYDomain = useMemo(() => {
     if (!filteredComparisonData.length) return ["dataMin - 20", "dataMax + 20"] as const;
-    if (trendMetric === "winRate") return [0, 100] as const;
 
     let min = Infinity;
     let max = -Infinity;
@@ -909,7 +910,7 @@ export default function PlayerSection({
 
     const padding = Math.max(5, Math.round((max - min) * 0.05));
     return [min - padding, max + padding] as const;
-  }, [comparisonNames, filteredComparisonData, trendMetric]);
+  }, [comparisonNames, filteredComparisonData]);
 
   useEffect(() => {
     // Lock the page scroll while the full-screen chart is open so it feels like a modal.
@@ -1135,17 +1136,17 @@ export default function PlayerSection({
               spacing={2}
               alignItems={{ xs: "stretch", sm: "center" }}
             >
-              <TextField
-                select
-                size="small"
-                label="Mått"
-                value={trendMetric}
-                onChange={(e) => setTrendMetric(e.target.value)}
-                sx={{ minWidth: 120 }}
-              >
-                <MenuItem value="elo">ELO</MenuItem>
-                <MenuItem value="winRate">Win Rate %</MenuItem>
-              </TextField>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={showWinRate}
+                    onChange={(e) => setShowWinRate(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Visa vinst %"
+                sx={{ mr: 2, whiteSpace: 'nowrap' }}
+              />
 
               <TextField
                 select
@@ -1209,7 +1210,14 @@ export default function PlayerSection({
                     dataKey="date"
                     tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
                   />
-                  <YAxis domain={comparisonYDomain} />
+                  <YAxis yAxisId="elo" domain={comparisonYDomain} />
+                  <YAxis
+                    yAxisId="winRate"
+                    orientation="right"
+                    domain={[0, 100]}
+                    hide={!showWinRate}
+                    tick={{ fontSize: '0.75rem', fill: '#ff9800' }}
+                  />
                   <Tooltip content={() => null} cursor={{ stroke: '#d32f2f', strokeDasharray: '4 4' }} />
                   {chartTooltipState?.label ? <Legend verticalAlign="top" align={chartTooltipState.panelSide} /> : <Legend />}
                   {chartTooltipState?.label ? (
@@ -1218,20 +1226,36 @@ export default function PlayerSection({
                       stroke="#d32f2f"
                       strokeDasharray="4 4"
                       ifOverflow="extendDomain"
+                      yAxisId="elo"
                     />
                   ) : null}
                   {comparisonNames.map((name, index) => (
                     <Line
                       key={name}
                       type="monotone"
-                      dataKey={(row) => row[`${name}_${trendMetric}`]}
+                      dataKey={(row) => row[`${name}_elo`]}
                       name={name}
                       stroke={chartPalette[index % chartPalette.length]}
                       strokeWidth={3}
                       dot={false}
                       animationDuration={300}
+                      yAxisId="elo"
                     />
                   ))}
+                  {showWinRate && comparisonNames.length > 0 && (
+                    <Line
+                      key="user-winRate"
+                      type="monotone"
+                      dataKey={(row) => row[`${comparisonNames[0]}_winRate`]}
+                      name="Vinst %"
+                      stroke="#ff9800"
+                      strokeWidth={3}
+                      dot={false}
+                      strokeDasharray="5 5"
+                      animationDuration={300}
+                      yAxisId="winRate"
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
