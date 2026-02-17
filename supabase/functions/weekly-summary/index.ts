@@ -92,6 +92,40 @@ const escapeHtml = (unsafe: string) => {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Simple p-limit implementation for concurrency control
+const pLimit = (concurrency: number) => {
+  const queue: (() => void)[] = [];
+  let activeCount = 0;
+
+  const next = () => {
+    activeCount--;
+    if (queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  const run = async <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    activeCount++;
+    const result = (async () => fn())();
+    try {
+      const res = await result;
+      resolve(res);
+    } catch (err) {
+      reject(err);
+    }
+    next();
+  };
+
+  const enqueue = <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    queue.push(run.bind(null, fn, resolve, reject));
+    if (activeCount < concurrency && queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  return <T>(fn: () => Promise<T>) => new Promise<T>((resolve, reject) => enqueue(fn, resolve, reject));
+};
+
 const getMatchWeight = (match: Match) => {
   if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
   const scoreType = match.score_type || "sets";
@@ -928,7 +962,7 @@ Deno.serve(async (req) => {
     // Non-coder note: we send emails one-by-one with a short pause to avoid provider rate limits.
     const maxRetriesOnRateLimit = 2;
     const rateLimitWaitMs = 1200;
-    const perEmailDelayMs = 600;
+    // const perEmailDelayMs = 600; // Removed per-email delay for parallel processing
     const sendEmailWithRetry = async (recipientEmail: string, htmlContent: string, subject: string) => {
       let retries = 0;
       while (true) {
@@ -963,9 +997,9 @@ Deno.serve(async (req) => {
         };
       }
     };
-    const emailResults = [];
-    let previewHtml: string | null = null;
-    for (const id of Array.from(activePlayerIds)) {
+
+    // Encapsulate email generation and sending logic
+    const processPlayer = async (id: string) => {
       const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
       const authUser = authUserMap.get(id);
@@ -975,8 +1009,7 @@ Deno.serve(async (req) => {
           : !authUser.email
             ? "Auth user email empty"
             : "Email not found";
-        emailResults.push({ id, name, success: false, error: missingEmailError });
-        continue;
+        return { id, name, success: false, error: missingEmailError };
       }
       const stats = weeklyStats[id];
 
@@ -1282,20 +1315,34 @@ Deno.serve(async (req) => {
 
       if (previewOnly) {
         // Non-coder note: we return the first fully-rendered email so iOS can show an exact preview.
-        previewHtml = html;
-        emailResults.push({ id, name, success: true, preview: true });
-        break;
+        return { id, name, success: true, previewHtml: html };
       }
 
       const result = await sendEmailWithRetry(email, html, weekLabel);
 
       if (!result.ok) {
         console.error(`Failed to send email to ${email}:`, result.errorMessage);
-        emailResults.push({ id, name, success: false, error: result.errorMessage });
+        return { id, name, success: false, error: result.errorMessage };
       } else {
-        emailResults.push({ id, name, success: true });
+        return { id, name, success: true };
       }
-      await delay(perEmailDelayMs);
+    };
+
+    let emailResults: any[] = [];
+    let previewHtml: string | null = null;
+
+    if (previewOnly) {
+      const id = Array.from(activePlayerIds)[0];
+      if (id) {
+        const result = await processPlayer(id);
+        if (result.previewHtml) previewHtml = result.previewHtml;
+        emailResults.push(result);
+      }
+    } else {
+      const limit = pLimit(5);
+      emailResults = await Promise.all(
+        Array.from(activePlayerIds).map(id => limit(() => processPlayer(id)))
+      );
     }
 
     if (previewOnly) {
