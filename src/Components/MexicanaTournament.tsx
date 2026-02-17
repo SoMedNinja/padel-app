@@ -371,6 +371,7 @@ export default function MexicanaTournament({
         team1_score: s1,
         team2_score: s2,
         mode: recordingRound.mode,
+        completed_at: new Date().toISOString(),
       }]);
       invalidateTournamentData(queryClient, activeTournamentId);
       refetchTournamentDetails(queryClient, activeTournamentId);
@@ -481,6 +482,7 @@ export default function MexicanaTournament({
         source_tournament_type: activeTournament.tournament_type || "mexicano",
         team1_serves_first: true,
         created_by: user.id,
+        created_at: (round as any).completed_at || undefined,
       }));
 
     try {
@@ -556,6 +558,7 @@ export default function MexicanaTournament({
       await tournamentService.updateRound(roundId, {
         team1_score: Number(s1),
         team2_score: Number(s2),
+        completed_at: new Date().toISOString(),
       });
       invalidateTournamentData(queryClient, activeTournamentId);
       refetchTournamentDetails(queryClient, activeTournamentId);

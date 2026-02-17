@@ -152,7 +152,7 @@ const enrichMatchPayload = (match: MatchCreateData, userId: string) => {
   // extra properties from `match`. We cast to `any` here to safely extract them.
   const {
     id: _id,
-    created_at: _created_at,
+    created_at: existingCreatedAt,
     created_by: _created_by,
     match_mode: _match_mode,
     ...rest
@@ -165,12 +165,18 @@ const enrichMatchPayload = (match: MatchCreateData, userId: string) => {
         ? crypto.randomUUID()
         : `local-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
-  return {
+  const payload = {
     ...rest,
     created_by: userId,
     client_submission_id: clientSubmissionId,
     client_payload_hash: computeHash(rest),
   };
+
+  if (existingCreatedAt) {
+    (payload as any).created_at = existingCreatedAt;
+  }
+
+  return payload;
 };
 
 const detectSubmissionConflict = async (createdBy: string, payload: MatchCreateData[]) => {
