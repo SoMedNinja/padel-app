@@ -45,10 +45,14 @@ export default function PlayerGrid({
       ? 1
       : a.name.localeCompare(b.name)
   );
+
   const filtered = sorted.filter(
     (p) =>
       p.id === GUEST_ID ||
-      getProfileDisplayName(p).toLowerCase().includes(query.toLowerCase())
+      (
+        !excludeIds.includes(p.id) &&
+        getProfileDisplayName(p).toLowerCase().includes(query.toLowerCase())
+      )
   );
 
   return (
@@ -91,7 +95,6 @@ export default function PlayerGrid({
       <Grid container spacing={1}>
         {filtered.map((p) => {
           const isSelected = selectedIds.includes(p.id) && p.id !== GUEST_ID;
-          const isExcluded = excludeIds.includes(p.id) && p.id !== GUEST_ID;
 
           return (
             <Grid key={p.id} size={{ xs: 4, sm: 3 }}>
@@ -102,7 +105,6 @@ export default function PlayerGrid({
                 aria-label={`Välj ${
                   p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)
                 }`}
-                disabled={isExcluded}
                 sx={{
                   p: 1.5,
                   width: "100%",
@@ -111,15 +113,12 @@ export default function PlayerGrid({
                   alignItems: "center",
                   bgcolor: isSelected ? "primary.light" : "background.paper",
                   color: isSelected ? "primary.contrastText" : "text.primary",
-                  opacity: isExcluded ? 0.5 : 1,
                   border: isSelected ? "2px solid" : "1px solid",
                   borderColor: isSelected ? "primary.main" : "divider",
                   transition: "all 0.2s",
                   borderRadius: 1,
                   "&:hover": {
-                    bgcolor: isExcluded
-                      ? ""
-                      : isSelected
+                    bgcolor: isSelected
                       ? "primary.light"
                       : "action.hover",
                   },
