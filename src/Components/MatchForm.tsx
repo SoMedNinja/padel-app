@@ -24,6 +24,11 @@ import {
   Select,
   MenuItem,
   FormControl,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -121,6 +126,7 @@ export default function MatchForm({
   const [isCeremonyActive, setIsCeremonyActive] = useState(false);
   const [query, setQuery] = useState("");
   useEffect(() => { setQuery(""); }, [step]);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const wizardSteps = ["Lag A", "Lag B", "Resultat", "Granska"];
   const activeWizardStep = step >= 0 && step <= 3 ? step : 0;
   // Note for non-coders: "activeWizardStep" tells the Stepper which stage we're on so the UI can show progress.
@@ -197,9 +203,7 @@ export default function MatchForm({
     };
   }, [team1, team2, eloMap]);
 
-  const resetWizard = (silent = false) => {
-    const hasProgress = team1.some(id => id !== "") || team2.some(id => id !== "") || pool.length > 0;
-    if (!silent && hasProgress && !window.confirm("Är du säker på att du vill rensa matchen och börja om?")) return;
+  const performReset = () => {
     setStep(0);
     setTeam1(Array(teamSize).fill(""));
     setTeam2(Array(teamSize).fill(""));
@@ -208,6 +212,21 @@ export default function MatchForm({
     setPool([]);
     setMatchSuggestion(null);
     setShowExtraScores(false);
+  };
+
+  const handleConfirmReset = () => {
+    navigator.vibrate?.(10);
+    performReset();
+    setResetConfirmOpen(false);
+  };
+
+  const resetWizard = (silent = false) => {
+    const hasProgress = team1.some(id => id !== "") || team2.some(id => id !== "") || pool.length > 0;
+    if (!silent && hasProgress) {
+      setResetConfirmOpen(true);
+      return;
+    }
+    performReset();
   };
 
   const togglePlayerInPool = (playerId: string) => {
@@ -746,7 +765,7 @@ export default function MatchForm({
             )}
             {step > 0 && (
               <Tooltip title="Rensa och börja om" arrow>
-                <IconButton onClick={resetWizard} size="small" color="error" aria-label="Stäng och rensa">
+                <IconButton onClick={() => resetWizard()} size="small" color="error" aria-label="Stäng och rensa">
                   <CloseIcon />
                 </IconButton>
               </Tooltip>
@@ -1358,6 +1377,29 @@ export default function MatchForm({
           )
         }}
       />
+
+      <Dialog
+        open={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle id="alert-dialog-title" sx={{ fontWeight: 800 }}>Starta om?</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Är du säker på att du vill rensa matchen och börja om? All inmatad data kommer att gå förlorad.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setResetConfirmOpen(false)} sx={{ fontWeight: 700 }} color="inherit">
+            Avbryt
+          </Button>
+          <Button onClick={handleConfirmReset} variant="contained" color="error" autoFocus sx={{ fontWeight: 700 }}>
+            Rensa och börja om
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
