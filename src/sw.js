@@ -86,8 +86,8 @@ registerRoute(
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
       new ExpirationPlugin({
-        maxEntries: 120,
-        maxAgeSeconds: 60 * 10,
+        maxEntries: 200,
+        maxAgeSeconds: 60 * 60 * 24 * 7,
       }),
     ],
   })

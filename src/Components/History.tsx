@@ -32,11 +32,6 @@ import {
   Paper,
   Tooltip,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -52,6 +47,7 @@ import {
   HelpOutline as HelpIcon,
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
+import AppBottomSheet from "./Shared/AppBottomSheet";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -689,31 +685,41 @@ export default function History({
                   </Box>
                 )}
               </CardContent>
-              <Dialog
+              <AppBottomSheet
                 open={isDeleteDialogOpen}
                 onClose={() => setDeleteDialogMatchId(null)}
-                aria-labelledby={`delete-match-title-${m.id}`}
-                aria-describedby={`delete-match-description-${m.id}`}
+                title="Radera match?"
               >
-                <DialogTitle id={`delete-match-title-${m.id}`}>Radera match?</DialogTitle>
-                <DialogContent>
-                  <DialogContentText id={`delete-match-description-${m.id}`}>
-                    {/* Note for non-coders: this is the confirmation text users read before a destructive action. */}
+                <Box sx={{ pb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3, px: 1, textAlign: 'center' }}>
                     Är du säker på att du vill ta bort matchen från historiken?
-                  </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                  <Button onClick={() => setDeleteDialogMatchId(null)}>Avbryt</Button>
-                  <Button
-                    color="error"
-                    variant="contained"
-                    onClick={() => deleteMatch(m.id)}
-                    disabled={deletingId === m.id}
-                  >
-                    {deletingId === m.id ? "Tar bort..." : "Ta bort"}
-                  </Button>
-                </DialogActions>
-              </Dialog>
+                    Detta går inte att ångra.
+                  </Typography>
+                  <Stack spacing={2}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      size="large"
+                      fullWidth
+                      onClick={() => deleteMatch(m.id)}
+                      disabled={deletingId === m.id}
+                      startIcon={deletingId === m.id ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
+                      sx={{ fontWeight: 700 }}
+                    >
+                      {deletingId === m.id ? "Tar bort..." : "Radera match"}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      fullWidth
+                      onClick={() => setDeleteDialogMatchId(null)}
+                      sx={{ fontWeight: 700 }}
+                    >
+                      Avbryt
+                    </Button>
+                  </Stack>
+                </Box>
+              </AppBottomSheet>
             </Card>
           );
         })}

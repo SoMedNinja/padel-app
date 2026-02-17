@@ -299,7 +299,7 @@ export default function Auth({ onAuth, onGuest }: AuthProps) {
               type="email"
               autoComplete="email"
               required
-              slotProps={{ htmlInput: { "aria-required": "true" } }}
+              slotProps={{ htmlInput: { "aria-required": "true", inputMode: "email" } }}
             />
             <TextField
               fullWidth
