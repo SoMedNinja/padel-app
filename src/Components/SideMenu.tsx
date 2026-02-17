@@ -22,6 +22,7 @@ import {
   Login as LoginIcon,
   School as SchoolIcon,
   Extension as ExtensionIcon,
+  EmojiEvents as TournamentIcon,
 } from "@mui/icons-material";
 
 interface SideMenuProps {
@@ -43,6 +44,10 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
     { text: "Utbildning", icon: <SchoolIcon />, path: "/education" },
     { text: "Padel Puzzles", icon: <ExtensionIcon />, path: "/puzzles" },
   ];
+
+  if (!isGuest) {
+    menuItems.unshift({ text: "Turnering", icon: <TournamentIcon />, path: "/tournament" });
+  }
 
   if (user?.is_admin) {
     menuItems.push({ text: "Admin", icon: <AdminIcon />, path: "/admin" });
