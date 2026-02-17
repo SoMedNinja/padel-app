@@ -13,8 +13,6 @@ const SLOT_LABEL: Record<AvailabilitySlot, string> = {
   evening: "Kväll",
 };
 
-const ALLOWED_TEST_RECIPIENT = "Robbanh94@gmail.com";
-
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -84,6 +82,7 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
     const appBaseUrl = Deno.env.get("APP_BASE_URL") ?? Deno.env.get("SITE_URL") ?? "";
+    const allowedTestRecipient = Deno.env.get("ALLOWED_TEST_RECIPIENT") ?? "";
 
     if (!supabaseUrl || !serviceRoleKey || !resendApiKey || !appBaseUrl) {
       return jsonResponse(
@@ -139,11 +138,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "pollId saknas." }, 400);
     }
 
-    if (testRecipientEmail && normalizedTestRecipientEmail !== ALLOWED_TEST_RECIPIENT.toLowerCase()) {
-      return jsonResponse(
-        { success: false, error: `Endast ${ALLOWED_TEST_RECIPIENT} är tillåten testmottagare.` },
-        400,
-      );
+    if (
+      testRecipientEmail &&
+      normalizedTestRecipientEmail !== allowedTestRecipient.toLowerCase()
+    ) {
+      const msg = allowedTestRecipient
+        ? `Endast ${allowedTestRecipient} är tillåten testmottagare.`
+        : "Ingen testmottagare är konfigurerad.";
+      return jsonResponse({ success: false, error: msg }, 400);
     }
 
     const { data: poll, error: pollError } = await adminClient
