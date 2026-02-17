@@ -217,7 +217,6 @@ enum BadgeService {
                 if !isSortedAsc && !isSortedDesc { break }
             }
         }
-        // Fix: Use Array() wrapper for reversed() to avoid type mismatch
         let sortedMatches = isSortedAsc ? matches : (isSortedDesc ? Array(matches.reversed()) : matches.sorted { $0.playedAt < $1.playedAt })
 
         let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 60 * 60)

@@ -5002,7 +5002,6 @@ final class AppViewModel: ObservableObject {
                 if !isSortedAsc && !isSortedDesc { break }
             }
         }
-        // Fix: Use Array() wrapper for reversed() to avoid type mismatch
         let sortedMatches = isSortedAsc ? allMatches : (isSortedDesc ? Array(allMatches.reversed()) : allMatches.sorted { $0.playedAt < $1.playedAt })
 
         guard !sortedMatches.isEmpty else { return ([:], [:]) }
@@ -5215,7 +5214,6 @@ final class AppViewModel: ObservableObject {
                 if !isSortedAsc && !isSortedDesc { break }
             }
         }
-        // Fix: Use Array() wrapper for reversed() to avoid type mismatch
         let sorted = isSortedDesc ? allMatches : (isSortedAsc ? Array(allMatches.reversed()) : allMatches.sorted { $0.playedAt > $1.playedAt })
 
         let pIdString = playerId.uuidString.lowercased()
