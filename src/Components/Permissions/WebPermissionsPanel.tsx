@@ -286,7 +286,7 @@ export default function WebPermissionsPanel({ onNotificationPermissionChanged }:
           <Box sx={{ opacity: preferences.enabled ? 1 : 0.5, pointerEvents: preferences.enabled ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 2, mb: 1 }}>Händelser</Typography>
             <Stack spacing={1} sx={{ ml: 1 }}>
-              {NOTIFICATION_EVENT_TYPES.map((type) => (
+              {NOTIFICATION_EVENT_TYPES.filter(type => type !== "admin_announcement").map((type) => (
                 <FormControlLabel
                   key={type}
                   control={<Switch size="small" checked={preferences.eventToggles[type]} onChange={() => toggleEvent(type)} />}
