@@ -42,6 +42,7 @@ import {
   getExpectedScore,
   getMarginMultiplier,
   getMatchWeight,
+  getSinglesAdjustedMatchWeight,
   buildPlayerDelta,
   ELO_BASELINE,
 } from "../utils/elo";
@@ -286,11 +287,21 @@ export default function MatchForm({
     const winProbability = getExpectedScore(teamAElo, teamBElo);
     const teamAWon = scoreA > scoreB;
     const marginMultiplier = getMarginMultiplier(scoreA, scoreB);
-    const matchWeight = getMatchWeight({
+
+    const teamAActiveCount = teamAIds.filter(id => id && id !== GUEST_ID).length;
+    const teamBActiveCount = teamBIds.filter(id => id && id !== GUEST_ID).length;
+    // Note for non-coders: ELO calculation treats a match as "singles" only if exactly one registered player is on each side.
+    const isSinglesMatch = teamAActiveCount === 1 && teamBActiveCount === 1;
+
+    const tempMatch = {
       team1_sets: scoreA,
       team2_sets: scoreB,
       score_type: "sets",
-    } as any);
+      score_target: null,
+      source_tournament_id: null,
+    } as unknown as Match;
+
+    const matchWeight = getSinglesAdjustedMatchWeight(tempMatch, isSinglesMatch);
 
     const mapPlayers = (ids: string[], teamAverageElo: number, expected: number, didWin: boolean) =>
       ids
