@@ -218,6 +218,8 @@ Deno.serve(async (req) => {
     const errors: Array<{ email: string; error: string }> = [];
     const maxRetriesOnRateLimit = 2;
     const rateLimitWaitMs = 1200;
+    // NOTE: Increased delay to 1000ms to allow concurrency of 2 while respecting the 2 requests/second rate limit.
+    const perEmailDelayMs = 1000;
 
     const sendEmailWithRetry = async (recipientEmail: string, htmlContent: string, subject: string) => {
       let retries = 0;
@@ -539,7 +541,8 @@ Deno.serve(async (req) => {
         break;
       }
 
-      const limit = pLimit(5);
+      // Concurrency limited to 2 to respect the 2 requests/second rate limit while allowing some parallelism.
+      const limit = pLimit(2);
       await Promise.all(uniqueEmails.map(email => limit(async () => {
         try {
           const result = await sendEmailWithRetry(
@@ -554,6 +557,8 @@ Deno.serve(async (req) => {
           } else {
             sentCount += 1;
           }
+
+          await delay(perEmailDelayMs);
         } catch (error) {
           console.error(`Unexpected error sending to ${email}:`, error);
           errors.push({ email, error: String(error) });
