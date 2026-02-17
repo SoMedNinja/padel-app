@@ -11,8 +11,10 @@ import { useAuthProfile } from "./hooks/useAuthProfile";
 import { Container, Box, Typography, CircularProgress, Button, Stack } from "@mui/material";
 import { useEffect, useState } from "react";
 import AppAlert from "./Components/Shared/AppAlert";
+import { useSwipeToBack } from "./hooks/useSwipeToBack";
 
 export default function App() {
+  useSwipeToBack();
   const { user, setUser, isGuest, setIsGuest } = useStore();
   const {
     authStatus,
