@@ -3,7 +3,7 @@ import MVP from "../Components/MVP";
 import MatchHighlightCard from "../Components/MatchHighlightCard";
 import EloLeaderboard from "../Components/EloLeaderboard";
 import Heatmap from "../Components/Heatmap";
-import { HeadToHeadSection } from "../Components/PlayerSection";
+import HeadToHeadSection from "../Components/HeadToHeadSection/HeadToHeadSection";
 import FilterBar from "../Components/FilterBar";
 import { Box, Skeleton, Stack, Container, Typography, Button, Grid, Fab } from "@mui/material";
 import { alpha } from "@mui/material/styles";

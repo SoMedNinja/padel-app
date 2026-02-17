@@ -157,3 +157,31 @@ export const getISOWeekRange = (week: number, year: number) => {
 
   return { start, end };
 };
+
+export const percent = (wins: number, losses: number) => {
+  const total = wins + losses;
+  return total === 0 ? 0 : Math.round((wins / total) * 100);
+};
+
+export const formatEloDelta = (delta: number | string) => {
+  const numericDelta = Number(delta);
+  if (!Number.isFinite(numericDelta) || numericDelta === 0) return "0";
+  const roundedDelta = Math.round(numericDelta);
+  return roundedDelta > 0 ? `+${roundedDelta}` : `${roundedDelta}`;
+};
+
+export const formatMvpDays = (days: number) => {
+  if (!days) return "0 dagar";
+  if (days >= 365) return `${(days / 365).toFixed(1)} år`;
+  return `${days} dagar`;
+};
+
+// Optimization: Pre-define options as constants to leverage identity-based cache hits in formatDate
+const CHART_DATETIME_OPTIONS: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" };
+
+export const formatChartTimestamp = (value: string | number, includeTime = false) => {
+  if (!value) return "";
+  const date = typeof value === "number" ? new Date(value) : value;
+  const options = includeTime ? CHART_DATETIME_OPTIONS : DEFAULT_OPTIONS;
+  return formatDate(date, options);
+};
