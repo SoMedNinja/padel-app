@@ -3,15 +3,15 @@ import { GUEST_ID, GUEST_NAME } from "./guest";
 
 export const getProfileDisplayName = (p: Profile) => p.name || "Okänd";
 
-const normalizeName = (name: string) => name.trim().toLowerCase();
+export const normalizeProfileName = (name: string) => name.trim().toLowerCase();
 // Note for non-coders: historical matches may store guest names with slightly different spelling/casing.
 // We keep a small alias list so old data still resolves to the same "guest" player consistently.
 const GUEST_NAME_ALIASES = new Set([
-  normalizeName(GUEST_NAME),
-  normalizeName("gäst"),
-  normalizeName("gästspelare"),
-  normalizeName("guest"),
-  normalizeName("guest player"),
+  normalizeProfileName(GUEST_NAME),
+  normalizeProfileName("gäst"),
+  normalizeProfileName("gästspelare"),
+  normalizeProfileName("guest"),
+  normalizeProfileName("guest player"),
 ]);
 
 export const makeProfileMap = (profiles: Profile[]) => {
@@ -25,7 +25,7 @@ export const makeNameToIdMap = (profiles: Profile[]) => {
   profiles.forEach((p) => {
     const displayName = getProfileDisplayName(p);
     map.set(displayName, p.id);
-    map.set(normalizeName(displayName), p.id);
+    map.set(normalizeProfileName(displayName), p.id);
   });
   return map;
 };
@@ -55,7 +55,7 @@ export const resolveTeamIds = (
     const directMatch = nameToIdMap.get(name);
     if (directMatch) return directMatch;
 
-    const normalizedName = normalizeName(name);
+    const normalizedName = normalizeProfileName(name);
     const normMatch = nameToIdMap.get(normalizedName);
     if (normMatch) return normMatch;
 
