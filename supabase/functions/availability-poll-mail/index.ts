@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 type AvailabilitySlot = "morning" | "day" | "evening";
 
 const SLOT_LABEL: Record<AvailabilitySlot, string> = {
@@ -14,12 +9,6 @@ const SLOT_LABEL: Record<AvailabilitySlot, string> = {
 };
 
 const ALLOWED_TEST_RECIPIENT = "Robbanh94@gmail.com";
-
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
 
 const addHours = (date: Date, hours: number) => {
   const next = new Date(date);
@@ -65,9 +54,30 @@ const escapeHtml = (unsafe: string) => {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 Deno.serve(async (req) => {
+  const allowedOrigins = [
+    Deno.env.get("APP_BASE_URL"),
+    Deno.env.get("SITE_URL"),
+    "http://localhost:3000",
+    "http://localhost:5173",
+  ].filter((url): url is string => typeof url === "string" && url.length > 0);
+
+  const origin = req.headers.get("origin");
+  const allowedOrigin = (origin && allowedOrigins.includes(origin)) ? origin : (allowedOrigins[0] || "*");
+
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const jsonResponse = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
   const authHeader = req.headers.get("Authorization") ?? "";
   // Note for non-coders: this temporary log helps confirm whether requests reach the function with an auth header.
