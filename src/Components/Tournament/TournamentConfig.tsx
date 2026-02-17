@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import {
   Add as AddIcon,
+  Remove as RemoveIcon,
   PlayArrow as StartIcon,
   CheckCircle as CompleteIcon,
   Save as SaveIcon,
@@ -37,6 +38,7 @@ interface TournamentConfigProps {
   participants: string[];
   selectableProfiles: any[];
   toggleParticipant: (id: string) => void;
+  handleGuestChange?: (delta: number) => void;
   saveRoster: () => void;
   startTournament: () => void;
   isSaving: boolean;
@@ -55,6 +57,7 @@ export default function TournamentConfig({
   participants,
   selectableProfiles,
   toggleParticipant,
+  handleGuestChange,
   saveRoster,
   startTournament,
   isSaving,
@@ -73,6 +76,103 @@ export default function TournamentConfig({
         <Box sx={{ mb: 2 }}>
           <Grid container spacing={1}>
             {selectableProfiles.map((p) => {
+              const isGuest = p.id === GUEST_ID;
+
+              if (isGuest && handleGuestChange) {
+                const guestCount = participants.filter(id => id === GUEST_ID).length;
+                const isSelected = guestCount > 0;
+
+                return (
+                  <Grid key={p.id} size={{ xs: 4, sm: 3 }}>
+                    <Paper
+                      elevation={isSelected ? 4 : 1}
+                      sx={{
+                        p: 1.5,
+                        width: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        bgcolor: isSelected ? "primary.light" : "background.paper",
+                        color: isSelected ? "primary.contrastText" : "text.primary",
+                        border: isSelected ? "2px solid" : "1px solid",
+                        borderColor: isSelected ? "primary.main" : "divider",
+                        transition: "all 0.2s",
+                        borderRadius: 1,
+                        cursor: activeTournament.status !== "draft" || isAuthUnavailable ? "default" : "pointer",
+                        position: 'relative'
+                      }}
+                      onClick={() => {
+                        if (activeTournament.status !== "draft" || isAuthUnavailable) return;
+                        if (!isSelected) handleGuestChange(1);
+                      }}
+                    >
+                      <Avatar
+                        src={p.avatar_url || ""}
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          mb: 1,
+                          border: isSelected ? "2px solid #fff" : "none",
+                        }}
+                      >
+                        {p.name.charAt(0)}
+                      </Avatar>
+                      <Typography
+                        variant="caption"
+                        align="center"
+                        sx={{
+                          fontWeight: isSelected ? 800 : 500,
+                          wordBreak: "break-word",
+                          lineHeight: 1.2,
+                          height: "2.4em",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {GUEST_NAME}
+                      </Typography>
+
+                      {isSelected ? (
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={1}
+                          sx={{ mt: 1 }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                           <ButtonBase
+                             onClick={() => handleGuestChange(-1)}
+                             disabled={activeTournament.status !== "draft" || isAuthUnavailable}
+                             sx={{
+                               color: 'inherit',
+                               p: 0.5,
+                               borderRadius: '50%',
+                               bgcolor: 'rgba(0,0,0,0.1)',
+                               '&:hover': { bgcolor: 'rgba(0,0,0,0.2)' }
+                             }}
+                           >
+                             <RemoveIcon fontSize="small" />
+                           </ButtonBase>
+                           <Typography fontWeight={800}>{guestCount}</Typography>
+                           <ButtonBase
+                             onClick={() => handleGuestChange(1)}
+                             disabled={activeTournament.status !== "draft" || isAuthUnavailable}
+                             sx={{
+                               color: 'inherit',
+                               p: 0.5,
+                               borderRadius: '50%',
+                               bgcolor: 'rgba(0,0,0,0.1)',
+                               '&:hover': { bgcolor: 'rgba(0,0,0,0.2)' }
+                             }}
+                           >
+                             <AddIcon fontSize="small" />
+                           </ButtonBase>
+                        </Stack>
+                      ) : null}
+                    </Paper>
+                  </Grid>
+                );
+              }
+
               const isSelected = participants.includes(p.id);
               return (
                 <Grid key={p.id} size={{ xs: 4, sm: 3 }}>
@@ -80,7 +180,7 @@ export default function TournamentConfig({
                     component={Paper}
                     elevation={isSelected ? 4 : 1}
                     aria-pressed={isSelected}
-                    aria-label={`Välj ${p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}`}
+                    aria-label={`Välj ${getProfileDisplayName(p)}`}
                     disabled={activeTournament.status !== "draft" || isAuthUnavailable}
                     sx={{
                       p: 1.5,
@@ -122,7 +222,7 @@ export default function TournamentConfig({
                         overflow: "hidden",
                       }}
                     >
-                      {p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}
+                      {getProfileDisplayName(p)}
                     </Typography>
                     {isSelected && (
                       <CompleteIcon

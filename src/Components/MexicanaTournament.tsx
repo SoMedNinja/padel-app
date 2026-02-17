@@ -246,6 +246,17 @@ export default function MexicanaTournament({
     );
   };
 
+  const handleGuestChange = (delta: number) => {
+    if (isGuest || activeTournament?.status === "completed") return;
+    setParticipants(prev => {
+      const currentGuests = prev.filter(p => p === GUEST_ID).length;
+      const newCount = Math.max(0, currentGuests + delta);
+      const others = prev.filter(p => p !== GUEST_ID);
+      const newGuests = Array(newCount).fill(GUEST_ID);
+      return [...others, ...newGuests];
+    });
+  };
+
   const saveRoster = async () => {
     if (!activeTournamentId) return;
     if (!ensureAuthenticated("spara roster")) return;
@@ -676,6 +687,7 @@ export default function MexicanaTournament({
               participants={participants}
               selectableProfiles={selectableProfiles}
               toggleParticipant={toggleParticipant}
+              handleGuestChange={handleGuestChange}
               saveRoster={saveRoster}
               startTournament={startTournament}
               isSaving={isSaving}
