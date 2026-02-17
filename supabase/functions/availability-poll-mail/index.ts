@@ -1,5 +1,39 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
+// Simple p-limit implementation for concurrency control
+const pLimit = (concurrency: number) => {
+  const queue: (() => void)[] = [];
+  let activeCount = 0;
+
+  const next = () => {
+    activeCount--;
+    if (queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  const run = async <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    activeCount++;
+    const result = (async () => fn())();
+    try {
+      const res = await result;
+      resolve(res);
+    } catch (err) {
+      reject(err);
+    }
+    next();
+  };
+
+  const enqueue = <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    queue.push(run.bind(null, fn, resolve, reject));
+    if (activeCount < concurrency && queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  return <T>(fn: () => Promise<T>) => new Promise<T>((resolve, reject) => enqueue(fn, resolve, reject));
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -310,7 +344,6 @@ Deno.serve(async (req) => {
     const errors: Array<{ email: string; error: string }> = [];
     const maxRetriesOnRateLimit = 2;
     const rateLimitWaitMs = 1200;
-    const perEmailDelayMs = 600;
 
     const sendEmailWithRetry = async (recipientEmail: string, html: string) => {
       let retries = 0;
@@ -349,7 +382,7 @@ Deno.serve(async (req) => {
       }
     };
 
-    for (const recipient of recipients) {
+    const processRecipient = async (recipient: typeof recipients[0]) => {
       const html = `
         <html>
           <body style="font-family: Arial, sans-serif; background:#f5f5f5; padding:20px;">
@@ -379,16 +412,19 @@ Deno.serve(async (req) => {
       `;
 
       const result = await sendEmailWithRetry(recipient.email, html);
+      return { email: recipient.email, success: result.ok, error: result.errorMessage };
+    };
 
-      if (!result.ok) {
-        errors.push({ email: recipient.email, error: result.errorMessage });
-      } else {
+    const limit = pLimit(5);
+    const results = await Promise.all(recipients.map((recipient) => limit(() => processRecipient(recipient))));
+
+    results.forEach((r) => {
+      if (r.success) {
         sentCount += 1;
+      } else {
+        errors.push({ email: r.email, error: r.error });
       }
-
-      // Note for non-coders: this small delay keeps us under the email provider's rate limits.
-      await sleep(perEmailDelayMs);
-    }
+    });
 
     if (!isTestMode) {
       const { error: insertLogError } = await adminClient.from("availability_poll_mail_log").insert({
