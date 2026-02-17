@@ -1233,7 +1233,7 @@ export default function PlayerSection({
                     tick={{ fontSize: '0.75rem', fill: '#ff9800' }}
                   />
                   <Tooltip content={() => null} cursor={{ stroke: '#d32f2f', strokeDasharray: '4 4' }} />
-                  {chartTooltipState?.label ? <Legend verticalAlign="top" align={chartTooltipState.panelSide} /> : <Legend />}
+                  <Legend verticalAlign="bottom" />
                   {chartTooltipState?.label ? (
                     <ReferenceLine
                       x={chartTooltipState.label}
