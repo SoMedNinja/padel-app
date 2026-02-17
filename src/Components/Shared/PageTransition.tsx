@@ -20,8 +20,8 @@ export default function PageTransition({ children }: PageTransitionProps) {
       exit="exit"
       transition={{
         type: "spring",
-        stiffness: 260,
-        damping: 20,
+        stiffness: 300,
+        damping: 30,
       }}
       style={{ width: "100%", height: "100%" }}
     >

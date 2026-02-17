@@ -25,6 +25,7 @@ import {
   Paper,
   TableSortLabel,
   CircularProgress,
+  Skeleton,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { InfoOutlined } from "@mui/icons-material";
@@ -239,24 +240,6 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
           variant="outlined"
           sx={{ borderRadius: 3, overflow: 'auto', position: 'relative', maxHeight: 480 }}
         >
-          {showLoadingOverlay && (
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 2,
-                bgcolor: 'rgba(255,255,255,0.8)',
-                zIndex: 1
-              }}
-            >
-              <CircularProgress size={24} />
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>Laddar data…</Typography>
-            </Box>
-          )}
           {/* Note for non-coders: we render rows in a grid so the virtual scroll transforms work reliably. */}
           <Table component="div" role="table" sx={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
             <TableHead component="div" role="rowgroup" sx={{ bgcolor: 'grey.50', display: 'block', width: '100%', borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -346,77 +329,108 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                 </TableCell>
               </TableRow>
             </TableHead>
-            <TableBody component="div" role="rowgroup" sx={{ position: 'relative', height: Math.max(totalSize, 100), display: 'block', width: '100%' }}>
-              {/* Note for non-coders: the table only draws rows you can see to stay fast on big leaderboards. */}
-              {virtualItems.map((virtualItem) => {
-                const p = sortedPlayers[virtualItem.index];
-                if (!p) return null;
-                const isMe = p.id === user?.id;
-                return (
+            <TableBody component="div" role="rowgroup" sx={{ position: 'relative', height: showLoadingOverlay ? 'auto' : Math.max(totalSize, 100), display: 'block', width: '100%' }}>
+              {showLoadingOverlay ? (
+                Array.from({ length: 8 }).map((_, i) => (
                   <TableRow
                     component="div"
                     role="row"
-                    key={p.id || p.name}
-                    ref={measureElement(virtualItem.index)}
-                    data-index={virtualItem.index}
-                    aria-rowindex={virtualItem.index + 1}
-                    aria-label={`Rank ${virtualItem.index + 1}: ${p.name}, ELO ${Math.round(p.elo)}, ${p.wins + p.losses} matcher, ${winPct(p.wins, p.losses)}% vinstprocent. ${isMe || !user ? '' : 'Tryck för rivalitet.'}`}
-                    tabIndex={isMe || !user ? -1 : 0}
-                    onKeyDown={(e) => {
-                      if (!isMe && user && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault();
-                        handlePlayerClick(p);
-                      }
-                    }}
-                    hover
-                    onClick={() => handlePlayerClick(p)}
+                    key={i}
                     sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
                       display: 'grid',
                       gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
                       alignItems: 'center',
-                      transform: `translateY(${virtualItem.start}px)`,
+                      width: '100%',
+                      minHeight: 56,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      minHeight: 56,
-                      bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
-                      cursor: isMe || !user ? 'default' : 'pointer',
-                      '&:hover': {
-                        bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.12) : undefined
-                      },
-                      '&:focus-visible': {
-                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
-                        outline: 'none',
-                        boxShadow: (theme) => `inset 0 0 0 2px ${theme.palette.primary.main}`
-                      }
                     }}
                   >
-                    <TableCell component="div" role="cell" sx={{ borderBottom: 'none' }}>
+                    <TableCell component="div" sx={{ borderBottom: 'none' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar
-                          sx={{ width: 32, height: 32 }}
-                          src={p.avatarUrl || getStoredAvatar(p.id)}
-                          name={p.name}
-                        />
-                        <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
+                        <Skeleton variant="circular" width={32} height={32} />
+                        <Skeleton variant="text" width={120} height={24} />
                       </Box>
                     </TableCell>
-                    <TableCell component="div" role="cell" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
-                    <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
-                    <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
-                    <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>
-                      <Sparkline
-                        data={p.eloHistory || []}
-                        color={(p as any).sparklineColor}
-                      />
-                    </TableCell>
-                    <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <TableCell key={j} component="div" sx={{ textAlign: 'center', borderBottom: 'none', display: 'flex', justifyContent: 'center' }}>
+                        <Skeleton variant="text" width={40} height={24} />
+                      </TableCell>
+                    ))}
                   </TableRow>
-                );
-              })}
+                ))
+              ) : (
+                /* Note for non-coders: the table only draws rows you can see to stay fast on big leaderboards. */
+                virtualItems.map((virtualItem) => {
+                  const p = sortedPlayers[virtualItem.index];
+                  if (!p) return null;
+                  const isMe = p.id === user?.id;
+                  return (
+                    <TableRow
+                      component="div"
+                      role="row"
+                      key={p.id || p.name}
+                      ref={measureElement(virtualItem.index)}
+                      data-index={virtualItem.index}
+                      aria-rowindex={virtualItem.index + 1}
+                      aria-label={`Rank ${virtualItem.index + 1}: ${p.name}, ELO ${Math.round(p.elo)}, ${p.wins + p.losses} matcher, ${winPct(p.wins, p.losses)}% vinstprocent. ${isMe || !user ? '' : 'Tryck för rivalitet.'}`}
+                      tabIndex={isMe || !user ? -1 : 0}
+                      onKeyDown={(e) => {
+                        if (!isMe && user && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
+                          handlePlayerClick(p);
+                        }
+                      }}
+                      hover
+                      onClick={() => handlePlayerClick(p)}
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
+                        alignItems: 'center',
+                        transform: `translateY(${virtualItem.start}px)`,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        minHeight: 56,
+                        bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                        cursor: isMe || !user ? 'default' : 'pointer',
+                        '&:hover': {
+                          bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.12) : undefined
+                        },
+                        '&:focus-visible': {
+                          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                          outline: 'none',
+                          boxShadow: (theme) => `inset 0 0 0 2px ${theme.palette.primary.main}`
+                        }
+                      }}
+                    >
+                      <TableCell component="div" role="cell" sx={{ borderBottom: 'none' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Avatar
+                            sx={{ width: 32, height: 32 }}
+                            src={p.avatarUrl || getStoredAvatar(p.id)}
+                            name={p.name}
+                          />
+                          <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
+                        </Box>
+                      </TableCell>
+                      <TableCell component="div" role="cell" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>
+                      <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
+                      <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
+                      <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>
+                        <Sparkline
+                          data={p.eloHistory || []}
+                          color={(p as any).sparklineColor}
+                        />
+                      </TableCell>
+                      <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </TableContainer>
