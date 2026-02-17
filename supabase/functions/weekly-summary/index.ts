@@ -92,6 +92,40 @@ const escapeHtml = (unsafe: string) => {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Simple p-limit implementation for concurrency control
+const pLimit = (concurrency: number) => {
+  const queue: (() => void)[] = [];
+  let activeCount = 0;
+
+  const next = () => {
+    activeCount--;
+    if (queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  const run = async <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    activeCount++;
+    const result = (async () => fn())();
+    try {
+      const res = await result;
+      resolve(res);
+    } catch (err) {
+      reject(err);
+    }
+    next();
+  };
+
+  const enqueue = <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    queue.push(run.bind(null, fn, resolve, reject));
+    if (activeCount < concurrency && queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  return <T>(fn: () => Promise<T>) => new Promise<T>((resolve, reject) => enqueue(fn, resolve, reject));
+};
+
 const getMatchWeight = (match: Match) => {
   if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
   const scoreType = match.score_type || "sets";
@@ -678,19 +712,6 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to fetch matches: ${matchesError.message}`);
     }
 
-    // Paginated user fetch to ensure we get all players
-    const allUsers = [];
-    let page = 1;
-    let hasMore = true;
-    while (hasMore) {
-      const { data: usersData, error } = await supabase.auth.admin.listUsers({ page, perPage: 50 });
-      if (error) throw error;
-      if (!usersData?.users) break;
-      allUsers.push(...usersData.users);
-      hasMore = usersData.users.length === 50;
-      page++;
-    }
-
     if (!profiles || !matches) throw new Error("Failed to fetch data from database");
 
     // Security: Verify admin status from database and enforce test email ownership
@@ -721,6 +742,38 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Du kan bara skicka test-mail till dig själv" }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const eloStart = calculateEloAt(matches, profileMap, startOfWeekISO);
+    const eloEnd = calculateEloAt(matches, profileMap, endOfWeekISO);
+    const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
+
+    const activePlayerIds = new Set<string>();
+    if (targetPlayerId) {
+      activePlayerIds.add(targetPlayerId);
+    } else {
+      weeklyMatches.forEach(m => {
+        [...m.team1_ids, ...m.team2_ids].forEach(id => { if (id && id !== GUEST_ID) activePlayerIds.add(id); });
+      });
+    }
+
+    // Performance Optimization: Fetch only active users instead of all users.
+    // Fetching users individually is much faster when active users are few compared to total users.
+    const activeIdsArray = Array.from(activePlayerIds);
+    const allUsers: any[] = [];
+
+    // Batch processing to avoid rate limits
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < activeIdsArray.length; i += BATCH_SIZE) {
+      const batch = activeIdsArray.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(id => supabase.auth.admin.getUserById(id)));
+      results.forEach(result => {
+        if (result.data && result.data.user) {
+          allUsers.push(result.data.user);
+        } else if (result.error) {
+          console.error(`Failed to fetch user (active player check):`, result.error);
+        }
       });
     }
 
@@ -934,7 +987,7 @@ Deno.serve(async (req) => {
     // Non-coder note: we send emails one-by-one with a short pause to avoid provider rate limits.
     const maxRetriesOnRateLimit = 2;
     const rateLimitWaitMs = 1200;
-    const perEmailDelayMs = 600;
+    // const perEmailDelayMs = 600; // Removed per-email delay for parallel processing
     const sendEmailWithRetry = async (recipientEmail: string, htmlContent: string, subject: string) => {
       let retries = 0;
       while (true) {
@@ -969,9 +1022,9 @@ Deno.serve(async (req) => {
         };
       }
     };
-    const emailResults = [];
-    let previewHtml: string | null = null;
-    for (const id of Array.from(activePlayerIds)) {
+
+    // Encapsulate email generation and sending logic
+    const processPlayer = async (id: string) => {
       const email = emailMap.get(id) ?? profileEmailMap.get(id);
       const name = profileNameMap.get(id) ?? "Okänd";
       const authUser = authUserMap.get(id);
@@ -981,8 +1034,7 @@ Deno.serve(async (req) => {
           : !authUser.email
             ? "Auth user email empty"
             : "Email not found";
-        emailResults.push({ id, name, success: false, error: missingEmailError });
-        continue;
+        return { id, name, success: false, error: missingEmailError };
       }
       const stats = weeklyStats[id];
 
@@ -1288,20 +1340,34 @@ Deno.serve(async (req) => {
 
       if (previewOnly) {
         // Non-coder note: we return the first fully-rendered email so iOS can show an exact preview.
-        previewHtml = html;
-        emailResults.push({ id, name, success: true, preview: true });
-        break;
+        return { id, name, success: true, previewHtml: html };
       }
 
       const result = await sendEmailWithRetry(email, html, weekLabel);
 
       if (!result.ok) {
         console.error(`Failed to send email to ${email}:`, result.errorMessage);
-        emailResults.push({ id, name, success: false, error: result.errorMessage });
+        return { id, name, success: false, error: result.errorMessage };
       } else {
-        emailResults.push({ id, name, success: true });
+        return { id, name, success: true };
       }
-      await delay(perEmailDelayMs);
+    };
+
+    let emailResults: any[] = [];
+    let previewHtml: string | null = null;
+
+    if (previewOnly) {
+      const id = Array.from(activePlayerIds)[0];
+      if (id) {
+        const result = await processPlayer(id);
+        if (result.previewHtml) previewHtml = result.previewHtml;
+        emailResults.push(result);
+      }
+    } else {
+      const limit = pLimit(5);
+      emailResults = await Promise.all(
+        Array.from(activePlayerIds).map(id => limit(() => processPlayer(id)))
+      );
     }
 
     if (previewOnly) {
