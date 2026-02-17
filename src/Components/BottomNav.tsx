@@ -71,7 +71,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
         // Support for iPhones with home indicator
         pb: 'env(safe-area-inset-bottom, 0px)',
         // Note for non-coders: this matches the "Liquid Glass" blur effect from the top header and iOS native UI.
-        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.72),
+        bgcolor: (theme) => alpha(theme.palette.background.default, 0.72),
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
       }}

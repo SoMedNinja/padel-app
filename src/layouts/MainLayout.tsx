@@ -29,6 +29,7 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Chip,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -59,6 +60,20 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -227,6 +242,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <Typography variant="h6" sx={{ fontWeight: 800, flexGrow: 1, textAlign: 'center', ml: 6 }}>
           {getPageTitle()}
         </Typography>
+        {!isOnline && (
+          <Chip
+            label="Offline"
+            color="error"
+            size="small"
+            sx={{ mr: 1, height: 24 }}
+          />
+        )}
         <IconButton
           color="primary"
           aria-label="fler alternativ"

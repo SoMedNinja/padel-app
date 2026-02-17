@@ -310,6 +310,7 @@ body.chart-fullscreen-active {
 }
 
 .padel-ball {
+  will-change: transform;
   width: 24px;
   height: 24px;
   background-color: color-mix(in srgb, var(--color-warning) 55%, #d4e157 45%); /* Note for non-coders: this blends our shared warning token with a classic padel-ball yellow so it still reads as a ball in both themes. */
@@ -331,6 +332,7 @@ body.chart-fullscreen-active {
 }
 
 .bouncing-ball {
+  will-change: transform;
   animation: bounce 0.6s infinite alternate cubic-bezier(.5,0,.5,1);
 }
 
@@ -369,6 +371,7 @@ body.chart-fullscreen-active {
 }
 
 .ptr-ios-pull-ball {
+  will-change: transform;
   animation: ios-pull-bob 0.85s infinite ease-in-out;
   transform-origin: center bottom;
 }
@@ -405,6 +408,7 @@ body.chart-fullscreen-active {
 }
 
 .ptr-ios-ball {
+  will-change: transform;
   position: relative;
   animation: ios-cluster-bounce 0.8s infinite cubic-bezier(.48,.03,.44,.97);
 }
