@@ -212,15 +212,26 @@ Deno.serve(async (req) => {
     if (profilesError) throw profilesError;
 
     const allUsers: Array<{ id: string; email?: string }> = [];
-    let page = 1;
-    const perPage = 200;
-    while (true) {
-      const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
-      if (error) throw error;
-      const users = data?.users || [];
-      users.forEach((entry) => allUsers.push({ id: entry.id, email: entry.email || undefined }));
-      if (users.length < perPage) break;
-      page += 1;
+    const profileIds = (profiles || []).map((p) => p.id);
+    const BATCH_SIZE = 10;
+
+    for (let i = 0; i < profileIds.length; i += BATCH_SIZE) {
+      const batch = profileIds.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map((id) => adminClient.auth.admin.getUserById(id)));
+
+      results.forEach((result, index) => {
+        const id = batch[index];
+        if (result.data && result.data.user) {
+          allUsers.push({
+            id: result.data.user.id,
+            email: result.data.user.email || undefined,
+          });
+        } else if (result.error) {
+          // We log the error but do not throw, to ensure that a single missing/mismatched user
+          // does not prevent emails from being sent to all other valid recipients.
+          console.error(`Failed to fetch user ${id}: ${result.error.message}`);
+        }
+      });
     }
 
     const emailByUser = new Map<string, string>();
