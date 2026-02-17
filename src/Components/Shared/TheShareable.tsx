@@ -1,8 +1,5 @@
 import React, { useRef, useState } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogActions,
   Button,
   Box,
   Typography,
@@ -18,6 +15,7 @@ import { MatchHighlight } from '../../utils/highlights';
 import { Grid } from '@mui/material';
 import { toast } from 'sonner';
 import { formatDate } from '../../utils/format';
+import AppBottomSheet from './AppBottomSheet';
 
 const LOGO_BOX_SIZE = 80;
 
@@ -1007,23 +1005,8 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: { borderRadius: 3 }
-      }}
-    >
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>Delningsbild</Typography>
-        <IconButton onClick={onClose} size="small" aria-label="Stäng">
-          <Close />
-        </IconButton>
-      </Box>
-
-      <DialogContent sx={{ p: { xs: 1, sm: 3 }, bgcolor: 'grey.100', overflow: 'hidden' }}>
+    <AppBottomSheet open={open} onClose={onClose} title="Delningsbild">
+      <Box sx={{ p: { xs: 1, sm: 3 }, bgcolor: 'grey.100', overflow: 'hidden', borderRadius: 2, mb: 3 }}>
         <Box
           sx={{
             width: '100%',
@@ -1097,9 +1080,9 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
             </Box>
           </Box>
         </Box>
-      </DialogContent>
+      </Box>
 
-      <DialogActions sx={{ p: 2, flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Stack direction="row" spacing={2} sx={{ width: '100%' }} justifyContent="center">
           <IconButton
             onClick={() => setVariant(prev => Math.max(0, prev - 1))}
@@ -1131,7 +1114,7 @@ export default function TheShareable({ open, onClose, type, data }: TheShareable
         >
           Ladda ner bild
         </Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
+    </AppBottomSheet>
   );
 }

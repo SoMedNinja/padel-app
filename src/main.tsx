@@ -7,6 +7,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { darkTheme, lightTheme } from "./theme";
 import RootApp from "./RootApp";
 import "./index.css";
+import ThemeColorUpdater from "./Components/Shared/ThemeColorUpdater";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,6 +15,8 @@ const queryClient = new QueryClient({
       // Note for non-coders: staleTime + gcTime keep cached data around so filters feel instant.
       staleTime: 1000 * 60 * 5, // 5 minutes
       gcTime: 1000 * 60 * 30, // 30 minutes
+      refetchOnWindowFocus: true, // Ensure data refreshes when switching back to the app
+      refetchOnReconnect: true,
     },
   },
 });
@@ -26,6 +29,7 @@ function AppShell() {
   return (
     <ThemeProvider theme={activeTheme}>
       <CssBaseline />
+      <ThemeColorUpdater />
       <QueryClientProvider client={queryClient}>
         <RootApp />
       </QueryClientProvider>

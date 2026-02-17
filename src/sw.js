@@ -67,7 +67,19 @@ function isKeyReadEndpoint(url) {
 
   const restMatch = url.pathname.match(/\/rest\/v1\/([^/?]+)/);
   const endpoint = restMatch?.[1] || "";
-  const readTables = ["profiles", "matches", "tournaments", "tournament_rounds", "tournament_results"];
+  // Note for non-coders: these are the database tables we cache so the app works offline.
+  const readTables = [
+    "profiles",
+    "matches",
+    "tournaments",
+    "tournament_rounds",
+    "tournament_results",
+    "mexicana_tournaments",
+    "mexicana_rounds",
+    "mexicana_results",
+    "mexicana_participants",
+    "availability_scheduled_games"
+  ];
 
   if (readTables.includes(endpoint)) return true;
 
