@@ -120,17 +120,50 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, message: previewOnly ? "No matching preview email" : "No pending emails" });
     }
 
-    // Non-coder note: we fetch all auth users once to match profile ids with email addresses.
+    // Non-coder note: we fetch only the participants to avoid fetching the entire user database.
     const allUsers: any[] = [];
-    let page = 1;
-    let hasMore = true;
-    while (hasMore) {
-      const { data: usersData, error } = await supabase.auth.admin.listUsers({ page, perPage: 50 });
-      if (error) throw error;
-      if (!usersData?.users) break;
-      allUsers.push(...usersData.users);
-      hasMore = usersData.users.length === 50;
-      page += 1;
+
+    // 1. Get all tournament IDs from the pending jobs
+    const tournamentIds = jobs.map((j: any) => j.tournament_id);
+
+    // 2. Fetch all participant profile IDs for these tournaments
+    const { data: participantsData, error: participantsError } = await supabase
+      .from("mexicana_participants")
+      .select("profile_id")
+      .in("tournament_id", tournamentIds);
+
+    if (participantsError) {
+      console.error("Participants fetch error:", participantsError);
+      return jsonResponse({ success: false, error: participantsError.message });
+    }
+
+    // 3. Filter unique profile IDs (excluding nulls)
+    const uniqueParticipantIds = Array.from(new Set(
+      (participantsData || [])
+        .map((p: any) => p.profile_id)
+        .filter((id: any) => id)
+    )) as string[];
+
+    // 4. Batch fetch users by ID
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < uniqueParticipantIds.length; i += BATCH_SIZE) {
+      const batch = uniqueParticipantIds.slice(i, i + BATCH_SIZE);
+      // We use Promise.all to fetch 10 users in parallel within the batch
+      const results = await Promise.all(batch.map(id => supabase.auth.admin.getUserById(id)));
+
+      results.forEach(result => {
+        if (result.data && result.data.user) {
+          allUsers.push(result.data.user);
+        } else if (result.error) {
+          // It's possible a user was deleted from Auth but still exists in profiles/participants
+          console.warn(`Failed to fetch user: ${result.error.message}`);
+        }
+      });
+
+      // Small delay to be gentle on rate limits if processing many batches
+      if (i + BATCH_SIZE < uniqueParticipantIds.length) {
+        await delay(100);
+      }
     }
 
     const resolveUserEmail = (user: any) => {
