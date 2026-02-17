@@ -12,6 +12,7 @@ import {
 import { getPlayerColor } from "../utils/colors";
 import { Typography, Box, Paper, TextField, Stack, InputAdornment, IconButton, Tooltip as MuiTooltip } from "@mui/material";
 import { Autorenew as ResetIcon } from "@mui/icons-material";
+import { alpha } from "@mui/material/styles";
 import { formatDate, formatShortDate } from "../utils/format";
 
 export default function EloTrend({ players = [] }) {
@@ -339,22 +340,33 @@ export default function EloTrend({ players = [] }) {
               left: legendOverlayState.panelSide === 'left' ? 8 : 'auto',
               right: legendOverlayState.panelSide === 'right' ? 8 : 'auto',
               maxWidth: 260,
-              p: 1.25,
-              borderRadius: 2,
+              p: 1.5,
+              borderRadius: 3,
               pointerEvents: 'none',
-              bgcolor: 'rgba(255,255,255,0.96)',
+              bgcolor: (theme) => alpha(theme.palette.background.paper, 0.85),
+              backdropFilter: 'blur(12px)',
               zIndex: 2,
+              border: '1px solid rgba(255,255,255,0.3)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
             }}
           >
             {/* Note for non-coders: this floating legend jumps to the opposite side of your finger so values stay visible while you drag on the chart. */}
-            <Typography variant="caption" sx={{ fontWeight: 800, color: 'error.main', display: 'block', mb: 0.5 }}>
-              {formatDate(legendOverlayState.label, { dateStyle: 'long' })}
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
+              {formatDate(legendOverlayState.label, { dateStyle: 'medium' })}
             </Typography>
-            {legendOverlayState.values.map((entry) => (
-              <Typography key={entry.name} variant="caption" sx={{ display: 'block', color: entry.color, fontWeight: 700 }}>
-                {entry.name}: {typeof entry.value === 'number' ? Math.round(entry.value) : '—'}
-              </Typography>
-            ))}
+            <Stack spacing={0.5}>
+              {legendOverlayState.values.map((entry) => (
+                <Box key={entry.name} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 140 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: entry.color, flexShrink: 0 }} />
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', flexGrow: 1 }}>
+                    {entry.name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', tabularNums: true }}>
+                    {typeof entry.value === 'number' ? Math.round(entry.value) : '—'}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
           </Paper>
         ) : null}
       </Box>

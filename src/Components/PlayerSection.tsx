@@ -1248,27 +1248,39 @@ export default function PlayerSection({
                   top: 8,
                   left: chartTooltipState.panelSide === "left" ? 8 : "auto",
                   right: chartTooltipState.panelSide === "right" ? 8 : "auto",
-                  maxWidth: 240,
-                  p: 1.25,
-                  borderRadius: 2,
+                  maxWidth: 260,
+                  p: 1.5,
+                  borderRadius: 3,
                   pointerEvents: 'none',
-                  bgcolor: 'rgba(255,255,255,0.96)',
+                  bgcolor: (theme) => alpha(theme.palette.background.paper, 0.85),
+                  backdropFilter: 'blur(12px)',
+                  zIndex: 2,
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                 }}
               >
                 {/* Note for non-coders: this small panel is the "floating legend" that automatically jumps to the opposite side so it doesn't cover your finger/cursor. */}
-                <Typography variant="caption" sx={{ fontWeight: 800, color: 'error.main', display: 'block', mb: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
                   {formatChartTimestamp(chartTooltipState.label, true)}
                 </Typography>
-                {chartTooltipState.values.map((entry) => (
-                  <Typography key={entry.name} variant="caption" sx={{ display: 'block', color: entry.color, fontWeight: 700 }}>
-                    {entry.name}: {Math.round(entry.value)}
-                  </Typography>
-                ))}
-                {isChartTooltipLocked ? (
-                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>
-                    Tryck på grafen igen för att rensa.
-                  </Typography>
-                ) : null}
+                <Stack spacing={0.5}>
+                  {chartTooltipState.values.map((entry) => (
+                    <Box key={entry.name} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 140 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: entry.color, flexShrink: 0 }} />
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', flexGrow: 1 }}>
+                        {entry.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', tabularNums: true }}>
+                        {Math.round(entry.value)}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {isChartTooltipLocked ? (
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary', fontStyle: 'italic' }}>
+                      Tryck på grafen igen för att rensa.
+                    </Typography>
+                  ) : null}
+                </Stack>
               </Paper>
             ) : null}
           </Box>
