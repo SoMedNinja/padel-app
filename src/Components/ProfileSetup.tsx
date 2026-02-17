@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import Avatar from "./Avatar";
 import { profileService } from "../services/profileService";
 import Cropper, { Area } from "react-easy-crop";
@@ -38,6 +39,7 @@ import { stripBadgeLabelFromName } from "../utils/profileName";
 
 export default function ProfileSetup({ user, initialName = "", onComplete }) {
   const [name, setName] = useState(initialName);
+  const [nameError, setNameError] = useState("");
   const [saving, setSaving] = useState(false);
   const avatarStorageId = user?.id || null;
   const [avatarUrl, setAvatarUrl] = useState(() =>
@@ -108,12 +110,12 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
           await profileService.upsertProfile({ id: user.id, avatar_url: cropped });
         } catch (error: any) {
           if (!isAvatarColumnMissing(error)) {
-            alert(error.message || "Kunde inte spara profilbilden.");
+            toast.error(error.message || "Kunde inte spara profilbilden.");
           }
         }
       }
     } catch (error: any) {
-      alert(error.message || "Kunde inte beskära bilden.");
+      toast.error(error.message || "Kunde inte beskära bilden.");
     } finally {
       setSavingAvatar(false);
     }
@@ -137,8 +139,14 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     event.preventDefault();
     const trimmed = name.trim();
     // Note for non-coders: we clean the name here so badge tags aren't saved as part of it.
-    if (!trimmed) return alert("Spelarnamn krävs.");
-    if (trimmed.length > 50) return alert("Spelarnamn får vara max 50 tecken.");
+    if (!trimmed) {
+      setNameError("Spelarnamn krävs.");
+      return;
+    }
+    if (trimmed.length > 50) {
+      setNameError("Spelarnamn får vara max 50 tecken.");
+      return;
+    }
     if (!user?.id) return;
 
     setSaving(true);
@@ -160,7 +168,7 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
       }
       onComplete?.(data || { name: trimmed, avatar_url: avatarUrl });
     } catch (error: any) {
-      alert(error.message || "Kunde inte spara profilen.");
+      toast.error(error.message || "Kunde inte spara profilen.");
     } finally {
       setSaving(false);
     }
@@ -201,19 +209,21 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     label="Spelarnamn"
                     required
                     value={name}
+                    error={Boolean(nameError)}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val.length === 50 && name.length < 50) {
                         navigator.vibrate?.(20);
                       }
                       setName(val);
+                      if (nameError) setNameError("");
                     }}
                     placeholder="Skriv ditt namn"
-                    helperText={`${name.length}/50`}
+                    helperText={nameError || `${name.length}/50`}
                     FormHelperTextProps={{
                       sx: {
-                        color: name.length >= 50 ? 'error.main' : 'inherit',
-                        fontWeight: name.length >= 50 ? 700 : 'inherit',
+                        color: nameError || name.length >= 50 ? 'error.main' : 'inherit',
+                        fontWeight: nameError || name.length >= 50 ? 700 : 'inherit',
                       }
                     }}
                     slotProps={{
