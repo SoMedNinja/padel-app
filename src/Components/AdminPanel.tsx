@@ -26,6 +26,7 @@ import {
   Tooltip,
   Tabs,
   Tab,
+  InputAdornment,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -39,6 +40,8 @@ import {
   Email as EmailIcon,
   Assessment as ReportsIcon,
   HowToReg as RegularIcon,
+  Search as SearchIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import EmailPreviews from "./Admin/EmailPreviews";
 import ReportsSection from "./Admin/ReportsSection";
@@ -59,6 +62,7 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
   const [toggleId, setToggleId] = useState<string | null>(null);
   const [regularToggleId, setRegularToggleId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setTab(initialTab);
@@ -73,6 +77,15 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
         return nameA.localeCompare(nameB);
       });
   }, [profiles]);
+
+  const filteredProfiles = useMemo(() => {
+    if (!searchQuery) return sortedProfiles;
+    const q = searchQuery.toLowerCase();
+    return sortedProfiles.filter(p =>
+      (getProfileDisplayName(p) || "").toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q)
+    );
+  }, [sortedProfiles, searchQuery]);
 
   const handleNameChange = (id: string, value: string) => {
     const prevValue = editNames[id] || "";
@@ -238,17 +251,49 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
       </Grid>
 
       <Card variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Sök användare..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setSearchQuery("");
+                        navigator.vibrate?.(10);
+                      }}
+                      aria-label="Rensa sökning"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </Box>
         <TableContainer sx={{ overflow: 'auto' }}>
           <Table sx={{ minWidth: 800 }}>
             <TableHead sx={{ bgcolor: 'grey.50' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700, pl: 3 }}>Användare</TableCell>
+                <TableCell sx={{ fontWeight: 700, pl: 3 }}>Användare ({filteredProfiles.length})</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Roll & Status</TableCell>
                 <TableCell sx={{ fontWeight: 700, pr: 3 }} align="right">Åtgärder</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {sortedProfiles.map(profile => {
+              {filteredProfiles.map(profile => {
                 const currentName = editNames[profile.id] ?? profile.name ?? "";
                 const hasNameChange = currentName.trim() !== (profile.name ?? "") && currentName.trim() !== "";
                 const isSelf = profile.id === user?.id;
