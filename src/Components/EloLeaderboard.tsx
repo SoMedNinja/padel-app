@@ -113,7 +113,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
       const history = player.history || [];
       const hLen = history.length;
       const eloHistory: number[] = [];
-      const startIdx = Math.max(0, hLen - 10);
+      // Optimization: fetch last 6 points to show the trend over 5 matches
+      const startIdx = Math.max(0, hLen - 6);
       for (let j = startIdx; j < hLen; j++) {
         eloHistory.push(history[j].elo);
       }
@@ -121,6 +122,11 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
       if (player.elo && (eloHistory.length === 0 || eloHistory[eloHistory.length - 1] !== player.elo)) {
         eloHistory.push(player.elo);
       }
+
+      // Determine trend color: Green if current >= start, else Red
+      const sparklineColor = (eloHistory.length > 0 && eloHistory[eloHistory.length - 1] >= eloHistory[0])
+        ? '#34C759'
+        : '#FF3B30';
 
       finalPlayers.push({
         ...player,
@@ -130,6 +136,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
         recentResults: s.recentResults.slice(-5),
         streak,
         eloHistory,
+        sparklineColor,
       });
     }
 
@@ -377,7 +384,10 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins + p.losses}</TableCell>
                     <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{p.wins}</TableCell>
                     <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>
-                      <Sparkline data={p.eloHistory || []} />
+                      <Sparkline
+                        data={p.eloHistory || []}
+                        color={(p as any).sparklineColor}
+                      />
                     </TableCell>
                     <TableCell component="div" role="cell" sx={{ textAlign: 'center', borderBottom: 'none' }}>{winPct(p.wins, p.losses)}%</TableCell>
                   </TableRow>
