@@ -268,6 +268,103 @@ const enqueueMatchMutation = (matches: MatchCreateData[]): MatchCreateResult => 
   };
 };
 
+/**
+ * Checks if the head of the queue is blocked and stops processing if so.
+ * Updates the queue state if the head is blocked.
+ */
+const isHeadBlocked = (
+  queue: QueuedMatchMutation[],
+  manual: boolean,
+  hasPendingChanges: boolean
+): boolean => {
+  const head = queue[0];
+  if (!manual && head.attempts >= MAX_AUTO_RETRY_ATTEMPTS) {
+    if (hasPendingChanges) {
+      writeQueue(queue);
+      refreshQueueStatusFromStorage(queue);
+      updateQueueState({ lastSyncedAt: new Date().toISOString() });
+    }
+    updateQueueState({
+      lastError: head.attempts === MAX_AUTO_RETRY_ATTEMPTS
+        ? "Automatisk synkning pausad efter flera försök. Kontrollera anslutning eller data och tryck sedan på 'Försök synka igen'."
+        : queueState.lastError,
+    });
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Selects the next batch of items to process from the queue.
+ */
+const getNextBatch = (queue: QueuedMatchMutation[], manual: boolean): QueuedMatchMutation[] => {
+  const CONCURRENCY = 5;
+  const batch: QueuedMatchMutation[] = [];
+  for (const item of queue) {
+    // If not manual, stop selecting if we hit a blocked item
+    if (!manual && item.attempts >= MAX_AUTO_RETRY_ATTEMPTS) break;
+    batch.push(item);
+    if (batch.length >= CONCURRENCY) break;
+  }
+  return batch;
+};
+
+/**
+ * Processes a batch of queued mutations in parallel.
+ */
+const processBatch = async (batch: QueuedMatchMutation[]) => {
+  return await Promise.all(batch.map(async (item) => {
+    try {
+      const result = await submitMatchPayload(item.payload);
+      return { status: "success", item, result } as const;
+    } catch (error) {
+      return { status: "error", item, error } as const;
+    }
+  }));
+};
+
+/**
+ * Updates the queue state based on the results of a batch processing.
+ * Returns the set of successful queue IDs and flags for further processing.
+ */
+const handleBatchResults = (
+  results: Awaited<ReturnType<typeof processBatch>>
+) => {
+  let hasBatchChanges = false;
+  let shouldStopProcessing = false;
+  const successIds = new Set<string>();
+
+  for (const res of results) {
+    if (res.status === "success") {
+      if (res.result.status === "conflict") {
+        // Mark as conflict/failed
+        res.item.attempts = Math.max(res.item.attempts, MAX_AUTO_RETRY_ATTEMPTS);
+        updateQueueState({ lastError: res.result.message });
+        shouldStopProcessing = true;
+      } else {
+        // Success
+        successIds.add(res.item.queueId);
+        hasBatchChanges = true;
+      }
+    } else {
+      // Error
+      res.item.attempts += 1;
+      const errorMessage = res.error instanceof Error
+        ? res.error.message
+        : (res.error as any)?.message || "Kunde inte synka offline-kö.";
+
+      updateQueueState({ lastError: errorMessage });
+
+      if (res.item.attempts < MAX_AUTO_RETRY_ATTEMPTS) {
+        scheduleQueueRetry(res.item.attempts);
+      }
+      shouldStopProcessing = true;
+    }
+  }
+
+  return { hasBatchChanges, shouldStopProcessing, successIds };
+};
+
 const processQueuedMutations = async (options: { manual?: boolean } = {}) => {
   const { manual = false } = options;
   if (queueProcessing) return;
@@ -285,95 +382,43 @@ const processQueuedMutations = async (options: { manual?: boolean } = {}) => {
   queueProcessing = true;
   let mutableQueue = [...queue];
   let hasChanges = false;
-  const CONCURRENCY = 5;
 
   while (mutableQueue.length) {
-    // 1. Check blocking condition on the head (preserve existing logic)
-    const head = mutableQueue[0];
-    if (!manual && head.attempts >= MAX_AUTO_RETRY_ATTEMPTS) {
-      if (hasChanges) {
-        writeQueue(mutableQueue);
-        refreshQueueStatusFromStorage(mutableQueue);
-        updateQueueState({ lastSyncedAt: new Date().toISOString() });
-      }
-      updateQueueState({
-        lastError: head.attempts === MAX_AUTO_RETRY_ATTEMPTS
-          ? "Automatisk synkning pausad efter flera försök. Kontrollera anslutning eller data och tryck sedan på 'Försök synka igen'."
-          : queueState.lastError,
-      });
-      hasChanges = false;
+    // 1. Check blocking condition on the head
+    if (isHeadBlocked(mutableQueue, manual, hasChanges)) {
+      hasChanges = false; // Handled inside isHeadBlocked
       break;
     }
 
     // 2. Select batch
-    const batch: QueuedMatchMutation[] = [];
-    for (const item of mutableQueue) {
-      if (!manual && item.attempts >= MAX_AUTO_RETRY_ATTEMPTS) break;
-      batch.push(item);
-      if (batch.length >= CONCURRENCY) break;
-    }
-
-    if (batch.length === 0) break; // Should not happen given check above, but for safety
+    const batch = getNextBatch(mutableQueue, manual);
+    if (batch.length === 0) break;
 
     // 3. Process batch in parallel
-    const results = await Promise.all(batch.map(async (item) => {
-      try {
-        const result = await submitMatchPayload(item.payload);
-        return { status: "success", item, result } as const;
-      } catch (error) {
-        return { status: "error", item, error } as const;
-      }
-    }));
+    const results = await processBatch(batch);
 
     // 4. Handle results
-    let batchHasChanges = false;
-    let stopProcessing = false;
-    const successes = new Set<string>();
-
-    for (const res of results) {
-      if (res.status === "success") {
-        if (res.result.status === "conflict") {
-          // Mark as conflict/failed
-          res.item.attempts = Math.max(res.item.attempts, MAX_AUTO_RETRY_ATTEMPTS);
-          updateQueueState({ lastError: res.result.message });
-          stopProcessing = true;
-        } else {
-          // Success
-          successes.add(res.item.queueId);
-          batchHasChanges = true;
-        }
-      } else {
-        // Error
-        res.item.attempts += 1;
-        updateQueueState({
-          lastError: res.error instanceof Error ? res.error.message : "Kunde inte synka offline-kö.",
-        });
-        if (res.item.attempts < MAX_AUTO_RETRY_ATTEMPTS) {
-          scheduleQueueRetry(res.item.attempts);
-        }
-        stopProcessing = true;
-      }
-    }
+    const { hasBatchChanges, shouldStopProcessing, successIds } = handleBatchResults(results);
 
     // 5. Update queue
-    if (batchHasChanges || stopProcessing) {
+    if (hasBatchChanges || shouldStopProcessing) {
       hasChanges = true;
 
       // Remove successes
-      mutableQueue = mutableQueue.filter(item => !successes.has(item.queueId));
+      mutableQueue = mutableQueue.filter(item => !successIds.has(item.queueId));
 
       // Write to storage immediately to persist progress/attempts
       writeQueue(mutableQueue);
       refreshQueueStatusFromStorage(mutableQueue);
 
       // If we removed items, update syncedAt
-      if (batchHasChanges) {
+      if (hasBatchChanges) {
         updateQueueState({ lastSyncedAt: new Date().toISOString() });
       }
     }
 
     // 6. Stop if needed
-    if (stopProcessing) {
+    if (shouldStopProcessing) {
       break;
     }
   }
