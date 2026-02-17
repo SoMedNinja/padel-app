@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import PlayerSection from "../Components/PlayerSection";
+import PlayerSection from "../Components/PlayerSection/PlayerSection";
 import MeritsSection from "../Components/MeritsSection";
 import FilterBar from "../Components/FilterBar";
 import { useStore } from "../store/useStore";
