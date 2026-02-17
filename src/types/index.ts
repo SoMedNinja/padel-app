@@ -113,6 +113,7 @@ export interface TournamentRound {
   team2_score?: number | null;
   mode?: "americano" | "mexicano";
   created_at?: string;
+  completed_at?: string;
 }
 
 export interface TournamentRoundInsert {
@@ -124,6 +125,7 @@ export interface TournamentRoundInsert {
   team1_score?: number | null;
   team2_score?: number | null;
   mode?: "americano" | "mexicano";
+  completed_at?: string;
 }
 
 export interface AppUser extends Profile {
