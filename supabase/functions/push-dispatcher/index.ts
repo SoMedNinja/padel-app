@@ -52,13 +52,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const vapidPublicKey = Deno.env.get("WEB_PUSH_PUBLIC_KEY") || Deno.env.get("VITE_WEB_PUSH_PUBLIC_KEY");
-    const vapidPrivateKey = Deno.env.get("WEB_PUSH_PRIVATE_KEY");
+    const vapidPrivateKey = Deno.env.get("WEB_PUSH_PRIVATE_KEY") || Deno.env.get("VITE_WEB_PUSH_PRIVATE_KEY");
 
     const missingEnvVars = [];
     if (!supabaseUrl) missingEnvVars.push("SUPABASE_URL");
     if (!supabaseServiceKey) missingEnvVars.push("SUPABASE_SERVICE_ROLE_KEY");
     if (!vapidPublicKey) missingEnvVars.push("WEB_PUSH_PUBLIC_KEY/VITE_WEB_PUSH_PUBLIC_KEY");
-    if (!vapidPrivateKey) missingEnvVars.push("WEB_PUSH_PRIVATE_KEY");
+    if (!vapidPrivateKey) missingEnvVars.push("WEB_PUSH_PRIVATE_KEY/VITE_WEB_PUSH_PRIVATE_KEY");
 
     if (missingEnvVars.length > 0) {
       console.error("Missing environment variables:", missingEnvVars.join(", "));
