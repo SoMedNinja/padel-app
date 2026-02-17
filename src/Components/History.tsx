@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { invalidateStatsData } from "../data/queryInvalidation";
 import {
   getIdDisplayName,
   getProfileDisplayName,
@@ -148,6 +150,7 @@ export default function History({
   allEloPlayers = [],
   highlightedMatchId = null,
 }: HistoryProps) {
+  const queryClient = useQueryClient();
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
   const allEloPlayersMap = useMemo(() => new Map(allEloPlayers.map(p => [p.id, p])), [allEloPlayers]);
@@ -295,6 +298,7 @@ export default function History({
             : null,
       });
       toast.success("Matchen har uppdaterats.");
+      invalidateStatsData(queryClient);
       cancelEdit();
     } catch (error: any) {
       toast.error(error.message || "Kunde inte uppdatera matchen.");
@@ -308,6 +312,7 @@ export default function History({
     try {
       await matchService.deleteMatch(matchId);
       toast.success("Matchen har raderats.");
+      invalidateStatsData(queryClient);
     } catch (error: any) {
       toast.error(error.message || "Kunde inte radera matchen.");
     } finally {
