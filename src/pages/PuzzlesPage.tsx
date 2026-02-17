@@ -174,7 +174,7 @@ export default function PuzzlesPage() {
       if (nextRecord.isCorrect) {
         puzzleScoreService.incrementScore(100).then(() => setCurrentScore((s) => s + 100));
       } else {
-        puzzleScoreService.incrementScore(-50).then(() => setCurrentScore((s) => Math.max(0, s - 50)));
+        puzzleScoreService.incrementScore(-100).then(() => setCurrentScore((s) => Math.max(0, s - 100)));
       }
     }
 

@@ -337,7 +337,10 @@ struct HistoryView: View {
         let visibleRows = (0..<slotCount).compactMap { idx -> (name: String, id: String?)? in
             let idString = ids.indices.contains(idx) ? ids[idx] : nil
             let name = names.indices.contains(idx) ? names[idx].trimmingCharacters(in: .whitespacesAndNewlines) : ""
-            let isPlaceholder = name.isEmpty || name == "Gästspelare" || name == "Spelare"
+            // Note for non-coders:
+            // "Gästspelare" is a valid name for guest participants and should be shown.
+            // "Spelare" is the generic fallback for empty slots, which we hide.
+            let isPlaceholder = name.isEmpty || name == "Spelare"
             guard idString != nil || !isPlaceholder else { return nil }
             return (name.isEmpty ? "Spelare" : name, idString)
         }

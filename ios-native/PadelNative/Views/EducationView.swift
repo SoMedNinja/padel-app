@@ -322,39 +322,64 @@ struct EducationTopicsView: View {
 
     var body: some View {
         List {
-            ForEach(topics) { topic in
+            Section {
                 NavigationLink {
-                    EducationArticleQuizView(
-                        topic: topic,
-                        completion: completions[topic.id],
-                        onComplete: { record in
-                            guard completions[topic.id] == nil else { return }
-                            completions[topic.id] = record
-                            EducationCompletionStore.save(completions, userKey: userKey)
-                        }
-                    )
+                    SelfAssessmentView()
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: topic.symbol)
+                        Image(systemName: "star.circle.fill")
                             .foregroundStyle(AppColors.brandPrimary)
-                            .frame(width: 24)
+                            .font(.title2)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(topic.title)
-                                .font(.inter(.body, weight: .semibold))
+                            Text("Vilken padelnivå är du?")
+                                .font(.inter(.body, weight: .bold))
                                 .foregroundStyle(AppColors.textPrimary)
-                            Text(topic.summary)
+                            Text("Gör vårt snabba test för att hitta din nivå.")
                                 .font(.inter(.caption))
                                 .foregroundStyle(AppColors.textSecondary)
                         }
-                        Spacer()
-                        if let completion = completions[topic.id] {
-                            Text("\(completion.badgeIcon) \(completion.badgeLabel)")
-                                .font(.inter(.caption, weight: .semibold))
-                                .foregroundStyle(AppColors.success)
-                                .multilineTextAlignment(.trailing)
-                        }
                     }
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 8)
+                }
+            } header: {
+                Text("Verktyg")
+            }
+
+            Section(header: Text("Ämnen")) {
+                ForEach(topics) { topic in
+                    NavigationLink {
+                        EducationArticleQuizView(
+                            topic: topic,
+                            completion: completions[topic.id],
+                            onComplete: { record in
+                                guard completions[topic.id] == nil else { return }
+                                completions[topic.id] = record
+                                EducationCompletionStore.save(completions, userKey: userKey)
+                            }
+                        )
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: topic.symbol)
+                                .foregroundStyle(AppColors.brandPrimary)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(topic.title)
+                                    .font(.inter(.body, weight: .semibold))
+                                    .foregroundStyle(AppColors.textPrimary)
+                                Text(topic.summary)
+                                    .font(.inter(.caption))
+                                    .foregroundStyle(AppColors.textSecondary)
+                            }
+                            Spacer()
+                            if let completion = completions[topic.id] {
+                                Text("\(completion.badgeIcon) \(completion.badgeLabel)")
+                                    .font(.inter(.caption, weight: .semibold))
+                                    .foregroundStyle(AppColors.success)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                        }
+                        .padding(.vertical, 6)
+                    }
                 }
             }
         }

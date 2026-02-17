@@ -1284,6 +1284,19 @@ struct SupabaseRESTClient {
         try await sendPost(path: "/rest/v1/rpc/\(functionName)", body: body)
     }
 
+    func incrementPuzzleScore(delta: Int) async throws {
+        struct PuzzleScorePayload: Encodable {
+            let scoreDelta: Int
+            enum CodingKeys: String, CodingKey {
+                case scoreDelta = "score_delta"
+            }
+        }
+        try await sendPost(
+            path: "/rest/v1/rpc/increment_puzzle_score",
+            body: PuzzleScorePayload(scoreDelta: delta)
+        )
+    }
+
     private func sendPost<T: Encodable>(path: String, body: T, preferHeader: String = "return=minimal") async throws {
         guard AppConfig.isConfigured else { throw APIError.missingConfiguration }
         guard let url = URL(string: "\(AppConfig.supabaseURL)\(path)") else {
