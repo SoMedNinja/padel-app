@@ -114,65 +114,75 @@ struct EloTrendDetailView: View {
         let xDomain = (dataset.points.first?.id ?? 0)...(dataset.points.last?.id ?? 0)
 
         return VStack(alignment: .leading, spacing: 8) {
-            ChartReader { proxy in
-            ZStack {
-                Chart {
-                if primaryMetric == .elo || secondaryMetric == .elo {
-                    ForEach(dataset.playerIds, id: \.self) { pid in
-                        let label = viewModel.chartDisplayName(for: pid)
-                        let color = colorForSeries(name: label, index: dataset.playerIds.firstIndex(of: pid) ?? 0)
-                        ForEach(dataset.points) { point in
-                            if let elo = point.elos[pid] {
-                                LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Spelare", label))
-                                    .interpolationMethod(.catmullRom)
-                                    .foregroundStyle(color)
-                                    .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                            }
-                        }
-                    }
-                }
-
-                if primaryMetric == .winRate || secondaryMetric == .winRate,
-                   let currentId = viewModel.currentPlayer?.id {
-                    ForEach(dataset.points) { point in
-                        if let rate = point.winRates[currentId] {
-                            LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: eloDomain)))
-                                .foregroundStyle(.mint)
-                                .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
-                        }
-                    }
-                }
-
-                if let selected = chartSelectionIndex {
-                    RuleMark(x: .value("Vald", selected))
-                        .foregroundStyle(AppColors.textSecondary.opacity(0.3))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
-                }
-                }
-                .frame(height: 350)
-                .chartYScale(domain: eloDomain)
-                // Note for non-coders:
-                // Removing end padding keeps the newest value flush to the right edge of the graph.
-                .chartXScale(domain: xDomain, range: .plotDimension(startPadding: 6, endPadding: 0))
-                .chartXSelection(value: $chartSelectionIndex)
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 5)) { value in
-                        if let index = value.as(Int.self),
-                           let point = dataset.points.first(where: { $0.id == index }) {
-                            AxisGridLine()
-                            AxisValueLabel {
-                                Text(point.date, format: .dateTime.month(.abbreviated))
-                            }
-                        }
-                    }
-                }
-
-                chartOverlayLegend(dataset: dataset, proxy: proxy)
+            Chart {
+                eloSeries(dataset: dataset)
+                winRateSeries(dataset: dataset, domain: eloDomain)
+                selectionRule()
             }
+            .frame(height: 350)
+            .chartYScale(domain: eloDomain)
+            // Note for non-coders:
+            // Removing end padding keeps the newest value flush to the right edge of the graph.
+            .chartXScale(domain: xDomain, range: .plotDimension(startPadding: 6, endPadding: 0))
+            .chartXSelection(value: $chartSelectionIndex)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 5)) { value in
+                    if let index = value.as(Int.self),
+                       let point = dataset.points.first(where: { $0.id == index }) {
+                        AxisGridLine()
+                        AxisValueLabel {
+                            Text(point.date, format: .dateTime.month(.abbreviated))
+                        }
+                    }
+                }
+            }
+            .chartOverlay { proxy in
+                chartOverlayLegend(dataset: dataset, proxy: proxy)
             }
 
             Button("Rensa markör") { chartSelectionIndex = nil }
                 .font(.caption)
+        }
+    }
+
+    @ChartContentBuilder
+    private func eloSeries(dataset: ComparisonChartDataset) -> some ChartContent {
+        if primaryMetric == .elo || secondaryMetric == .elo {
+            ForEach(dataset.playerIds, id: \.self) { pid in
+                let label = viewModel.chartDisplayName(for: pid)
+                let color = colorForSeries(name: label, index: dataset.playerIds.firstIndex(of: pid) ?? 0)
+                ForEach(dataset.points) { point in
+                    if let elo = point.elos[pid] {
+                        LineMark(x: .value("Match", point.id), y: .value("ELO", elo), series: .value("Spelare", label))
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(color)
+                            .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    }
+                }
+            }
+        }
+    }
+
+    @ChartContentBuilder
+    private func winRateSeries(dataset: ComparisonChartDataset, domain: ClosedRange<Double>) -> some ChartContent {
+        if primaryMetric == .winRate || secondaryMetric == .winRate,
+           let currentId = viewModel.currentPlayer?.id {
+            ForEach(dataset.points) { point in
+                if let rate = point.winRates[currentId] {
+                    LineMark(x: .value("Match", point.id), y: .value("Win rate", scaledWinRate(rate, domain: domain)))
+                        .foregroundStyle(.mint)
+                        .lineStyle(.init(lineWidth: 2, dash: [6, 4]))
+                }
+            }
+        }
+    }
+
+    @ChartContentBuilder
+    private func selectionRule() -> some ChartContent {
+        if let selected = chartSelectionIndex {
+            RuleMark(x: .value("Vald", selected))
+                .foregroundStyle(AppColors.textSecondary.opacity(0.3))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
         }
     }
 
