@@ -161,212 +161,152 @@ export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
   return "➖";
 };
 
+export function* getRecentMatchesIterator(matches: Match[], days = 30) {
+  if (!matches || !matches.length) return;
+  const thirtyDaysAgoISO = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const isDescending = matches[0].created_at > matches[matches.length - 1].created_at;
 
-  export function getPartnerSynergy(
-    matches: Match[],
-    playerName: string,
-    playerId?: string,
-    eloDeltaByMatch?: Record<string, Record<string, number>>
-  ) {
-    if (!matches || !matches.length) return null;
-    const synergy: Record<string, { games: number; wins: number }> = {};
-    const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    const isDescending = matches[0].created_at > matches[matches.length - 1].created_at;
-
-    if (eloDeltaByMatch && playerId) {
-      // High-performance path: use pre-calculated deltas and player IDs
-      for (let i = 0, len = matches.length; i < len; i++) {
-        const m = matches[i];
-        const date = m.created_at;
-        if (date && date < thirtyDaysAgoISO) {
-          if (isDescending) break;
-          continue;
-        }
-        if (eloDeltaByMatch[m.id]?.[playerId] === undefined) continue;
-
-        // Optimization: use direct indexed access instead of includes() + find()
-        // for small team arrays (max 2 players).
-        const t1 = m.team1_ids;
-        const isT1 = t1[0] === playerId || t1[1] === playerId;
-        const team = isT1 ? t1 : m.team2_ids;
-        const partnerId = team[0] === playerId ? team[1] : team[0];
-
-        if (!partnerId || partnerId === GUEST_ID) continue;
-
-        const team1Won = m.team1_sets > m.team2_sets;
-        const won = (isT1 && team1Won) || (!isT1 && !team1Won);
-
-        let s = synergy[partnerId];
-        if (!s) {
-          s = { games: 0, wins: 0 };
-          synergy[partnerId] = s;
-        }
-        s.games++;
-        if (won) s.wins++;
-      }
-    } else {
-      // Fallback: use player name (legacy/less efficient)
-      for (let i = 0, len = matches.length; i < len; i++) {
-        const m = matches[i];
-        const date = m.created_at;
-        if (date && date < thirtyDaysAgoISO) {
-          if (isDescending) break;
-          continue;
-        }
-
-        const team1 = normalizeTeam(m.team1);
-        const inT1 = team1[0] === playerName || team1[1] === playerName;
-        const team2 = !inT1 ? normalizeTeam(m.team2) : null;
-        const inT2 = team2 ? (team2[0] === playerName || team2[1] === playerName) : false;
-
-        if (!inT1 && !inT2) continue;
-
-        const team = inT1 ? team1 : (team2 as string[]);
-        const partner = team[0] === playerName ? team[1] : team[0];
-
-        if (!partner || partner === "Gäst") continue;
-
-        const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
-
-        let s = synergy[partner];
-        if (!s) {
-          s = { games: 0, wins: 0 };
-          synergy[partner] = s;
-        }
-        s.games++;
-        if (won) s.wins++;
-      }
+  for (let i = 0, len = matches.length; i < len; i++) {
+    const m = matches[i];
+    const date = m.created_at;
+    if (date && date < thirtyDaysAgoISO) {
+      if (isDescending) break;
+      continue;
     }
+    yield m;
+  }
+}
 
-    // Optimization: find best partner in a single pass instead of sort()
-    let bestPartner = null;
-    let bestWinRate = -1;
-    let bestGames = -1;
+export function getMatchPlayerStats(
+  match: Match,
+  playerName: string,
+  playerId?: string,
+  eloDeltaByMatch?: Record<string, Record<string, number>>
+) {
+  if (eloDeltaByMatch && playerId) {
+    // High-performance path: use pre-calculated deltas and player IDs
+    if (eloDeltaByMatch[match.id]?.[playerId] === undefined) return null;
 
-    for (const name in synergy) {
-      const stats = synergy[name];
-      const winRate = stats.wins / stats.games;
-      let isBetter = false;
+    const t1 = match.team1_ids;
+    const isT1 = t1[0] === playerId || t1[1] === playerId;
+    const team = isT1 ? t1 : match.team2_ids;
+    const partnerId = team[0] === playerId ? team[1] : team[0];
 
-      if (!bestPartner) {
-        isBetter = true;
-      } else if (winRate > bestWinRate) {
-        isBetter = true;
-      } else if (winRate === bestWinRate && stats.games > bestGames) {
-        isBetter = true;
-      }
+    // Return IDs for partner and opponents
+    const opponents = isT1 ? match.team2_ids : t1;
+    const team1Won = match.team1_sets > match.team2_sets;
+    const won = (isT1 && team1Won) || (!isT1 && !team1Won);
 
-      if (isBetter) {
-        bestPartner = { name, ...stats };
-        bestWinRate = winRate;
-        bestGames = stats.games;
-      }
-    }
-
-    return bestPartner;
+    return {
+      partner: partnerId,
+      opponents: opponents.filter((id): id is string => !!id),
+      won
+    };
   }
 
-  export function getToughestOpponent(
-    matches: Match[],
-    playerName: string,
-    playerId?: string,
-    eloDeltaByMatch?: Record<string, Record<string, number>>
-  ) {
-    if (!matches || !matches.length) return null;
-    const rivals: Record<string, { games: number; losses: number }> = {};
-    const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  // Fallback: use player name
+  const team1 = normalizeTeam(match.team1);
+  const inT1 = team1[0] === playerName || team1[1] === playerName;
+  const team2 = !inT1 ? normalizeTeam(match.team2) : null;
+  const inT2 = team2 ? (team2[0] === playerName || team2[1] === playerName) : false;
 
-    const isDescending = matches[0].created_at > matches[matches.length - 1].created_at;
+  if (!inT1 && !inT2) return null;
 
-    if (eloDeltaByMatch && playerId) {
-      // High-performance path: use pre-calculated deltas and player IDs
-      for (let i = 0, len = matches.length; i < len; i++) {
-        const m = matches[i];
-        const date = m.created_at;
-        if (date && date < thirtyDaysAgoISO) {
-          if (isDescending) break;
-          continue;
-        }
-        if (eloDeltaByMatch[m.id]?.[playerId] === undefined) continue;
+  const team = inT1 ? team1 : (team2 as string[]);
+  const partner = team[0] === playerName ? team[1] : team[0];
+  const opponents = inT1 ? normalizeTeam(match.team2) : team1;
+  const won = (inT1 && match.team1_sets > match.team2_sets) || (inT2 && match.team2_sets > match.team1_sets);
 
-        // Optimization: use direct indexed access instead of includes()
-        const t1 = m.team1_ids;
-        const isT1 = t1[0] === playerId || t1[1] === playerId;
-        const opponents = isT1 ? m.team2_ids : t1;
-        const team1Won = m.team1_sets > m.team2_sets;
-        const won = (isT1 && team1Won) || (!isT1 && !team1Won);
+  return {
+    partner,
+    opponents,
+    won
+  };
+}
 
-        for (let j = 0; j < opponents.length; j++) {
-          const oppId = opponents[j];
-          if (!oppId || oppId === GUEST_ID) continue;
-          let r = rivals[oppId];
-          if (!r) {
-            r = { games: 0, losses: 0 };
-            rivals[oppId] = r;
-          }
-          r.games++;
-          if (!won) r.losses++;
-        }
-      }
-    } else {
-      // Fallback: use player name (legacy/less efficient)
-      for (let i = 0, len = matches.length; i < len; i++) {
-        const m = matches[i];
-        const date = m.created_at;
-        if (date && date < thirtyDaysAgoISO) {
-          if (isDescending) break;
-          continue;
-        }
+export function getBestStat<T extends { games: number }>(
+  statsMap: Record<string, T>,
+  scoreFn: (stats: T) => number
+) {
+  let bestEntry = null;
+  let bestScore = -1;
+  let bestGames = -1;
 
-        const team1 = normalizeTeam(m.team1);
-        const inT1 = team1[0] === playerName || team1[1] === playerName;
-        const team2 = !inT1 ? normalizeTeam(m.team2) : null;
-        const inT2 = team2 ? (team2[0] === playerName || team2[1] === playerName) : false;
+  for (const name in statsMap) {
+    const stats = statsMap[name];
+    const score = scoreFn(stats);
+    let isBetter = false;
 
-        if (!inT1 && !inT2) continue;
-
-        const opponents = inT1 ? normalizeTeam(m.team2) : team1;
-        const won = (inT1 && m.team1_sets > m.team2_sets) || (inT2 && m.team2_sets > m.team1_sets);
-
-        for (let j = 0; j < opponents.length; j++) {
-          const opp = opponents[j];
-          if (opp === "Gäst") continue;
-          let r = rivals[opp];
-          if (!r) {
-            r = { games: 0, losses: 0 };
-            rivals[opp] = r;
-          }
-          r.games++;
-          if (!won) r.losses++;
-        }
-      }
+    if (!bestEntry) {
+      isBetter = true;
+    } else if (score > bestScore) {
+      isBetter = true;
+    } else if (score === bestScore && stats.games > bestGames) {
+      isBetter = true;
     }
 
-    // Optimization: find toughest opponent in a single pass instead of sort()
-    let toughestRival = null;
-    let maxLossRate = -1;
-    let maxGames = -1;
-
-    for (const name in rivals) {
-      const stats = rivals[name];
-      const lossRate = stats.losses / stats.games;
-      let isTougher = false;
-
-      if (!toughestRival) {
-        isTougher = true;
-      } else if (lossRate > maxLossRate) {
-        isTougher = true;
-      } else if (lossRate === maxLossRate && stats.games > maxGames) {
-        isTougher = true;
-      }
-
-      if (isTougher) {
-        toughestRival = { name, ...stats };
-        maxLossRate = lossRate;
-        maxGames = stats.games;
-      }
+    if (isBetter) {
+      bestEntry = { name, ...stats };
+      bestScore = score;
+      bestGames = stats.games;
     }
-
-    return toughestRival;
   }
+  return bestEntry;
+}
+
+export function getPartnerSynergy(
+  matches: Match[],
+  playerName: string,
+  playerId?: string,
+  eloDeltaByMatch?: Record<string, Record<string, number>>
+) {
+  if (!matches || !matches.length) return null;
+  const synergy: Record<string, { games: number; wins: number }> = {};
+
+  for (const m of getRecentMatchesIterator(matches)) {
+    const stats = getMatchPlayerStats(m, playerName, playerId, eloDeltaByMatch);
+    if (!stats) continue;
+
+    const { partner, won } = stats;
+    if (!partner || partner === GUEST_ID || partner === "Gäst") continue;
+
+    let s = synergy[partner];
+    if (!s) {
+      s = { games: 0, wins: 0 };
+      synergy[partner] = s;
+    }
+    s.games++;
+    if (won) s.wins++;
+  }
+
+  return getBestStat(synergy, (s) => s.wins / s.games);
+}
+
+export function getToughestOpponent(
+  matches: Match[],
+  playerName: string,
+  playerId?: string,
+  eloDeltaByMatch?: Record<string, Record<string, number>>
+) {
+  if (!matches || !matches.length) return null;
+  const rivals: Record<string, { games: number; losses: number }> = {};
+
+  for (const m of getRecentMatchesIterator(matches)) {
+    const stats = getMatchPlayerStats(m, playerName, playerId, eloDeltaByMatch);
+    if (!stats) continue;
+
+    const { opponents, won } = stats;
+    for (const opp of opponents) {
+      if (!opp || opp === GUEST_ID || opp === "Gäst") continue;
+      let r = rivals[opp];
+      if (!r) {
+        r = { games: 0, losses: 0 };
+        rivals[opp] = r;
+      }
+      r.games++;
+      if (!won) r.losses++;
+    }
+  }
+
+  return getBestStat(rivals, (s) => s.losses / s.games);
+}

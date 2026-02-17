@@ -75,4 +75,17 @@ describe("Stats Logic", () => {
     expect(rival).not.toBeNull();
     expect(["Player3", "Player4", "Player2"]).toContain(rival?.name);
   });
+
+  it("should find the best partner using IDs (optimized path) in the last 30 days", () => {
+    const eloDeltaByMatch = {
+      "1": { "p1": 10 },
+      "2": { "p1": 10 }
+    };
+    const synergy = getPartnerSynergy(matches, "Player1", "p1", eloDeltaByMatch);
+    expect(synergy).not.toBeNull();
+    // In ID mode, the partner ID is returned as 'name'
+    expect(["p2", "p3"]).toContain(synergy?.name);
+    expect(synergy?.games).toBe(1);
+    expect(synergy?.wins).toBe(1);
+  });
 });
