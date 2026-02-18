@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { normalizeVoteSlots } from './scheduleUtils';
-import { AvailabilityPollDay } from '../types';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { normalizeVoteSlots, computeEmailAvailability } from './scheduleUtils';
+import { AvailabilityPollDay, AvailabilityPoll, AvailabilityPollMailLog } from '../types';
 
 describe('normalizeVoteSlots', () => {
   const mockDay: AvailabilityPollDay = {
@@ -77,5 +77,86 @@ describe('normalizeVoteSlots', () => {
        }]
      };
      expect(normalizeVoteSlots(dayWithEmptyPref, 'user5')).toEqual(['morning']);
+  });
+});
+
+describe('computeEmailAvailability', () => {
+  const basePoll: AvailabilityPoll = {
+    id: 'poll1',
+    created_by: 'user1',
+    week_year: 2024,
+    week_number: 1,
+    start_date: '2024-01-01',
+    end_date: '2024-01-07',
+    status: 'open',
+    created_at: '2024-01-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('should return canSend: true when mail_logs is empty or undefined', () => {
+    expect(computeEmailAvailability(basePoll)).toEqual({
+      canSend: true,
+      helper: 'Inga utskick ännu.',
+    });
+
+    const pollWithEmptyLogs = { ...basePoll, mail_logs: [] };
+    expect(computeEmailAvailability(pollWithEmptyLogs)).toEqual({
+      canSend: true,
+      helper: 'Inga utskick ännu.',
+    });
+  });
+
+  it('should return canSend: false when mail_logs has 2 or more entries (max limit)', () => {
+    const logs: AvailabilityPollMailLog[] = [
+      { id: '1', poll_id: 'poll1', sent_by: 'user1', sent_at: '2024-01-02T10:00:00Z' },
+      { id: '2', poll_id: 'poll1', sent_by: 'user1', sent_at: '2024-01-01T10:00:00Z' },
+    ];
+    const pollWithTwoLogs = { ...basePoll, mail_logs: logs };
+    expect(computeEmailAvailability(pollWithTwoLogs)).toEqual({
+      canSend: false,
+      helper: 'Max 2 mail redan skickade för denna omröstning.',
+    });
+  });
+
+  it('should return canSend: false and wait time when last email sent less than 24h ago', () => {
+    const sentAt = new Date('2024-01-01T10:00:00Z');
+    // 2 hours later
+    const now = new Date('2024-01-01T12:00:00Z');
+    vi.setSystemTime(now);
+
+    const logs: AvailabilityPollMailLog[] = [
+      { id: '1', poll_id: 'poll1', sent_by: 'user1', sent_at: sentAt.toISOString() },
+    ];
+    const poll = { ...basePoll, mail_logs: logs };
+
+    // Expected remaining: 24 - 2 = 22 hours
+    expect(computeEmailAvailability(poll)).toEqual({
+      canSend: false,
+      helper: 'Vänta cirka 22h till nästa utskick.',
+    });
+  });
+
+  it('should return canSend: true when last email sent more than 24h ago', () => {
+    const sentAt = new Date('2024-01-01T10:00:00Z');
+    // 25 hours later
+    const now = new Date('2024-01-02T11:00:00Z');
+    vi.setSystemTime(now);
+
+    const logs: AvailabilityPollMailLog[] = [
+      { id: '1', poll_id: 'poll1', sent_by: 'user1', sent_at: sentAt.toISOString() },
+    ];
+    const poll = { ...basePoll, mail_logs: logs };
+
+    expect(computeEmailAvailability(poll)).toEqual({
+      canSend: true,
+      helper: 'Du kan skicka påminnelse nu.',
+    });
   });
 });
