@@ -10,7 +10,7 @@ import MatchShareRedirectPage from "./pages/MatchShareRedirectPage";
 import OfflinePage from "./pages/OfflinePage";
 import EducationPage from "./pages/EducationPage";
 import PuzzlesPage from "./pages/PuzzlesPage";
-import NotificationsPage from "./pages/NotificationsPage";
+import SettingsPage from "./pages/SettingsPage";
 import { useStore } from "./store/useStore";
 import PageTransition from "./Components/Shared/PageTransition";
 
@@ -23,7 +23,8 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<PageTransition><PlayerProfilePage /></PageTransition>} />
       <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
-      <Route path="/notifications" element={<PageTransition><NotificationsPage /></PageTransition>} />
+      <Route path="/notifications" element={<Navigate to="/settings" replace />} />
+      <Route path="/settings" element={<PageTransition><SettingsPage /></PageTransition>} />
       <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
       <Route path="/history" element={<PageTransition><HistoryPage /></PageTransition>} />
       <Route path="/matchhistory" element={<Navigate to="/history" replace />} />
