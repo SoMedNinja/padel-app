@@ -30,7 +30,26 @@ const AnimatedNumber = ({ value, color }: { value: number, color?: string }) => 
     requestAnimationFrame(update);
   }, [value]);
 
-  return <Typography variant="h5" sx={{ fontWeight: 900, color }}>{displayValue}</Typography>;
+  return (
+    <Typography variant="h5" sx={{ fontWeight: 900, color }}>
+      <span aria-hidden="true">{displayValue}</span>
+      <span
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: "0",
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0,0,0,0)",
+          border: "0",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {value}
+      </span>
+    </Typography>
+  );
 };
 
 export default function MatchSuccessCeremony({ recap }: MatchSuccessCeremonyProps) {

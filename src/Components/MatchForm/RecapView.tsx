@@ -180,9 +180,10 @@ export default function RecapView({
                 >
                   <GroupsIcon fontSize="small" /> Topp vinster
                 </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Box component="ul" sx={{ display: "flex", flexDirection: "column", gap: 1, p: 0, m: 0, listStyle: 'none' }}>
                   {eveningRecap.leaders.map((player: EveningRecapLeader) => (
                     <Paper
+                      component="li"
                       key={player.id}
                       variant="outlined"
                       sx={{
