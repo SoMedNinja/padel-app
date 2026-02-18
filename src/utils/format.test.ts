@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate } from './format';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate, formatChartTimestamp } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -195,5 +195,29 @@ describe('formatShortDate', () => {
 
   it('should return empty string for invalid date string', () => {
     expect(formatShortDate('invalid-date')).toBe('');
+  });
+});
+
+describe('formatChartTimestamp', () => {
+  it('should format timestamp (number) without time by default', () => {
+    const timestamp = new Date('2024-05-12T12:00:00').getTime();
+    expect(formatChartTimestamp(timestamp)).toBe('12 maj 2024');
+  });
+
+  it('should format date string without time by default', () => {
+    expect(formatChartTimestamp('2024-05-12T12:00:00')).toBe('12 maj 2024');
+  });
+
+  it('should include time when requested', () => {
+    const timestamp = new Date('2024-05-12T12:00:00').getTime();
+    // Swedish locale time format is typically HH:mm
+    expect(formatChartTimestamp(timestamp, true)).toMatch(/12 maj 2024.*12:00/);
+  });
+
+  it('should handle zero, empty string, and invalid inputs', () => {
+    expect(formatChartTimestamp(0)).toBe('');
+    expect(formatChartTimestamp('')).toBe('');
+    expect(formatChartTimestamp(null as any)).toBe('');
+    expect(formatChartTimestamp(undefined as any)).toBe('');
   });
 });
