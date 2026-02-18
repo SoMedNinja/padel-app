@@ -4,23 +4,10 @@ export const corsHeaders = {
 };
 
 export const GUEST_ID = "guest";
-export const ELO_BASELINE = 1000;
-export const BASE_K = 20;
-export const HIGH_K = 40;
-export const MID_K = 30;
-export const MAX_MARGIN_MULTIPLIER = 1.2;
-export const MAX_PLAYER_WEIGHT = 1.25;
-export const MIN_PLAYER_WEIGHT = 0.75;
-export const EXPECTED_SCORE_DIVISOR = 300;
-export const PLAYER_WEIGHT_DIVISOR = 800;
-export const SHORT_SET_MAX = 3;
-export const LONG_SET_MIN = 6;
-export const SHORT_POINTS_MAX = 15;
-export const MID_POINTS_MAX = 21;
-export const SHORT_MATCH_WEIGHT = 0.5;
-export const MID_MATCH_WEIGHT = 0.5;
-export const LONG_MATCH_WEIGHT = 1;
-export const SINGLES_MATCH_WEIGHT = 0.5;
+
+// Re-export shared ELO constants
+export * from "./shared_elo/constants.ts";
+
 export const ALLOWED_TEST_ROLES = new Set(["authenticated", "service_role"]);
 export const ALLOWED_BROADCAST_ROLES = new Set(["admin", "service_role"]);
 export const WEEKLY_MIN_GAMES = 1;
