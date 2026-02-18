@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type VirtualItem = {
   index: number;
@@ -23,6 +23,15 @@ export function useVirtualWindow({
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [sizesVersion, setSizesVersion] = useState(0);
+  const rafId = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+      }
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const element = parentRef.current;
@@ -111,7 +120,12 @@ export function useVirtualWindow({
       const updateSize = (height: number) => {
         if (itemSizes.current.get(index) !== height) {
           itemSizes.current.set(index, height);
-          setSizesVersion((version) => version + 1);
+          if (rafId.current === null) {
+            rafId.current = requestAnimationFrame(() => {
+              rafId.current = null;
+              setSizesVersion((version) => version + 1);
+            });
+          }
         }
       };
       updateSize(node.getBoundingClientRect().height);
