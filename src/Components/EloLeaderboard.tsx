@@ -390,13 +390,12 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       onClick={() => handlePlayerClick(p)}
                       sx={{
                         position: 'absolute',
-                        top: 0,
+                        top: `${virtualItem.start}px`,
                         left: 0,
                         width: '100%',
                         display: 'grid',
                         gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
                         alignItems: 'center',
-                        transform: `translateY(${virtualItem.start}px)`,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
                         minHeight: 56,
