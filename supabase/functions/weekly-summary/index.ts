@@ -767,23 +767,54 @@ Deno.serve(async (req) => {
     }
 
     // Performance Optimization: Fetch only active users instead of all users.
-    // Fetching users individually is much faster when active users are few compared to total users.
     const activeIdsArray = Array.from(activePlayerIds);
+    const activeIdsSet = new Set(activeIdsArray);
     const allUsers: any[] = [];
+    const userMap = new Map<string, any>();
 
-    // Batch processing to avoid rate limits
-    const BATCH_SIZE = 10;
-    for (let i = 0; i < activeIdsArray.length; i += BATCH_SIZE) {
-      const batch = activeIdsArray.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(batch.map(id => supabase.auth.admin.getUserById(id)));
-      results.forEach(result => {
-        if (result.data && result.data.user) {
-          allUsers.push(result.data.user);
-        } else if (result.error) {
-          console.error(`Failed to fetch user (active player check):`, result.error);
+    // Fetch users in bulk using listUsers with pagination to avoid N+1 requests
+    let page = 1;
+    const PER_PAGE = 1000;
+
+    // We continue fetching until we either run out of users or find all active users
+    while (true) {
+      const { data, error } = await supabase.auth.admin.listUsers({
+        page,
+        perPage: PER_PAGE,
+      });
+
+      if (error) {
+        console.error("Error fetching users list:", error);
+        // If bulk fetch fails, we abort the user resolution but continue with empty list
+        break;
+      }
+
+      const users = data?.users || [];
+      if (users.length === 0) break;
+
+      // Only store users that are in the active list to save memory
+      users.forEach((u: any) => {
+        if (activeIdsSet.has(u.id)) {
+          userMap.set(u.id, u);
         }
       });
+
+      // Optimization: Stop fetching if we have found all active users
+      if (userMap.size === activeIdsSet.size) break;
+
+      if (users.length < PER_PAGE) break;
+      page++;
     }
+
+    // Populate allUsers from the map, only including found users
+    activeIdsArray.forEach(id => {
+      if (userMap.has(id)) {
+        allUsers.push(userMap.get(id));
+      } else {
+        // Log missing users similar to original implementation
+        console.warn(`User ${id} not found in Auth users list.`);
+      }
+    });
 
     // Non-coder note: Supabase stores emails in slightly different places depending on sign-in method,
     // so we look in a few common spots before deciding an email is missing.
