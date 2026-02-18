@@ -5,6 +5,7 @@ import {
   NotificationPreferences,
   normalizeNotificationPreferencesForPersistence,
 } from "../types/notifications";
+import { PermissionStatusSnapshot } from "../types/permissions";
 import { sharedPermissionActionLabel, sharedPermissionGuidance } from "../shared/permissionsCopy";
 import { UpdateUrgency } from "../shared/updateStates";
 import { supabase } from "../supabaseClient";
@@ -421,15 +422,17 @@ async function getServiceWorkerDiagnostics(): Promise<{ supported: boolean; regi
   }
 }
 
-// Note for non-coders:
-// This collects the browser's capability checks and translates them into the shared state labels.
-export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSnapshot[]> {
-  const isSecureContext = typeof window !== "undefined" ? window.isSecureContext : false;
-  const isInstalledPwa = detectStandaloneInstallState();
+// Helper: Build Notification Snapshot
+async function buildNotificationSnapshot(
+  isSecureContext: boolean,
+  isInstalledPwa: boolean,
+  swDiagnostics: { supported: boolean; registration: ServiceWorkerRegistration | null; ready: boolean }
+): Promise<PermissionStatusSnapshot> {
   const notificationBrowserLimitation = detectNotificationBrowserLimitation(isInstalledPwa);
   const notificationSupported = typeof window !== "undefined" && "Notification" in window;
   const notificationPermission = notificationSupported ? Notification.permission : "denied";
-  const { supported: swSupported, registration: swRegistration, ready: swReady } = await getServiceWorkerDiagnostics();
+  const { supported: swSupported, ready: swReady } = swDiagnostics;
+
   const pushSupported = swSupported && typeof window !== "undefined" && "PushManager" in window;
   let hasPushEndpoint = false;
 
@@ -437,8 +440,6 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
     const registration = await navigator.serviceWorker.ready;
     hasPushEndpoint = Boolean(await registration.pushManager.getSubscription());
   }
-
-  const backgroundSyncSupported = swSupported && "SyncManager" in window;
 
   const notificationState: PermissionStatusSnapshot["state"] =
     !isSecureContext
@@ -467,7 +468,7 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
               ? `${sharedPermissionGuidance("notifications", "action_needed")} Behörighet är tillåten men push-endpoint saknas. ${!WEB_PUSH_PUBLIC_KEY ? "VAPID-nyckel saknas i miljön." : 'Tryck på "Kör konfiguration igen" för att slutföra endpoint-registreringen.'}`
               : `${sharedPermissionGuidance("notifications", "action_needed")} Webbläsarbehörigheten är standard.`;
 
-  const notifications: PermissionStatusSnapshot = {
+  return {
     capability: "notifications",
     state: notificationState,
     detail: notificationDetail,
@@ -478,47 +479,87 @@ export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSna
       notificationPermission !== "granted" ||
       !hasPushEndpoint,
   };
+}
 
-  const backgroundRefresh: PermissionStatusSnapshot = {
+// Helper: Build Background Refresh Snapshot
+function buildBackgroundRefreshSnapshot(
+  isSecureContext: boolean,
+  swDiagnostics: { supported: boolean; registration: ServiceWorkerRegistration | null; ready: boolean }
+): PermissionStatusSnapshot {
+  const { supported: swSupported, registration: swRegistration, ready: swReady } = swDiagnostics;
+  const backgroundSyncSupported = swSupported && "SyncManager" in window;
+
+  const state: PermissionStatusSnapshot["state"] = !isSecureContext
+    ? "limited"
+    : !swSupported
+    ? "limited"
+    : swReady
+    ? "allowed"
+    : "action_needed";
+
+  const detail = !isSecureContext
+    ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers kräver HTTPS (säker kontext).`
+    : !swSupported
+    ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers är inte tillgängliga i den här webbläsaren.`
+    : swReady
+    ? `${sharedPermissionGuidance("background_refresh", "allowed")} Service worker är aktiv${backgroundSyncSupported ? " och background sync stöds" : ", men API:et för background sync är begränsat"}.`
+    : `${sharedPermissionGuidance("background_refresh", "action_needed")} ${swRegistration ? "En registrering finns men är inte aktiv ännu. Försök igen efter omladdning eller ominstallation av appen." : "Service worker är inte registrerad ännu. Försök igen och tillåt installation."}`;
+
+  return {
     capability: "background_refresh",
-    state: !isSecureContext ? "limited" : !swSupported ? "limited" : swReady ? "allowed" : "action_needed",
-    detail: !isSecureContext
-      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers kräver HTTPS (säker kontext).`
-      : !swSupported
-      ? `${sharedPermissionGuidance("background_refresh", "limited")} Service workers är inte tillgängliga i den här webbläsaren.`
-      : swReady
-        ? `${sharedPermissionGuidance("background_refresh", "allowed")} Service worker är aktiv${backgroundSyncSupported ? " och background sync stöds" : ", men API:et för background sync är begränsat"}.`
-        : `${sharedPermissionGuidance("background_refresh", "action_needed")} ${swRegistration ? "En registrering finns men är inte aktiv ännu. Försök igen efter omladdning eller ominstallation av appen." : "Service worker är inte registrerad ännu. Försök igen och tillåt installation."}`,
-    actionLabel: sharedPermissionActionLabel(
-      "background_refresh",
-      !isSecureContext ? "limited" : !swSupported ? "limited" : swReady ? "allowed" : "action_needed"
-    ),
+    state,
+    detail,
+    actionLabel: sharedPermissionActionLabel("background_refresh", state),
     actionEnabled: true,
   };
+}
 
+// Helper: Build Biometrics Snapshot
+async function buildBiometricsSnapshot(): Promise<PermissionStatusSnapshot> {
   const passkeyApiSupported = typeof window !== "undefined" && "PublicKeyCredential" in window;
   const passkeyPlatformSupported = passkeyApiSupported && typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
     ? await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
     : false;
-  const biometricsPasskey: PermissionStatusSnapshot = {
+
+  const state: PermissionStatusSnapshot["state"] = passkeyApiSupported && passkeyPlatformSupported ? "allowed" : "limited";
+
+  const detail = passkeyApiSupported && passkeyPlatformSupported
+    ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Plattformsautentiserare finns tillgänglig på enheten.`
+    : passkeyApiSupported
+    ? `${sharedPermissionGuidance("biometric_passkey", "limited")} WebAuthn finns, men ingen plattformsautentiserare hittades.`
+    : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey-API:er är inte tillgängliga i den här webbläsaren.`;
+
+  return {
     capability: "biometric_passkey",
-    state: passkeyApiSupported && passkeyPlatformSupported ? "allowed" : "limited",
-    detail: passkeyApiSupported && passkeyPlatformSupported
-      ? `${sharedPermissionGuidance("biometric_passkey", "allowed")} Plattformsautentiserare finns tillgänglig på enheten.`
-      : passkeyApiSupported
-        ? `${sharedPermissionGuidance("biometric_passkey", "limited")} WebAuthn finns, men ingen plattformsautentiserare hittades.`
-        : `${sharedPermissionGuidance("biometric_passkey", "limited")} Passkey-API:er är inte tillgängliga i den här webbläsaren.`,
-    actionLabel: sharedPermissionActionLabel("biometric_passkey", passkeyApiSupported && passkeyPlatformSupported ? "allowed" : "limited"),
+    state,
+    detail,
+    actionLabel: sharedPermissionActionLabel("biometric_passkey", state),
     actionEnabled: true,
   };
+}
 
-  const calendar: PermissionStatusSnapshot = {
+// Helper: Build Calendar Snapshot
+function buildCalendarSnapshot(): PermissionStatusSnapshot {
+  return {
     capability: "calendar",
     state: "limited",
     detail: `${sharedPermissionGuidance("calendar", "limited")} Webbappar kan inte slå av/på operativsystemets kalenderbehörighet direkt.`,
     actionLabel: sharedPermissionActionLabel("calendar", "limited"),
     actionEnabled: false,
   };
+}
 
-  return [notifications, backgroundRefresh, biometricsPasskey, calendar];
+// Note for non-coders:
+// This collects the browser's capability checks and translates them into the shared state labels.
+export async function buildWebPermissionSnapshots(): Promise<PermissionStatusSnapshot[]> {
+  const isSecureContext = typeof window !== "undefined" ? window.isSecureContext : false;
+  const isInstalledPwa = detectStandaloneInstallState();
+  const swDiagnostics = await getServiceWorkerDiagnostics();
+
+  const notifications = await buildNotificationSnapshot(isSecureContext, isInstalledPwa, swDiagnostics);
+  const backgroundRefresh = buildBackgroundRefreshSnapshot(isSecureContext, swDiagnostics);
+  const biometrics = await buildBiometricsSnapshot();
+  const calendar = buildCalendarSnapshot();
+
+  return [notifications, backgroundRefresh, biometrics, calendar];
 }
