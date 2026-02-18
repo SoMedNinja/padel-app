@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, AlertTitle, Box, Button, Stack, Typography } from "@mui/material";
-import IosShareIcon from "@mui/icons-material/IosShare";
-import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { Alert, AlertTitle, Button, Typography } from "@mui/material";
 import { useStore } from "../store/useStore";
 import { getInstallGuidanceContext, INSTALL_GUIDANCE_COPY, detectStandaloneInstallState } from "../shared/installGuidance";
 import {
@@ -179,49 +176,23 @@ export default function InstallPrompt() {
       )}
       >
         <AlertTitle>{INSTALL_GUIDANCE_COPY.iosTitle}</AlertTitle>
-        <Typography variant="body2" component="div" sx={{ mb: 0.75 }}>
+        <Typography variant="body2" component="div" sx={{ mb: 1 }}>
           {INSTALL_GUIDANCE_COPY.valueProposition}
         </Typography>
-        <Typography variant="body2" component="div">
-          {INSTALL_GUIDANCE_COPY.iosManualIntro}
-        </Typography>
-        <Box component="ol" sx={{ mt: 1, mb: 0, pl: 2.5 }}>
-          <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
-            {INSTALL_GUIDANCE_COPY.iosManualSteps[0]} <IosShareIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
-          </Typography>
-          <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
-            {INSTALL_GUIDANCE_COPY.iosManualSteps[1]} <AddBoxOutlinedIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
-          </Typography>
-        </Box>
-        <Box
-          sx={{
-            mt: 1.5,
-            px: 1,
-            py: 0.75,
-            borderRadius: 1,
-            border: "1px dashed",
-            borderColor: "info.main",
+        <Button
+          variant="contained"
+          size="small"
+          onClick={() => {
+            recordInstallCtaEvent({
+              surface: "install_prompt",
+              cta: "open_permission_guide",
+              promptType: "ios_manual",
+              platformIntent,
+            });
+            requestOpenPermissionGuide("install_prompt");
           }}
         >
-          <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
-            Mini-guide: dela-menyn till hemskärm
-          </Typography>
-          <Stack direction="row" alignItems="center" spacing={0.75}>
-            <IosShareIcon sx={{ fontSize: 18 }} />
-            <ArrowForwardIcon sx={{ fontSize: 14, opacity: 0.7 }} />
-            <AddBoxOutlinedIcon sx={{ fontSize: 18 }} />
-          </Stack>
-        </Box>
-        <Button color="inherit" size="small" sx={{ mt: 1 }} onClick={() => {
-          recordInstallCtaEvent({
-            surface: "install_prompt",
-            cta: "open_permission_guide",
-            promptType: "ios_manual",
-            platformIntent,
-          });
-          requestOpenPermissionGuide("install_prompt");
-        }}>
-          Behörighetshjälp
+          Visa hur
         </Button>
       </Alert>
     );

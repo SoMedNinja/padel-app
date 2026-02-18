@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Drawer, LinearProgress, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import IosShareIcon from "@mui/icons-material/IosShare";
+import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
   buildWebPermissionSnapshots,
   detectStandaloneInstallState,
@@ -34,6 +37,9 @@ export default function PermissionActionGuide() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [metrics, setMetrics] = useState(() => loadPermissionGuideMetrics());
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const installGuidanceContext = useMemo(() => getInstallGuidanceContext(), []);
 
@@ -130,41 +136,114 @@ export default function PermissionActionGuide() {
     maybeRecordCompletion(before, after);
   };
 
+  const renderGuideContent = () => {
+    const isIosSafari = installGuidanceContext.platformIntent === "ios_safari";
+
+    return (
+      <Stack spacing={1.5}>
+        <Typography variant="body2" color="text.secondary">
+          {/* Note for non-coders: this explains that we show one next-best action at a time instead of a long technical list. */}
+          Öppnad från: {entryPoint}. Vi visar ett steg i taget så att inställningen blir enkel att följa.
+        </Typography>
+
+        <Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">Framsteg</Typography>
+            <Chip label={`${completedCount}/${steps.length}`} size="small" color={completedCount === steps.length ? "success" : "primary"} />
+          </Stack>
+          <LinearProgress variant="determinate" value={completionRatio} />
+        </Box>
+
+        <Alert severity={activeStep.done ? "success" : "info"}>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>{activeStep.title}</Typography>
+          {activeStep.key === "install" && isIosSafari && !activeStep.done ? (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                {INSTALL_GUIDANCE_COPY.iosManualIntro}
+              </Typography>
+              <Box component="ol" sx={{ pl: 2.5, mb: 1.5 }}>
+                <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
+                  {INSTALL_GUIDANCE_COPY.iosManualSteps[0]} <IosShareIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
+                </Typography>
+                <Typography component="li" variant="body2" sx={{ display: "list-item" }}>
+                  {INSTALL_GUIDANCE_COPY.iosManualSteps[1]} <AddBoxOutlinedIcon sx={{ fontSize: 16, verticalAlign: "text-bottom" }} />.
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.75,
+                  borderRadius: 1,
+                  border: "1px dashed",
+                  borderColor: "info.main",
+                  bgcolor: "background.paper"
+                }}
+              >
+                <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
+                  Mini-guide:
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={0.75}>
+                  <IosShareIcon sx={{ fontSize: 18 }} />
+                  <ArrowForwardIcon sx={{ fontSize: 14, opacity: 0.7 }} />
+                  <AddBoxOutlinedIcon sx={{ fontSize: 18 }} />
+                </Stack>
+              </Box>
+            </Box>
+          ) : (
+            <Typography variant="body2">{activeStep.helpText}</Typography>
+          )}
+        </Alert>
+
+        <Typography variant="caption" color="text.secondary">
+          Slutförandeanalys (lokalt): installation {metrics.install.completions}/{metrics.install.attempts}, notiser {metrics.notifications.completions}/{metrics.notifications.attempts}, bakgrund {metrics.background_refresh.completions}/{metrics.background_refresh.attempts}
+        </Typography>
+
+        {message ? <Alert severity="info">{message}</Alert> : null}
+      </Stack>
+    );
+  };
+
+  const renderGuideActions = () => (
+    <>
+      <Button onClick={() => void refreshState()}>Uppdatera status</Button>
+      <Button variant="contained" onClick={() => void runStepAction()}>
+        {activeStep.done ? "Klart" : "Gör detta steg"}
+      </Button>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        anchor="bottom"
+        open={open}
+        onClose={() => setOpen(false)}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            p: 2,
+            maxHeight: "85vh" // Prevents it from taking up too much height on small screens
+          }
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2 }}>Guide för behörighetsinställning</Typography>
+        {renderGuideContent()}
+        <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 3 }}>
+          {renderGuideActions()}
+        </Stack>
+      </Drawer>
+    );
+  }
+
   return (
     <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
       <DialogTitle>Guide för behörighetsinställning</DialogTitle>
       <DialogContent>
-        <Stack spacing={1.5}>
-          <Typography variant="body2" color="text.secondary">
-            {/* Note for non-coders: this explains that we show one next-best action at a time instead of a long technical list. */}
-            Öppnad från: {entryPoint}. Vi visar ett steg i taget så att inställningen blir enkel att följa.
-          </Typography>
-
-          <Box>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">Framsteg</Typography>
-              <Chip label={`${completedCount}/${steps.length}`} size="small" color={completedCount === steps.length ? "success" : "primary"} />
-            </Stack>
-            <LinearProgress variant="determinate" value={completionRatio} />
-          </Box>
-
-          <Alert severity={activeStep.done ? "success" : "info"}>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>{activeStep.title}</Typography>
-            <Typography variant="body2">{activeStep.helpText}</Typography>
-          </Alert>
-
-          <Typography variant="caption" color="text.secondary">
-            Slutförandeanalys (lokalt): installation {metrics.install.completions}/{metrics.install.attempts}, notiser {metrics.notifications.completions}/{metrics.notifications.attempts}, bakgrund {metrics.background_refresh.completions}/{metrics.background_refresh.attempts}
-          </Typography>
-
-          {message ? <Alert severity="info">{message}</Alert> : null}
-        </Stack>
+        {renderGuideContent()}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => void refreshState()}>Uppdatera status</Button>
-        <Button variant="contained" onClick={() => void runStepAction()}>
-          {activeStep.done ? "Klart" : "Gör detta steg"}
-        </Button>
+        {renderGuideActions()}
       </DialogActions>
     </Dialog>
   );
