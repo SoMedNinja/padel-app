@@ -239,26 +239,40 @@ Deno.serve(async (req) => {
 
     const allUsers: Array<{ id: string; email?: string }> = [];
     const profileIds = (profiles || []).map((p) => p.id);
-    const BATCH_SIZE = 10;
 
-    for (let i = 0; i < profileIds.length; i += BATCH_SIZE) {
-      const batch = profileIds.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(batch.map((id) => adminClient.auth.admin.getUserById(id)));
+    // Bulk fetch users to avoid N+1 problem
+    const userMap = new Map<string, { id: string; email?: string }>();
+    let page = 1;
+    const PER_PAGE = 1000;
 
-      results.forEach((result, index) => {
-        const id = batch[index];
-        if (result.data && result.data.user) {
-          allUsers.push({
-            id: result.data.user.id,
-            email: result.data.user.email || undefined,
-          });
-        } else if (result.error) {
-          // We log the error but do not throw, to ensure that a single missing/mismatched user
-          // does not prevent emails from being sent to all other valid recipients.
-          console.error(`Failed to fetch user ${id}: ${result.error.message}`);
-        }
-      });
+    if (profileIds.length > 0) {
+      while (true) {
+        const { data, error: listUsersError } = await adminClient.auth.admin.listUsers({
+          page,
+          perPage: PER_PAGE,
+        });
+        if (listUsersError) throw listUsersError;
+
+        const users = data?.users;
+        if (!users || users.length === 0) break;
+
+        users.forEach((user) => {
+          userMap.set(user.id, { id: user.id, email: user.email || undefined });
+        });
+
+        if (users.length < PER_PAGE) break;
+        page++;
+      }
     }
+
+    profileIds.forEach((id) => {
+      const user = userMap.get(id);
+      if (user) {
+        allUsers.push(user);
+      } else {
+        console.error(`Failed to fetch user ${id}: User not found in Auth list`);
+      }
+    });
 
     const emailByUser = new Map<string, string>();
     allUsers.forEach((entry) => {
