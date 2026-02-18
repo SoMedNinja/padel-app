@@ -211,22 +211,34 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     }
   };
 
-  // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort and copy.
-  let isSorted = true;
+  // Optimization: check if matches are already sorted (O(N)).
+  // Supabase usually returns newest first (descending), but ELO calculation needs oldest first (ascending).
+  let isAscending = true;
+  let isDescending = true;
+
   for (let i = 1; i < matches.length; i++) {
-    if (matches[i].created_at < matches[i - 1].created_at) {
-      isSorted = false;
-      break;
-    }
+    const curr = matches[i].created_at;
+    const prev = matches[i - 1].created_at;
+    if (curr < prev) isAscending = false;
+    if (curr > prev) isDescending = false;
+    if (!isAscending && !isDescending) break;
   }
 
-  // Optimization: use string comparison for sorting to avoid expensive new Date() calls.
-  // ISO 8601 strings sort correctly lexicographically.
-  const sortedMatches = isSorted ? matches : [...matches].sort((a, b) => {
-    if (a.created_at < b.created_at) return -1;
-    if (a.created_at > b.created_at) return 1;
-    return 0;
-  });
+  let sortedMatches: Match[] = matches;
+
+  if (isAscending) {
+    sortedMatches = matches;
+  } else if (isDescending) {
+    // Optimization: Reverse is O(N) which is faster than Sort O(N log N)
+    sortedMatches = [...matches].reverse();
+  } else {
+    // Unsorted, must sort O(N log N)
+    sortedMatches = [...matches].sort((a, b) => {
+      if (a.created_at < b.created_at) return -1;
+      if (a.created_at > b.created_at) return 1;
+      return 0;
+    });
+  }
 
   const eloDeltaByMatch: Record<string, Record<string, number>> = {};
   const eloRatingByMatch: Record<string, Record<string, number>> = {};

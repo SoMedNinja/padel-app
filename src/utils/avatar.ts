@@ -24,10 +24,20 @@ const canUseStorage = () => {
   return _canUseStorage;
 };
 
+// Optimization: Cache localStorage reads in memory to avoid synchronous IO on every render.
+const avatarCache = new Map<string, string | null>();
+
 export const getStoredAvatar = (id: string | null | undefined) => {
   if (!id || !canUseStorage()) return null;
+
+  if (avatarCache.has(id)) {
+    return avatarCache.get(id) || null;
+  }
+
   try {
-    return localStorage.getItem(`padel-avatar:${id}`);
+    const val = localStorage.getItem(`padel-avatar:${id}`);
+    avatarCache.set(id, val);
+    return val;
   } catch {
     return null;
   }
@@ -37,6 +47,7 @@ export const setStoredAvatar = (id: string | null | undefined, value: string) =>
   if (!id || !canUseStorage()) return false;
   try {
     localStorage.setItem(`padel-avatar:${id}`, value);
+    avatarCache.set(id, value);
     return true;
   } catch {
     return false;
@@ -47,6 +58,7 @@ export const removeStoredAvatar = (id: string | null | undefined) => {
   if (!id || !canUseStorage()) return false;
   try {
     localStorage.removeItem(`padel-avatar:${id}`);
+    avatarCache.set(id, null);
     return true;
   } catch {
     return false;
