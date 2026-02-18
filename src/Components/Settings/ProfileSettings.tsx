@@ -306,13 +306,14 @@ export default function ProfileSettings({
               />
             )}
           </Box>
-          <Typography variant="caption" color="text.secondary">Zoom</Typography>
+          <Typography variant="caption" color="text.secondary" id="zoom-label">Zoom</Typography>
           <Slider
             value={avatarZoom}
             min={1}
             max={3}
             step={0.1}
             onChange={(_, val) => setAvatarZoom(val as number)}
+            aria-labelledby="zoom-label"
           />
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>

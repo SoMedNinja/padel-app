@@ -126,7 +126,11 @@ export default function RivalryModal({
             </Box>
           </Stack>
 
-          <Box sx={{ mt: 2, height: 8, bgcolor: 'grey.200', borderRadius: 4, overflow: 'hidden', display: 'flex' }}>
+          <Box
+            role="img"
+            aria-label={`Vinstfördelning: Du ${winRate}%, Motståndare ${100 - winRate}%`}
+            sx={{ mt: 2, height: 8, bgcolor: 'grey.200', borderRadius: 4, overflow: 'hidden', display: 'flex' }}
+          >
             <Box sx={{ width: `${winRate}%`, bgcolor: 'primary.main', height: '100%' }} />
             <Box sx={{ flex: 1, bgcolor: 'grey.400', height: '100%' }} />
           </Box>
