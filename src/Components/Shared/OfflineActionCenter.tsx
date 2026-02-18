@@ -96,6 +96,15 @@ export default function OfflineActionCenter() {
           cursor: 'pointer'
         }}
         onClick={handleToggle}
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleToggle();
+        }
+      }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ color: `${getStatusColor()}.main`, display: 'flex' }}>
@@ -110,7 +119,12 @@ export default function OfflineActionCenter() {
             </Typography>
           </Box>
         </Box>
-        <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleToggle(); }}>
+        <IconButton
+          component="div"
+          size="small"
+          aria-hidden="true"
+          tabIndex={-1}
+        >
           {expanded ? <ExpandLess /> : <ExpandMore />}
         </IconButton>
       </Box>
