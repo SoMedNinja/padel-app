@@ -135,20 +135,20 @@ export const buildPlayerDelta = ({
   );
 };
 
-export function calculateElo(matches: Match[], profiles: Profile[] = []): PlayerStats[] {
-  return calculateEloWithStats(matches, profiles).players;
-}
+// --- Helper Functions for Refactoring ---
 
-export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []): {
-  players: PlayerStats[];
-  eloDeltaByMatch: Record<string, Record<string, number>>;
-  eloRatingByMatch: Record<string, Record<string, number>>;
+/**
+ * Initializes player stats from profiles.
+ */
+function initializePlayerStats(profiles: Profile[]): {
+  players: Record<string, PlayerStats>;
+  profileMap: Map<string, Profile>;
+  nameToIdMap: Map<string, string>;
+  ensurePlayer: (id: string, p?: Profile, resolvedName?: string) => void;
 } {
   const players: Record<string, PlayerStats> = {};
   const profileMap = new Map<string, Profile>();
   const nameToIdMap = new Map<string, string>();
-  const avatarMap: Record<string, string | null> = {};
-  const badgeMap: Record<string, string | null> = {};
 
   const ensurePlayer = (id: string, p?: Profile, resolvedName?: string) => {
     if (id === GUEST_ID || players[id]) return;
@@ -167,8 +167,8 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
       games: 0,
       history: [],
       partners: {},
-      avatarUrl: p?.avatar_url || null,
-      featuredBadgeId: p?.featured_badge_id || null,
+      avatarUrl: profile?.avatar_url || null,
+      featuredBadgeId: profile?.featured_badge_id || null,
       recentResults: [],
     };
   };
@@ -179,38 +179,16 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     const name = getProfileDisplayName(p);
     profileMap.set(p.id, p);
     nameToIdMap.set(name, p.id);
-    avatarMap[p.id] = p.avatar_url || null;
-    badgeMap[p.id] = p.featured_badge_id || null;
     ensurePlayer(p.id, p, name);
   }
 
-  const avg = (team: string[]) => {
-    let sum = 0;
-    const len = team.length;
-    for (let i = 0; i < len; i++) {
-      // Note: players[team[i]] should exist due to ensurePlayer/t1Active logic,
-      // but we keep the fallback for robust guest handling and safety.
-      sum += players[team[i]]?.elo ?? ELO_BASELINE;
-    }
-    return sum / len;
-  };
-  const recordPartners = (team: string[], didWin: boolean) => {
-    const len = team.length;
-    if (len < 2) return; // Optimization: skip for singles matches
-    for (let i = 0; i < len; i++) {
-      const playerId = team[i];
-      const player = players[playerId];
-      for (let j = 0; j < len; j++) {
-        const partnerId = team[j];
-        if (playerId === partnerId) continue;
-        const partnerStats = player.partners[partnerId] || { games: 0, wins: 0 };
-        partnerStats.games += 1;
-        if (didWin) partnerStats.wins += 1;
-        player.partners[partnerId] = partnerStats;
-      }
-    }
-  };
+  return { players, profileMap, nameToIdMap, ensurePlayer };
+}
 
+/**
+ * Sorts matches chronologically (ascending).
+ */
+function sortMatchesChronologically(matches: Match[]): Match[] {
   // Optimization: check if matches are already sorted (O(N)).
   // Supabase usually returns newest first (descending), but ELO calculation needs oldest first (ascending).
   let isAscending = true;
@@ -224,148 +202,182 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
     if (!isAscending && !isDescending) break;
   }
 
-  let sortedMatches: Match[] = matches;
-
   if (isAscending) {
-    sortedMatches = matches;
+    return matches;
   } else if (isDescending) {
     // Optimization: Reverse is O(N) which is faster than Sort O(N log N)
-    sortedMatches = [...matches].reverse();
+    return [...matches].reverse();
   } else {
     // Unsorted, must sort O(N log N)
-    sortedMatches = [...matches].sort((a, b) => {
+    return [...matches].sort((a, b) => {
       if (a.created_at < b.created_at) return -1;
       if (a.created_at > b.created_at) return 1;
       return 0;
     });
   }
+}
 
-  const eloDeltaByMatch: Record<string, Record<string, number>> = {};
-  const eloRatingByMatch: Record<string, Record<string, number>> = {};
-
-  // Optimization: use a for-loop instead of forEach for the main match processing loop.
-  for (let matchIdx = 0; matchIdx < sortedMatches.length; matchIdx++) {
-    const m = sortedMatches[matchIdx];
-    // We only instantiate Date once per match in the sorted loop
-    const historyStamp = new Date(m.created_at).getTime();
-
-    // Optimization: Consolidate team resolution, player insurance, and active filtering into single-pass loops.
-    // This reduces iterations and avoids multiple intermediate array allocations per match.
-    const t1Raw = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
-    const t2Raw = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
-
-    const t1Active: string[] = [];
-    const t2Active: string[] = [];
-
-    for (let i = 0; i < t1Raw.length; i++) {
-      const id = t1Raw[i];
-      if (id && id !== GUEST_ID) {
-        if (!players[id]) ensurePlayer(id);
-        if (players[id]) t1Active.push(id);
-      }
+/**
+ * Records partner stats for a team.
+ */
+function recordPartners(team: string[], didWin: boolean, players: Record<string, PlayerStats>) {
+  const len = team.length;
+  if (len < 2) return; // Optimization: skip for singles matches
+  for (let i = 0; i < len; i++) {
+    const playerId = team[i];
+    const player = players[playerId];
+    for (let j = 0; j < len; j++) {
+      const partnerId = team[j];
+      if (playerId === partnerId) continue;
+      const partnerStats = player.partners[partnerId] || { games: 0, wins: 0 };
+      partnerStats.games += 1;
+      if (didWin) partnerStats.wins += 1;
+      player.partners[partnerId] = partnerStats;
     }
-    for (let i = 0; i < t2Raw.length; i++) {
-      const id = t2Raw[i];
-      if (id && id !== GUEST_ID) {
-        if (!players[id]) ensurePlayer(id);
-        if (players[id]) t2Active.push(id);
-      }
+  }
+}
+
+/**
+ * Processes a single match update.
+ */
+function processMatchUpdates(
+  match: Match,
+  players: Record<string, PlayerStats>,
+  nameToIdMap: Map<string, string>,
+  ensurePlayer: (id: string) => void
+): { matchDeltas: Record<string, number>; matchRatings: Record<string, number> } | null {
+
+  // Optimization: Consolidate team resolution, player insurance, and active filtering into single-pass loops.
+  // This reduces iterations and avoids multiple intermediate array allocations per match.
+  const t1Raw = resolveTeamIds(match.team1_ids, match.team1, nameToIdMap);
+  const t2Raw = resolveTeamIds(match.team2_ids, match.team2, nameToIdMap);
+
+  const t1Active: string[] = [];
+  const t2Active: string[] = [];
+
+  for (let i = 0; i < t1Raw.length; i++) {
+    const id = t1Raw[i];
+    if (id && id !== GUEST_ID) {
+      if (!players[id]) ensurePlayer(id);
+      if (players[id]) t1Active.push(id);
     }
-
-    if (!t1Active.length || !t2Active.length) continue;
-    if (!Number.isFinite(m.team1_sets) || !Number.isFinite(m.team2_sets)) continue;
-
-    const e1 = avg(t1Active);
-    const e2 = avg(t2Active);
-
-    const exp1 = getExpectedScore(e1, e2);
-    const team1Won = m.team1_sets > m.team2_sets;
-    const marginMultiplier = getMarginMultiplier(m.team1_sets, m.team2_sets);
-    const isSinglesMatch = t1Active.length === 1 && t2Active.length === 1;
-    const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
-
-    const matchDeltas: Record<string, number> = {};
-    const matchRatings: Record<string, number> = {};
-
-    // Optimization: Use for-loops instead of forEach to reduce function call overhead in hot match processing path.
-    for (let i = 0; i < t1Active.length; i++) {
-      const id = t1Active[i];
-      const player = players[id];
-      const delta = buildPlayerDelta({
-        playerElo: player.elo,
-        playerGames: player.games,
-        teamAverageElo: e1,
-        expectedScore: exp1,
-        didWin: team1Won,
-        marginMultiplier,
-        matchWeight,
-      });
-      player.elo += delta;
-      if (team1Won) {
-        player.wins++;
-      } else {
-        player.losses++;
-      }
-      player.games++;
-
-      const result = team1Won ? "W" : "L";
-      player.recentResults.push(result);
-      player.history.push({
-        result,
-        timestamp: historyStamp,
-        date: m.created_at || "",
-        delta,
-        elo: player.elo,
-        matchId: m.id,
-      });
-
-      matchDeltas[id] = delta;
-      matchRatings[id] = player.elo;
+  }
+  for (let i = 0; i < t2Raw.length; i++) {
+    const id = t2Raw[i];
+    if (id && id !== GUEST_ID) {
+      if (!players[id]) ensurePlayer(id);
+      if (players[id]) t2Active.push(id);
     }
-
-    for (let i = 0; i < t2Active.length; i++) {
-      const id = t2Active[i];
-      const player = players[id];
-      const delta = buildPlayerDelta({
-        playerElo: player.elo,
-        playerGames: player.games,
-        teamAverageElo: e2,
-        expectedScore: 1 - exp1,
-        didWin: !team1Won,
-        marginMultiplier,
-        matchWeight,
-      });
-      player.elo += delta;
-      if (team1Won) {
-        player.losses++;
-      } else {
-        player.wins++;
-      }
-      player.games++;
-
-      const result = team1Won ? "L" : "W";
-      player.recentResults.push(result);
-      player.history.push({
-        result,
-        timestamp: historyStamp,
-        date: m.created_at || "",
-        delta,
-        elo: player.elo,
-        matchId: m.id,
-      });
-
-      matchDeltas[id] = delta;
-      matchRatings[id] = player.elo;
-    }
-
-    eloDeltaByMatch[m.id] = matchDeltas;
-    eloRatingByMatch[m.id] = matchRatings;
-
-    recordPartners(t1Active, team1Won);
-    recordPartners(t2Active, !team1Won);
   }
 
-  const finalPlayers = Object.values(players).map(player => {
+  if (!t1Active.length || !t2Active.length) return null;
+  if (!Number.isFinite(match.team1_sets) || !Number.isFinite(match.team2_sets)) return null;
+
+  const avg = (team: string[]) => {
+    let sum = 0;
+    const len = team.length;
+    for (let i = 0; i < len; i++) {
+      sum += players[team[i]]?.elo ?? ELO_BASELINE;
+    }
+    return sum / len;
+  };
+
+  const e1 = avg(t1Active);
+  const e2 = avg(t2Active);
+
+  const exp1 = getExpectedScore(e1, e2);
+  const team1Won = match.team1_sets > match.team2_sets;
+  const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
+  const isSinglesMatch = t1Active.length === 1 && t2Active.length === 1;
+  const matchWeight = getSinglesAdjustedMatchWeight(match, isSinglesMatch);
+
+  const matchDeltas: Record<string, number> = {};
+  const matchRatings: Record<string, number> = {};
+  const historyStamp = new Date(match.created_at).getTime();
+
+  // Update Team 1
+  for (let i = 0; i < t1Active.length; i++) {
+    const id = t1Active[i];
+    const player = players[id];
+    const delta = buildPlayerDelta({
+      playerElo: player.elo,
+      playerGames: player.games,
+      teamAverageElo: e1,
+      expectedScore: exp1,
+      didWin: team1Won,
+      marginMultiplier,
+      matchWeight,
+    });
+    player.elo += delta;
+    if (team1Won) {
+      player.wins++;
+    } else {
+      player.losses++;
+    }
+    player.games++;
+
+    const result = team1Won ? "W" : "L";
+    player.recentResults.push(result);
+    player.history.push({
+      result,
+      timestamp: historyStamp,
+      date: match.created_at || "",
+      delta,
+      elo: player.elo,
+      matchId: match.id,
+    });
+
+    matchDeltas[id] = delta;
+    matchRatings[id] = player.elo;
+  }
+
+  // Update Team 2
+  for (let i = 0; i < t2Active.length; i++) {
+    const id = t2Active[i];
+    const player = players[id];
+    const delta = buildPlayerDelta({
+      playerElo: player.elo,
+      playerGames: player.games,
+      teamAverageElo: e2,
+      expectedScore: 1 - exp1,
+      didWin: !team1Won,
+      marginMultiplier,
+      matchWeight,
+    });
+    player.elo += delta;
+    if (team1Won) {
+      player.losses++;
+    } else {
+      player.wins++;
+    }
+    player.games++;
+
+    const result = team1Won ? "L" : "W";
+    player.recentResults.push(result);
+    player.history.push({
+      result,
+      timestamp: historyStamp,
+      date: match.created_at || "",
+      delta,
+      elo: player.elo,
+      matchId: match.id,
+    });
+
+    matchDeltas[id] = delta;
+    matchRatings[id] = player.elo;
+  }
+
+  recordPartners(t1Active, team1Won, players);
+  recordPartners(t2Active, !team1Won, players);
+
+  return { matchDeltas, matchRatings };
+}
+
+/**
+ * Calculates derived statistics (streaks, trends, best partners) for all players.
+ */
+function finalizePlayerStats(players: Record<string, PlayerStats>): PlayerStats[] {
+  return Object.values(players).map(player => {
     // Optimization: Pre-calculate streak and trend once per data change
     const streak = getStreak(player.recentResults, true);
     const trend = getTrendIndicator(player.recentResults);
@@ -422,6 +434,37 @@ export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []
       recentResults: player.recentResults.slice(-5)
     };
   });
+}
+
+// --- Main Functions ---
+
+export function calculateElo(matches: Match[], profiles: Profile[] = []): PlayerStats[] {
+  return calculateEloWithStats(matches, profiles).players;
+}
+
+export function calculateEloWithStats(matches: Match[], profiles: Profile[] = []): {
+  players: PlayerStats[];
+  eloDeltaByMatch: Record<string, Record<string, number>>;
+  eloRatingByMatch: Record<string, Record<string, number>>;
+} {
+  const { players, nameToIdMap, ensurePlayer } = initializePlayerStats(profiles);
+  const sortedMatches = sortMatchesChronologically(matches);
+
+  const eloDeltaByMatch: Record<string, Record<string, number>> = {};
+  const eloRatingByMatch: Record<string, Record<string, number>> = {};
+
+  // Optimization: use a for-loop instead of forEach for the main match processing loop.
+  for (let matchIdx = 0; matchIdx < sortedMatches.length; matchIdx++) {
+    const m = sortedMatches[matchIdx];
+    const result = processMatchUpdates(m, players, nameToIdMap, ensurePlayer);
+
+    if (result) {
+      eloDeltaByMatch[m.id] = result.matchDeltas;
+      eloRatingByMatch[m.id] = result.matchRatings;
+    }
+  }
+
+  const finalPlayers = finalizePlayerStats(players);
 
   return {
     players: finalPlayers,
