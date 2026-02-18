@@ -29,6 +29,40 @@ interface NotificationPreferenceRow {
   preferences: NotificationPreferences;
 }
 
+// Simple p-limit implementation for concurrency control
+const pLimit = (concurrency: number) => {
+  const queue: (() => void)[] = [];
+  let activeCount = 0;
+
+  const next = () => {
+    activeCount--;
+    if (queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  const run = async <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    activeCount++;
+    const result = (async () => fn())();
+    try {
+      const res = await result;
+      resolve(res);
+    } catch (err) {
+      reject(err);
+    }
+    next();
+  };
+
+  const enqueue = <T>(fn: () => Promise<T>, resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => {
+    queue.push(run.bind(null, fn, resolve, reject));
+    if (activeCount < concurrency && queue.length > 0) {
+      queue.shift()!();
+    }
+  };
+
+  return <T>(fn: () => Promise<T>) => new Promise<T>((resolve, reject) => enqueue(fn, resolve, reject));
+};
+
 // Helper to check quiet hours
 function isQuietHoursActive(preferences: NotificationPreferences, now = new Date()): boolean {
   if (!preferences.quietHours?.enabled) return false;
@@ -199,8 +233,9 @@ Deno.serve(async (req) => {
     });
 
     // Send notifications
+    const limit = pLimit(5);
     const results = await Promise.all(
-      subscriptions.map(async (sub: PushSubscriptionRow) => {
+      subscriptions.map((sub: PushSubscriptionRow) => limit(async () => {
         const prefs = prefsMap.get(sub.profile_id);
 
         const isEnabled = prefs ? prefs.enabled : true;
@@ -238,7 +273,7 @@ Deno.serve(async (req) => {
           console.error(`Failed to send to user ${sub.profile_id}:`, err);
           return { status: "error", error: err.message };
         }
-      })
+      }))
     );
 
     const sentCount = results.filter(r => r.status === "sent").length;
