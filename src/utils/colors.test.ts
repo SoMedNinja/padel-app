@@ -32,4 +32,30 @@ describe("getPlayerColor", () => {
     const color = getPlayerColor("Random Name");
     expect(color).toMatch(/^#[0-9a-fA-F]{6}$/);
   });
+
+  it("should return deterministic colors for known strings", () => {
+    // "okbCMP" produces a negative hash (-1015328416)
+    // index = Math.abs(-1015328416) % 20 = 16
+    // PALETTE[16] is #66aa00
+    expect(getPlayerColor("okbCMP")).toBe("#66aa00");
+
+    // "gäst" (lowercase) hashes to index 2 (#2ca02c)
+    // Ensures case sensitivity (distinct from "Gäst" which is #7f7f7f)
+    expect(getPlayerColor("gäst")).toBe("#2ca02c");
+
+    // "Åke" hashes to index 15 (#dd4477)
+    // Tests special characters handling
+    expect(getPlayerColor("Åke")).toBe("#dd4477");
+
+    // "Tennis 🎾" hashes to index 15 (#dd4477)
+    // Tests emoji handling
+    expect(getPlayerColor("Tennis 🎾")).toBe("#dd4477");
+  });
+
+  it("should handle long strings without crashing", () => {
+    const longString = "a".repeat(1000);
+    expect(() => getPlayerColor(longString)).not.toThrow();
+    const color = getPlayerColor(longString);
+    expect(color).toMatch(/^#[0-9a-fA-F]{6}$/);
+  });
 });
