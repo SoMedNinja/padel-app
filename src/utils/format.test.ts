@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta } from './format';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatScore } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -125,5 +125,30 @@ describe('formatEloDelta', () => {
     expect(formatEloDelta(-Infinity)).toBe('0');
     expect(formatEloDelta('')).toBe('0');
     expect(formatEloDelta('abc')).toBe('0');
+  });
+});
+
+describe('formatScore', () => {
+  it('should format numeric scores correctly', () => {
+    expect(formatScore(1, 2)).toBe('1–2');
+    expect(formatScore(0, 0)).toBe('0–0');
+    expect(formatScore(21, 15)).toBe('21–15');
+  });
+
+  it('should format string scores correctly', () => {
+    expect(formatScore('1', '2')).toBe('1–2');
+    expect(formatScore('21', '15')).toBe('21–15');
+  });
+
+  it('should format mixed input types correctly', () => {
+    expect(formatScore(1, '2')).toBe('1–2');
+    expect(formatScore('1', 2)).toBe('1–2');
+  });
+
+  it('should use en-dash as separator', () => {
+    const result = formatScore(5, 7);
+    expect(result).toContain('–'); // en-dash
+    expect(result).not.toContain('-'); // hyphen
+    expect(result.charCodeAt(1)).toBe(8211); // en-dash char code
   });
 });
