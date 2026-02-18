@@ -34,6 +34,10 @@ import { InfoOutlined } from "@mui/icons-material";
 const winPct = (wins: number, losses: number) =>
   wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
 
+// Optimization: Use a constant object for sx to ensure reference stability
+// and allow React.memo in Avatar to skip re-renders when other props match.
+const AVATAR_SX = { width: 32, height: 32 };
+
 interface EloLeaderboardProps {
   players?: PlayerStats[];
   matches?: Match[];
@@ -411,7 +415,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       <TableCell component="div" role="cell" sx={{ borderBottom: 'none' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Avatar
-                            sx={{ width: 32, height: 32 }}
+                            sx={AVATAR_SX}
                             src={p.avatarUrl || getStoredAvatar(p.id)}
                             name={p.name}
                           />
