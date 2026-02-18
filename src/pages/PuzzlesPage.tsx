@@ -68,6 +68,7 @@ export default function PuzzlesPage() {
 
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [currentScore, setCurrentScore] = useState<number>(0);
+  const [scoreAnimation, setScoreAnimation] = useState<{ value: number; key: number } | null>(null);
 
   const puzzles = useMemo(() => getPuzzlesByDifficulty(difficulty), [difficulty]);
 
@@ -170,10 +171,14 @@ export default function PuzzlesPage() {
     // we lock that specific question view so the same answer can't be edited immediately.
     setSubmittedRecord(nextRecord);
 
-    if (user?.id) {
-      if (nextRecord.isCorrect) {
+    if (nextRecord.isCorrect) {
+      setScoreAnimation({ value: 100, key: Date.now() });
+      if (user?.id) {
         puzzleScoreService.incrementScore(100).then(() => setCurrentScore((s) => s + 100));
-      } else {
+      }
+    } else {
+      setScoreAnimation({ value: -100, key: Date.now() });
+      if (user?.id) {
         puzzleScoreService.incrementScore(-100).then(() => setCurrentScore((s) => Math.max(0, s - 100)));
       }
     }
@@ -292,14 +297,42 @@ export default function PuzzlesPage() {
               Välj svårighetsgrad, läs scenariot och välj ett av tre svarsalternativ.
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            startIcon={<TrophyIcon />}
-            onClick={() => setShowLeaderboard(true)}
-            sx={{ flexShrink: 0, ml: 2, whiteSpace: "nowrap" }}
-          >
-            {currentScore} p
-          </Button>
+          <Box sx={{ position: "relative" }}>
+            <Button
+              variant="outlined"
+              startIcon={<TrophyIcon />}
+              onClick={() => setShowLeaderboard(true)}
+              sx={{ flexShrink: 0, ml: 2, whiteSpace: "nowrap" }}
+            >
+              {currentScore} p
+            </Button>
+            {scoreAnimation && (
+              <Box
+                key={scoreAnimation.key}
+                sx={{
+                  position: "absolute",
+                  top: "100%",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  pointerEvents: "none",
+                  zIndex: 10,
+                }}
+              >
+                <Typography
+                  className="score-animation"
+                  sx={{
+                    color: scoreAnimation.value > 0 ? "success.main" : "error.main",
+                    whiteSpace: "nowrap",
+                    mt: 1,
+                  }}
+                  onAnimationEnd={() => setScoreAnimation(null)}
+                >
+                  {scoreAnimation.value > 0 ? "+" : ""}
+                  {scoreAnimation.value}
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </Stack>
 
         <Card sx={{ borderRadius: 3 }}>
