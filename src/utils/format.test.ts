@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta } from './format';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -125,5 +125,52 @@ describe('formatEloDelta', () => {
     expect(formatEloDelta(-Infinity)).toBe('0');
     expect(formatEloDelta('')).toBe('0');
     expect(formatEloDelta('abc')).toBe('0');
+  });
+});
+
+describe('formatHistoryDateLabel', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Set system time to Friday, May 10, 2024 at 12:00:00
+    vi.setSystemTime(new Date('2024-05-10T12:00:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('should return empty string for empty inputs', () => {
+    expect(formatHistoryDateLabel(undefined)).toBe('');
+    expect(formatHistoryDateLabel(null as any)).toBe('');
+    expect(formatHistoryDateLabel('')).toBe('');
+  });
+
+  it('should return empty string for invalid dates', () => {
+    expect(formatHistoryDateLabel('invalid-date')).toBe('');
+  });
+
+  it('should format today correctly', () => {
+    const today = new Date('2024-05-10T15:30:00');
+    expect(formatHistoryDateLabel(today)).toBe('Idag kl 15:30');
+  });
+
+  it('should format tomorrow correctly', () => {
+    const tomorrow = new Date('2024-05-11T10:00:00');
+    expect(formatHistoryDateLabel(tomorrow)).toBe('Imorgon kl 10:00');
+  });
+
+  it('should format other dates with full date and time', () => {
+    // Standard date formatting in sv-SE is typically "d MMM yyyy HH:mm" or similar
+    // The implementation relies on Intl.DateTimeFormat with sv-SE locale.
+    // We check if the result contains the key parts.
+    const date = new Date('2024-05-15T14:00:00');
+    const result = formatHistoryDateLabel(date);
+
+    // Expect "15 maj 2024 14:00" or similar.
+    expect(result).toMatch(/15 maj 2024.*14:00/);
+  });
+
+  it('should handle string inputs', () => {
+    expect(formatHistoryDateLabel('2024-05-10T15:30:00')).toBe('Idag kl 15:30');
   });
 });
