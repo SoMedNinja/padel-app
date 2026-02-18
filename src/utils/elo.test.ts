@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   calculateElo,
   calculateEloWithStats,
+  getEloExplanation,
   getExpectedScore,
   getKFactor,
   getMarginMultiplier,
@@ -227,5 +228,53 @@ describe("ELO Logic", () => {
     expect(p1!.bestPartner).not.toBeNull();
     expect(p1!.bestPartner!.name).toBe("P2");
     expect(p1!.bestPartner!.winRate).toBe(1);
+  });
+});
+
+describe("getEloExplanation", () => {
+  it("should return correct message for no ELO change", () => {
+    // delta, playerElo, teamAvg, oppAvg, matchWeight, didWin, games
+    const explanation = getEloExplanation(0, 1000, 1000, 1000, 1, true, 0);
+    expect(explanation).toBe("Ingen ELO-förändring.");
+  });
+
+  it("should return correct explanation for a standard win", () => {
+    const explanation = getEloExplanation(10, 1000, 1000, 1000, 1, true, 0);
+
+    expect(explanation).toContain("Resultat: Vinst (+10 ELO)");
+    expect(explanation).toContain("Vinstchans: 50%");
+    expect(explanation).toContain("Matchvikt: 1x (K=40)");
+    expect(explanation).toContain("Spelarvikt: 1.00x (relativt laget)");
+    expect(explanation).not.toContain("Bonus för vinst mot starkare motstånd!");
+    expect(explanation).not.toContain("Större avdrag vid förlust som favorit.");
+  });
+
+  it("should return correct explanation for a standard loss", () => {
+    const explanation = getEloExplanation(-10, 1000, 1000, 1000, 1, false, 0);
+
+    expect(explanation).toContain("Resultat: Förlust (-10 ELO)");
+    expect(explanation).toContain("Vinstchans: 50%");
+  });
+
+  it("should include bonus message for upset win", () => {
+    // Team avg 1000 vs Opponent avg 1300 -> Expectation < 40%
+    const explanation = getEloExplanation(20, 1000, 1000, 1300, 1, true, 0);
+
+    expect(explanation).toContain("Resultat: Vinst (+20 ELO)");
+    expect(explanation).toContain("Bonus för vinst mot starkare motstånd!");
+  });
+
+  it("should include warning message for upset loss", () => {
+    // Team avg 1300 vs Opponent avg 1000 -> Expectation > 60%
+    const explanation = getEloExplanation(-20, 1300, 1300, 1000, 1, false, 0);
+
+    expect(explanation).toContain("Resultat: Förlust (-20 ELO)");
+    expect(explanation).toContain("Större avdrag vid förlust som favorit.");
+  });
+
+  it("should correctly format negative deltas", () => {
+    const explanation = getEloExplanation(-5, 1000, 1000, 1000, 1, false, 0);
+    expect(explanation).toContain("(-5 ELO)");
+    expect(explanation).not.toContain("+-5");
   });
 });
