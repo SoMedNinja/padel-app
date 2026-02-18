@@ -17,7 +17,7 @@ select cron.schedule(
   $$
   select
     net.http_post(
-      url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/tournament-summary',
+      url := 'https://hiasgpbuqhiwutpgugjk.supabase.co/functions/v1/tournament-summary',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
         -- Note for non-coders: The "Authorization: Bearer ..." header is like a password
