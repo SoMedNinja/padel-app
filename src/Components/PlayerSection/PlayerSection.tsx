@@ -39,6 +39,7 @@ interface PlayerSectionProps {
   onProfileUpdate?: (profile: Profile) => void;
   mode?: "overview" | "chart";
   eloDeltaByMatch?: Record<string, Record<string, number>>;
+  readOnly?: boolean;
 }
 
 export default function PlayerSection({
@@ -50,6 +51,7 @@ export default function PlayerSection({
   onProfileUpdate,
   mode = "overview",
   eloDeltaByMatch,
+  readOnly = false,
 }: PlayerSectionProps) {
   const playerProfile = useMemo(
     () => profiles.find(profile => profile.id === user?.id),
@@ -201,6 +203,7 @@ export default function PlayerSection({
           allPlayerBadgeStats={badgeStatsMap}
           currentEloDisplay={currentEloDisplay}
           onProfileUpdate={onProfileUpdate}
+          readOnly={readOnly}
         />
 
         <PlayerStatsGrid

@@ -179,6 +179,7 @@ export default function PlayerProfilePage() {
                     onProfileUpdate={() => queryClient.invalidateQueries({ queryKey: queryKeys.profiles() })}
                     mode="overview"
                     eloDeltaByMatch={eloDeltaByMatch}
+                    readOnly={true}
                   />
                 </Box>
               )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Box,
@@ -12,17 +12,20 @@ import {
   DialogContent,
   DialogActions,
   Slider,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText
 } from "@mui/material";
 import {
   Edit as EditIcon,
   PhotoCamera as PhotoIcon,
   Delete as DeleteIcon,
-  EmojiEvents as TrophyIcon,
+  CameraAlt as CameraIcon,
+  MoreHoriz as MoreIcon
 } from "@mui/icons-material";
 import Cropper, { Area } from "react-easy-crop";
 import Avatar from "../Avatar";
-import ProfileName from "../ProfileName";
-import BadgeGallery from "../BadgeGallery";
 import { Profile } from "../../types";
 import { profileService } from "../../services/profileService";
 import {
@@ -34,27 +37,17 @@ import {
 import { getProfileDisplayName } from "../../utils/profileMap";
 import { stripBadgeLabelFromName } from "../../utils/profileName";
 
-interface PlayerProfileHeaderProps {
+interface ProfileSettingsProps {
   user: any;
   profile: Profile | undefined;
-  profiles: Profile[]; // Needed for BadgeGallery
-  currentPlayerBadgeStats: any;
-  allPlayerBadgeStats: any;
-  currentEloDisplay: number;
   onProfileUpdate?: (profile: Profile) => void;
-  readOnly?: boolean;
 }
 
-export default function PlayerProfileHeader({
+export default function ProfileSettings({
   user,
   profile,
-  profiles,
-  currentPlayerBadgeStats,
-  allPlayerBadgeStats,
-  currentEloDisplay,
   onProfileUpdate,
-  readOnly = false,
-}: PlayerProfileHeaderProps) {
+}: ProfileSettingsProps) {
   const playerName = profile
     ? getProfileDisplayName(profile)
     : user?.email || "Din profil";
@@ -63,31 +56,12 @@ export default function PlayerProfileHeader({
   const [isSavingName, setIsSavingName] = useState(false);
   const [editedName, setEditedName] = useState(playerName);
 
+  // Anchor for avatar menu
+  const [avatarMenuAnchor, setAvatarMenuAnchor] = useState<null | HTMLElement>(null);
+
   useEffect(() => {
     setEditedName(playerName);
   }, [playerName]);
-
-  const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(
-    profile?.featured_badge_id || null
-  );
-  const [badgeGalleryOpen, setBadgeGalleryOpen] = useState(false);
-
-  useEffect(() => {
-    setSelectedBadgeId(profile?.featured_badge_id || null);
-  }, [profile?.featured_badge_id]);
-
-  const handleBadgeSelect = async (badgeId: string | null) => {
-    if (!user?.id) return;
-    try {
-      const data = await profileService.updateProfile(user.id, { featured_badge_id: badgeId });
-      setSelectedBadgeId(badgeId);
-      setBadgeGalleryOpen(false);
-      onProfileUpdate?.(data);
-      toast.success("Meriten har uppdaterats!");
-    } catch (error: any) {
-      toast.error(error.message || "Kunde inte uppdatera meriten.");
-    }
-  };
 
   const handleNameSave = async () => {
     if (!user?.id) return;
@@ -134,6 +108,7 @@ export default function PlayerProfileHeader({
 
     if (stored) {
       setAvatarUrl(stored);
+      // Sync local storage to DB if missing
       profileService.updateProfile(user.id, { avatar_url: stored })
         .then((data) => {
           if (data) onProfileUpdate?.(data);
@@ -142,9 +117,9 @@ export default function PlayerProfileHeader({
     }
   }, [avatarStorageId, profile?.avatar_url, user?.id, onProfileUpdate]);
 
-  const onCropComplete = (croppedArea: Area, croppedAreaPixels: Area) => {
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
-  };
+  }, []);
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -158,6 +133,9 @@ export default function PlayerProfileHeader({
       }
     };
     reader.readAsDataURL(file);
+    setAvatarMenuAnchor(null); // Close menu
+    // Reset file input value
+    event.target.value = '';
   };
 
   const saveAvatar = async () => {
@@ -193,9 +171,12 @@ export default function PlayerProfileHeader({
   const resetAvatar = async () => {
     if (!avatarStorageId) return;
     if (!window.confirm("Är du säker på att du vill återställa din profilbild?")) return;
+
     removeStoredAvatar(avatarStorageId);
     setAvatarUrl(null);
     setPendingAvatar(null);
+    setAvatarMenuAnchor(null); // Close menu
+
     if (user?.id) {
       try {
         const data = await profileService.updateProfile(user.id, { avatar_url: null });
@@ -209,111 +190,103 @@ export default function PlayerProfileHeader({
 
   return (
     <>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center', mb: 4 }}>
-        <Avatar
-          sx={{ width: 100, height: 100, fontSize: '2.5rem' }}
-          src={avatarUrl}
-          name={playerName}
-        />
+      <Stack spacing={3}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Avatar
+            sx={{ width: 64, height: 64, fontSize: '1.5rem' }}
+            src={avatarUrl}
+            name={playerName}
+          />
 
-        <Box sx={{ flex: 1, minWidth: 240 }}>
-          {isEditingName ? (
-            <Stack direction="row" spacing={1} sx={{ mb: 2, alignItems: "flex-start" }}>
-              <TextField
-                size="small"
-                label="Spelarnamn"
-                value={editedName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val.length === 50 && editedName.length < 50) {
-                    navigator.vibrate?.(20);
-                  }
-                  setEditedName(val);
-                }}
-                helperText={`${editedName.length}/50`}
-                FormHelperTextProps={{
-                  sx: {
-                    color: editedName.length >= 50 ? 'error.main' : 'inherit',
-                    fontWeight: editedName.length >= 50 ? 700 : 'inherit',
-                  }
-                }}
-                slotProps={{
-                  htmlInput: {
-                    maxLength: 50,
-                    "aria-required": "true",
-                    "aria-label": `Ändra ditt namn, ${editedName.length} av 50 tecken`,
-                  }
-                }}
-                disabled={isSavingName}
-              />
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleNameSave}
-                disabled={isSavingName}
-                startIcon={isSavingName ? <CircularProgress size={16} color="inherit" /> : null}
-                sx={{ mt: 0.5 }}
-              >
-                {isSavingName ? "Sparar..." : "Spara"}
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setIsEditingName(false)}
-                disabled={isSavingName}
-                sx={{ mt: 0.5 }}
-              >
-                Avbryt
-              </Button>
-            </Stack>
-          ) : (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5 }}>
-                <ProfileName name={playerName} badgeId={selectedBadgeId} />
-              </Typography>
-              <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
-                ELO {currentEloDisplay}
-              </Typography>
-            </Box>
-          )}
-
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {!readOnly && (
-              <Button
-                variant="outlined"
-                component="label"
-                size="small"
-                startIcon={<PhotoIcon />}
-              >
-                Byt bild
+          <Box>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<CameraIcon />}
+              onClick={(e) => setAvatarMenuAnchor(e.currentTarget)}
+            >
+              Redigera bild
+            </Button>
+            <Menu
+              anchorEl={avatarMenuAnchor}
+              open={Boolean(avatarMenuAnchor)}
+              onClose={() => setAvatarMenuAnchor(null)}
+            >
+              <MenuItem component="label">
+                <ListItemIcon><PhotoIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>Välj ny bild</ListItemText>
                 <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
-              </Button>
-            )}
-            {!isEditingName && (
-              <>
-                {!readOnly && (
-                  <Button variant="outlined" size="small" startIcon={<EditIcon />} onClick={() => setIsEditingName(true)}>
-                    Ändra namn
-                  </Button>
-                )}
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<TrophyIcon />}
-                  onClick={() => setBadgeGalleryOpen(true)}
-                >
-                  Välj merit
-                </Button>
-              </>
-            )}
-            {!readOnly && (
-              <Button variant="text" size="small" color="error" startIcon={<DeleteIcon />} onClick={resetAvatar}>
-                Återställ bild
-              </Button>
-            )}
-          </Stack>
+              </MenuItem>
+              <MenuItem onClick={resetAvatar} sx={{ color: 'error.main' }}>
+                <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+                <ListItemText>Ta bort bild</ListItemText>
+              </MenuItem>
+            </Menu>
+          </Box>
         </Box>
-      </Box>
+
+        {isEditingName ? (
+          <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start" }}>
+            <TextField
+              size="small"
+              label="Spelarnamn"
+              fullWidth
+              value={editedName}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length === 50 && editedName.length < 50) {
+                  navigator.vibrate?.(20);
+                }
+                setEditedName(val);
+              }}
+              helperText={`${editedName.length}/50`}
+              FormHelperTextProps={{
+                sx: {
+                  color: editedName.length >= 50 ? 'error.main' : 'inherit',
+                  fontWeight: editedName.length >= 50 ? 700 : 'inherit',
+                }
+              }}
+              slotProps={{
+                htmlInput: {
+                  maxLength: 50,
+                  "aria-required": "true",
+                }
+              }}
+              disabled={isSavingName}
+            />
+            <Button
+              variant="contained"
+              onClick={handleNameSave}
+              disabled={isSavingName}
+              startIcon={isSavingName ? <CircularProgress size={16} color="inherit" /> : null}
+              sx={{ mt: 0.5, minWidth: 80 }}
+            >
+              Spara
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setIsEditingName(false)}
+              disabled={isSavingName}
+              sx={{ mt: 0.5 }}
+            >
+              Avbryt
+            </Button>
+          </Stack>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {playerName}
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setIsEditingName(true)}
+            >
+              Redigera namn
+            </Button>
+          </Box>
+        )}
+      </Stack>
 
       <Dialog open={Boolean(pendingAvatar)} onClose={cancelAvatar} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 800 }}>Justera profilbild</DialogTitle>
@@ -354,16 +327,6 @@ export default function PlayerProfileHeader({
           </Button>
         </DialogActions>
       </Dialog>
-
-      <BadgeGallery
-        open={badgeGalleryOpen}
-        onClose={() => setBadgeGalleryOpen(false)}
-        onSelect={handleBadgeSelect}
-        currentBadgeId={selectedBadgeId}
-        stats={currentPlayerBadgeStats}
-        allPlayerStats={allPlayerBadgeStats}
-        playerId={user?.id || ""}
-      />
     </>
   );
 }
