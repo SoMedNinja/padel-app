@@ -39,7 +39,7 @@ export interface MatchCreateResult {
   message: string;
 }
 
-interface QueuedMatchMutation {
+export interface QueuedMatchMutation {
   queueId: string;
   createdAt: string;
   attempts: number;
