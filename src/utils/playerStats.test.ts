@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { buildMvpSummary } from './playerStats';
+import { buildMvpSummary, buildComparisonChartData } from './playerStats';
 import { Match, PlayerStats, Profile, EloHistoryEntry } from '../types';
 
 // Helper to create a basic match
@@ -268,5 +268,123 @@ describe('buildMvpSummary', () => {
 
     // Alice should win evening MVP because of the injected deltas, even though her history is empty.
     expect(result.eveningMvpCounts['Alice']).toBe(1);
+  });
+});
+
+describe('buildComparisonChartData', () => {
+  it('should return empty array if no players selected', () => {
+    const players = [createPlayer('p1', 'Alice', 1200)];
+    const profiles = [createProfile('p1', 'Alice')];
+    const result = buildComparisonChartData(players, profiles, []);
+    expect(result).toEqual([]);
+  });
+
+  it('should return chart data for single player with history', () => {
+    const date = '2024-01-01';
+    const timestamp = new Date(date).getTime();
+    const history: EloHistoryEntry = {
+      matchId: 'm1',
+      date,
+      timestamp,
+      delta: 10,
+      result: 'W',
+      elo: 1210
+    };
+    const players = [createPlayer('p1', 'Alice', 1210, [history])];
+    const profiles = [createProfile('p1', 'Alice')];
+
+    const result = buildComparisonChartData(players, profiles, ['p1']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      date,
+      'Alice_elo': 1210,
+      'Alice_winRate': 100 // 1 win / 1 game
+    });
+  });
+
+  it('should return empty array if selected player has no history', () => {
+    const players = [createPlayer('p1', 'Alice', 1200, [])];
+    const profiles = [createProfile('p1', 'Alice')];
+
+    const result = buildComparisonChartData(players, profiles, ['p1']);
+    expect(result).toEqual([]);
+  });
+
+  it('should handle multiple matches on same day chronologically', () => {
+    const date = '2024-01-01';
+    const timestamp = new Date(date).getTime();
+
+    // Match 1 (m1): P1 wins, ELO 1210
+    // Match 2 (m2): P1 loses, ELO 1200
+
+    // Note: buildComparisonChartData uses matchId localeCompare if timestamps are equal
+    // so m1 comes before m2
+
+    const h1: EloHistoryEntry = { matchId: 'm1', date, timestamp, delta: 10, result: 'W', elo: 1210 };
+    const h2: EloHistoryEntry = { matchId: 'm2', date, timestamp, delta: -10, result: 'L', elo: 1200 };
+
+    const players = [createPlayer('p1', 'Alice', 1200, [h1, h2])];
+    const profiles = [createProfile('p1', 'Alice')];
+
+    const result = buildComparisonChartData(players, profiles, ['p1']);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].date).toBe(date);
+    expect(result[0]['Alice_elo']).toBe(1210);
+    expect(result[0]['Alice_winRate']).toBe(100); // 1/1
+
+    expect(result[1].date).toBe(date);
+    expect(result[1]['Alice_elo']).toBe(1200);
+    expect(result[1]['Alice_winRate']).toBe(50); // 1/2
+  });
+
+  it('should persist state for players not involved in a match', () => {
+    // Scenario:
+    // T1: P1 plays, P2 idle
+    // T2: P2 plays, P1 idle
+
+    const date1 = '2024-01-01';
+    const date2 = '2024-01-02';
+
+    const h1: EloHistoryEntry = { matchId: 'm1', date: date1, timestamp: new Date(date1).getTime(), delta: 10, result: 'W', elo: 1210 };
+    const h2: EloHistoryEntry = { matchId: 'm2', date: date2, timestamp: new Date(date2).getTime(), delta: 10, result: 'W', elo: 1210 };
+
+    // P1 starts at 1200, ends at 1210
+    const p1 = createPlayer('p1', 'Alice', 1210, [h1]);
+    // P2 starts at 1200, ends at 1210
+    const p2 = createPlayer('p2', 'Bob', 1210, [h2]);
+
+    const profiles = [createProfile('p1', 'Alice'), createProfile('p2', 'Bob')];
+
+    const result = buildComparisonChartData([p1, p2], profiles, ['p1', 'p2']);
+
+    expect(result).toHaveLength(2);
+
+    // T1: Alice plays, Bob idle
+    expect(result[0].date).toBe(date1);
+    expect(result[0]['Alice_elo']).toBe(1210);
+    expect(result[0]['Alice_winRate']).toBe(100);
+    expect(result[0]['Bob_elo']).toBe(1200); // Bob start elo
+    expect(result[0]['Bob_winRate']).toBe(0); // 0 games
+
+    // T2: Bob plays, Alice idle
+    expect(result[1].date).toBe(date2);
+    expect(result[1]['Alice_elo']).toBe(1210); // Carried over
+    expect(result[1]['Alice_winRate']).toBe(100);
+    expect(result[1]['Bob_elo']).toBe(1210); // Updated
+    expect(result[1]['Bob_winRate']).toBe(100);
+  });
+
+  it('should fallback name to "Okänd" if profile not found', () => {
+    const date = '2024-01-01';
+    const h1: EloHistoryEntry = { matchId: 'm1', date, timestamp: new Date(date).getTime(), delta: 10, result: 'W', elo: 1210 };
+    const p1 = createPlayer('p1', 'Alice', 1210, [h1]);
+
+    // Profile map missing p1
+    const result = buildComparisonChartData([p1], [], ['p1']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]['Okänd_elo']).toBe(1210);
   });
 });
