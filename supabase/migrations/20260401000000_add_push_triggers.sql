@@ -8,10 +8,10 @@ declare
   -- TODO: YOU MUST REPLACE THESE VALUES FOR PUSH NOTIFICATIONS TO WORK
   -- For local development: 'http://host.docker.internal:54321'
   -- For production: 'https://<project-ref>.supabase.co'
-  project_url text := 'https://YOUR_PROJECT_REF.supabase.co';
+  project_url text := 'https://hiasgpbuqhiwutpgugjk.supabase.co';
 
   -- TODO: Replace with your Supabase Anon Key (found in Project Settings > API)
-  anon_key text := 'YOUR_ANON_KEY';
+  anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYXNncGJ1cWhpd3V0cGd1Z2prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMjkxNzcsImV4cCI6MjA4MzkwNTE3N30.uboLiQ0_EqgEj5cLLqazlN6V1mtRHqwiJv7JHGROo1U';
 begin
   -- Call the Edge Function asynchronously
   perform
