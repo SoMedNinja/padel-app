@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { invalidateStatsData } from "../data/queryInvalidation";
@@ -34,9 +34,6 @@ import {
   Paper,
   Tooltip,
   CircularProgress,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Collapse,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -184,10 +181,455 @@ interface EditState {
   score_target: number | string;
 }
 
-interface TeamEntry {
-  id: string | null;
-  name: string;
+type EnrichedMatch = Match & {
+  t1Ids: (string | null)[];
+  t2Ids: (string | null)[];
+  t1Names: string[];
+  t2Names: string[];
+};
+
+interface MatchItemProps {
+  m: EnrichedMatch;
+  user: any;
+  matchDeltas: Record<string, number>;
+  matchRatings: Record<string, number>;
+  isEditing: boolean;
+  isHighlighted: boolean;
+  isDeleteDialogOpen: boolean;
+  deletingId: string | null;
+  edit: EditState | null;
+  isSavingEdit: boolean;
+  playerOptions: { id: string; name: string }[];
+  profileMap: Map<string, Profile>;
+  allEloPlayersMap: Map<string, PlayerStats>;
+  onStartEdit: (m: Match) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: ((id: string) => void) | undefined;
+  onDeleteMatch: (id: string) => void;
+  onDeleteDialogOpen: (id: string) => void;
+  onDeleteDialogClose: () => void;
+  updateTeam: ((key: "team1_ids" | "team2_ids", index: number, value: string) => void) | undefined;
+  setEdit: React.Dispatch<React.SetStateAction<EditState | null>> | undefined;
 }
+
+const MatchItem = React.memo(({
+  m,
+  user,
+  matchDeltas,
+  matchRatings,
+  isEditing,
+  isHighlighted,
+  isDeleteDialogOpen,
+  deletingId,
+  edit,
+  isSavingEdit,
+  playerOptions,
+  profileMap,
+  allEloPlayersMap,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDeleteMatch,
+  onDeleteDialogOpen,
+  onDeleteDialogClose,
+  updateTeam,
+  setEdit,
+}: MatchItemProps) => {
+  const canDelete = (m: Match) => {
+    return user?.id && (m.created_by === user.id || user?.is_admin === true);
+  };
+
+  const canEdit = user?.is_admin === true;
+
+  const t1Ids = m.t1Ids;
+  const t2Ids = m.t2Ids;
+  const t1Names = m.t1Names;
+  const t2Names = m.t2Names;
+
+  const tournamentType = m.source_tournament_type || "standalone";
+  const isActually1v1 = tournamentType === "standalone_1v1";
+  const isUserParticipant = t1Ids.includes(user?.id) || t2Ids.includes(user?.id);
+
+  const teamAEntries = t1Ids.map((id, index) => ({
+    id,
+    name: t1Names[index] || getIdDisplayName(id, profileMap),
+  }))
+  .filter((entry, idx) => entry.name !== "Okänd" && (!isActually1v1 || idx === 0))
+  .slice(0, 2);
+
+  const teamBEntries = t2Ids.map((id, index) => ({
+    id,
+    name: t2Names[index] || getIdDisplayName(id, profileMap),
+  }))
+  .filter((entry, idx) => entry.name !== "Okänd" && (!isActually1v1 || idx === 0))
+  .slice(0, 2);
+
+  const is1v1 = isActually1v1 || (teamAEntries.length === 1 && teamBEntries.length === 1);
+
+  let activeT1Count = 0;
+  let sumA = 0;
+  for (const id of t1Ids) {
+    if (id && id !== GUEST_ID) {
+      activeT1Count++;
+      sumA += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
+    }
+  }
+
+  let activeT2Count = 0;
+  let sumB = 0;
+  for (const id of t2Ids) {
+    if (id && id !== GUEST_ID) {
+      activeT2Count++;
+      sumB += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
+    }
+  }
+
+  const avgA = activeT1Count > 0 ? sumA / activeT1Count : 1000;
+  const avgB = activeT2Count > 0 ? sumB / activeT2Count : 1000;
+
+  const isSinglesMatch = activeT1Count === 1 && activeT2Count === 1;
+  const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
+
+  const typeLabel = tournamentType === "standalone"
+    ? (is1v1 ? "Match 1v1" : "Match 2v2")
+    : tournamentType === "standalone_1v1"
+      ? "Match 1v1"
+      : tournamentType === "mexicano"
+        ? "Mexicano"
+        : tournamentType === "americano"
+          ? "Americano"
+          : tournamentType;
+
+  const formatScore = (match: Match) => {
+    const scoreType = match.score_type || "sets";
+    const score = `${match.team1_sets} – ${match.team2_sets}`;
+    if (scoreType === "points") {
+      const target = match.score_target ? ` (till ${match.score_target})` : "";
+      return `${score} poäng${target}`;
+    }
+    return `${score} set`;
+  };
+
+  const formatDelta = (delta?: number) => {
+    if (typeof delta !== "number") return "—";
+    return delta > 0 ? `+${delta}` : `${delta}`;
+  };
+
+  const formatElo = (elo?: number) => {
+    if (typeof elo !== "number") return "—";
+    return Math.round(elo).toString();
+  };
+
+  const getDeltaColor = (delta?: number) => {
+    if (typeof delta !== "number") return "text.secondary";
+    if (delta > 0) return "success.main";
+    if (delta < 0) return "error.main";
+    return "text.secondary";
+  };
+
+  return (
+    <SwipeableMatchCard
+      key={m.id}
+      canDelete={canDelete(m) && !isEditing}
+      onDelete={() => onDeleteDialogOpen(m.id)}
+    >
+      <Card
+        id={`match-${m.id}`}
+        variant="outlined"
+        sx={{
+          borderRadius: 3,
+          boxShadow: isHighlighted ? 8 : '0 4px 12px rgba(0,0,0,0.04)',
+          bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'background.paper',
+          borderColor: isHighlighted ? 'primary.main' : (isUserParticipant ? 'primary.light' : 'divider'),
+          borderWidth: isHighlighted ? 2 : (isUserParticipant ? 1.5 : 1),
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Chip label={typeLabel} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, mr: 1 }} />
+              <Typography variant="caption" color="text.secondary">
+                {isEditing ? (
+                  <TextField
+                    type="datetime-local"
+                    size="small"
+                    value={edit?.created_at || ""}
+                    onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, created_at: e.target.value } : prev)}
+                    sx={{ mt: 1 }}
+                    slotProps={{ htmlInput: { "aria-label": "Välj datum och tid för matchen" } }}
+                  />
+                ) : (
+                  `Datum: ${formatHistoryDateLabel(m.created_at)}`
+                )}
+              </Typography>
+            </Box>
+            {!isEditing && (
+              <Stack direction="row" spacing={1}>
+                {canEdit && (
+                  <Tooltip title="Redigera match" arrow>
+                    <Button size="small" startIcon={<EditIcon />} onClick={() => onStartEdit(m)}>
+                      Ändra
+                    </Button>
+                  </Tooltip>
+                )}
+                {canDelete(m) && (
+                  <Tooltip title="Radera match" arrow>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => onDeleteDialogOpen(m.id)}
+                        aria-label="Radera match"
+                        disabled={deletingId === m.id}
+                      >
+                        {deletingId === m.id ? (
+                          <CircularProgress size={16} color="inherit" />
+                        ) : (
+                          <DeleteIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                )}
+              </Stack>
+            )}
+          </Box>
+
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
+              {isEditing ? (
+                <Stack spacing={1} sx={{ mt: 1 }}>
+                  <TextField
+                    select
+                    label="Typ"
+                    size="small"
+                    value={edit?.score_type || "sets"}
+                    onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
+                    slotProps={{ select: { "aria-label": "Välj typ av resultat (set eller poäng)" } }}
+                  >
+                    <MenuItem value="sets">Set</MenuItem>
+                    <MenuItem value="points">Poäng</MenuItem>
+                  </TextField>
+                  {edit?.score_type === "points" && (
+                    <TextField
+                      label="Mål"
+                      type="number"
+                      size="small"
+                      value={edit?.score_target ?? ""}
+                      onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
+                      slotProps={{ htmlInput: { "aria-label": "Mål (t.ex. spela till 24 poäng)" } }}
+                    />
+                  )}
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={edit?.team1_sets ?? 0}
+                      onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
+                      slotProps={{ htmlInput: { "aria-label": "Resultat för lag A" } }}
+                    />
+                    <Typography>–</Typography>
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={edit?.team2_sets ?? 0}
+                      onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
+                      slotProps={{ htmlInput: { "aria-label": "Resultat för lag B" } }}
+                    />
+                  </Stack>
+                </Stack>
+              ) : (
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatScore(m)}</Typography>
+              )}
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare A" : "Lag A"}</Typography>
+              {isEditing ? (
+                <Stack spacing={1} sx={{ mt: 1 }}>
+                  {edit?.team1_ids.map((value, index) => (
+                    <TextField
+                      key={`team1-${index}`}
+                      select
+                      label={`Spelare ${index + 1}`}
+                      size="small"
+                      value={value || ""}
+                      onChange={(e) => updateTeam && updateTeam("team1_ids", index, e.target.value)}
+                      slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag A` } }}
+                    >
+                      <MenuItem value="">Välj spelare</MenuItem>
+                      {playerOptions.map(option => (
+                        <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                      ))}
+                    </TextField>
+                  ))}
+                </Stack>
+              ) : (
+                <List disablePadding sx={{ mt: 1 }}>
+                  {teamAEntries.map((entry, i) => {
+                    const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                    const currentElo = entry.id ? matchRatings[entry.id] : undefined;
+
+                    let explanation = "";
+                    if (entry.id && typeof delta === 'number') {
+                      const preElo = (currentElo || 1000) - delta;
+                      const playerStats = allEloPlayersMap.get(entry.id);
+
+                      explanation = getEloExplanation(
+                        delta,
+                        preElo,
+                        avgA,
+                        avgB,
+                        matchWeight,
+                        m.team1_sets > m.team2_sets,
+                        playerStats?.games || 0
+                      );
+                    }
+
+                    return (
+                      <ListItem key={`${m.id}-team1-${i}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <ListItemText
+                            primary={entry.name}
+                            secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                            secondaryTypographyProps={{ variant: 'caption' }}
+                          />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                            {formatDelta(delta)}
+                          </Typography>
+                        </Box>
+                        {explanation && (
+                          <EloBreakdown explanation={explanation} />
+                        )}
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              )}
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare B" : "Lag B"}</Typography>
+              {isEditing ? (
+                <Stack spacing={1} sx={{ mt: 1 }}>
+                  {edit?.team2_ids.map((value, index) => (
+                    <TextField
+                      key={`team2-${index}`}
+                      select
+                      label={`Spelare ${index + 1}`}
+                      size="small"
+                      value={value || ""}
+                      onChange={(e) => updateTeam && updateTeam("team2_ids", index, e.target.value)}
+                      slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag B` } }}
+                    >
+                      <MenuItem value="">Välj spelare</MenuItem>
+                      {playerOptions.map(option => (
+                        <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                      ))}
+                    </TextField>
+                  ))}
+                </Stack>
+              ) : (
+                <List disablePadding sx={{ mt: 1 }}>
+                  {teamBEntries.map((entry, i) => {
+                    const delta = entry.id ? matchDeltas[entry.id] : undefined;
+                    const currentElo = entry.id ? matchRatings[entry.id] : undefined;
+
+                    let explanation = "";
+                    if (entry.id && typeof delta === 'number') {
+                      const preElo = (currentElo || 1000) - delta;
+                      const playerStats = allEloPlayersMap.get(entry.id);
+
+                      explanation = getEloExplanation(
+                        delta,
+                        preElo,
+                        avgB, // Team B relative to Team A
+                        avgA,
+                        matchWeight,
+                        m.team2_sets > m.team1_sets,
+                        playerStats?.games || 0
+                      );
+                    }
+
+                    return (
+                      <ListItem key={`${m.id}-team2-${i}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <ListItemText
+                            primary={entry.name}
+                            secondary={`ELO efter match: ${formatElo(currentElo)}`}
+                            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                            secondaryTypographyProps={{ variant: 'caption' }}
+                          />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
+                            {formatDelta(delta)}
+                          </Typography>
+                        </Box>
+                        {explanation && (
+                          <EloBreakdown explanation={explanation} />
+                        )}
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              )}
+            </Grid>
+          </Grid>
+
+          {isEditing && (
+            <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={isSavingEdit ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                onClick={() => onSaveEdit && onSaveEdit(m.id)}
+                disabled={isSavingEdit}
+              >
+                {isSavingEdit ? "Sparar..." : "Spara"}
+              </Button>
+              <Button variant="outlined" startIcon={<CloseIcon />} onClick={onCancelEdit} disabled={isSavingEdit}>Avbryt</Button>
+            </Box>
+          )}
+        </CardContent>
+        <AppBottomSheet
+          open={isDeleteDialogOpen}
+          onClose={onDeleteDialogClose}
+          title="Radera match?"
+        >
+          <Box sx={{ pb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, px: 1, textAlign: 'center' }}>
+              Är du säker på att du vill ta bort matchen från historiken?
+              Detta går inte att ångra.
+            </Typography>
+            <Stack spacing={2}>
+              <Button
+                variant="contained"
+                color="error"
+                size="large"
+                fullWidth
+                onClick={() => onDeleteMatch(m.id)}
+                disabled={deletingId === m.id}
+                startIcon={deletingId === m.id ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
+                sx={{ fontWeight: 700 }}
+              >
+                {deletingId === m.id ? "Tar bort..." : "Radera match"}
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                fullWidth
+                onClick={onDeleteDialogClose}
+                sx={{ fontWeight: 700 }}
+              >
+                Avbryt
+              </Button>
+            </Stack>
+          </Box>
+        </AppBottomSheet>
+      </Card>
+    </SwipeableMatchCard>
+  );
+});
 
 export default function History({
   matches = [],
@@ -243,15 +685,19 @@ export default function History({
     );
   }, [matches]);
 
-  if (!matches.length) return <Typography>Inga matcher ännu.</Typography>;
+  const visibleMatches = useMemo(() => sortedMatches.slice(0, visibleCount), [sortedMatches, visibleCount]);
 
-  const canDelete = (m: Match) => {
-    return user?.id && (m.created_by === user.id || user?.is_admin === true);
-  };
+  const enrichedMatches = useMemo(() => {
+    return visibleMatches.map(m => ({
+      ...m,
+      t1Ids: resolveTeamIds(m.team1_ids, m.team1, nameToIdMap),
+      t2Ids: resolveTeamIds(m.team2_ids, m.team2, nameToIdMap),
+      t1Names: resolveTeamNames(m.team1_ids, m.team1, profileMap),
+      t2Names: resolveTeamNames(m.team2_ids, m.team2, profileMap),
+    }));
+  }, [visibleMatches, nameToIdMap, profileMap]);
 
-  const canEdit = user?.is_admin === true;
-
-  const getTeamIds = (teamIds: (string | null)[], teamNames: string | string[]): (string | null)[] => {
+  const getTeamIds = React.useCallback((teamIds: (string | null)[], teamNames: string | string[]): (string | null)[] => {
     const ids = Array.isArray(teamIds) ? teamIds : [];
     const names = Array.isArray(teamNames) ? teamNames : [];
 
@@ -263,9 +709,9 @@ export default function History({
       const key = normalizeName(name);
       return nameToIdMap.get(key) || "";
     });
-  };
+  }, [nameToIdMap]);
 
-  const startEdit = (match: Match) => {
+  const startEdit = React.useCallback((match: Match) => {
     setEditingId(match.id);
     setEdit({
       created_at: toDateTimeInput(match.created_at),
@@ -276,28 +722,28 @@ export default function History({
       score_type: match.score_type || "sets",
       score_target: match.score_target ?? "",
     });
-  };
+  }, [getTeamIds]);
 
-  const cancelEdit = () => {
+  const cancelEdit = React.useCallback(() => {
     setEditingId(null);
     setEdit(null);
-  };
+  }, []);
 
-  const updateTeam = (teamKey: "team1_ids" | "team2_ids", index: number, value: string) => {
+  const updateTeam = React.useCallback((teamKey: "team1_ids" | "team2_ids", index: number, value: string) => {
     setEdit(prev => {
       if (!prev) return prev;
       const nextTeam = [...prev[teamKey]];
       nextTeam[index] = value;
       return { ...prev, [teamKey]: nextTeam };
     });
-  };
+  }, []);
 
-  const hasDuplicatePlayers = (team1Ids: (string | null)[], team2Ids: (string | null)[]) => {
+  const hasDuplicatePlayers = React.useCallback((team1Ids: (string | null)[], team2Ids: (string | null)[]) => {
     const ids = [...team1Ids, ...team2Ids].filter(Boolean);
     return new Set(ids).size !== ids.length;
-  };
+  }, []);
 
-  const saveEdit = async (matchId: string) => {
+  const saveEdit = React.useCallback(async (matchId: string) => {
     if (!edit) return;
 
     if (!edit.created_at) {
@@ -353,9 +799,9 @@ export default function History({
     } finally {
       setIsSavingEdit(false);
     }
-  };
+  }, [edit, hasDuplicatePlayers, profileMap, queryClient, cancelEdit]);
 
-  const deleteMatch = async (matchId: string) => {
+  const deleteMatch = React.useCallback(async (matchId: string) => {
     setDeletingId(matchId);
     try {
       await matchService.deleteMatch(matchId);
@@ -367,36 +813,13 @@ export default function History({
       setDeletingId(null);
       setDeleteDialogMatchId(null);
     }
-  };
+  }, [queryClient]);
 
-  const formatScore = (match: Match) => {
-    const scoreType = match.score_type || "sets";
-    const score = `${match.team1_sets} – ${match.team2_sets}`;
-    if (scoreType === "points") {
-      const target = match.score_target ? ` (till ${match.score_target})` : "";
-      return `${score} poäng${target}`;
-    }
-    return `${score} set`;
-  };
+  const onDeleteDialogClose = React.useCallback(() => setDeleteDialogMatchId(null), []);
+  const onDeleteDialogOpen = React.useCallback((id: string) => setDeleteDialogMatchId(id), []);
 
-  const formatDelta = (delta?: number) => {
-    if (typeof delta !== "number") return "—";
-    return delta > 0 ? `+${delta}` : `${delta}`;
-  };
+  if (!matches.length) return <Typography>Inga matcher ännu.</Typography>;
 
-  const formatElo = (elo?: number) => {
-    if (typeof elo !== "number") return "—";
-    return Math.round(elo).toString();
-  };
-
-  const getDeltaColor = (delta?: number) => {
-    if (typeof delta !== "number") return "text.secondary";
-    if (delta > 0) return "success.main";
-    if (delta < 0) return "error.main";
-    return "text.secondary";
-  };
-
-  const visibleMatches = sortedMatches.slice(0, visibleCount);
   const canLoadMore = visibleCount < sortedMatches.length;
 
   return (
@@ -411,378 +834,33 @@ export default function History({
       </Box>
 
       <Stack spacing={2}>
-        {visibleMatches.map(m => {
+        {enrichedMatches.map(m => {
           const isEditing = editingId === m.id;
-          const isDeleteDialogOpen = deleteDialogMatchId === m.id;
-          const matchDeltas = eloDeltaByMatch[m.id] || {};
-          const matchRatings = eloRatingByMatch[m.id] || {};
-
-          // Optimization: Pre-calculate team data once per match instead of per-player
-          // We consolidate ID and name resolution to avoid redundant function calls and array iterations.
-          const t1Ids = resolveTeamIds(m.team1_ids, m.team1, nameToIdMap);
-          const t2Ids = resolveTeamIds(m.team2_ids, m.team2, nameToIdMap);
-          const t1Names = resolveTeamNames(m.team1_ids, m.team1, profileMap);
-          const t2Names = resolveTeamNames(m.team2_ids, m.team2, profileMap);
-
-          const tournamentType = m.source_tournament_type || "standalone";
-          const isActually1v1 = tournamentType === "standalone_1v1";
-          const isUserParticipant = t1Ids.includes(user?.id) || t2Ids.includes(user?.id);
-          const isHighlighted = highlightedMatchId === m.id;
-
-          const teamAEntries = t1Ids.map((id, index) => ({
-            id,
-            name: t1Names[index] || getIdDisplayName(id, profileMap),
-          }))
-          .filter((entry, idx) => entry.name !== "Okänd" && (!isActually1v1 || idx === 0))
-          .slice(0, 2);
-
-          const teamBEntries = t2Ids.map((id, index) => ({
-            id,
-            name: t2Names[index] || getIdDisplayName(id, profileMap),
-          }))
-          .filter((entry, idx) => entry.name !== "Okänd" && (!isActually1v1 || idx === 0))
-          .slice(0, 2);
-
-          const is1v1 = isActually1v1 || (teamAEntries.length === 1 && teamBEntries.length === 1);
-
-          // Optimization: Use a more efficient single-pass calculation for ELO averages and match weight.
-          let activeT1Count = 0;
-          let sumA = 0;
-          for (const id of t1Ids) {
-            if (id && id !== GUEST_ID) {
-              activeT1Count++;
-              sumA += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
-            }
-          }
-
-          let activeT2Count = 0;
-          let sumB = 0;
-          for (const id of t2Ids) {
-            if (id && id !== GUEST_ID) {
-              activeT2Count++;
-              sumB += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
-            }
-          }
-
-          const avgA = activeT1Count > 0 ? sumA / activeT1Count : 1000;
-          const avgB = activeT2Count > 0 ? sumB / activeT2Count : 1000;
-
-          const isSinglesMatch = activeT1Count === 1 && activeT2Count === 1;
-          const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
-
-          // This label is the badge text shown in history so non-coders can see the match format at a glance.
-          const typeLabel = tournamentType === "standalone"
-            ? (is1v1 ? "Match 1v1" : "Match 2v2")
-            : tournamentType === "standalone_1v1"
-              ? "Match 1v1"
-              : tournamentType === "mexicano"
-                ? "Mexicano"
-                : tournamentType === "americano"
-                  ? "Americano"
-                  : tournamentType;
-
           return (
-            <SwipeableMatchCard
+            <MatchItem
               key={m.id}
-              canDelete={canDelete(m) && !isEditing}
-              onDelete={() => setDeleteDialogMatchId(m.id)}
-            >
-            <Card
-              id={`match-${m.id}`}
-              variant="outlined"
-              sx={{
-                borderRadius: 3,
-                boxShadow: isHighlighted ? 8 : '0 4px 12px rgba(0,0,0,0.04)',
-                bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'background.paper',
-                borderColor: isHighlighted ? 'primary.main' : (isUserParticipant ? 'primary.light' : 'divider'),
-                borderWidth: isHighlighted ? 2 : (isUserParticipant ? 1.5 : 1),
-              }}
-            >
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box>
-                    <Chip label={typeLabel} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, mr: 1 }} />
-                    <Typography variant="caption" color="text.secondary">
-                      {isEditing ? (
-                        <TextField
-                          type="datetime-local"
-                          size="small"
-                          value={edit?.created_at || ""}
-                          onChange={(e) => setEdit(prev => prev ? { ...prev, created_at: e.target.value } : prev)}
-                          sx={{ mt: 1 }}
-                          slotProps={{ htmlInput: { "aria-label": "Välj datum och tid för matchen" } }}
-                        />
-                      ) : (
-                        `Datum: ${formatHistoryDateLabel(m.created_at)}`
-                      )}
-                    </Typography>
-                  </Box>
-                  {!isEditing && (
-                    <Stack direction="row" spacing={1}>
-                      {canEdit && (
-                        <Tooltip title="Redigera match" arrow>
-                          <Button size="small" startIcon={<EditIcon />} onClick={() => startEdit(m)}>
-                            Ändra
-                          </Button>
-                        </Tooltip>
-                      )}
-                      {canDelete(m) && (
-                        <Tooltip title="Radera match" arrow>
-                          <span>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              // Note for non-coders: open a dialog so we can confirm before deleting.
-                              onClick={() => setDeleteDialogMatchId(m.id)}
-                              aria-label="Radera match"
-                              disabled={deletingId === m.id}
-                            >
-                              {deletingId === m.id ? (
-                                <CircularProgress size={16} color="inherit" />
-                              ) : (
-                                <DeleteIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      )}
-                    </Stack>
-                  )}
-                </Box>
-
-                <Grid container spacing={3}>
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
-                    {isEditing ? (
-                      <Stack spacing={1} sx={{ mt: 1 }}>
-                        <TextField
-                          select
-                          label="Typ"
-                          size="small"
-                          value={edit?.score_type || "sets"}
-                          onChange={(e) => setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
-                          slotProps={{ select: { "aria-label": "Välj typ av resultat (set eller poäng)" } }}
-                        >
-                          <MenuItem value="sets">Set</MenuItem>
-                          <MenuItem value="points">Poäng</MenuItem>
-                        </TextField>
-                        {edit?.score_type === "points" && (
-                          <TextField
-                            label="Mål"
-                            type="number"
-                            size="small"
-                            value={edit?.score_target ?? ""}
-                            onChange={(e) => setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
-                            slotProps={{ htmlInput: { "aria-label": "Mål (t.ex. spela till 24 poäng)" } }}
-                          />
-                        )}
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <TextField
-                            type="number"
-                            size="small"
-                            value={edit?.team1_sets ?? 0}
-                            onChange={(e) => setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
-                            slotProps={{ htmlInput: { "aria-label": "Resultat för lag A" } }}
-                          />
-                          <Typography>–</Typography>
-                          <TextField
-                            type="number"
-                            size="small"
-                            value={edit?.team2_sets ?? 0}
-                            onChange={(e) => setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
-                            slotProps={{ htmlInput: { "aria-label": "Resultat för lag B" } }}
-                          />
-                        </Stack>
-                      </Stack>
-                    ) : (
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatScore(m)}</Typography>
-                    )}
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare A" : "Lag A"}</Typography>
-                    {isEditing ? (
-                      <Stack spacing={1} sx={{ mt: 1 }}>
-                        {edit?.team1_ids.map((value, index) => (
-                          <TextField
-                            key={`team1-${index}`}
-                            select
-                            label={`Spelare ${index + 1}`}
-                            size="small"
-                            value={value || ""}
-                            onChange={(e) => updateTeam("team1_ids", index, e.target.value)}
-                            slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag A` } }}
-                          >
-                            <MenuItem value="">Välj spelare</MenuItem>
-                            {playerOptions.map(option => (
-                              <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
-                            ))}
-                          </TextField>
-                        ))}
-                      </Stack>
-                    ) : (
-                      <List disablePadding sx={{ mt: 1 }}>
-                        {teamAEntries.map(entry => {
-                          const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                          const currentElo = entry.id ? matchRatings[entry.id] : undefined;
-
-                          let explanation = "";
-                          if (entry.id && typeof delta === 'number') {
-                            const preElo = (currentElo || 1000) - delta;
-                            const playerStats = allEloPlayersMap.get(entry.id);
-
-                            explanation = getEloExplanation(
-                              delta,
-                              preElo,
-                              avgA,
-                              avgB,
-                              matchWeight,
-                              m.team1_sets > m.team2_sets,
-                              playerStats?.games || 0
-                            );
-                          }
-
-                          return (
-                            <ListItem key={`${m.id}-team1-${entry.name}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                <ListItemText
-                                  primary={entry.name}
-                                  secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                  secondaryTypographyProps={{ variant: 'caption' }}
-                                />
-                                <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                  {formatDelta(delta)}
-                                </Typography>
-                              </Box>
-                              {explanation && (
-                                <EloBreakdown explanation={explanation} />
-                              )}
-                            </ListItem>
-                          );
-                        })}
-                      </List>
-                    )}
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare B" : "Lag B"}</Typography>
-                    {isEditing ? (
-                      <Stack spacing={1} sx={{ mt: 1 }}>
-                        {edit?.team2_ids.map((value, index) => (
-                          <TextField
-                            key={`team2-${index}`}
-                            select
-                            label={`Spelare ${index + 1}`}
-                            size="small"
-                            value={value || ""}
-                            onChange={(e) => updateTeam("team2_ids", index, e.target.value)}
-                            slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag B` } }}
-                          >
-                            <MenuItem value="">Välj spelare</MenuItem>
-                            {playerOptions.map(option => (
-                              <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
-                            ))}
-                          </TextField>
-                        ))}
-                      </Stack>
-                    ) : (
-                      <List disablePadding sx={{ mt: 1 }}>
-                        {teamBEntries.map(entry => {
-                          const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                          const currentElo = entry.id ? matchRatings[entry.id] : undefined;
-
-                          let explanation = "";
-                          if (entry.id && typeof delta === 'number') {
-                            const preElo = (currentElo || 1000) - delta;
-                            const playerStats = allEloPlayersMap.get(entry.id);
-
-                            explanation = getEloExplanation(
-                              delta,
-                              preElo,
-                              avgB, // Team B relative to Team A
-                              avgA,
-                              matchWeight,
-                              m.team2_sets > m.team1_sets,
-                              playerStats?.games || 0
-                            );
-                          }
-
-                          return (
-                            <ListItem key={`${m.id}-team2-${entry.name}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                <ListItemText
-                                  primary={entry.name}
-                                  secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                  secondaryTypographyProps={{ variant: 'caption' }}
-                                />
-                                <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                                  {formatDelta(delta)}
-                                </Typography>
-                              </Box>
-                              {explanation && (
-                                <EloBreakdown explanation={explanation} />
-                              )}
-                            </ListItem>
-                          );
-                        })}
-                      </List>
-                    )}
-                  </Grid>
-                </Grid>
-
-                {isEditing && (
-                  <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
-                    <Button
-                      variant="contained"
-                      startIcon={isSavingEdit ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-                      onClick={() => saveEdit(m.id)}
-                      disabled={isSavingEdit}
-                    >
-                      {isSavingEdit ? "Sparar..." : "Spara"}
-                    </Button>
-                    <Button variant="outlined" startIcon={<CloseIcon />} onClick={cancelEdit} disabled={isSavingEdit}>Avbryt</Button>
-                  </Box>
-                )}
-              </CardContent>
-              <AppBottomSheet
-                open={isDeleteDialogOpen}
-                onClose={() => setDeleteDialogMatchId(null)}
-                title="Radera match?"
-              >
-                <Box sx={{ pb: 2 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3, px: 1, textAlign: 'center' }}>
-                    Är du säker på att du vill ta bort matchen från historiken?
-                    Detta går inte att ångra.
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      size="large"
-                      fullWidth
-                      onClick={() => deleteMatch(m.id)}
-                      disabled={deletingId === m.id}
-                      startIcon={deletingId === m.id ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
-                      sx={{ fontWeight: 700 }}
-                    >
-                      {deletingId === m.id ? "Tar bort..." : "Radera match"}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="large"
-                      fullWidth
-                      onClick={() => setDeleteDialogMatchId(null)}
-                      sx={{ fontWeight: 700 }}
-                    >
-                      Avbryt
-                    </Button>
-                  </Stack>
-                </Box>
-              </AppBottomSheet>
-            </Card>
-            </SwipeableMatchCard>
+              m={m}
+              user={user}
+              matchDeltas={eloDeltaByMatch[m.id] || {}}
+              matchRatings={eloRatingByMatch[m.id] || {}}
+              isEditing={isEditing}
+              isHighlighted={highlightedMatchId === m.id}
+              isDeleteDialogOpen={deleteDialogMatchId === m.id}
+              deletingId={deletingId}
+              edit={isEditing ? edit : null}
+              isSavingEdit={isEditing ? isSavingEdit : false}
+              playerOptions={playerOptions}
+              profileMap={profileMap}
+              allEloPlayersMap={allEloPlayersMap}
+              onStartEdit={startEdit}
+              onCancelEdit={cancelEdit}
+              onSaveEdit={isEditing ? saveEdit : undefined}
+              onDeleteMatch={deleteMatch}
+              onDeleteDialogOpen={onDeleteDialogOpen}
+              onDeleteDialogClose={onDeleteDialogClose}
+              updateTeam={isEditing ? updateTeam : undefined}
+              setEdit={isEditing ? setEdit : undefined}
+            />
           );
         })}
       </Stack>
