@@ -64,6 +64,50 @@ describe("ELO Logic", () => {
     expect(getMatchWeight(shortMatch)).toBeLessThan(getMatchWeight(longMatch));
   });
 
+  it("should replay same-timestamp matches in a deterministic order", () => {
+    const profiles: any[] = [
+      { id: "p1", name: "Player 1" },
+      { id: "p2", name: "Player 2" },
+      { id: "p3", name: "Player 3" },
+      { id: "p4", name: "Player 4" },
+    ];
+
+    const sameTime = "2026-01-01T22:39:00.000Z";
+    const matchesInputA: any[] = [
+      {
+        id: "z-match",
+        created_at: sameTime,
+        team1_ids: ["p1", "p2"],
+        team2_ids: ["p3", "p4"],
+        team1_sets: 6,
+        team2_sets: 3,
+      },
+      {
+        id: "a-match",
+        created_at: sameTime,
+        team1_ids: ["p3", "p4"],
+        team2_ids: ["p1", "p2"],
+        team1_sets: 6,
+        team2_sets: 1,
+      },
+    ];
+
+    const matchesInputB = [...matchesInputA].reverse();
+
+    const resultA = calculateEloWithStats(matchesInputA, profiles);
+    const resultB = calculateEloWithStats(matchesInputB, profiles);
+
+    // Note for non-coders:
+    // Even if the backend sends equal-timestamp matches in different order,
+    // we expect the same final ELO because we now apply a stable tie-breaker.
+    expect(resultA.eloDeltaByMatch["a-match"]).toEqual(resultB.eloDeltaByMatch["a-match"]);
+    expect(resultA.eloDeltaByMatch["z-match"]).toEqual(resultB.eloDeltaByMatch["z-match"]);
+
+    const finalA = new Map(resultA.players.map(p => [p.id, p.elo]));
+    const finalB = new Map(resultB.players.map(p => [p.id, p.elo]));
+    expect(finalA).toEqual(finalB);
+  });
+
   it("should calculate new ELOs after a match", () => {
     const profiles: any[] = [
       { id: "p1", name: "Player 1" },

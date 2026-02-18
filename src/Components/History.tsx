@@ -320,6 +320,21 @@ const MatchItem = React.memo(({
     return Math.round(elo).toString();
   };
 
+  // Note for non-coders:
+  // K-factor should be based on how many matches a player had *before* this match.
+  // We read that position from the player's ELO history timeline so old match cards
+  // explain the same K-value that was used when the match originally affected ELO.
+  const getGamesBeforeMatch = (playerId: string, matchId: string) => {
+    const playerStats = allEloPlayersMap.get(playerId);
+    if (!playerStats) return 0;
+
+    const entryIndex = playerStats.history.findIndex(entry => entry.matchId === matchId);
+    if (entryIndex >= 0) return entryIndex;
+
+    // Fallback for older/incomplete history payloads.
+    return Math.max((playerStats.games || 1) - 1, 0);
+  };
+
   const getDeltaColor = (delta?: number) => {
     if (typeof delta !== "number") return "text.secondary";
     if (delta > 0) return "success.main";
@@ -474,7 +489,7 @@ const MatchItem = React.memo(({
                     let explanation = "";
                     if (entry.id && typeof delta === 'number') {
                       const preElo = (currentElo || 1000) - delta;
-                      const playerStats = allEloPlayersMap.get(entry.id);
+                      const gamesBeforeMatch = getGamesBeforeMatch(entry.id, m.id);
 
                       explanation = getEloExplanation(
                         delta,
@@ -483,7 +498,7 @@ const MatchItem = React.memo(({
                         avgB,
                         matchWeight,
                         m.team1_sets > m.team2_sets,
-                        playerStats?.games || 0
+                        gamesBeforeMatch
                       );
                     }
 
@@ -540,7 +555,7 @@ const MatchItem = React.memo(({
                     let explanation = "";
                     if (entry.id && typeof delta === 'number') {
                       const preElo = (currentElo || 1000) - delta;
-                      const playerStats = allEloPlayersMap.get(entry.id);
+                      const gamesBeforeMatch = getGamesBeforeMatch(entry.id, m.id);
 
                       explanation = getEloExplanation(
                         delta,
@@ -549,7 +564,7 @@ const MatchItem = React.memo(({
                         avgA,
                         matchWeight,
                         m.team2_sets > m.team1_sets,
-                        playerStats?.games || 0
+                        gamesBeforeMatch
                       );
                     }
 
