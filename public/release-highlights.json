@@ -1,6 +1,17 @@
 {
-  "currentVersion": "0.0.0",
+  "currentVersion": "1.0.0",
   "releases": [
+    {
+      "version": "1.0.0",
+      "title": "Nyheter i version 1.0",
+      "changes": [
+        "Nyhet: Padel-pussel med topplista.",
+        "Stöd för push-notiser (PWA).",
+        "Samlade inställningar i en ny meny.",
+        "Mindre förbättringar.",
+        "Buggfixar."
+      ]
+    },
     {
       "version": "0.0.0",
       "title": "Vad är nytt",

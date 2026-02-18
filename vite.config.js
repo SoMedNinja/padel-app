@@ -1,15 +1,20 @@
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(fs.readFileSync(path.resolve(rootDir, "package.json"), "utf-8"));
 // Note for non-coders:
 // These aliases tell the build where Workbox code lives locally, so the service worker can bundle it instead of downloading from a CDN.
 const workboxModule = (name) => path.resolve(rootDir, `node_modules/.pnpm/${name}@7.4.0/node_modules/${name}`);
 
 export default defineConfig({
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(packageJson.version),
+  },
   test: {
     globals: true,
     environment: "jsdom",
