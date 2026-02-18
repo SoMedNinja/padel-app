@@ -1,6 +1,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import webpush from "npm:web-push@3.6.7";
+import { z } from "https://esm.sh/zod";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +29,30 @@ interface NotificationPreferenceRow {
   profile_id: string;
   preferences: NotificationPreferences;
 }
+
+// --- VALIDATION SCHEMAS ---
+
+const MatchRecordSchema = z.object({
+  created_by: z.string().uuid().optional().nullable(),
+  team1: z.union([z.string(), z.array(z.string())]),
+  team2: z.union([z.string(), z.array(z.string())]),
+  team1_sets: z.number(),
+  team2_sets: z.number(),
+});
+
+const ScheduledGameRecordSchema = z.object({
+  date: z.string(),
+  start_time: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+});
+
+const PollRecordSchema = z.record(z.any());
+
+const PayloadSchema = z.object({
+  type: z.literal("INSERT"),
+  table: z.enum(["matches", "availability_scheduled_games", "availability_polls"]),
+  record: z.record(z.any()),
+});
 
 // Helper to check quiet hours
 function isQuietHoursActive(preferences: NotificationPreferences, now = new Date()): boolean {
@@ -85,9 +110,9 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    let payload;
+    let rawPayload;
     try {
-        payload = await req.json();
+        rawPayload = await req.json();
     } catch (e) {
         console.error("Failed to parse request JSON:", e);
         return new Response(
@@ -96,17 +121,17 @@ Deno.serve(async (req) => {
         );
     }
 
-    // Verify this is a valid INSERT event
-    // The payload structure is { type: 'INSERT', table: 'matches', record: { ... } }
-    const { type, table, record } = payload;
-
-    if (type !== "INSERT" || !record || !table) {
-      console.log("Invalid payload or not an INSERT event, skipping.", { type, table });
+    // Validate the generic payload structure
+    const payloadResult = PayloadSchema.safeParse(rawPayload);
+    if (!payloadResult.success) {
+      console.error("Payload validation failed:", payloadResult.error.format());
       return new Response(
-        JSON.stringify({ message: "Invalid payload or not an INSERT event, skipping." }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Invalid payload structure", details: payloadResult.error.format() }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const { type, table, record } = payloadResult.data;
 
     let title = "";
     let body = "";
@@ -115,8 +140,16 @@ Deno.serve(async (req) => {
     let creatorId: string | null = null;
 
     if (table === "matches") {
-      const match = record;
-      creatorId = match.created_by;
+      const matchResult = MatchRecordSchema.safeParse(record);
+      if (!matchResult.success) {
+        console.error("Match record validation failed:", matchResult.error.format());
+        return new Response(
+          JSON.stringify({ error: "Invalid match record", details: matchResult.error.format() }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const match = matchResult.data;
+      creatorId = match.created_by ?? null;
       const team1Name = Array.isArray(match.team1) ? match.team1.join(" & ") : match.team1;
       const team2Name = Array.isArray(match.team2) ? match.team2.join(" & ") : match.team2;
       title = "Ny match registrerad!";
@@ -124,24 +157,35 @@ Deno.serve(async (req) => {
       eventType = "match_result_new";
       route = "/matchhistory";
     } else if (table === "availability_scheduled_games") {
-      const game = record;
-      // Scheduled games don't have a direct 'created_by' in the schema shown,
-      // but usually associated with a poll. We'll broadcast to all.
-      // If we want to exclude someone, we'd need that info.
-      // Assuming open broadcast for now as per instructions.
+      const gameResult = ScheduledGameRecordSchema.safeParse(record);
+      if (!gameResult.success) {
+        console.error("Scheduled game record validation failed:", gameResult.error.format());
+        return new Response(
+          JSON.stringify({ error: "Invalid scheduled game record", details: gameResult.error.format() }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const game = gameResult.data;
       title = "Ny schemalagd match!";
       // Format date/time if possible
       const date = new Date(game.date).toLocaleDateString('sv-SE');
       const time = game.start_time ? game.start_time.substring(0, 5) : "";
       body = `En match har bokats ${date} kl ${time}. ${game.location ? `Plats: ${game.location}` : ""}`;
       eventType = "scheduled_match_new";
-      route = "/schema"; // Or deep link if available
+      route = "/schema";
     } else if (table === "availability_polls") {
-      const poll = record;
+      const pollResult = PollRecordSchema.safeParse(record);
+      if (!pollResult.success) {
+        console.error("Poll record validation failed:", pollResult.error.format());
+        return new Response(
+          JSON.stringify({ error: "Invalid poll record", details: pollResult.error.format() }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       // Polls are created by admins usually.
       title = "Ny tillgänglighetspoll!";
       body = "Nu kan du rösta på tider för kommande vecka.";
-      eventType = "availability_poll_reminder"; // Using existing type for "Poll" events
+      eventType = "availability_poll_reminder";
       route = "/schema";
     } else {
        console.log(`Unsupported table: ${table}, skipping.`);
