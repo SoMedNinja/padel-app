@@ -5,21 +5,33 @@ language plpgsql
 security definer
 as $$
 declare
-  -- TODO: YOU MUST REPLACE THESE VALUES FOR PUSH NOTIFICATIONS TO WORK
+  -- TODO: YOU MUST REPLACE THIS VALUE FOR PUSH NOTIFICATIONS TO WORK
   -- For local development: 'http://host.docker.internal:54321'
   -- For production: 'https://<project-ref>.supabase.co'
-  project_url text := 'https://hiasgpbuqhiwutpgugjk.supabase.co';
+  project_url text := 'https://YOUR_PROJECT_REF.supabase.co';
 
-  -- TODO: Replace with your Supabase Anon Key (found in Project Settings > API)
-  anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpYXNncGJ1cWhpd3V0cGd1Z2prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMjkxNzcsImV4cCI6MjA4MzkwNTE3N30.uboLiQ0_EqgEj5cLLqazlN6V1mtRHqwiJv7JHGROo1U';
+  service_role_key text;
 begin
+  -- Retrieve the service role key from the vault
+  -- Ensure you have added the key to the vault as per docs/weekly_email_setup.md
+  select decrypted_secret into service_role_key
+  from vault.decrypted_secrets
+  where name = 'service_role_key'
+  limit 1;
+
+  -- If the key is not found, we cannot send the notification.
+  -- You might want to log this or just return early.
+  if service_role_key is null then
+    return new;
+  end if;
+
   -- Call the Edge Function asynchronously
   perform
     net.http_post(
       url := project_url || '/functions/v1/push-dispatcher',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || anon_key
+        'Authorization', 'Bearer ' || service_role_key
       ),
       body := jsonb_build_object(
         'type', TG_OP,
