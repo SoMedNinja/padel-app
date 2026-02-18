@@ -9,7 +9,13 @@ import {
   type ReleaseHighlight,
 } from "../services/releaseHighlightsService";
 
-export default function WhatsNewDialog() {
+// Export the component with optional props to allow manual control
+export interface WhatsNewDialogProps {
+  forceOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function WhatsNewDialog({ forceOpen = false, onClose }: WhatsNewDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [release, setRelease] = useState<ReleaseHighlight | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -19,6 +25,20 @@ export default function WhatsNewDialog() {
 
     void (async () => {
       const payload = await loadReleaseHighlights();
+      // If forced open (e.g. from settings), we just show the current version's highlights
+      // irrespective of "last seen" status.
+      if (forceOpen) {
+        const currentVersion = getCurrentWebAppVersion();
+        // Find the release matching current version, or fallback to the first one
+        const targetRelease = payload?.releases?.find((r) => r.version === currentVersion) ?? payload?.releases?.[0];
+
+        if (isMounted && targetRelease) {
+          setRelease(targetRelease);
+          setIsOpen(true);
+        }
+        return;
+      }
+
       const lastSeenVersion = getLastSeenHighlightsVersion();
       const currentRelease = resolveCurrentRelease(payload, getCurrentWebAppVersion(), lastSeenVersion);
       if (!isMounted || !currentRelease) return;
@@ -38,14 +58,15 @@ export default function WhatsNewDialog() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [forceOpen]);
 
   const handleClose = () => {
-    if (appVersion) {
+    if (!forceOpen && appVersion) {
       // Note for non-coders: saving this version means we won't show this same message again until the next app update.
       markHighlightsVersionAsSeen(appVersion);
     }
     setIsOpen(false);
+    if (onClose) onClose();
   };
 
   if (!release) return null;
