@@ -234,6 +234,7 @@ Deno.serve(async (req) => {
 
     // Send notifications
     const limit = pLimit(5);
+    const tokensToDelete: string[] = [];
     const results = await Promise.all(
       subscriptions.map((sub: PushSubscriptionRow) => limit(async () => {
         const prefs = prefsMap.get(sub.profile_id);
@@ -262,12 +263,8 @@ Deno.serve(async (req) => {
           return { status: "sent" };
         } catch (err: any) {
           if (err.statusCode === 410 || err.statusCode === 404) {
-            // Subscription is gone, remove it
-            await supabase
-              .from("push_subscriptions")
-              .delete()
-              .eq("device_token", sub.device_token)
-              .eq("platform", "web");
+            // Subscription is gone, mark for removal
+            tokensToDelete.push(sub.device_token);
             return { status: "removed" };
           }
           console.error(`Failed to send to user ${sub.profile_id}:`, err);
@@ -275,6 +272,20 @@ Deno.serve(async (req) => {
         }
       }))
     );
+
+    if (tokensToDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("push_subscriptions")
+        .delete()
+        .in("device_token", tokensToDelete)
+        .eq("platform", "web");
+
+      if (deleteError) {
+        console.error("Failed to bulk delete subscriptions:", deleteError);
+      } else {
+        console.log(`Bulk removed ${tokensToDelete.length} invalid subscriptions.`);
+      }
+    }
 
     const sentCount = results.filter(r => r.status === "sent").length;
     const removedCount = results.filter(r => r.status === "removed").length;
