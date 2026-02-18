@@ -1703,6 +1703,17 @@ final class AppViewModel: ObservableObject {
                     let myTeamAvg = isTeamA ? avgA : avgB
                     let oppTeamAvg = isTeamA ? avgB : avgA
 
+                    // Note for non-coders:
+                    // K-factor depends on how many matches the player had *before this match*.
+                    // Using today's total match count can make old match explanations look wrong,
+                    // even when the stored ELO delta itself is correct.
+                    let gamesBeforeMatch: Int = {
+                        guard let entryIndex = stats?.eloHistory.firstIndex(where: { $0.matchId == match.id }) else {
+                            return max((stats?.matchesPlayed ?? 1) - 1, 0)
+                        }
+                        return entryIndex
+                    }()
+
                     explanation = EloService.getEloExplanation(
                         delta: delta,
                         playerElo: estimatedBefore,
@@ -1710,7 +1721,7 @@ final class AppViewModel: ObservableObject {
                         opponentAverageElo: oppTeamAvg,
                         matchWeight: weight,
                         didWin: didWin,
-                        games: stats?.matchesPlayed ?? 0
+                        games: gamesBeforeMatch
                     )
                 }
 
