@@ -217,7 +217,27 @@ enum BadgeService {
                 if !isSortedAsc && !isSortedDesc { break }
             }
         }
-        let sortedMatches = isSortedAsc ? matches : (isSortedDesc ? Array(matches.reversed()) : matches.sorted { $0.playedAt < $1.playedAt })
+        // Note for non-coders:
+        // Some evenings have multiple matches with the exact same timestamp.
+        // If we only sort by time, those ties can shuffle around and produce different
+        // ELO paths between app refreshes. We therefore add a stable tie-breaker using
+        // match ID so the replay order is deterministic every time.
+        let chronologicalMatches: [Match]
+        if isSortedAsc {
+            chronologicalMatches = matches
+        } else if isSortedDesc {
+            chronologicalMatches = Array(matches.reversed())
+        } else {
+            chronologicalMatches = matches.sorted { lhs, rhs in
+                if lhs.playedAt != rhs.playedAt { return lhs.playedAt < rhs.playedAt }
+                return lhs.id.uuidString < rhs.id.uuidString
+            }
+        }
+
+        let sortedMatches = chronologicalMatches.sorted { lhs, rhs in
+            if lhs.playedAt != rhs.playedAt { return lhs.playedAt < rhs.playedAt }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
 
         let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 60 * 60)
         let calendar = Calendar.current

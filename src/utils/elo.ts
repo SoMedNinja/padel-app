@@ -128,19 +128,30 @@ function sortMatchesChronologically(matches: Match[]): Match[] {
     if (!isAscending && !isDescending) break;
   }
 
+  let chronologicalMatches: Match[];
   if (isAscending) {
-    return matches;
+    chronologicalMatches = matches;
   } else if (isDescending) {
     // Optimization: Reverse is O(N) which is faster than Sort O(N log N)
-    return [...matches].reverse();
+    chronologicalMatches = [...matches].reverse();
   } else {
     // Unsorted, must sort O(N log N)
-    return [...matches].sort((a, b) => {
+    chronologicalMatches = [...matches].sort((a, b) => {
       if (a.created_at < b.created_at) return -1;
       if (a.created_at > b.created_at) return 1;
-      return 0;
+      return a.id.localeCompare(b.id);
     });
   }
+
+  // Note for non-coders:
+  // When several matches have exactly the same timestamp, JavaScript can process them
+  // in varying order across refreshes unless we provide an explicit tie-breaker.
+  // We add match ID as that tie-breaker so ELO replay stays deterministic.
+  return [...chronologicalMatches].sort((a, b) => {
+    if (a.created_at < b.created_at) return -1;
+    if (a.created_at > b.created_at) return 1;
+    return a.id.localeCompare(b.id);
+  });
 }
 
 /**
