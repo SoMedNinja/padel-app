@@ -1,5 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta } from './format';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import {
+  getISOWeek,
+  getISOWeekRange,
+  percent,
+  formatEloDelta,
+  formatDate,
+  formatShortDate,
+  formatFullDate,
+  formatTime,
+  formatHistoryDateLabel,
+  formatChartTimestamp
+} from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -125,5 +136,107 @@ describe('formatEloDelta', () => {
     expect(formatEloDelta(-Infinity)).toBe('0');
     expect(formatEloDelta('')).toBe('0');
     expect(formatEloDelta('abc')).toBe('0');
+  });
+});
+
+describe('Date Formatting', () => {
+  // 2024-05-12 is a Sunday
+  // Time is 12:00 UTC
+  const fixedDate = new Date('2024-05-12T12:00:00Z');
+  const fixedDateString = '2024-05-12T12:00:00Z';
+
+  describe('formatDate', () => {
+    it('should format Date object correctly with default options', () => {
+      // "12 maj 2024"
+      expect(formatDate(fixedDate)).toBe('12 maj 2024');
+    });
+
+    it('should format date string correctly', () => {
+      expect(formatDate(fixedDateString)).toBe('12 maj 2024');
+    });
+
+    it('should return empty string for undefined', () => {
+      expect(formatDate(undefined)).toBe('');
+    });
+
+    it('should return empty string for null', () => {
+      // @ts-ignore
+      expect(formatDate(null)).toBe('');
+    });
+
+    it('should return empty string for invalid date string', () => {
+      expect(formatDate('invalid-date')).toBe('');
+    });
+
+    it('should use custom options', () => {
+      const options: Intl.DateTimeFormatOptions = { month: 'long' };
+      expect(formatDate(fixedDate, options)).toBe('maj');
+    });
+  });
+
+  describe('formatShortDate', () => {
+    it('should format as "d MMM"', () => {
+      expect(formatShortDate(fixedDate)).toBe('12 maj');
+    });
+  });
+
+  describe('formatFullDate', () => {
+    it('should format as "weekday d MMM"', () => {
+      expect(formatFullDate(fixedDate)).toBe('söndag 12 maj');
+    });
+  });
+
+  describe('formatTime', () => {
+    it('should format as "HH:mm"', () => {
+      // Assuming UTC environment
+      expect(formatTime(fixedDate)).toBe('12:00');
+    });
+  });
+
+  describe('formatHistoryDateLabel', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should return "Idag kl HH:mm" for same day', () => {
+      const now = new Date('2024-05-12T10:00:00Z');
+      vi.setSystemTime(now);
+      expect(formatHistoryDateLabel(fixedDate)).toBe('Idag kl 12:00');
+    });
+
+    it('should return "Imorgon kl HH:mm" for next day', () => {
+      const now = new Date('2024-05-11T10:00:00Z');
+      vi.setSystemTime(now);
+      expect(formatHistoryDateLabel(fixedDate)).toBe('Imorgon kl 12:00');
+    });
+
+    it('should return full date string for other dates', () => {
+      const now = new Date('2024-05-14T10:00:00Z');
+      vi.setSystemTime(now);
+      const result = formatHistoryDateLabel(fixedDate);
+      // Expect "12 maj 2024" and "12:00" to be present
+      expect(result).toContain('12 maj 2024');
+      expect(result).toContain('12:00');
+    });
+  });
+
+  describe('formatChartTimestamp', () => {
+    it('should format without time', () => {
+      expect(formatChartTimestamp(fixedDate)).toBe('12 maj 2024');
+    });
+
+    it('should format with time', () => {
+      const result = formatChartTimestamp(fixedDate, true);
+      expect(result).toContain('12 maj 2024');
+      expect(result).toContain('12:00');
+    });
+
+    it('should handle timestamp number', () => {
+      expect(formatChartTimestamp(fixedDate.getTime())).toBe('12 maj 2024');
+    });
   });
 });
