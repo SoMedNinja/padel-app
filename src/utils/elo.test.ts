@@ -8,6 +8,7 @@ import {
   getMarginMultiplier,
   getMatchWeight,
   getPlayerWeight,
+  getSinglesAdjustedMatchWeight,
 } from "./elo";
 import { GUEST_ID } from "./guest";
 
@@ -276,5 +277,49 @@ describe("getEloExplanation", () => {
     const explanation = getEloExplanation(-5, 1000, 1000, 1000, 1, false, 0);
     expect(explanation).toContain("(-5 ELO)");
     expect(explanation).not.toContain("+-5");
+  });
+});
+
+describe("getSinglesAdjustedMatchWeight", () => {
+  it("should return standard weight (0.5) for non-singles regular match", () => {
+    // 2-1 in sets is <= 3 sets total, so match weight 0.5
+    const match: any = {
+      team1_sets: 2,
+      team2_sets: 1,
+      score_type: "sets",
+    };
+    expect(getSinglesAdjustedMatchWeight(match, false)).toBe(0.5);
+  });
+
+  it("should return halved weight (0.25) for singles regular match", () => {
+    // 2-1 in sets is <= 3 sets total, so match weight 0.5
+    const match: any = {
+      team1_sets: 2,
+      team2_sets: 1,
+      score_type: "sets",
+    };
+    expect(getSinglesAdjustedMatchWeight(match, true)).toBe(0.25);
+  });
+
+  it("should return long match weight (1.0) for non-singles tournament match", () => {
+    // tournament match weight 1.0
+    const match: any = {
+      source_tournament_id: "t1",
+      team1_sets: 2,
+      team2_sets: 1,
+      score_type: "sets",
+    };
+    expect(getSinglesAdjustedMatchWeight(match, false)).toBe(1.0);
+  });
+
+  it("should return halved long match weight (0.5) for singles tournament match", () => {
+    // tournament match weight 1.0
+    const match: any = {
+      source_tournament_id: "t1",
+      team1_sets: 2,
+      team2_sets: 1,
+      score_type: "sets",
+    };
+    expect(getSinglesAdjustedMatchWeight(match, true)).toBe(0.5);
   });
 });
