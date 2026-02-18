@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta } from './format';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatMvpDays } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -125,5 +125,34 @@ describe('formatEloDelta', () => {
     expect(formatEloDelta(-Infinity)).toBe('0');
     expect(formatEloDelta('')).toBe('0');
     expect(formatEloDelta('abc')).toBe('0');
+  });
+});
+
+describe('formatMvpDays', () => {
+  it('should format 0 or falsy values as "0 dagar"', () => {
+    expect(formatMvpDays(0)).toBe('0 dagar');
+    expect(formatMvpDays(NaN)).toBe('0 dagar');
+  });
+
+  it('should format days less than 365 as "X dagar"', () => {
+    expect(formatMvpDays(1)).toBe('1 dagar');
+    expect(formatMvpDays(100)).toBe('100 dagar');
+    expect(formatMvpDays(364)).toBe('364 dagar');
+  });
+
+  it('should format days >= 365 as years with one decimal', () => {
+    expect(formatMvpDays(365)).toBe('1.0 år');
+    expect(formatMvpDays(730)).toBe('2.0 år'); // 365 * 2
+  });
+
+  it('should round years correctly', () => {
+    // 547.5 days is exactly 1.5 years
+    expect(formatMvpDays(547.5)).toBe('1.5 år');
+
+    // 365 + 18 = 383. 383/365 = 1.049... -> 1.0
+    expect(formatMvpDays(383)).toBe('1.0 år');
+
+    // 365 + 200 = 565. 565/365 = 1.547... -> 1.5
+    expect(formatMvpDays(565)).toBe('1.5 år');
   });
 });
