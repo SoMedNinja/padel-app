@@ -36,6 +36,7 @@ import {
   CheckCircle as CheckCircleIcon,
   ArrowForward as ArrowForwardIcon,
   PersonAdd as PersonAddIcon,
+  Cancel as CancelIcon,
 } from "@mui/icons-material";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
 import {
@@ -582,6 +583,7 @@ export default function MatchForm({
                       key={idx}
                       label={team1[idx] ? getIdDisplayName(team1[idx], profileMap) : `Spelare ${idx + 1}`}
                       onDelete={team1[idx] ? () => removePlayerFromTeam(idx, 1) : undefined}
+                      deleteIcon={<CancelIcon aria-label={`Ta bort ${getIdDisplayName(team1[idx], profileMap)}`} />}
                       color={team1[idx] ? "primary" : "default"}
                       variant={team1[idx] ? "filled" : "outlined"}
                       sx={{ flex: 1, height: 40, fontWeight: 700 }}
@@ -620,6 +622,7 @@ export default function MatchForm({
                       key={idx}
                       label={team2[idx] ? getIdDisplayName(team2[idx], profileMap) : `Spelare ${idx + 1}`}
                       onDelete={team2[idx] ? () => removePlayerFromTeam(idx, 2) : undefined}
+                      deleteIcon={<CancelIcon aria-label={`Ta bort ${getIdDisplayName(team2[idx], profileMap)}`} />}
                       color={team2[idx] ? "primary" : "default"}
                       variant={team2[idx] ? "filled" : "outlined"}
                       sx={{ flex: 1, height: 40, fontWeight: 700 }}
