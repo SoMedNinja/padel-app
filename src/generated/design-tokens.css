@@ -5,6 +5,7 @@
   --color-background: #f6f7fb;
   --color-border-strong: #f0b7b7;
   --color-border-subtle: #ececec;
+  --color-error: #d32f2f;
   --color-highlight: #fff5f5;
   --color-info: #0288d1;
   --color-on-primary: #ffffff;
@@ -35,6 +36,28 @@
   --font-size-section: 20px;
   --font-size-title: 24px;
   --font-family-base: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --elevation-card: 0px 8px 18px 0px rgba(0, 0, 0, 0.08);
+  --elevation-soft: 0px 10px 30px 0px rgba(17, 24, 39, 0.08);
+  --motion-duration-fast: 100ms;
+  --motion-duration-normal: 200ms;
+  --motion-duration-slow: 300ms;
+  --motion-easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-easing-in: cubic-bezier(0.4, 0, 1, 1);
+  --motion-easing-out: cubic-bezier(0, 0, 0.2, 1);
+  --motion-easing-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --component-card-elevation: card;
+  --component-card-padding: 24px;
+  --component-card-radius: 14px;
+  --component-chip-font-weight: bold;
+  --component-chip-height: 32px;
+  --component-chip-radius: 999px;
+  --component-empty-state-icon-size: 48px;
+  --component-empty-state-spacing: 12px;
+  --component-empty-state-title-size: 20px;
+  --component-input-height: 48px;
+  --component-input-radius: 12px;
+  --component-tab-active-weight: bold;
+  --component-tab-indicator-height: 2px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -42,6 +65,7 @@
     --color-background: #121417;
     --color-border-strong: #6b4242;
     --color-border-subtle: #32353a;
+    --color-error: #ef5350;
     --color-highlight: #2c2020;
     --color-info: #4fc3f7;
     --color-on-primary: #140102;

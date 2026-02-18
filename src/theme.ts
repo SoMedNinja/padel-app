@@ -10,6 +10,7 @@ type ThemeMode = 'light' | 'dark';
 
 const semantic = designTokens.color.semantic;
 const radius = designTokens.radius;
+const components = designTokens.components;
 const typographyScale = designTokens.typography.scale;
 const typographyWeight = designTokens.typography.weight;
 
@@ -26,6 +27,9 @@ function buildTheme(mode: ThemeMode) {
       },
       secondary: {
         main: modeSemantic.secondary,
+      },
+      error: {
+        main: modeSemantic.error,
       },
       success: {
         main: modeSemantic.success,
@@ -94,8 +98,8 @@ function buildTheme(mode: ThemeMode) {
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: radius.xl,
-            boxShadow: mode === 'dark' ? 'none' : '0 8px 18px rgba(0, 0, 0, 0.08)',
+            borderRadius: components.card.radius,
+            boxShadow: mode === 'dark' ? 'none' : 'var(--elevation-card)',
             border: `1px solid ${modeSemantic.borderSubtle}`,
           },
         },
@@ -110,8 +114,9 @@ function buildTheme(mode: ThemeMode) {
       MuiChip: {
         styleOverrides: {
           root: {
-            borderRadius: radius.pill,
+            borderRadius: components.chip.radius,
             fontWeight: typographyWeight.bold,
+            height: components.chip.height,
           },
         },
       },

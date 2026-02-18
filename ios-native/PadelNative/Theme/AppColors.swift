@@ -13,7 +13,7 @@ enum AppColors {
     // Semantic Status
     static let success = Color.adaptive(lightHex: DesignTokens.Colors.lightSuccess, darkHex: DesignTokens.Colors.darkSuccess)
     static let warning = Color.adaptive(lightHex: DesignTokens.Colors.lightWarning, darkHex: DesignTokens.Colors.darkWarning)
-    static let error = Color.adaptive(lightHex: DesignTokens.Colors.lightPrimary, darkHex: DesignTokens.Colors.darkPrimary)
+    static let error = Color.adaptive(lightHex: DesignTokens.Colors.lightError, darkHex: DesignTokens.Colors.darkError)
     static let info = Color.adaptive(lightHex: DesignTokens.Colors.lightInfo, darkHex: DesignTokens.Colors.darkInfo)
 
     // Backgrounds & Surfaces
