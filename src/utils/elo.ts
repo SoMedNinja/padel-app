@@ -5,79 +5,32 @@ import {
 } from "./profileMap";
 import { getStreak, getTrendIndicator } from "./stats";
 import { Match, Profile, PlayerStats, PartnerStats } from "../types";
+import {
+  ELO_BASELINE,
+} from "../shared/elo/constants";
+import {
+  getKFactor,
+  getExpectedScore,
+  getWinProbability,
+  getMarginMultiplier,
+  getPlayerWeight,
+  getMatchWeight,
+  getSinglesAdjustedMatchWeight,
+  buildPlayerDelta,
+} from "../shared/elo/math";
 
-const BASE_K = 20;
-const HIGH_K = 40;
-const MID_K = 30;
-const MAX_MARGIN_MULTIPLIER = 1.2;
-const MAX_PLAYER_WEIGHT = 1.25;
-const MIN_PLAYER_WEIGHT = 0.75;
-const EXPECTED_SCORE_DIVISOR = 300;
-const PLAYER_WEIGHT_DIVISOR = 800;
-const ELO_BASELINE = 1000;
-const SHORT_SET_MAX = 3;
-const LONG_SET_MIN = 6;
-const SHORT_POINTS_MAX = 15;
-const MID_POINTS_MAX = 21;
-const SHORT_MATCH_WEIGHT = 0.5;
-const MID_MATCH_WEIGHT = 0.5;
-const LONG_MATCH_WEIGHT = 1;
-// Note for non-coders: 1v1 matches count a bit less because one player's form swings the result more.
-const SINGLES_MATCH_WEIGHT = 0.5;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-export const getKFactor = (games = 0) => {
-  if (games < 10) return HIGH_K;
-  if (games < 30) return MID_K;
-  return BASE_K;
+// Re-export for compatibility if needed elsewhere
+export {
+  getKFactor,
+  getExpectedScore,
+  getWinProbability,
+  getMarginMultiplier,
+  getPlayerWeight,
+  getMatchWeight,
+  getSinglesAdjustedMatchWeight,
+  buildPlayerDelta,
+  ELO_BASELINE,
 };
-
-export const getExpectedScore = (rating: number, opponentRating: number) =>
-  1 / (1 + Math.pow(10, (opponentRating - rating) / EXPECTED_SCORE_DIVISOR));
-
-export const getWinProbability = getExpectedScore;
-
-export const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
-  if (!Number.isFinite(team1Sets) || !Number.isFinite(team2Sets)) return 1;
-  const diff = Math.abs(team1Sets - team2Sets);
-  // User request: 2 set difference (e.g. 8-6) should have same impact as 1 set difference (1.1x).
-  // This means margin 1 for diff 1 or 2, and margin 2 for diff 3 or more.
-  const margin = diff > 2 ? 2 : (diff > 0 ? 1 : 0);
-  return 1 + Math.min(MAX_MARGIN_MULTIPLIER - 1, margin * 0.1);
-};
-
-export const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
-  if (!Number.isFinite(playerElo) || !Number.isFinite(teamAverageElo)) return 1;
-  // Note for non-coders: lower-rated players get a bigger boost (gain more, lose less) vs their team average.
-  const adjustment = 1 + (teamAverageElo - playerElo) / PLAYER_WEIGHT_DIVISOR;
-  return clamp(adjustment, MIN_PLAYER_WEIGHT, MAX_PLAYER_WEIGHT);
-};
-
-export const getMatchWeight = (match: Match) => {
-  // Note for non-coders: This scales ELO changes so long/tournament matches matter more than quick ones.
-  if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
-  const scoreType = match.score_type || "sets";
-  if (scoreType === "sets") {
-    const maxSets = Math.max(match.team1_sets, match.team2_sets);
-    if (maxSets <= SHORT_SET_MAX) return SHORT_MATCH_WEIGHT;
-    if (maxSets >= LONG_SET_MIN) return LONG_MATCH_WEIGHT;
-    return MID_MATCH_WEIGHT;
-  }
-  if (scoreType === "points") {
-    const target = match.score_target ?? 0;
-    if (target <= SHORT_POINTS_MAX) return SHORT_MATCH_WEIGHT;
-    if (target <= MID_POINTS_MAX) return MID_MATCH_WEIGHT;
-    return LONG_MATCH_WEIGHT;
-  }
-  return MID_MATCH_WEIGHT;
-};
-
-export const getSinglesAdjustedMatchWeight = (match: Match, isSinglesMatch: boolean) => {
-  return getMatchWeight(match) * (isSinglesMatch ? SINGLES_MATCH_WEIGHT : 1);
-};
-
-export { ELO_BASELINE };
 
 export const getEloExplanation = (
   delta: number,
@@ -106,33 +59,6 @@ export const getEloExplanation = (
   if (!didWin && prob > 60) lines.push("⚠️ Större avdrag vid förlust som favorit.");
 
   return lines.join("\n");
-};
-
-export const buildPlayerDelta = ({
-  playerElo,
-  playerGames,
-  teamAverageElo,
-  expectedScore,
-  didWin,
-  marginMultiplier,
-  matchWeight,
-}: {
-  playerElo: number;
-  playerGames: number;
-  teamAverageElo: number;
-  expectedScore: number;
-  didWin: boolean;
-  marginMultiplier: number;
-  matchWeight: number;
-}) => {
-  // Note for non-coders: we start from a base "K" value, then scale it by match length and player weight.
-  // Note for non-coders: low-rated players get bigger boosts on wins and smaller penalties on losses (inverse weight).
-  const playerK = getKFactor(playerGames);
-  const weight = getPlayerWeight(playerElo, teamAverageElo);
-  const effectiveWeight = didWin ? weight : 1 / weight;
-  return Math.round(
-    playerK * marginMultiplier * matchWeight * effectiveWeight * ((didWin ? 1 : 0) - expectedScore)
-  );
 };
 
 // --- Helper Functions for Refactoring ---
