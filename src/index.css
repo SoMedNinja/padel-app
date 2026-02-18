@@ -447,3 +447,21 @@ body.chart-fullscreen-active {
   45% { transform: scale(0.55); opacity: 0.06; }
   70% { transform: scale(0.82); opacity: 0.1; }
 }
+
+/* Score animation for Padel Puzzles */
+@keyframes float-up-fade {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+.score-animation {
+  animation: float-up-fade 1s ease-out forwards;
+  pointer-events: none; /* prevent clicks during animation */
+  font-weight: bold;
+}
