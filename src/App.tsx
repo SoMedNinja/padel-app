@@ -30,15 +30,6 @@ export default function App() {
     showLoadingHint,
   } = useAuthProfile();
   const [showAuthScreen, setShowAuthScreen] = useState(false);
-  const toaster = (
-    <Toaster
-      position="top-center"
-      richColors
-      // Note for non-coders: iPhones reserve a "safe area" at the very top; this keeps messages visible below that area.
-      mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
-      offset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
-    />
-  );
 
   useRealtime();
 
@@ -56,10 +47,9 @@ export default function App() {
     setUser(null);
   };
 
-  if (isLoading) {
-    return (
-      <>
-        {toaster}
+  const getContent = () => {
+    if (isLoading) {
+      return (
         <Container maxWidth="sm">
           <Box sx={{ mt: 8, textAlign: 'center' }}>
             <CircularProgress size={40} sx={{ mb: 2 }} />
@@ -71,14 +61,11 @@ export default function App() {
             )}
           </Box>
         </Container>
-      </>
-    );
-  }
+      );
+    }
 
-  if (errorMessage) {
-    return (
-      <>
-        {toaster}
+    if (errorMessage) {
+      return (
         <Container maxWidth="sm">
           <Box sx={{ mt: 8 }}>
             <AppAlert
@@ -101,30 +88,24 @@ export default function App() {
             </Button>
           </Box>
         </Container>
-      </>
-    );
-  }
+      );
+    }
 
-  if (!user && !isGuest && authStatus !== "unauthenticated") {
-    // Note for non-coders: if we still haven't confirmed you're logged out, keep waiting instead of flashing login.
-    return (
-      <>
-        {toaster}
+    if (!user && !isGuest && authStatus !== "unauthenticated") {
+      // Note for non-coders: if we still haven't confirmed you're logged out, keep waiting instead of flashing login.
+      return (
         <Container maxWidth="sm">
           <Box sx={{ mt: 8, textAlign: "center" }}>
             <CircularProgress size={40} sx={{ mb: 2 }} />
             <Typography color="text.secondary">Kontrollerar din session...</Typography>
           </Box>
         </Container>
-      </>
-    );
-  }
+      );
+    }
 
-  if (!user && !isGuest && authStatus === "unauthenticated") {
-    if (hasRecoveryFailed && !showAuthScreen) {
-      return (
-        <>
-          {toaster}
+    if (!user && !isGuest && authStatus === "unauthenticated") {
+      if (hasRecoveryFailed && !showAuthScreen) {
+        return (
           <Container maxWidth="sm">
             <Box sx={{ mt: 8, textAlign: "center" }}>
               <Typography variant="h6" sx={{ mb: 1 }}>
@@ -145,15 +126,12 @@ export default function App() {
               </Stack>
             </Box>
           </Container>
-        </>
-      );
-    }
+        );
+      }
 
-    if (isRecoveringSession) {
-      // Note for non-coders: we try to restore your login quietly before asking you to sign in again.
-      return (
-        <>
-          {toaster}
+      if (isRecoveringSession) {
+        // Note for non-coders: we try to restore your login quietly before asking you to sign in again.
+        return (
           <Container maxWidth="sm">
             <Box sx={{ mt: 8, textAlign: "center" }}>
               <CircularProgress size={40} sx={{ mb: 2 }} />
@@ -166,13 +144,10 @@ export default function App() {
               )}
             </Box>
           </Container>
-        </>
-      );
-    }
+        );
+      }
 
-    return (
-      <>
-        {toaster}
+      return (
         <Auth
           onAuth={() => {
             setIsGuest(false);
@@ -182,46 +157,40 @@ export default function App() {
           }}
           onGuest={() => setIsGuest(true)}
         />
-      </>
-    );
-  }
+      );
+    }
 
-  if (user && !hasCheckedProfile && !isGuest) {
-    // Note for non-coders: we wait to show the profile screen until we know the latest profile details.
-    return (
-      <>
-        {toaster}
+    if (user && !hasCheckedProfile && !isGuest) {
+      // Note for non-coders: we wait to show the profile screen until we know the latest profile details.
+      return (
         <Container maxWidth="sm">
           <Box sx={{ mt: 8, textAlign: 'center' }}>
             <CircularProgress size={40} sx={{ mb: 2 }} />
             <Typography color="text.secondary">Verifierar profilen...</Typography>
           </Box>
         </Container>
-      </>
-    );
-  }
-
-  // Check if profile setup is needed (require a non-empty name).
-  // Note for non-coders: we include user.name so returning users aren't incorrectly asked to set up their profile again.
-  const resolvedName = [
-    profileName,
-    user?.name,
-    user?.user_metadata?.full_name,
-    user?.user_metadata?.name,
-  ].reduce((firstValidName, candidate) => {
-    if (firstValidName) {
-      return firstValidName;
+      );
     }
 
-    return typeof candidate === "string" ? candidate.trim() : "";
-  }, "");
-  const hasValidName = resolvedName.length > 0;
-  if (user && !hasValidName && !isGuest) {
-    // Note for non-coders: we prefill the setup form with any name we can find.
+    // Check if profile setup is needed (require a non-empty name).
+    // Note for non-coders: we include user.name so returning users aren't incorrectly asked to set up their profile again.
+    const resolvedName = [
+      profileName,
+      user?.name,
+      user?.user_metadata?.full_name,
+      user?.user_metadata?.name,
+    ].reduce((firstValidName, candidate) => {
+      if (firstValidName) {
+        return firstValidName;
+      }
 
-    return (
-      <>
-        {toaster}
+      return typeof candidate === "string" ? candidate.trim() : "";
+    }, "");
+    const hasValidName = resolvedName.length > 0;
+    if (user && !hasValidName && !isGuest) {
+      // Note for non-coders: we prefill the setup form with any name we can find.
+
+      return (
         <MainLayout>
           <ProfileSetup
             user={user}
@@ -231,17 +200,14 @@ export default function App() {
             }}
           />
         </MainLayout>
-      </>
-    );
-  }
+      );
+    }
 
-  // Approval gate
-  // Note for non-coders: we only block if approval is explicitly false,
-  // so a just-signed-in user isn't blocked before their profile is loaded.
-  if (user && !user.is_admin && user.is_approved === false && !isGuest) {
-    return (
-      <>
-        {toaster}
+    // Approval gate
+    // Note for non-coders: we only block if approval is explicitly false,
+    // so a just-signed-in user isn't blocked before their profile is loaded.
+    if (user && !user.is_admin && user.is_approved === false && !isGuest) {
+      return (
         <Container maxWidth="sm">
           <Box sx={{ mt: 8, textAlign: 'center', p: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <Typography variant="h5" sx={{ mb: 2, fontWeight: 800 }}>Väntar på godkännande</Typography>
@@ -259,17 +225,29 @@ export default function App() {
             </Stack>
           </Box>
         </Container>
+      );
+    }
+
+    return (
+      <>
+        <ScrollToTop />
+        <MainLayout>
+          <AppRoutes />
+        </MainLayout>
       </>
     );
-  }
+  };
 
   return (
     <>
-      <ScrollToTop />
-      {toaster}
-      <MainLayout>
-        <AppRoutes />
-      </MainLayout>
+      <Toaster
+        position="top-center"
+        richColors
+        // Note for non-coders: iPhones reserve a "safe area" at the very top; this keeps messages visible below that area.
+        mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+        offset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      />
+      {getContent()}
     </>
   );
 }
