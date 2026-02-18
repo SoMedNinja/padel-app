@@ -11,6 +11,7 @@ export const designTokens = {
         "background": "#121417",
         "borderStrong": "#6b4242",
         "borderSubtle": "#32353a",
+        "error": "#ef5350",
         "highlight": "#2c2020",
         "info": "#4fc3f7",
         "onPrimary": "#140102",
@@ -28,6 +29,7 @@ export const designTokens = {
         "background": "#f6f7fb",
         "borderStrong": "#f0b7b7",
         "borderSubtle": "#ececec",
+        "error": "#d32f2f",
         "highlight": "#fff5f5",
         "info": "#0288d1",
         "onPrimary": "#ffffff",
@@ -43,9 +45,85 @@ export const designTokens = {
       }
     }
   },
+  "components": {
+    "card": {
+      "elevation": "card",
+      "padding": 24,
+      "radius": 14
+    },
+    "chip": {
+      "fontWeight": "bold",
+      "height": 32,
+      "radius": 999
+    },
+    "emptyState": {
+      "iconSize": 48,
+      "spacing": 12,
+      "titleSize": 20
+    },
+    "input": {
+      "height": 48,
+      "radius": 12
+    },
+    "tab": {
+      "activeWeight": "bold",
+      "indicatorHeight": 2
+    }
+  },
+  "elevation": {
+    "card": {
+      "blur": 18,
+      "color": "#000000",
+      "opacity": 0.08,
+      "spread": 0,
+      "x": 0,
+      "y": 8
+    },
+    "soft": {
+      "blur": 30,
+      "color": "#111827",
+      "opacity": 0.08,
+      "spread": 0,
+      "x": 0,
+      "y": 10
+    }
+  },
   "meta": {
     "description": "Note for non-coders: this file is the single source of truth for shared design values across web and iOS.",
-    "version": "1.0.0"
+    "version": "1.1.0"
+  },
+  "motion": {
+    "duration": {
+      "fast": 100,
+      "normal": 200,
+      "slow": 300
+    },
+    "easing": {
+      "default": [
+        0.4,
+        0,
+        0.2,
+        1
+      ],
+      "in": [
+        0.4,
+        0,
+        1,
+        1
+      ],
+      "out": [
+        0,
+        0,
+        0.2,
+        1
+      ],
+      "spring": [
+        0.175,
+        0.885,
+        0.32,
+        1.275
+      ]
+    }
   },
   "radius": {
     "lg": 12,
