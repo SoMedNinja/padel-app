@@ -102,14 +102,6 @@ Deno.serve(async (req) => {
   }
 
   const authHeader = req.headers.get("Authorization") ?? "";
-  // Note for non-coders: this temporary log helps confirm whether requests reach the function with an auth header.
-  console.log(
-    JSON.stringify({
-      event: "availability-poll-mail.auth-header-check",
-      hasAuthorizationHeader: authHeader.length > 0,
-      hasBearerPrefix: authHeader.startsWith("Bearer "),
-    }),
-  );
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
