@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent } from './format';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -81,5 +81,49 @@ describe('Percent', () => {
   it('should round correctly', () => {
     expect(percent(1, 2)).toBe(33); // 1/3 = 0.333... -> 33
     expect(percent(2, 1)).toBe(67); // 2/3 = 0.666... -> 67
+  });
+});
+
+describe('formatEloDelta', () => {
+  it('should format positive integers', () => {
+    expect(formatEloDelta(5)).toBe('+5');
+    expect(formatEloDelta(100)).toBe('+100');
+  });
+
+  it('should format negative integers', () => {
+    expect(formatEloDelta(-5)).toBe('-5');
+    expect(formatEloDelta(-100)).toBe('-100');
+  });
+
+  it('should format zero', () => {
+    expect(formatEloDelta(0)).toBe('0');
+    expect(formatEloDelta(-0)).toBe('0');
+  });
+
+  it('should round floats', () => {
+    expect(formatEloDelta(5.6)).toBe('+6');
+    expect(formatEloDelta(5.4)).toBe('+5');
+    expect(formatEloDelta(-5.6)).toBe('-6');
+    expect(formatEloDelta(-5.4)).toBe('-5');
+  });
+
+  it('should handle small floats rounding to zero', () => {
+    expect(formatEloDelta(0.4)).toBe('0');
+    expect(formatEloDelta(-0.4)).toBe('0');
+  });
+
+  it('should handle string inputs', () => {
+    expect(formatEloDelta('5')).toBe('+5');
+    expect(formatEloDelta('-5')).toBe('-5');
+    expect(formatEloDelta('0')).toBe('0');
+    expect(formatEloDelta('5.6')).toBe('+6');
+  });
+
+  it('should handle invalid inputs gracefully', () => {
+    expect(formatEloDelta(NaN)).toBe('0');
+    expect(formatEloDelta(Infinity)).toBe('0');
+    expect(formatEloDelta(-Infinity)).toBe('0');
+    expect(formatEloDelta('')).toBe('0');
+    expect(formatEloDelta('abc')).toBe('0');
   });
 });
