@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate, formatChartTimestamp } from './format';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate, formatChartTimestamp, sanitizeInput } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -219,5 +219,37 @@ describe('formatChartTimestamp', () => {
     expect(formatChartTimestamp('')).toBe('');
     expect(formatChartTimestamp(null as any)).toBe('');
     expect(formatChartTimestamp(undefined as any)).toBe('');
+  });
+});
+
+describe('sanitizeInput', () => {
+  it('should return empty string for null/undefined', () => {
+    expect(sanitizeInput(null)).toBe('');
+    expect(sanitizeInput(undefined)).toBe('');
+  });
+
+  it('should trim whitespace', () => {
+    expect(sanitizeInput('  hello  ')).toBe('hello');
+  });
+
+  it('should truncate to default max length (50)', () => {
+    const longString = 'a'.repeat(60);
+    expect(sanitizeInput(longString)).toBe('a'.repeat(50));
+    expect(sanitizeInput(longString).length).toBe(50);
+  });
+
+  it('should truncate to custom max length', () => {
+    const longString = 'a'.repeat(20);
+    expect(sanitizeInput(longString, 10)).toBe('a'.repeat(10));
+    expect(sanitizeInput(longString, 10).length).toBe(10);
+  });
+
+  it('should handle strings shorter than max length', () => {
+    const shortString = 'short';
+    expect(sanitizeInput(shortString)).toBe(shortString);
+  });
+
+  it('should handle empty string', () => {
+    expect(sanitizeInput('')).toBe('');
   });
 });
