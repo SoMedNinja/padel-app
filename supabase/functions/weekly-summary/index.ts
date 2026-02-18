@@ -521,14 +521,6 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  // Note for non-coders: this temporary log helps us prove if the request reached the function with auth attached.
-  console.log(JSON.stringify({
-    event: "weekly-summary.auth-header-check",
-    hasAuthorizationHeader: authHeader.length > 0,
-    hasBearerPrefix: authHeader.startsWith("Bearer "),
-  }));
-
   const jsonResponse = (payload: Record<string, any>, status = 200) => {
     return new Response(JSON.stringify(payload), {
       status,
