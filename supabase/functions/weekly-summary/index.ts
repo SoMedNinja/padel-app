@@ -175,6 +175,16 @@ const getISOWeekRange = (week: number, year: number) => {
   return { start, end };
 };
 
+interface PlayerDeltaParams {
+  playerElo: number;
+  playerGames: number;
+  teamAverageElo: number;
+  expectedScore: number;
+  didWin: boolean;
+  marginMultiplier: number;
+  matchWeight: number;
+}
+
 const buildPlayerDelta = ({
   playerElo,
   playerGames,
@@ -183,7 +193,7 @@ const buildPlayerDelta = ({
   didWin,
   marginMultiplier,
   matchWeight,
-}: any) => {
+}: PlayerDeltaParams) => {
   const playerK = getKFactor(playerGames);
   const weight = getPlayerWeight(playerElo, teamAverageElo);
   const effectiveWeight = didWin ? weight : 1 / weight;
@@ -745,8 +755,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const eloStart = calculateEloAt(matches, profileMap, startOfWeekISO);
-    const eloEnd = calculateEloAt(matches, profileMap, endOfWeekISO);
     const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
 
     const activePlayerIds = new Set<string>();
@@ -806,17 +814,6 @@ Deno.serve(async (req) => {
 
     const eloStart = calculateElo(matchesBefore, profileMap);
     const eloEnd = calculateElo(matchesWeekForElo, profileMap, eloStart);
-
-    const weeklyMatches = matches.filter(m => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
-
-    const activePlayerIds = new Set<string>();
-    if (targetPlayerId) {
-      activePlayerIds.add(targetPlayerId);
-    } else {
-      weeklyMatches.forEach(m => {
-        [...m.team1_ids, ...m.team2_ids].forEach(id => { if (id && id !== GUEST_ID) activePlayerIds.add(id); });
-      });
-    }
 
     if (activePlayerIds.size === 0 && !targetPlayerId) {
       console.log("No active players and no targetPlayerId provided");
