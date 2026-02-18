@@ -1,24 +1,54 @@
-import React, { useState } from 'react';
-import { render, screen } from '@testing-library/react';
-import ScoreSelector from './ScoreSelector';
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import "@testing-library/jest-dom";
+import ScoreSelector from "./ScoreSelector";
 
-describe('ScoreSelector', () => {
-  test('renders as radiogroup with radio buttons', () => {
-    const Wrapper = () => {
-        const [val, setVal] = useState("0");
-        return <ScoreSelector value={val} onChange={setVal} showExtraScores={false} setShowExtraScores={() => {}} />;
-    }
-    render(<Wrapper />);
+describe("ScoreSelector", () => {
+  it("renders main scores", () => {
+    const onChange = vi.fn();
+    const setShowExtraScores = vi.fn();
+    render(
+      <ScoreSelector
+        value=""
+        onChange={onChange}
+        showExtraScores={false}
+        setShowExtraScores={setShowExtraScores}
+      />
+    );
 
-    const group = screen.getByRole('radiogroup', { name: /välj poäng/i });
-    expect(group).toBeTruthy();
+    const radiogroup = screen.getByRole("radiogroup");
+    expect(radiogroup).toBeInTheDocument();
+    expect(radiogroup).toHaveAttribute("aria-label", "Välj poäng");
 
-    const option0 = screen.getByRole('radio', { name: /poäng: 0/i });
-    expect(option0).toBeTruthy();
-    expect(option0.getAttribute('aria-checked')).toBe('true');
+    // "Mer..." button should NOT be in the radiogroup
+    const toggleButton = screen.getByLabelText("Visa fler poängalternativ");
+    expect(radiogroup).not.toContainElement(toggleButton);
 
-    const option1 = screen.getByRole('radio', { name: /poäng: 1/i });
-    expect(option1).toBeTruthy();
-    expect(option1.getAttribute('aria-checked')).toBe('false');
+    // Main scores should be in the radiogroup
+    const score0 = screen.getByLabelText("Poäng: 0");
+    expect(radiogroup).toContainElement(score0);
+  });
+
+  it("renders extra scores when showExtraScores is true", () => {
+    const onChange = vi.fn();
+    const setShowExtraScores = vi.fn();
+    render(
+      <ScoreSelector
+        value=""
+        onChange={onChange}
+        showExtraScores={true}
+        setShowExtraScores={setShowExtraScores}
+      />
+    );
+
+    const radiogroup = screen.getByRole("radiogroup");
+
+    // Extra scores should be in the radiogroup
+    const score12 = screen.getByLabelText("Poäng: 12");
+    expect(radiogroup).toContainElement(score12);
+
+    // "Göm" button should NOT be in the radiogroup
+    const toggleButton = screen.getByLabelText("Visa färre poängalternativ");
+    expect(radiogroup).not.toContainElement(toggleButton);
   });
 });

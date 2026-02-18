@@ -712,6 +712,8 @@ export default function MatchForm({
                         <LinearProgress
                           variant="determinate"
                           value={simulatorStats.fairness}
+                          aria-label="Rättvisscore"
+                          aria-valuenow={simulatorStats.fairness}
                           sx={{
                             height: 6,
                             borderRadius: 3,
@@ -727,6 +729,8 @@ export default function MatchForm({
                         <LinearProgress
                           variant="determinate"
                           value={simulatorStats.winProb}
+                          aria-label="Vinstchans"
+                          aria-valuenow={simulatorStats.winProb}
                           sx={{
                             height: 6,
                             borderRadius: 3,

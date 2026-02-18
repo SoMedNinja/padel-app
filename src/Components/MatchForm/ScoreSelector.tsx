@@ -18,8 +18,6 @@ export default function ScoreSelector({
 
   return (
     <Box
-      role="radiogroup"
-      aria-label="Välj poäng"
       sx={{
         display: "flex",
         flexWrap: "wrap",
@@ -27,29 +25,12 @@ export default function ScoreSelector({
         justifyContent: "center",
       }}
     >
-      {mainScores.map((s) => (
-        <Button
-          key={s}
-          role="radio"
-          variant={value === s ? "contained" : "outlined"}
-          onClick={() => {
-            onChange(s);
-            navigator.vibrate?.(10);
-          }}
-          aria-label={`Poäng: ${s}`}
-          aria-checked={value === s}
-          sx={{
-            minWidth: 50,
-            height: 50,
-            fontSize: "1.2rem",
-            borderRadius: "50%",
-          }}
-        >
-          {s}
-        </Button>
-      ))}
-      {showExtraScores &&
-        extraScores.map((s) => (
+      <Box
+        role="radiogroup"
+        aria-label="Välj poäng"
+        sx={{ display: "contents" }}
+      >
+        {mainScores.map((s) => (
           <Button
             key={s}
             role="radio"
@@ -70,6 +51,29 @@ export default function ScoreSelector({
             {s}
           </Button>
         ))}
+        {showExtraScores &&
+          extraScores.map((s) => (
+            <Button
+              key={s}
+              role="radio"
+              variant={value === s ? "contained" : "outlined"}
+              onClick={() => {
+                onChange(s);
+                navigator.vibrate?.(10);
+              }}
+              aria-label={`Poäng: ${s}`}
+              aria-checked={value === s}
+              sx={{
+                minWidth: 50,
+                height: 50,
+                fontSize: "1.2rem",
+                borderRadius: "50%",
+              }}
+            >
+              {s}
+            </Button>
+          ))}
+      </Box>
       {!showExtraScores ? (
         <Tooltip title="Visa fler poängalternativ (8–12)" arrow>
           <Button

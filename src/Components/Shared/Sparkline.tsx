@@ -8,6 +8,8 @@ interface SparklineProps {
 }
 
 export const Sparkline: React.FC<SparklineProps> = React.memo(({ data, width = 80, height = 30, color = '#d32f2f' }) => {
+  const uniqueId = React.useId();
+
   if (!data || data.length < 2) return <span style={{ color: '#999', fontSize: '0.8rem' }}>—</span>;
 
   const min = Math.min(...data);
@@ -27,11 +29,21 @@ export const Sparkline: React.FC<SparklineProps> = React.memo(({ data, width = 8
   }).join(' ');
 
   const fillPoints = `0,${height} ${points} ${width},${height}`;
-  const uniqueId = React.useId();
   const gradientId = `sparkline-gradient-${uniqueId.replace(/:/g, '')}`;
 
+  const startVal = Math.round(data[0]);
+  const endVal = Math.round(data[data.length - 1]);
+  const trend = endVal > startVal ? "stigande" : endVal < startVal ? "fallande" : "oförändrad";
+  const ariaLabel = `ELO-trend: ${trend} (${startVal} till ${endVal})`;
+
   return (
-    <svg width={width} height={height} style={{ overflow: 'visible', filter: 'drop-shadow(0px 1px 1px rgba(0,0,0,0.1))' }}>
+    <svg
+      width={width}
+      height={height}
+      role="img"
+      aria-label={ariaLabel}
+      style={{ overflow: 'visible', filter: 'drop-shadow(0px 1px 1px rgba(0,0,0,0.1))' }}
+    >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.2" />
