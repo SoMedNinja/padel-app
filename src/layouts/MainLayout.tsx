@@ -7,7 +7,7 @@ import BottomNav from "../Components/BottomNav";
 import SupabaseConfigBanner from "../Components/SupabaseConfigBanner";
 import InstallPrompt from "../Components/InstallPrompt";
 import PostInstallChecklist from "../Components/PostInstallChecklist";
-import MatchSyncStatusBanner from "../Components/Shared/MatchSyncStatusBanner";
+import OfflineActionCenter from "../Components/Shared/OfflineActionCenter";
 import AppVersionPolicyBanner from "../Components/AppVersionPolicyBanner";
 import PermissionActionGuide from "../Components/Permissions/PermissionActionGuide";
 import { requestOpenPermissionGuide } from "../services/permissionGuidanceService";
@@ -282,7 +282,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <AppVersionPolicyBanner />
         {/* Note for non-coders: this card helps people install the web app like a normal phone app. */}
         <InstallPrompt />
-        <MatchSyncStatusBanner />
+        <OfflineActionCenter />
         {hasGuestAccess && (
           <Alert
             severity="warning"
