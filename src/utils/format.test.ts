@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate, formatChartTimestamp, sanitizeInput } from './format';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate, formatFullDate, formatChartTimestamp, sanitizeInput } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -195,6 +195,26 @@ describe('formatShortDate', () => {
 
   it('should return empty string for invalid date string', () => {
     expect(formatShortDate('invalid-date')).toBe('');
+  });
+});
+
+describe('formatFullDate', () => {
+  it('should format valid Date object correctly', () => {
+    // 2024-05-13 is a Monday
+    const date = new Date('2024-05-13T12:00:00');
+    expect(formatFullDate(date)).toMatch(/måndag 13 maj/);
+  });
+
+  it('should format valid date string correctly', () => {
+    expect(formatFullDate('2024-05-13')).toMatch(/måndag 13 maj/);
+  });
+
+  it('should return empty string for undefined input', () => {
+    expect(formatFullDate(undefined)).toBe('');
+  });
+
+  it('should return empty string for invalid date', () => {
+    expect(formatFullDate('invalid-date')).toBe('');
   });
 });
 
