@@ -827,11 +827,26 @@ Deno.serve(async (req) => {
     }
 
     const weeklyStats: Record<string, any> = {};
+
+    // Performance Optimization: Pre-calculate match map to avoid O(N*M) lookups
+    const playerMatchesMap = new Map<string, Match[]>();
+    weeklyMatches.forEach(m => {
+      const uniqueIds = new Set([...m.team1_ids, ...m.team2_ids]);
+      uniqueIds.forEach(pid => {
+        if (pid && pid !== GUEST_ID) {
+          if (!playerMatchesMap.has(pid)) {
+            playerMatchesMap.set(pid, []);
+          }
+          playerMatchesMap.get(pid)!.push(m);
+        }
+      });
+    });
+
     Array.from(activePlayerIds).forEach(id => {
       const pStart = eloStart[id] || { elo: ELO_BASELINE };
       const profile = profileMap.get(id);
       const pEnd = eloEnd[id] || { elo: ELO_BASELINE, name: profile?.name || "Okänd" };
-      const pMatches = weeklyMatches.filter(m => m.team1_ids.includes(id) || m.team2_ids.includes(id));
+      const pMatches = playerMatchesMap.get(id) || [];
       const wins = pMatches.filter(m => {
         const isT1 = m.team1_ids.includes(id);
         return isT1 ? m.team1_sets > m.team2_sets : m.team2_sets > m.team1_sets;
