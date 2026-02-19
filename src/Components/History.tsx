@@ -465,19 +465,18 @@ const MatchItem = React.memo(({
               </Stack>
             </Stack>
           ) : (
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1.5, sm: 2 }} alignItems="stretch">
+            <Stack direction="row" spacing={{ xs: 1.25, sm: 2 }} alignItems="stretch">
               {/* Note for non-coders: iOS keeps the score in a fixed left column so every card lines up and is easier to scan quickly. */}
-              <Box sx={{ minWidth: { sm: 118 }, textAlign: "center", py: 1, px: 0.5 }}>
-                <Typography sx={{ fontSize: { xs: 38, sm: 42 }, lineHeight: 1.05, fontWeight: 900, letterSpacing: "-0.03em" }}>
+              <Box sx={{ width: { xs: 98, sm: 118 }, flexShrink: 0, textAlign: "center", py: { xs: 0.5, sm: 1 }, px: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: 34, sm: 42 }, lineHeight: 1.05, fontWeight: 900, letterSpacing: "-0.03em" }}>
                   {scoreLabel}
                 </Typography>
-                <Typography variant="subtitle1" sx={{ mt: 0.6, fontSize: 13, fontWeight: 700, color: "text.secondary", letterSpacing: "0.08em" }}>
+                <Typography variant="subtitle1" sx={{ mt: 0.6, fontSize: { xs: 12, sm: 13 }, fontWeight: 700, color: "text.secondary", letterSpacing: "0.08em" }}>
                   {scoreTypeLabel}
                 </Typography>
               </Box>
 
-              <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", sm: "block" }, borderColor: "divider", opacity: 0.8 }} />
-              <Divider sx={{ display: { xs: "block", sm: "none" }, borderColor: "divider", opacity: 0.8 }} />
+              <Divider orientation="vertical" flexItem sx={{ borderColor: "divider", opacity: 0.8 }} />
 
               <Stack sx={{ flex: 1 }} spacing={1.25}>
                 {renderTeamRows(teamAEntries, m.team1_sets > m.team2_sets, "a")}
