@@ -109,6 +109,7 @@ interface HistoryProps {
   profiles?: Profile[];
   user: any;
   highlightedMatchId?: string | null;
+  onOpenDetails?: (matchId: string) => void;
 }
 
 interface EditState {
@@ -148,6 +149,7 @@ interface MatchItemProps {
   onDeleteDialogClose: () => void;
   updateTeam: ((key: "team1_ids" | "team2_ids", index: number, value: string) => void) | undefined;
   setEdit: React.Dispatch<React.SetStateAction<EditState | null>> | undefined;
+  onOpenDetails?: (matchId: string) => void;
 }
 
 const MatchItem = React.memo(({
@@ -170,6 +172,7 @@ const MatchItem = React.memo(({
   onDeleteDialogClose,
   updateTeam,
   setEdit,
+  onOpenDetails,
 }: MatchItemProps) => {
   const canDelete = (m: Match) => {
     return user?.id && (m.created_by === user.id || user?.is_admin === true);
@@ -250,11 +253,11 @@ const MatchItem = React.memo(({
             <Box sx={{ width: 18, display: "flex", justifyContent: "center" }}>
               {didWin ? <CheckCircleIcon sx={{ fontSize: 15, color: "success.main" }} /> : null}
             </Box>
-            <Avatar src={avatarForId(entry.id) || undefined} sx={{ width: 28, height: 28, fontSize: 13 }}>
+            <Avatar src={avatarForId(entry.id) || undefined} sx={{ width: 26, height: 26, fontSize: 12 }}>
               {entry.name.slice(0, 1).toUpperCase()}
             </Avatar>
             <Typography
-              variant="body1"
+              variant="body2"
               sx={{
                 fontWeight: didWin ? 700 : 500,
                 color: didWin ? "text.primary" : "text.secondary",
@@ -263,7 +266,7 @@ const MatchItem = React.memo(({
             >
               {entry.name}
             </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: getDeltaColor(delta), minWidth: 44, textAlign: "right" }}>
+            <Typography variant="body1" sx={{ fontWeight: 800, fontSize: 24, color: getDeltaColor(delta), minWidth: 36, textAlign: "right" }}>
               {formatDelta(delta)}
             </Typography>
           </Box>
@@ -288,12 +291,21 @@ const MatchItem = React.memo(({
       <Card
         id={`match-${m.id}`}
         variant="outlined"
+        onClick={() => {
+          if (!isEditing) onOpenDetails?.(m.id);
+        }}
         sx={{
           borderRadius: 4,
           boxShadow: isHighlighted ? 10 : '0 2px 8px rgba(15, 23, 42, 0.05)',
           bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.03) : 'background.paper',
           borderColor: isHighlighted ? 'primary.main' : 'divider',
           borderWidth: isHighlighted ? 1.5 : 1,
+          cursor: isEditing ? "default" : "pointer",
+          transition: "transform 0.14s ease, box-shadow 0.14s ease",
+          '&:hover': isEditing ? undefined : {
+            transform: 'translateY(-1px)',
+            boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+          },
         }}
       >
         <CardContent sx={{ p: { xs: 2, sm: 2.25 } }}>
@@ -313,7 +325,7 @@ const MatchItem = React.memo(({
                   '.MuiChip-label': { px: 1.2 },
                 }}
               />
-              <Typography variant="h5" sx={{ fontSize: { xs: '1.8rem', sm: '2rem' }, fontWeight: 500, color: 'text.secondary' }}>
+              <Typography variant="body2" sx={{ fontSize: { xs: 19, sm: 22 }, fontWeight: 500, color: 'text.secondary' }}>
                 {isEditing ? (
                   <TextField
                     type="datetime-local"
@@ -334,7 +346,10 @@ const MatchItem = React.memo(({
                 <IconButton
                   size="small"
                   aria-label="Visa matchåtgärder"
-                  onClick={(event) => setActionAnchorEl(event.currentTarget)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setActionAnchorEl(event.currentTarget);
+                  }}
                   sx={{ color: 'text.secondary', p: 0.5 }}
                 >
                   <MoreHorizIcon fontSize="small" />
@@ -454,10 +469,10 @@ const MatchItem = React.memo(({
             <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1.5, sm: 2 }} alignItems="stretch">
               {/* Note for non-coders: iOS keeps the score in a fixed left column so every card lines up and is easier to scan quickly. */}
               <Box sx={{ minWidth: { sm: 118 }, textAlign: "center", py: 1, px: 0.5 }}>
-                <Typography sx={{ fontSize: { xs: 46, sm: 52 }, lineHeight: 1, fontWeight: 900, letterSpacing: "-0.03em" }}>
+                <Typography sx={{ fontSize: { xs: 38, sm: 42 }, lineHeight: 1.05, fontWeight: 900, letterSpacing: "-0.03em" }}>
                   {scoreLabel}
                 </Typography>
-                <Typography variant="subtitle1" sx={{ mt: 0.75, fontWeight: 700, color: "text.secondary", letterSpacing: "0.08em" }}>
+                <Typography variant="subtitle1" sx={{ mt: 0.6, fontSize: 13, fontWeight: 700, color: "text.secondary", letterSpacing: "0.08em" }}>
                   {scoreTypeLabel}
                 </Typography>
               </Box>
@@ -534,6 +549,7 @@ export default function History({
   profiles = [],
   user,
   highlightedMatchId = null,
+  onOpenDetails,
 }: HistoryProps) {
   const queryClient = useQueryClient();
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
@@ -747,6 +763,7 @@ export default function History({
               onDeleteDialogClose={onDeleteDialogClose}
               updateTeam={isEditing ? updateTeam : undefined}
               setEdit={isEditing ? setEdit : undefined}
+              onOpenDetails={onOpenDetails}
             />
           );
         })}

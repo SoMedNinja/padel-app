@@ -80,6 +80,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     if (path === "/dashboard") return "Översikt";
     if (path === "/") return "Profil";
     if (path === "/history") return "Historik";
+    if (path.startsWith("/history/")) return "Matchdetaljer";
     if (path === "/schedule") return "Schema";
     if (path === "/tournament") return "Turnering";
     if (path === "/single-game") return "Match";
