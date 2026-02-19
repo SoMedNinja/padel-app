@@ -3,14 +3,14 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   SelectChangeEvent,
   Box,
   TextField,
   Button,
   Tooltip,
   InputAdornment,
-  IconButton
+  IconButton,
+  Typography,
 } from "@mui/material";
 import { Close as CloseIcon, Autorenew as ResetIcon } from "@mui/icons-material";
 import { MatchFilter, MatchFilterType } from "../types";
@@ -61,7 +61,7 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
     <Box
       className="filter-bar"
       sx={{
-        mb: 2,
+        mb: 0,
         display: "flex",
         justifyContent: "flex-start",
         alignItems: { xs: "stretch", sm: "center" },
@@ -70,33 +70,18 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
         flexDirection: { xs: "column", sm: "row" }
       }}
     >
-      <FormControl size="small" sx={{ minWidth: 160, width: { xs: "100%", sm: "auto" } }}>
-        <InputLabel
-          id="filter-select-label"
-          sx={{
-            // Note for non-coders: "background.paper" means "use the app's default surface color."
-            backgroundColor: "background.paper",
-            px: 0.5,
-            ml: -0.5,
-            "&.Mui-focused, &.MuiInputLabel-shrink": {
-              ml: 0,
-            }
-          }}
-        >
-          {/* Note for non-coders: This text is the heading users see above the filter dropdown. */}
-          Globalt filter
-        </InputLabel>
+      <FormControl size="small" sx={{ minWidth: 180, width: { xs: "100%", sm: "auto" } }}>
         <Select
-          labelId="filter-select-label"
           id="filter-select"
           value={filter.type}
-          label="Globalt filter"
+          displayEmpty
           onChange={handleChange}
           sx={{
             borderRadius: "12px",
-            backgroundColor: "background.paper",
+            backgroundColor: (theme) => theme.palette.action.hover,
+            fontWeight: 700,
             "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "divider",
+              borderColor: "transparent",
             },
           }}
         >
@@ -127,9 +112,9 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
       {!isDefaultFilter && (
         <Box sx={{ px: 0.75, py: 0.25, borderRadius: 2, bgcolor: "grey.100", width: { xs: "100%", sm: "auto" } }}>
           {/* Note for non-coders: this label reminds people which filter is active right now. */}
-          <Box component="span" sx={{ fontSize: 12, fontWeight: 700, color: "text.secondary" }}>
+          <Typography component="span" variant="caption" sx={{ fontWeight: 700, color: "text.secondary" }}>
             Aktivt: {filterLabels[filter.type]}
-          </Box>
+          </Typography>
         </Box>
       )}
       {filter.type === "range" && (

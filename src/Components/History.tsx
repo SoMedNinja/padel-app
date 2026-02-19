@@ -32,9 +32,10 @@ import {
   ListItem,
   ListItemText,
   Paper,
-  Tooltip,
   CircularProgress,
   Collapse,
+  Menu,
+  Divider,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -44,6 +45,7 @@ import {
   Close as CloseIcon,
   ExpandMore as ExpandMoreIcon,
   HelpOutline as HelpIcon,
+  MoreHoriz as MoreHorizIcon,
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
 import AppBottomSheet from "./Shared/AppBottomSheet";
@@ -241,6 +243,9 @@ const MatchItem = React.memo(({
 
   const canEdit = user?.is_admin === true;
 
+  const [actionAnchorEl, setActionAnchorEl] = useState<null | HTMLElement>(null);
+  const isActionMenuOpen = Boolean(actionAnchorEl);
+
   const t1Ids = m.t1Ids;
   const t2Ids = m.t2Ids;
   const t1Names = m.t1Names;
@@ -378,40 +383,50 @@ const MatchItem = React.memo(({
                 )}
               </Typography>
             </Box>
-            {!isEditing && (
-              <Stack direction="row" spacing={1}>
-                {canEdit && (
-                  <Tooltip title="Redigera match" arrow>
-                    <Button size="small" startIcon={<EditIcon />} onClick={() => onStartEdit(m)}>
-                      Ändra
-                    </Button>
-                  </Tooltip>
-                )}
-                {canDelete(m) && (
-                  <Tooltip title="Radera match" arrow>
-                    <span>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => onDeleteDialogOpen(m.id)}
-                        aria-label="Radera match"
-                        disabled={deletingId === m.id}
-                      >
-                        {deletingId === m.id ? (
-                          <CircularProgress size={16} color="inherit" />
-                        ) : (
-                          <DeleteIcon fontSize="small" />
-                        )}
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                )}
-              </Stack>
+            {!isEditing && (canEdit || canDelete(m)) && (
+              <>
+                {/* Note for non-coders: this three-dots button keeps actions tucked away so the row stays clean and iOS-like. */}
+                <IconButton
+                  size="small"
+                  aria-label="Visa matchåtgärder"
+                  onClick={(event) => setActionAnchorEl(event.currentTarget)}
+                >
+                  <MoreHorizIcon fontSize="small" />
+                </IconButton>
+                <Menu
+                  anchorEl={actionAnchorEl}
+                  open={isActionMenuOpen}
+                  onClose={() => setActionAnchorEl(null)}
+                >
+                  {canEdit && (
+                    <MenuItem
+                      onClick={() => {
+                        setActionAnchorEl(null);
+                        onStartEdit(m);
+                      }}
+                    >
+                      <EditIcon fontSize="small" sx={{ mr: 1 }} /> Ändra
+                    </MenuItem>
+                  )}
+                  {canEdit && canDelete(m) && <Divider />}
+                  {canDelete(m) && (
+                    <MenuItem
+                      onClick={() => {
+                        setActionAnchorEl(null);
+                        onDeleteDialogOpen(m.id);
+                      }}
+                      sx={{ color: "error.main" }}
+                    >
+                      <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Radera
+                    </MenuItem>
+                  )}
+                </Menu>
+              </>
             )}
           </Box>
 
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, sm: 4 }}>
+          <Grid container spacing={2} alignItems="flex-start">
+            <Grid size={{ xs: 12, sm: 3 }}>
               <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
               {isEditing ? (
                 <Stack spacing={1} sx={{ mt: 1 }}>
@@ -455,11 +470,14 @@ const MatchItem = React.memo(({
                   </Stack>
                 </Stack>
               ) : (
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatScore(m)}</Typography>
+                <Box sx={{ mt: 1, textAlign: { xs: "left", sm: "center" }, p: 1, borderRadius: 2, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.06) }}>
+                  {/* Note for non-coders: this larger score block mirrors iOS where the result is the visual focus in each row. */}
+                  <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.1 }}>{formatScore(m)}</Typography>
+                </Box>
               )}
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 4.5 }}>
               <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare A" : "Lag A"}</Typography>
               {isEditing ? (
                 <Stack spacing={1} sx={{ mt: 1 }}>
@@ -506,7 +524,7 @@ const MatchItem = React.memo(({
                       <ListItem key={`${m.id}-team1-${i}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                           <ListItemText
-                            primary={entry.name}
+                            primary={`${m.team1_sets > m.team2_sets ? "✓ " : ""}${entry.name}`}
                             secondary={`ELO efter match: ${formatElo(currentElo)}`}
                             primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                             secondaryTypographyProps={{ variant: 'caption' }}
@@ -525,7 +543,7 @@ const MatchItem = React.memo(({
               )}
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 4.5 }}>
               <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare B" : "Lag B"}</Typography>
               {isEditing ? (
                 <Stack spacing={1} sx={{ mt: 1 }}>
@@ -572,7 +590,7 @@ const MatchItem = React.memo(({
                       <ListItem key={`${m.id}-team2-${i}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                           <ListItemText
-                            primary={entry.name}
+                            primary={`${m.team2_sets > m.team1_sets ? "✓ " : ""}${entry.name}`}
                             secondary={`ELO efter match: ${formatElo(currentElo)}`}
                             primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                             secondaryTypographyProps={{ variant: 'caption' }}
