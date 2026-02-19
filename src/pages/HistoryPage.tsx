@@ -5,6 +5,7 @@ import FilterBar from "../Components/FilterBar";
 import EmptyState from "../Components/Shared/EmptyState";
 import { Box, Button, Skeleton, Stack, Container, Typography, Alert, Fab } from "@mui/material";
 import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
+import SectionCard from "../Components/Shared/SectionCard";
 import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
@@ -108,45 +109,52 @@ export default function HistoryPage() {
         <Box id="history" component="section">
           <Typography variant="h4" sx={{ mb: 3, fontWeight: 800 }}>Matchhistorik</Typography>
 
-          <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+          <SectionCard title="Globalt filter">
+            <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+          </SectionCard>
 
-          <DataFreshnessStatus
-            isFetching={isFetching}
-            hasCachedData={hasCachedData}
-            hasError={isError}
-            lastUpdatedAt={lastUpdatedAt}
-          />
+          <SectionCard title="Status">
+            <DataFreshnessStatus
+              isFetching={isFetching}
+              hasCachedData={hasCachedData}
+              hasError={isError}
+              lastUpdatedAt={lastUpdatedAt}
+            />
 
-          {isError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {/* Note for non-coders: this message appears if we cannot load match data. */}
-              {error?.message || "Kunde inte hämta matchhistoriken."}
-            </Alert>
-          )}
-          {isLoading ? (
-            <Stack spacing={2}>
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
-              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
-            </Stack>
-          ) : !filteredMatches.length ? (
-            <EmptyState
-              title="Inga matcher spelade ännu"
-              description="Inga matcher matchar ditt nuvarande filter. Prova att ändra filtret eller registrera en ny match."
-              actionLabel="Registrera match"
-              onAction={() => navigate("/single-game")}
-            />
-          ) : (
-            <History
-              matches={filteredMatches}
-              eloDeltaByMatch={eloDeltaByMatch}
-              eloRatingByMatch={eloRatingByMatch}
-              profiles={profiles}
-              user={isGuest ? null : user}
-              allEloPlayers={eloPlayers}
-              highlightedMatchId={highlightMatchId}
-            />
-          )}
+            {isError && (
+              <Alert severity="error" sx={{ mt: 1.5 }}>
+                {/* Note for non-coders: this message appears if we cannot load match data. */}
+                {error?.message || "Kunde inte hämta matchhistoriken."}
+              </Alert>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Matchhistorik">
+            {isLoading ? (
+              <Stack spacing={2}>
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+              </Stack>
+            ) : !filteredMatches.length ? (
+              <EmptyState
+                title="Inga matcher spelade ännu"
+                description="Inga matcher matchar ditt nuvarande filter. Prova att ändra filtret eller registrera en ny match."
+                actionLabel="Registrera match"
+                onAction={() => navigate("/single-game")}
+              />
+            ) : (
+              <History
+                matches={filteredMatches}
+                eloDeltaByMatch={eloDeltaByMatch}
+                eloRatingByMatch={eloRatingByMatch}
+                profiles={profiles}
+                user={isGuest ? null : user}
+                allEloPlayers={eloPlayers}
+                highlightedMatchId={highlightMatchId}
+              />
+            )}
+          </SectionCard>
         </Box>
       </Container>
       <Fab
