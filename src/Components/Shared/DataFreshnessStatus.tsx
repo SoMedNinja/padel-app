@@ -41,14 +41,8 @@ export default function DataFreshnessStatus({
     );
   }
 
-  if (hasCachedData && lastUpdated) {
-    return (
-      <Alert severity="success" sx={{ mb: 2 }}>
-        {/* Note for non-coders: this confirms data was recently verified online and is considered fresh. */}
-        <Typography variant="body2">Data är uppdaterad (senast kontrollerad kl {lastUpdated}).</Typography>
-      </Alert>
-    );
-  }
+  // Note for non-coders: when everything is healthy, we show no message so the page content can use that space.
+  // Users only see a status when action or attention is needed (syncing, offline, or error while using cached data).
 
   return null;
 }
