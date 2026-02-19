@@ -31,8 +31,6 @@ export default function HistoryPage() {
     isError,
     error,
     eloDeltaByMatch,
-    eloRatingByMatch,
-    eloPlayers,
     isFetching,
     lastUpdatedAt,
     hasCachedData,
@@ -147,10 +145,8 @@ export default function HistoryPage() {
               <History
                 matches={filteredMatches}
                 eloDeltaByMatch={eloDeltaByMatch}
-                eloRatingByMatch={eloRatingByMatch}
                 profiles={profiles}
                 user={isGuest ? null : user}
-                allEloPlayers={eloPlayers}
                 highlightedMatchId={highlightMatchId}
               />
             )}
