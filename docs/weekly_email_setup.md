@@ -33,7 +33,10 @@ If you see an error about linking, run `supabase link --project-ref <YOUR_PROJEC
 
 **Note for non-coders:** An *Edge Function* is a small piece of code that runs on Supabase’s servers. “Deploy” means uploading your local code to Supabase so it can run there.
 
-### 3. Add Service Role Key to Vault
+### 3. Add Secrets to Vault
+For the automated cron job and push notifications to function securely, certain values must be stored in the Supabase Vault.
+
+#### A. Service Role Key
 For the automated cron job to authenticate with the Edge Function, it needs access to the `service_role` key. This key is highly privileged, so we store it in Supabase Vault and only reference it securely.
 
 **Step-by-step**
@@ -52,7 +55,17 @@ If you see an error like “function vault.create_secret does not exist,” the 
 create extension if not exists supabase_vault;
 ```
 
-**Note for non-coders:** *Vault* is a secure storage area in Supabase. We put the secret key there so scheduled jobs can read it without exposing it in the code.
+#### B. Project URL
+The database trigger needs to know your project URL to call the Edge Function for push notifications.
+
+**Step-by-step**
+1. Run this SQL in the **SQL Editor** (replace the placeholder with your actual project URL, e.g., `https://abcdefgh.supabase.co`):
+```sql
+-- Replace 'https://YOUR_PROJECT_REF.supabase.co' with your actual project URL
+select vault.create_secret('https://YOUR_PROJECT_REF.supabase.co', 'supabase_project_url', 'Project URL for internal API calls');
+```
+
+**Note for non-coders:** *Vault* is a secure storage area in Supabase. We put the secret key and URL there so scheduled jobs can read them without exposing them in the code.
 
 ### 4. Enable Cron Job
 This step schedules the weekly email to run automatically.
