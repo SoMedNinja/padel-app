@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import HistoryPage from "./pages/HistoryPage";
+import HistoryMatchDetailPage from "./pages/HistoryMatchDetailPage";
 import AdminPage from "./pages/AdminPage";
 import TournamentPage from "./pages/TournamentPage";
 import SingleGamePage from "./pages/SingleGamePage";
@@ -27,6 +28,7 @@ export default function AppRoutes() {
       <Route path="/settings" element={<PageTransition><SettingsPage /></PageTransition>} />
       <Route path="/grabbarnas-serie" element={<Navigate to="/dashboard" replace />} />
       <Route path="/history" element={<PageTransition><HistoryPage /></PageTransition>} />
+      <Route path="/history/:matchId" element={<PageTransition><HistoryMatchDetailPage /></PageTransition>} />
       <Route path="/matchhistory" element={<Navigate to="/history" replace />} />
       <Route path="/education" element={<PageTransition><EducationPage /></PageTransition>} />
       <Route path="/education/:topicId" element={<PageTransition><EducationPage /></PageTransition>} />

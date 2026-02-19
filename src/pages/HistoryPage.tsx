@@ -81,6 +81,11 @@ export default function HistoryPage() {
   ]);
   const pullToRefreshTuning = getPullToRefreshTuning();
 
+  const openMatchDetails = (matchId: string) => {
+    // Note for non-coders: tapping a history card opens a dedicated details page, similar to the iOS flow.
+    navigate(`/history/${matchId}`);
+  };
+
 
   useEffect(() => {
     if (!highlightMatchId) return;
@@ -148,6 +153,7 @@ export default function HistoryPage() {
                 profiles={profiles}
                 user={isGuest ? null : user}
                 highlightedMatchId={highlightMatchId}
+                onOpenDetails={openMatchDetails}
               />
             )}
           </SectionCard>
