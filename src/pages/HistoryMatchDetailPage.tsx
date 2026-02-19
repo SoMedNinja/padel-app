@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
@@ -12,11 +12,23 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
+import {
+  ArrowBack as ArrowBackIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
+  QuestionMark as QuestionMarkIcon,
+} from "@mui/icons-material";
 import { alpha } from "@mui/material/styles";
 import { useEloStats } from "../hooks/useEloStats";
 import SectionCard from "../Components/Shared/SectionCard";
 import { useStore } from "../store/useStore";
+import {
+  getExpectedScore,
+  getKFactor,
+  getPlayerWeight,
+  getSinglesAdjustedMatchWeight,
+} from "../shared/elo/math";
+import { ELO_BASELINE } from "../shared/elo/constants";
 import {
   getIdDisplayName,
   makeNameToIdMap,
@@ -31,6 +43,7 @@ export default function HistoryMatchDetailPage() {
   const { matchId } = useParams();
   const navigate = useNavigate();
   const { user, isGuest } = useStore();
+  const [expandedExplanationByPlayer, setExpandedExplanationByPlayer] = useState<Record<string, boolean>>({});
 
   const { allMatches, profiles, isLoading, isError, error, eloDeltaByMatch, eloRatingByMatch } = useEloStats();
 
@@ -120,6 +133,35 @@ export default function HistoryMatchDetailPage() {
       return { id, name: entry.name, before, delta, after };
     });
 
+  const teamAIds = enriched.teamAEntries.map((entry) => entry.id).filter((id): id is string => Boolean(id));
+  const teamBIds = enriched.teamBEntries.map((entry) => entry.id).filter((id): id is string => Boolean(id));
+  const isSinglesMatch = teamAIds.length === 1 && teamBIds.length === 1;
+  const matchWeight = getSinglesAdjustedMatchWeight(enriched, isSinglesMatch);
+  const teamAAverageBefore = teamAIds.length
+    ? teamAIds.reduce((sum, id) => sum + (typeof ratings[id] === "number" ? ratings[id] : ELO_BASELINE), 0) / teamAIds.length
+    : ELO_BASELINE;
+  const teamBAverageBefore = teamBIds.length
+    ? teamBIds.reduce((sum, id) => sum + (typeof ratings[id] === "number" ? ratings[id] : ELO_BASELINE), 0) / teamBIds.length
+    : ELO_BASELINE;
+
+  // Note for non-coders: this creates the same four-line ELO explanation seen in iOS, but with live values per player.
+  const getEloExplanationLines = (id: string, delta: number) => {
+    const playerBefore = typeof ratings[id] === "number" ? ratings[id] : ELO_BASELINE;
+    const isTeamAPlayer = teamAIds.includes(id);
+    const didWin = isTeamAPlayer ? enriched.team1_sets > enriched.team2_sets : enriched.team2_sets > enriched.team1_sets;
+    const teamAverage = isTeamAPlayer ? teamAAverageBefore : teamBAverageBefore;
+    const opponentAverage = isTeamAPlayer ? teamBAverageBefore : teamAAverageBefore;
+    const winChance = Math.round(getExpectedScore(teamAverage, opponentAverage) * 100);
+    const playerWeight = getPlayerWeight(playerBefore, teamAverage);
+
+    return [
+      `Resultat: ${didWin ? "Vinst" : "Förlust"} (${delta > 0 ? "+" : ""}${delta} ELO)`,
+      `Vinstchans: ${winChance}%`,
+      `Matchvikt: ${matchWeight} (K=${getKFactor(0)})`,
+      `Spelarvikt: ${playerWeight.toFixed(2)} (relativt laget)`,
+    ];
+  };
+
   return (
     <Container maxWidth="sm" sx={{ py: 2.5 }}>
       <Stack spacing={2.2}>
@@ -206,20 +248,39 @@ export default function HistoryMatchDetailPage() {
                     ? `ELO före: ${row.before} → efter: ${row.after}`
                     : "Ingen detaljerad ELO-data finns för den här äldre matchen ännu."}
                 </Typography>
-                <Box
-                  sx={{
-                    mt: 1,
-                    py: 0.9,
-                    px: 1.2,
-                    borderRadius: 2,
-                    bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
-                  }}
-                >
-                  {/* Note for non-coders: this helper line mirrors iOS and explains where someone can learn why ELO moved. */}
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
-                    Varför ändrades min ELO? Se "Profil" → "ELO-trend" för förklaringen per match.
-                  </Typography>
-                </Box>
+                {typeof row.delta === "number" && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      py: 0.9,
+                      px: 1.2,
+                      borderRadius: 2,
+                      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                    }}
+                  >
+                    <Button
+                      variant="text"
+                      size="small"
+                      startIcon={<QuestionMarkIcon fontSize="small" />}
+                      endIcon={expandedExplanationByPlayer[row.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                      onClick={() => {
+                        setExpandedExplanationByPlayer((prev) => ({ ...prev, [row.id]: !prev[row.id] }));
+                      }}
+                      sx={{ px: 0, fontWeight: 800, textTransform: "none" }}
+                    >
+                      varför ändrades min ELO?
+                    </Button>
+                    {expandedExplanationByPlayer[row.id] && (
+                      <Stack spacing={0.5} sx={{ mt: 1 }}>
+                        {getEloExplanationLines(row.id, row.delta).map((line) => (
+                          <Typography key={`${row.id}-${line}`} variant="body2" sx={{ fontWeight: 600 }}>
+                            {line}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    )}
+                  </Box>
+                )}
                 {row.id !== detailRows[detailRows.length - 1]?.id ? <Divider sx={{ mt: 1.5 }} /> : null}
               </Box>
             ))}
