@@ -80,6 +80,8 @@ export default function HistoryPage() {
     () => invalidateMatchData(queryClient),
   ]);
   const pullToRefreshTuning = getPullToRefreshTuning();
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  const shouldShowStatusSection = isFetching || isError || (isOffline && hasCachedData);
 
   const openMatchDetails = (matchId: string) => {
     // Note for non-coders: tapping a history card opens a dedicated details page, similar to the iOS flow.
@@ -116,21 +118,24 @@ export default function HistoryPage() {
             <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
           </SectionCard>
 
-          <SectionCard title="Status">
-            <DataFreshnessStatus
-              isFetching={isFetching}
-              hasCachedData={hasCachedData}
-              hasError={isError}
-              lastUpdatedAt={lastUpdatedAt}
-            />
+          {shouldShowStatusSection && (
+            <SectionCard title="Status">
+              {/* Note for non-coders: we only show this block when something needs attention (loading, offline, or error). */}
+              <DataFreshnessStatus
+                isFetching={isFetching}
+                hasCachedData={hasCachedData}
+                hasError={isError}
+                lastUpdatedAt={lastUpdatedAt}
+              />
 
-            {isError && (
-              <Alert severity="error" sx={{ mt: 1.5 }}>
-                {/* Note for non-coders: this message appears if we cannot load match data. */}
-                {error?.message || "Kunde inte hämta matchhistoriken."}
-              </Alert>
-            )}
-          </SectionCard>
+              {isError && (
+                <Alert severity="error" sx={{ mt: 1.5 }}>
+                  {/* Note for non-coders: this message appears if we cannot load match data. */}
+                  {error?.message || "Kunde inte hämta matchhistoriken."}
+                </Alert>
+              )}
+            </SectionCard>
+          )}
 
           <SectionCard title="Matchhistorik">
             {isLoading ? (
