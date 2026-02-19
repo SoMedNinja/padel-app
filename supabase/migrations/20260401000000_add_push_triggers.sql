@@ -5,13 +5,15 @@ language plpgsql
 security definer
 as $$
 declare
-  -- TODO: YOU MUST REPLACE THIS VALUE FOR PUSH NOTIFICATIONS TO WORK
-  -- For local development: 'http://host.docker.internal:54321'
-  -- For production: 'https://<project-ref>.supabase.co'
-  project_url text := 'https://YOUR_PROJECT_REF.supabase.co';
-
+  project_url text;
   service_role_key text;
 begin
+  -- Retrieve the project URL from the vault
+  select decrypted_secret into project_url
+  from vault.decrypted_secrets
+  where name = 'supabase_project_url'
+  limit 1;
+
   -- Retrieve the service role key from the vault
   -- Ensure you have added the key to the vault as per docs/weekly_email_setup.md
   select decrypted_secret into service_role_key
@@ -19,9 +21,8 @@ begin
   where name = 'service_role_key'
   limit 1;
 
-  -- If the key is not found, we cannot send the notification.
-  -- You might want to log this or just return early.
-  if service_role_key is null then
+  -- If the key or url is not found, we cannot send the notification.
+  if service_role_key is null or project_url is null then
     return new;
   end if;
 
