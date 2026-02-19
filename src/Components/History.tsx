@@ -245,14 +245,14 @@ const MatchItem = React.memo(({
               display: "flex",
               alignItems: "center",
               gap: 1,
-              minHeight: 34,
+              minHeight: 32,
             }}
           >
             {/* Note for non-coders: the green checkmark marks the winning team so people can scan results quickly without re-reading the score. */}
-            <Box sx={{ width: 18, display: "flex", justifyContent: "center" }}>
-              {didWin ? <CheckCircleIcon sx={{ fontSize: 15, color: "success.main" }} /> : null}
+            <Box sx={{ width: 16, display: "flex", justifyContent: "center" }}>
+              {didWin ? <CheckCircleIcon sx={{ fontSize: 14, color: "success.main" }} /> : null}
             </Box>
-            <Avatar src={avatarForId(entry.id) || undefined} sx={{ width: 26, height: 26, fontSize: 12 }}>
+            <Avatar src={avatarForId(entry.id) || undefined} sx={{ width: 24, height: 24, fontSize: 11 }}>
               {entry.name.slice(0, 1).toUpperCase()}
             </Avatar>
             <Typography
@@ -265,7 +265,7 @@ const MatchItem = React.memo(({
             >
               {entry.name}
             </Typography>
-            <Typography variant="body1" sx={{ fontWeight: 800, fontSize: 24, color: getDeltaColor(delta), minWidth: 36, textAlign: "right" }}>
+            <Typography variant="body1" sx={{ fontWeight: 800, fontSize: { xs: 20, sm: 22 }, color: getDeltaColor(delta), minWidth: 32, textAlign: "right" }}>
               {formatDelta(delta)}
             </Typography>
           </Box>
@@ -315,16 +315,16 @@ const MatchItem = React.memo(({
                 label={typeLabel}
                 size="small"
                 sx={{
-                  height: 28,
+                  height: 26,
                   borderRadius: 999,
                   fontWeight: 800,
-                  fontSize: 15,
+                  fontSize: { xs: 13, sm: 14 },
                   bgcolor: (theme) => alpha(theme.palette.error.main, 0.1),
                   color: 'error.main',
-                  '.MuiChip-label': { px: 1.2 },
+                  '.MuiChip-label': { px: { xs: 1, sm: 1.2 } },
                 }}
               />
-              <Typography variant="body2" sx={{ fontSize: { xs: 19, sm: 22 }, fontWeight: 500, color: 'text.secondary' }}>
+              <Typography variant="body2" sx={{ fontSize: { xs: 17, sm: 20 }, fontWeight: 500, color: 'text.secondary' }}>
                 {isEditing ? (
                   <TextField
                     type="datetime-local"
@@ -467,11 +467,12 @@ const MatchItem = React.memo(({
           ) : (
             <Stack direction="row" spacing={{ xs: 1.25, sm: 2 }} alignItems="stretch">
               {/* Note for non-coders: iOS keeps the score in a fixed left column so every card lines up and is easier to scan quickly. */}
-              <Box sx={{ width: { xs: 98, sm: 118 }, flexShrink: 0, textAlign: "center", py: { xs: 0.5, sm: 1 }, px: 0.5 }}>
-                <Typography sx={{ fontSize: { xs: 34, sm: 42 }, lineHeight: 1.05, fontWeight: 900, letterSpacing: "-0.03em" }}>
+              {/* Note for non-coders: slightly smaller text on PWA helps fit the same information without making each row feel oversized on phone screens. */}
+              <Box sx={{ width: { xs: 90, sm: 108 }, flexShrink: 0, textAlign: "center", py: { xs: 0.4, sm: 0.8 }, px: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: 30, sm: 38 }, lineHeight: 1.05, fontWeight: 900, letterSpacing: "-0.03em" }}>
                   {scoreLabel}
                 </Typography>
-                <Typography variant="subtitle1" sx={{ mt: 0.6, fontSize: { xs: 12, sm: 13 }, fontWeight: 700, color: "text.secondary", letterSpacing: "0.08em" }}>
+                <Typography variant="subtitle1" sx={{ mt: 0.45, fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: "text.secondary", letterSpacing: "0.08em" }}>
                   {scoreTypeLabel}
                 </Typography>
               </Box>
