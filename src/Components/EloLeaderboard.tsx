@@ -386,7 +386,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         }
                       }}
                       hover
-                      className={isMe || !user ? "" : "interactive-press"}
+                      // Note for non-coders: we intentionally skip the shared "press" animation class here
+                      // so leaderboard rows stay perfectly still when tapped in the PWA.
                       onClick={() => handlePlayerClick(p)}
                       sx={{
                         position: 'absolute',
