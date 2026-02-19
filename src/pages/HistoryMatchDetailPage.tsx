@@ -19,6 +19,7 @@ import SectionCard from "../Components/Shared/SectionCard";
 import { useStore } from "../store/useStore";
 import {
   getIdDisplayName,
+  makeNameToIdMap,
   makeProfileMap,
   resolveTeamIds,
   resolveTeamNames,
@@ -34,6 +35,7 @@ export default function HistoryMatchDetailPage() {
   const { allMatches, profiles, isLoading, isError, error, eloDeltaByMatch, eloRatingByMatch } = useEloStats();
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
+  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
 
   const match = useMemo(
     () => allMatches.find((entry) => entry.id === matchId) ?? null,
@@ -43,10 +45,10 @@ export default function HistoryMatchDetailPage() {
   const enriched = useMemo(() => {
     if (!match) return null;
 
-    const t1Ids = resolveTeamIds(match.team1_ids, match.team1);
-    const t2Ids = resolveTeamIds(match.team2_ids, match.team2);
-    const t1Names = resolveTeamNames(match.team1);
-    const t2Names = resolveTeamNames(match.team2);
+    const t1Ids = resolveTeamIds(match.team1_ids, match.team1, nameToIdMap);
+    const t2Ids = resolveTeamIds(match.team2_ids, match.team2, nameToIdMap);
+    const t1Names = resolveTeamNames(match.team1_ids, match.team1, profileMap);
+    const t2Names = resolveTeamNames(match.team2_ids, match.team2, profileMap);
 
     const teamAEntries = t1Ids.map((id, index) => ({
       id,
@@ -67,7 +69,7 @@ export default function HistoryMatchDetailPage() {
       sourceLabel: match.source_tournament_id ? "Turneringsmatch" : "Fristående match",
       sourceTypeLabel: match.source_tournament_type || "standalone",
     };
-  }, [match, profileMap]);
+  }, [match, nameToIdMap, profileMap]);
 
   const avatarForId = (id?: string | null) => {
     if (!id || id === GUEST_ID) return undefined;
