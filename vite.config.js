@@ -20,7 +20,10 @@ export default defineConfig({
     environment: "jsdom",
     exclude: ["**/node_modules/**"],
   },
-  base: "./",
+  // Note for non-coders:
+  // Using an absolute base URL (/) keeps JS/CSS asset links stable on deep routes like /history/details.
+  // If we used "./", browsers would look for files inside the current route folder and receive HTML instead.
+  base: "/",
   resolve: {
     alias: {
       "workbox-cacheable-response": workboxModule("workbox-cacheable-response"),
