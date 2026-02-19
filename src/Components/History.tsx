@@ -41,7 +41,7 @@ import {
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
 import AppBottomSheet from "./Shared/AppBottomSheet";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { motion, useMotionValue } from "framer-motion";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -60,7 +60,6 @@ interface SwipeableMatchCardProps {
 
 function SwipeableMatchCard({ children, onDelete, canDelete }: SwipeableMatchCardProps) {
   const x = useMotionValue(0);
-  const deleteOpacity = useTransform(x, [-100, -50], [1, 0]);
 
   return (
     <Box sx={{ position: "relative" }}>
@@ -81,7 +80,7 @@ function SwipeableMatchCard({ children, onDelete, canDelete }: SwipeableMatchCar
             zIndex: 0,
           }}
           component={motion.div}
-          style={{ opacity: deleteOpacity }}
+          // Note for non-coders: this red background appears behind the card while swiping to hint that the action is delete.
         >
           <DeleteIcon sx={{ color: "white" }} />
         </Box>
