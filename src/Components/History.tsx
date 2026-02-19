@@ -12,28 +12,21 @@ import {
   resolveTeamNames,
 } from "../utils/profileMap";
 import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { Match, Profile, PlayerStats } from "../types";
+import { Match, Profile } from "../types";
 import { matchService } from "../services/matchService";
-import { getEloExplanation, getSinglesAdjustedMatchWeight } from "../utils/elo";
-import { InfoOutlined as InfoIcon } from "@mui/icons-material";
 import {
   Box,
   Typography,
   Card,
   CardContent,
-  Grid,
   Chip,
   Button,
   TextField,
   MenuItem,
   Stack,
   IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  Paper,
   CircularProgress,
-  Collapse,
+  Avatar,
   Menu,
   Divider,
 } from "@mui/material";
@@ -43,9 +36,8 @@ import {
   Delete as DeleteIcon,
   Save as SaveIcon,
   Close as CloseIcon,
-  ExpandMore as ExpandMoreIcon,
-  HelpOutline as HelpIcon,
   MoreHoriz as MoreHorizIcon,
+  CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
 import AppBottomSheet from "./Shared/AppBottomSheet";
@@ -111,65 +103,11 @@ function SwipeableMatchCard({ children, onDelete, canDelete }: SwipeableMatchCar
   );
 }
 
-function EloBreakdown({ explanation }: { explanation: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = explanation.split("\n");
-
-  return (
-    <Box sx={{ mt: 0.5 }}>
-      <Button
-        size="small"
-        startIcon={<HelpIcon sx={{ fontSize: '0.9rem !important' }} />}
-        endIcon={<ExpandMoreIcon sx={{
-          fontSize: '0.9rem !important',
-          transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: 'transform 0.2s'
-        }} />}
-        onClick={() => setExpanded(!expanded)}
-        sx={{
-          textTransform: 'none',
-          fontSize: '0.7rem',
-          fontWeight: 700,
-          color: 'primary.main',
-          p: 0,
-          minWidth: 0,
-          '&:hover': { bgcolor: 'transparent', opacity: 0.8 }
-        }}
-      >
-        Varför ändrades min ELO?
-      </Button>
-      <Collapse in={expanded}>
-        <Paper
-          variant="outlined"
-          sx={{
-            mt: 1,
-            p: 1.5,
-            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
-            borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-            borderRadius: 2
-          }}
-        >
-          {lines.map((line, i) => (
-            <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: i === lines.length - 1 ? 0 : 1 }}>
-              <InfoIcon sx={{ fontSize: '0.8rem', mt: 0.3, color: 'primary.main' }} />
-              <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600, color: 'text.primary', textAlign: 'left' }}>
-                {line}
-              </Typography>
-            </Box>
-          ))}
-        </Paper>
-      </Collapse>
-    </Box>
-  );
-}
-
 interface HistoryProps {
   matches?: Match[];
   eloDeltaByMatch?: Record<string, Record<string, number>>;
-  eloRatingByMatch?: Record<string, Record<string, number>>;
   profiles?: Profile[];
   user: any;
-  allEloPlayers?: PlayerStats[];
   highlightedMatchId?: string | null;
 }
 
@@ -194,7 +132,6 @@ interface MatchItemProps {
   m: EnrichedMatch;
   user: any;
   matchDeltas: Record<string, number>;
-  matchRatings: Record<string, number>;
   isEditing: boolean;
   isHighlighted: boolean;
   isDeleteDialogOpen: boolean;
@@ -203,7 +140,6 @@ interface MatchItemProps {
   isSavingEdit: boolean;
   playerOptions: { id: string; name: string }[];
   profileMap: Map<string, Profile>;
-  allEloPlayersMap: Map<string, PlayerStats>;
   onStartEdit: (m: Match) => void;
   onCancelEdit: () => void;
   onSaveEdit: ((id: string) => void) | undefined;
@@ -218,7 +154,6 @@ const MatchItem = React.memo(({
   m,
   user,
   matchDeltas,
-  matchRatings,
   isEditing,
   isHighlighted,
   isDeleteDialogOpen,
@@ -227,7 +162,6 @@ const MatchItem = React.memo(({
   isSavingEdit,
   playerOptions,
   profileMap,
-  allEloPlayersMap,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
@@ -271,74 +205,72 @@ const MatchItem = React.memo(({
 
   const is1v1 = isActually1v1 || (teamAEntries.length === 1 && teamBEntries.length === 1);
 
-  let activeT1Count = 0;
-  let sumA = 0;
-  for (const id of t1Ids) {
-    if (id && id !== GUEST_ID) {
-      activeT1Count++;
-      sumA += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
-    }
-  }
-
-  let activeT2Count = 0;
-  let sumB = 0;
-  for (const id of t2Ids) {
-    if (id && id !== GUEST_ID) {
-      activeT2Count++;
-      sumB += ((matchRatings[id] || 1000) - (matchDeltas[id] || 0));
-    }
-  }
-
-  const avgA = activeT1Count > 0 ? sumA / activeT1Count : 1000;
-  const avgB = activeT2Count > 0 ? sumB / activeT2Count : 1000;
-
-  const isSinglesMatch = activeT1Count === 1 && activeT2Count === 1;
-  const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
-
   const typeLabel = tournamentType === "standalone"
-    ? (is1v1 ? "Match 1v1" : "Match 2v2")
+    ? (is1v1 ? "1v1" : "2v2")
     : tournamentType === "standalone_1v1"
-      ? "Match 1v1"
+      ? "1v1"
       : tournamentType === "mexicano"
         ? "Mexicano"
         : tournamentType === "americano"
           ? "Americano"
           : tournamentType;
 
-  const formatScore = (match: Match) => {
-    const scoreType = match.score_type || "sets";
-    const score = `${match.team1_sets} – ${match.team2_sets}`;
-    if (scoreType === "points") {
-      const target = match.score_target ? ` (till ${match.score_target})` : "";
-      return `${score} poäng${target}`;
-    }
-    return `${score} set`;
-  };
+  const scoreLabel = `${m.team1_sets} – ${m.team2_sets}`;
+  const scoreTypeLabel = m.score_type === "points" ? "POÄNG" : "SET";
 
   const formatDelta = (delta?: number) => {
     if (typeof delta !== "number") return "—";
     return delta > 0 ? `+${delta}` : `${delta}`;
   };
 
-  const formatElo = (elo?: number) => {
-    if (typeof elo !== "number") return "—";
-    return Math.round(elo).toString();
+  const avatarForId = (id?: string | null) => {
+    if (!id || id === GUEST_ID) return null;
+    return profileMap.get(id)?.avatar_url || null;
   };
 
-  // Note for non-coders:
-  // K-factor should be based on how many matches a player had *before* this match.
-  // We read that position from the player's ELO history timeline so old match cards
-  // explain the same K-value that was used when the match originally affected ELO.
-  const getGamesBeforeMatch = (playerId: string, matchId: string) => {
-    const playerStats = allEloPlayersMap.get(playerId);
-    if (!playerStats) return 0;
-
-    const entryIndex = playerStats.history.findIndex(entry => entry.matchId === matchId);
-    if (entryIndex >= 0) return entryIndex;
-
-    // Fallback for older/incomplete history payloads.
-    return Math.max((playerStats.games || 1) - 1, 0);
-  };
+  const renderTeamRows = (
+    entries: { id: string | null; name: string }[],
+    didWin: boolean,
+    sideKey: "a" | "b"
+  ) => (
+    <Stack spacing={0.5}>
+      {entries.map((entry, index) => {
+        const delta = entry.id ? matchDeltas[entry.id] : undefined;
+        return (
+          <Box
+            key={`${m.id}-team-${sideKey}-${index}`}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              minHeight: 34,
+            }}
+          >
+            {/* Note for non-coders: the green checkmark marks the winning team so people can scan results quickly without re-reading the score. */}
+            <Box sx={{ width: 18, display: "flex", justifyContent: "center" }}>
+              {didWin ? <CheckCircleIcon sx={{ fontSize: 15, color: "success.main" }} /> : null}
+            </Box>
+            <Avatar src={avatarForId(entry.id) || undefined} sx={{ width: 28, height: 28, fontSize: 13 }}>
+              {entry.name.slice(0, 1).toUpperCase()}
+            </Avatar>
+            <Typography
+              variant="body1"
+              sx={{
+                fontWeight: didWin ? 700 : 500,
+                color: didWin ? "text.primary" : "text.secondary",
+                flex: 1,
+              }}
+            >
+              {entry.name}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: getDeltaColor(delta), minWidth: 44, textAlign: "right" }}>
+              {formatDelta(delta)}
+            </Typography>
+          </Box>
+        );
+      })}
+    </Stack>
+  );
 
   const getDeltaColor = (delta?: number) => {
     if (typeof delta !== "number") return "text.secondary";
@@ -357,18 +289,31 @@ const MatchItem = React.memo(({
         id={`match-${m.id}`}
         variant="outlined"
         sx={{
-          borderRadius: 3,
-          boxShadow: isHighlighted ? 8 : '0 4px 12px rgba(0,0,0,0.04)',
-          bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.04) : 'background.paper',
-          borderColor: isHighlighted ? 'primary.main' : (isUserParticipant ? 'primary.light' : 'divider'),
-          borderWidth: isHighlighted ? 2 : (isUserParticipant ? 1.5 : 1),
+          borderRadius: 4,
+          boxShadow: isHighlighted ? 10 : '0 2px 8px rgba(15, 23, 42, 0.05)',
+          bgcolor: isUserParticipant ? (theme) => alpha(theme.palette.primary.main, 0.03) : 'background.paper',
+          borderColor: isHighlighted ? 'primary.main' : 'divider',
+          borderWidth: isHighlighted ? 1.5 : 1,
         }}
       >
-        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Chip label={typeLabel} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, mr: 1 }} />
-              <Typography variant="caption" color="text.secondary">
+        <CardContent sx={{ p: { xs: 2, sm: 2.25 } }}>
+          <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              {/* Note for non-coders: this tiny badge matches iOS where match type is visible but does not dominate the row. */}
+              <Chip
+                label={typeLabel}
+                size="small"
+                sx={{
+                  height: 28,
+                  borderRadius: 999,
+                  fontWeight: 800,
+                  fontSize: 15,
+                  bgcolor: (theme) => alpha(theme.palette.error.main, 0.1),
+                  color: 'error.main',
+                  '.MuiChip-label': { px: 1.2 },
+                }}
+              />
+              <Typography variant="h5" sx={{ fontSize: { xs: '1.8rem', sm: '2rem' }, fontWeight: 500, color: 'text.secondary' }}>
                 {isEditing ? (
                   <TextField
                     type="datetime-local"
@@ -379,10 +324,10 @@ const MatchItem = React.memo(({
                     slotProps={{ htmlInput: { "aria-label": "Välj datum och tid för matchen" } }}
                   />
                 ) : (
-                  `Datum: ${formatHistoryDateLabel(m.created_at)}`
+                  formatHistoryDateLabel(m.created_at)
                 )}
               </Typography>
-            </Box>
+            </Stack>
             {!isEditing && (canEdit || canDelete(m)) && (
               <>
                 {/* Note for non-coders: this three-dots button keeps actions tucked away so the row stays clean and iOS-like. */}
@@ -390,6 +335,7 @@ const MatchItem = React.memo(({
                   size="small"
                   aria-label="Visa matchåtgärder"
                   onClick={(event) => setActionAnchorEl(event.currentTarget)}
+                  sx={{ color: 'text.secondary', p: 0.5 }}
                 >
                   <MoreHorizIcon fontSize="small" />
                 </IconButton>
@@ -425,190 +371,108 @@ const MatchItem = React.memo(({
             )}
           </Box>
 
-          <Grid container spacing={2} alignItems="flex-start">
-            <Grid size={{ xs: 12, sm: 3 }}>
-              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Resultat</Typography>
-              {isEditing ? (
-                <Stack spacing={1} sx={{ mt: 1 }}>
+          {isEditing ? (
+            <Stack spacing={1.5}>
+              <Stack spacing={1}>
+                <TextField
+                  select
+                  label="Typ"
+                  size="small"
+                  value={edit?.score_type || "sets"}
+                  onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
+                  slotProps={{ select: { "aria-label": "Välj typ av resultat (set eller poäng)" } }}
+                >
+                  <MenuItem value="sets">Set</MenuItem>
+                  <MenuItem value="points">Poäng</MenuItem>
+                </TextField>
+                {edit?.score_type === "points" && (
                   <TextField
-                    select
-                    label="Typ"
+                    label="Mål"
+                    type="number"
                     size="small"
-                    value={edit?.score_type || "sets"}
-                    onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
-                    slotProps={{ select: { "aria-label": "Välj typ av resultat (set eller poäng)" } }}
+                    value={edit?.score_target ?? ""}
+                    onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
+                    slotProps={{ htmlInput: { "aria-label": "Mål (t.ex. spela till 24 poäng)" } }}
+                  />
+                )}
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={edit?.team1_sets ?? 0}
+                    onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
+                    slotProps={{ htmlInput: { "aria-label": "Resultat för lag A" } }}
+                  />
+                  <Typography>–</Typography>
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={edit?.team2_sets ?? 0}
+                    onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
+                    slotProps={{ htmlInput: { "aria-label": "Resultat för lag B" } }}
+                  />
+                </Stack>
+              </Stack>
+
+              <Stack spacing={1}>
+                {edit?.team1_ids.map((value, index) => (
+                  <TextField
+                    key={`team1-${index}`}
+                    select
+                    label={`Lag A spelare ${index + 1}`}
+                    size="small"
+                    value={value || ""}
+                    onChange={(e) => updateTeam && updateTeam("team1_ids", index, e.target.value)}
+                    slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag A` } }}
                   >
-                    <MenuItem value="sets">Set</MenuItem>
-                    <MenuItem value="points">Poäng</MenuItem>
+                    <MenuItem value="">Välj spelare</MenuItem>
+                    {playerOptions.map(option => (
+                      <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                    ))}
                   </TextField>
-                  {edit?.score_type === "points" && (
-                    <TextField
-                      label="Mål"
-                      type="number"
-                      size="small"
-                      value={edit?.score_target ?? ""}
-                      onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, score_target: e.target.value } : prev)}
-                      slotProps={{ htmlInput: { "aria-label": "Mål (t.ex. spela till 24 poäng)" } }}
-                    />
-                  )}
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={edit?.team1_sets ?? 0}
-                      onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, team1_sets: e.target.value } : prev)}
-                      slotProps={{ htmlInput: { "aria-label": "Resultat för lag A" } }}
-                    />
-                    <Typography>–</Typography>
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={edit?.team2_sets ?? 0}
-                      onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, team2_sets: e.target.value } : prev)}
-                      slotProps={{ htmlInput: { "aria-label": "Resultat för lag B" } }}
-                    />
-                  </Stack>
-                </Stack>
-              ) : (
-                <Box sx={{ mt: 1, textAlign: { xs: "left", sm: "center" }, p: 1, borderRadius: 2, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.06) }}>
-                  {/* Note for non-coders: this larger score block mirrors iOS where the result is the visual focus in each row. */}
-                  <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.1 }}>{formatScore(m)}</Typography>
-                </Box>
-              )}
-            </Grid>
+                ))}
 
-            <Grid size={{ xs: 12, sm: 4.5 }}>
-              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare A" : "Lag A"}</Typography>
-              {isEditing ? (
-                <Stack spacing={1} sx={{ mt: 1 }}>
-                  {edit?.team1_ids.map((value, index) => (
-                    <TextField
-                      key={`team1-${index}`}
-                      select
-                      label={`Spelare ${index + 1}`}
-                      size="small"
-                      value={value || ""}
-                      onChange={(e) => updateTeam && updateTeam("team1_ids", index, e.target.value)}
-                      slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag A` } }}
-                    >
-                      <MenuItem value="">Välj spelare</MenuItem>
-                      {playerOptions.map(option => (
-                        <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
-                      ))}
-                    </TextField>
-                  ))}
-                </Stack>
-              ) : (
-                <List disablePadding sx={{ mt: 1 }}>
-                  {teamAEntries.map((entry, i) => {
-                    const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                    const currentElo = entry.id ? matchRatings[entry.id] : undefined;
+                {edit?.team2_ids.map((value, index) => (
+                  <TextField
+                    key={`team2-${index}`}
+                    select
+                    label={`Lag B spelare ${index + 1}`}
+                    size="small"
+                    value={value || ""}
+                    onChange={(e) => updateTeam && updateTeam("team2_ids", index, e.target.value)}
+                    slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag B` } }}
+                  >
+                    <MenuItem value="">Välj spelare</MenuItem>
+                    {playerOptions.map(option => (
+                      <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
+                    ))}
+                  </TextField>
+                ))}
+              </Stack>
+            </Stack>
+          ) : (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1.5, sm: 2 }} alignItems="stretch">
+              {/* Note for non-coders: iOS keeps the score in a fixed left column so every card lines up and is easier to scan quickly. */}
+              <Box sx={{ minWidth: { sm: 118 }, textAlign: "center", py: 1, px: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: 46, sm: 52 }, lineHeight: 1, fontWeight: 900, letterSpacing: "-0.03em" }}>
+                  {scoreLabel}
+                </Typography>
+                <Typography variant="subtitle1" sx={{ mt: 0.75, fontWeight: 700, color: "text.secondary", letterSpacing: "0.08em" }}>
+                  {scoreTypeLabel}
+                </Typography>
+              </Box>
 
-                    let explanation = "";
-                    if (entry.id && typeof delta === 'number') {
-                      const preElo = (currentElo || 1000) - delta;
-                      const gamesBeforeMatch = getGamesBeforeMatch(entry.id, m.id);
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", sm: "block" }, borderColor: "divider", opacity: 0.8 }} />
+              <Divider sx={{ display: { xs: "block", sm: "none" }, borderColor: "divider", opacity: 0.8 }} />
 
-                      explanation = getEloExplanation(
-                        delta,
-                        preElo,
-                        avgA,
-                        avgB,
-                        matchWeight,
-                        m.team1_sets > m.team2_sets,
-                        gamesBeforeMatch
-                      );
-                    }
+              <Stack sx={{ flex: 1 }} spacing={1.25}>
+                {renderTeamRows(teamAEntries, m.team1_sets > m.team2_sets, "a")}
+                <Divider sx={{ borderColor: "divider", opacity: 0.8 }} />
+                {renderTeamRows(teamBEntries, m.team2_sets > m.team1_sets, "b")}
+              </Stack>
+            </Stack>
+          )}
 
-                    return (
-                      <ListItem key={`${m.id}-team1-${i}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                          <ListItemText
-                            primary={`${m.team1_sets > m.team2_sets ? "✓ " : ""}${entry.name}`}
-                            secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                            secondaryTypographyProps={{ variant: 'caption' }}
-                          />
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                            {formatDelta(delta)}
-                          </Typography>
-                        </Box>
-                        {explanation && (
-                          <EloBreakdown explanation={explanation} />
-                        )}
-                      </ListItem>
-                    );
-                  })}
-                </List>
-              )}
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 4.5 }}>
-              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{is1v1 ? "Spelare B" : "Lag B"}</Typography>
-              {isEditing ? (
-                <Stack spacing={1} sx={{ mt: 1 }}>
-                  {edit?.team2_ids.map((value, index) => (
-                    <TextField
-                      key={`team2-${index}`}
-                      select
-                      label={`Spelare ${index + 1}`}
-                      size="small"
-                      value={value || ""}
-                      onChange={(e) => updateTeam && updateTeam("team2_ids", index, e.target.value)}
-                      slotProps={{ htmlInput: { "aria-label": `Välj spelare ${index + 1} för lag B` } }}
-                    >
-                      <MenuItem value="">Välj spelare</MenuItem>
-                      {playerOptions.map(option => (
-                        <MenuItem key={option.id} value={option.id}>{option.name}</MenuItem>
-                      ))}
-                    </TextField>
-                  ))}
-                </Stack>
-              ) : (
-                <List disablePadding sx={{ mt: 1 }}>
-                  {teamBEntries.map((entry, i) => {
-                    const delta = entry.id ? matchDeltas[entry.id] : undefined;
-                    const currentElo = entry.id ? matchRatings[entry.id] : undefined;
-
-                    let explanation = "";
-                    if (entry.id && typeof delta === 'number') {
-                      const preElo = (currentElo || 1000) - delta;
-                      const gamesBeforeMatch = getGamesBeforeMatch(entry.id, m.id);
-
-                      explanation = getEloExplanation(
-                        delta,
-                        preElo,
-                        avgB, // Team B relative to Team A
-                        avgA,
-                        matchWeight,
-                        m.team2_sets > m.team1_sets,
-                        gamesBeforeMatch
-                      );
-                    }
-
-                    return (
-                      <ListItem key={`${m.id}-team2-${i}`} disableGutters sx={{ py: 0.5, flexDirection: 'column', alignItems: 'stretch' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                          <ListItemText
-                            primary={`${m.team2_sets > m.team1_sets ? "✓ " : ""}${entry.name}`}
-                            secondary={`ELO efter match: ${formatElo(currentElo)}`}
-                            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                            secondaryTypographyProps={{ variant: 'caption' }}
-                          />
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: getDeltaColor(delta) }}>
-                            {formatDelta(delta)}
-                          </Typography>
-                        </Box>
-                        {explanation && (
-                          <EloBreakdown explanation={explanation} />
-                        )}
-                      </ListItem>
-                    );
-                  })}
-                </List>
-              )}
-            </Grid>
-          </Grid>
 
           {isEditing && (
             <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
@@ -667,17 +531,13 @@ const MatchItem = React.memo(({
 export default function History({
   matches = [],
   eloDeltaByMatch = {},
-  eloRatingByMatch = {},
   profiles = [],
   user,
-  allEloPlayers = [],
   highlightedMatchId = null,
 }: HistoryProps) {
   const queryClient = useQueryClient();
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
-  const allEloPlayersMap = useMemo(() => new Map(allEloPlayers.map(p => [p.id, p])), [allEloPlayers]);
-
   const playerOptions = useMemo(() => {
     const options = profiles.map(profile => ({
       id: profile.id,
@@ -857,14 +717,10 @@ export default function History({
 
   return (
     <Box id="match-history" component="section">
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'flex-start' }, flexDirection: { xs: 'column', sm: 'row' }, flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Tidigare matcher</Typography>
-          <Typography variant="caption" color="text.secondary">
-            Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher. Senaste först.
-          </Typography>
-        </Box>
-      </Box>
+      {/* Note for non-coders: we keep just one small metadata row here so the page avoids duplicate titles and feels closer to iOS cards. */}
+      <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: "block" }}>
+        Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher. Senaste först.
+      </Typography>
 
       <Stack spacing={2}>
         {enrichedMatches.map(m => {
@@ -875,7 +731,6 @@ export default function History({
               m={m}
               user={user}
               matchDeltas={eloDeltaByMatch[m.id] || {}}
-              matchRatings={eloRatingByMatch[m.id] || {}}
               isEditing={isEditing}
               isHighlighted={highlightedMatchId === m.id}
               isDeleteDialogOpen={deleteDialogMatchId === m.id}
@@ -884,7 +739,6 @@ export default function History({
               isSavingEdit={isEditing ? isSavingEdit : false}
               playerOptions={playerOptions}
               profileMap={profileMap}
-              allEloPlayersMap={allEloPlayersMap}
               onStartEdit={startEdit}
               onCancelEdit={cancelEdit}
               onSaveEdit={isEditing ? saveEdit : undefined}
