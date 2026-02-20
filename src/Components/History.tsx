@@ -41,7 +41,6 @@ import {
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
 import AppBottomSheet from "./Shared/AppBottomSheet";
-import { motion, useMotionValue } from "framer-motion";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -51,56 +50,6 @@ const toDateTimeInput = (value: string) => {
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
-
-interface SwipeableMatchCardProps {
-  children: React.ReactNode;
-  onDelete: () => void;
-  canDelete: boolean;
-}
-
-function SwipeableMatchCard({ children, onDelete, canDelete }: SwipeableMatchCardProps) {
-  const x = useMotionValue(0);
-
-  return (
-    <Box sx={{ position: "relative" }}>
-      {canDelete && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            right: 0,
-            width: "100%",
-            bgcolor: "error.main",
-            borderRadius: 3,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            pr: 4,
-            zIndex: 0,
-          }}
-          component={motion.div}
-          // Note for non-coders: this red background appears behind the card while swiping to hint that the action is delete.
-        >
-          <DeleteIcon sx={{ color: "white" }} />
-        </Box>
-      )}
-      <motion.div
-        style={{ x, touchAction: "pan-y", backgroundColor: "white", borderRadius: "12px", zIndex: 1, position: "relative" }}
-        drag={canDelete ? "x" : false}
-        dragConstraints={{ left: -100, right: 0 }}
-        dragElastic={0.1}
-        onDragEnd={(e, info) => {
-          if (info.offset.x < -80) {
-            onDelete();
-          }
-        }}
-      >
-        {children}
-      </motion.div>
-    </Box>
-  );
-}
 
 interface HistoryProps {
   matches?: Match[];
@@ -282,11 +231,8 @@ const MatchItem = React.memo(({
   };
 
   return (
-    <SwipeableMatchCard
-      key={m.id}
-      canDelete={canDelete(m) && !isEditing}
-      onDelete={() => onDeleteDialogOpen(m.id)}
-    >
+    // Note for non-coders: cards are now tap-only on PWA to avoid accidental/buggy swipe deletes.
+    <Box key={m.id}>
       <Card
         id={`match-${m.id}`}
         variant="outlined"
@@ -538,7 +484,7 @@ const MatchItem = React.memo(({
           </Box>
         </AppBottomSheet>
       </Card>
-    </SwipeableMatchCard>
+    </Box>
   );
 });
 
