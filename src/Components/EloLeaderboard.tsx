@@ -452,9 +452,9 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         zIndex: 10,
                         // Fix: Ensure background is opaque for sticky behavior.
                         // For 'isMe', we layer the alpha highlight over the solid paper background.
-                        background: isMe
-                          ? (theme) => `linear-gradient(${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.main, 0.08)}), ${theme.palette.background.paper}`
-                          : 'background.paper',
+                        background: (theme) => isMe
+                          ? `linear-gradient(${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.main, 0.08)}), ${theme.palette.background.paper}`
+                          : theme.palette.background.paper,
                         width: columnWidths.first,
                         minWidth: columnWidths.first,
                         maxWidth: columnWidths.first,
