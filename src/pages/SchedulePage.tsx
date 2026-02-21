@@ -43,6 +43,8 @@ import {
 } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent } from "../Components/Shared/PullToRefreshContent";
+import PageShell from "../Components/Shared/PageShell";
+import PageHeader from "../Components/Shared/PageHeader";
 import { evaluatePollDay } from "../utils/availabilityStatus";
 import { formatShortDate, formatFullDate } from "../utils/format";
 import { useScheduleLogic } from "../hooks/useScheduleLogic";
@@ -128,18 +130,17 @@ export default function SchedulePage() {
       refreshingContent={<RefreshingContent />}
       {...pullToRefreshTuning}
     >
-      <Box component="section" sx={{ py: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Schema</Typography>
+      <PageShell sectionId="schedule">
+        <PageHeader
+          title="Schema"
+          subtitle="Rösta på de dagar du kan spela. Resultatet uppdateras live för alla."
+        />
         <DataFreshnessStatus
           isFetching={isFetchingPolls || isFetchingScheduledGames}
           hasCachedData={pollsSorted.length > 0 || upcomingBookings.length > 0}
           hasError={isError}
           lastUpdatedAt={Math.max(pollsUpdatedAt || 0, scheduledGamesUpdatedAt || 0)}
         />
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Rösta på de dagar du kan spela. Resultatet uppdateras live för alla.
-        </Typography>
-
         {isGuest && (
           <Alert severity="info" sx={{ mb: 2 }}>
             {/* Note for non-coders: guests can read results but cannot submit votes. */}
@@ -498,7 +499,7 @@ export default function SchedulePage() {
             })}
           </Stack>
         )}
-      </Box>
+      </PageShell>
 
       <Menu
         anchorEl={actionMenuAnchorEl}
@@ -555,6 +556,7 @@ export default function SchedulePage() {
           <Button onClick={() => setDangerPollId(null)}>Avbryt</Button>
         </DialogActions>
       </Dialog>
+
 
       <Dialog open={inviteDialogOpen} onClose={closeInviteDialog} fullWidth maxWidth="sm">
         <DialogTitle>Skicka kalenderinbjudan</DialogTitle>

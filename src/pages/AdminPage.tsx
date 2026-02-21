@@ -4,10 +4,11 @@ import { useStore } from "../store/useStore";
 import { useProfiles } from "../hooks/useProfiles";
 import { useQueryClient } from "@tanstack/react-query";
 import { Profile } from "../types";
-import { Box, Button, Container, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import AppAlert from "../Components/Shared/AppAlert";
 import { invalidateProfileData } from "../data/queryInvalidation";
+import PageShell from "../Components/Shared/PageShell";
 
 export default function AdminPage() {
   const { user } = useStore();
@@ -28,7 +29,7 @@ export default function AdminPage() {
   if (!user?.is_admin) {
     // Note for non-coders: this message guides non-admins to request access instead of a hard error.
     return (
-      <Container maxWidth="sm" sx={{ py: 6 }}>
+      <PageShell maxWidth="sm" sectionId="admin-access-required">
         <AppAlert severity="warning" title="Administratörsåtkomst krävs">
           <Typography variant="body2" sx={{ mb: 2 }}>
             För att få åtkomst, be en administratör att aktivera adminrollen för ditt konto.
@@ -52,13 +53,12 @@ export default function AdminPage() {
             </Button>
           </Box>
         </AppAlert>
-      </Container>
+      </PageShell>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Box id="admin" component="section">
+    <PageShell sectionId="admin">
         <AdminPanel
           user={user}
           profiles={profiles}
@@ -66,7 +66,6 @@ export default function AdminPage() {
           onProfileUpdate={handleProfileUpdate}
           onProfileDelete={handleProfileDelete}
         />
-      </Box>
-    </Container>
+    </PageShell>
   );
 }

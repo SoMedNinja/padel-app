@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Container, Typography, Button, Box, Stack } from '@mui/material';
+import { Typography, Button, Stack } from '@mui/material';
 import { Logout as LogoutIcon, Login as LoginIcon } from '@mui/icons-material';
 import { useStore } from '../store/useStore';
 import { supabase } from '../supabaseClient';
@@ -11,6 +11,8 @@ import SettingsSection from '../Components/Settings/SettingsSection';
 import ProfileSettings from '../Components/Settings/ProfileSettings';
 import AppInfo from '../Components/Settings/AppInfo';
 import WebPermissionsPanel from '../Components/Permissions/WebPermissionsPanel';
+import PageShell from '../Components/Shared/PageShell';
+import PageHeader from '../Components/Shared/PageHeader';
 
 export default function SettingsPage() {
   const { user, setUser, isGuest, setIsGuest } = useStore();
@@ -40,10 +42,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
-      <Typography variant="h4" sx={{ mb: 3, fontWeight: 800 }}>
-        Inställningar
-      </Typography>
+    <PageShell sectionId="settings">
+      <PageHeader title="Inställningar" />
 
       {isGuest ? (
         <SettingsSection title="Gästläge">
@@ -110,6 +110,6 @@ export default function SettingsPage() {
       <SettingsSection title="App Information">
         <AppInfo />
       </SettingsSection>
-    </Container>
+    </PageShell>
   );
 }
