@@ -8,9 +8,10 @@ interface ProfileNameProps {
   name: string;
   badgeId?: string | null;
   className?: string;
+  truncate?: boolean;
 }
 
-export default function ProfileName({ name, badgeId, className = "" }: ProfileNameProps) {
+export default function ProfileName({ name, badgeId, className = "", truncate = false }: ProfileNameProps) {
   const icon = getBadgeIconById(badgeId || null);
   const tier = getBadgeTierLabelById(badgeId || null);
   const description = getBadgeDescriptionById(badgeId || null);
@@ -22,7 +23,15 @@ export default function ProfileName({ name, badgeId, className = "" }: ProfileNa
   const badgeLabel = icon ? `${icon}${tier ? ` ${tier}` : ""}` : "";
 
   if (!icon) {
-    return <span className={className}>{displayName}</span>;
+    return (
+      <Box
+        component="span"
+        className={className}
+        sx={truncate ? { display: 'inline-block', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } : undefined}
+      >
+        {displayName}
+      </Box>
+    );
   }
 
   const badgeChip = (
@@ -57,9 +66,14 @@ export default function ProfileName({ name, badgeId, className = "" }: ProfileNa
     <Box
       component="span"
       className={`profile-name ${className}`.trim()}
-      sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}
+      // Note for non-coders: `truncate` keeps long names on one line so compact tables don't overflow.
+      sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, flexWrap: truncate ? "nowrap" : "wrap", minWidth: 0, maxWidth: '100%' }}
     >
-      <Box component="span" className="profile-name-text">
+      <Box
+        component="span"
+        className="profile-name-text"
+        sx={truncate ? { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } : undefined}
+      >
         {displayName}
       </Box>
       {description ? (

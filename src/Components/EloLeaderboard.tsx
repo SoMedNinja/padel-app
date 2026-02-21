@@ -438,13 +438,13 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       }}
                     >
                       <TableCell component="div" role="cell" sx={{ borderBottom: 'none', position: 'sticky', left: 0, zIndex: 2, bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'background.paper', width: columnWidths.first, minWidth: columnWidths.first, maxWidth: columnWidths.first, overflow: 'hidden' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                           <Avatar
                             sx={AVATAR_SX}
                             src={p.avatarUrl || getStoredAvatar(p.id)}
                             name={p.name}
                           />
-                          <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
+                          <ProfileName name={p.name} badgeId={p.featuredBadgeId} truncate />
                         </Box>
                       </TableCell>
                       <TableCell component="div" role="cell" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none', width: columnWidths.elo, minWidth: columnWidths.elo, maxWidth: columnWidths.elo }}>{Math.round(p.elo)}</TableCell>
