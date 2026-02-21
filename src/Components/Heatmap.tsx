@@ -57,9 +57,11 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
 
   const currentEloByPlayer = useMemo(() => {
     // Note for non-coders: we replay all matches once to get each player's latest ELO rating.
-    const eloResult = calculateEloWithStats(matches, profiles);
+    const { players: eloPlayers } = calculateEloWithStats(matches, profiles);
     const map = new Map<string, number>();
-    eloResult.forEach((player) => {
+    // Note for non-coders: calculateEloWithStats returns an object with several data buckets.
+    // We only need the `players` list for this map.
+    eloPlayers.forEach((player) => {
       const safeName = player.name || "Okänd spelare";
       map.set(safeName, player.elo ?? ELO_BASELINE);
     });
