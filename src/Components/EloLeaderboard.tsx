@@ -6,6 +6,7 @@ import { Sparkline } from "./Shared/Sparkline";
 import { GUEST_ID } from "../utils/guest";
 import { getStoredAvatar } from "../utils/avatar";
 import { getStreak } from "../utils/stats";
+import { getTextWidth } from "../utils/textMeasurement";
 import { Match, PlayerStats } from "../types";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
 import { useStore } from "../store/useStore";
@@ -215,26 +216,30 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
   });
 
   const columnWidths = useMemo(() => {
-    // Note for non-coders: this helper converts text length into an approximate pixel width.
-    // We use one shared rule for all columns so widths follow the longest value in each column.
-    const toWidth = (longestTextLength: number, min: number, max: number) =>
-      Math.max(min, Math.min(max, longestTextLength * 9 + 24)); // small +24px padding
+    // Note for non-coders: this helper converts text length into an approximate pixel width using a canvas.
+    // We use specific font settings to ensure widths match what is rendered.
+    const toWidth = (text: string, font: string, min: number, max: number, padding: number) =>
+      Math.max(min, Math.min(max, getTextWidth(text, font) + padding));
 
-    const longestPlayerNameLength = mergedPlayers.reduce((max, player) => Math.max(max, (player.name || "Okänd spelare").length), 0);
-    const longestEloLength = sortedPlayers.reduce((max, player) => Math.max(max, `${Math.round(player.elo)}`.length), "ELO".length);
-    const longestGamesLength = sortedPlayers.reduce((max, player) => Math.max(max, `${player.wins + player.losses}`.length), "Matcher".length);
-    const longestWinsLength = sortedPlayers.reduce((max, player) => Math.max(max, `${player.wins}`.length), "Vinster".length);
-    const longestWinPctLength = sortedPlayers.reduce((max, player) => Math.max(max, `${winPct(player.wins, player.losses)}%`.length), "Vinst %".length);
+    const longestName = mergedPlayers.reduce((max, player) => {
+      const name = player.name || "Okänd spelare";
+      return name.length > max.length ? name : max;
+    }, "");
+
+    // Calculate max widths for each column based on content
+    const maxElo = sortedPlayers.reduce((max, p) => Math.max(max, getTextWidth(`${Math.round(p.elo)}`, "700 14px Roboto")), getTextWidth("ELO", "700 14px Roboto"));
+    const maxGames = sortedPlayers.reduce((max, p) => Math.max(max, getTextWidth(`${p.wins + p.losses}`, "400 14px Roboto")), getTextWidth("Matcher", "700 14px Roboto"));
+    const maxWins = sortedPlayers.reduce((max, p) => Math.max(max, getTextWidth(`${p.wins}`, "400 14px Roboto")), getTextWidth("Vinster", "700 14px Roboto"));
+    const maxWinPct = sortedPlayers.reduce((max, p) => Math.max(max, getTextWidth(`${winPct(p.wins, p.losses)}%`, "400 14px Roboto")), getTextWidth("Vinst %", "700 14px Roboto"));
 
     return {
-      // Note for non-coders: first column also includes avatar + badge pill.
-      // We keep a small fixed add-on so the column grows mostly with text, not empty space.
-      first: toWidth(longestPlayerNameLength, 170, 320) + 44,
-      elo: toWidth(longestEloLength, 64, 120),
-      games: toWidth(longestGamesLength, 74, 124),
-      wins: toWidth(longestWinsLength, 70, 116),
-      trend: toWidth("Trend".length, 88, 120),
-      winPct: toWidth(longestWinPctLength, 76, 126),
+      // First column: Name (bold) + Avatar (32) + Gap (12) + Padding (24) + Extra for badge/truncate safety (32)
+      first: toWidth(longestName, "700 14px Roboto", 160, 300, 100),
+      elo: Math.max(64, Math.min(100, maxElo + 32)),
+      games: Math.max(74, Math.min(110, maxGames + 32)),
+      wins: Math.max(70, Math.min(100, maxWins + 32)),
+      trend: 100, // Fixed width for sparkline usually works best
+      winPct: Math.max(76, Math.min(110, maxWinPct + 32)),
     };
   }, [mergedPlayers, sortedPlayers]);
 
@@ -285,7 +290,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                   minHeight: 56,
                 }}
               >
-                <TableCell component="div" role="columnheader" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none', position: 'sticky', left: 0, zIndex: 7, bgcolor: 'grey.100', width: columnWidths.first, minWidth: columnWidths.first, maxWidth: columnWidths.first, overflow: 'hidden', boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}` }}>
+                <TableCell component="div" role="columnheader" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none', position: 'sticky', left: 0, zIndex: 20, bgcolor: 'grey.100', width: columnWidths.first, minWidth: columnWidths.first, maxWidth: columnWidths.first, overflow: 'hidden', boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}` }}>
                   <TableSortLabel
                     active={sortKey === "name"}
                     direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"}
@@ -440,7 +445,22 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         }
                       }}
                     >
-                      <TableCell component="div" role="cell" sx={{ borderBottom: 'none', position: 'sticky', left: 0, zIndex: 6, bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'background.paper', width: columnWidths.first, minWidth: columnWidths.first, maxWidth: columnWidths.first, overflow: 'hidden', boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}` }}>
+                      <TableCell component="div" role="cell" sx={{
+                        borderBottom: 'none',
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 10,
+                        // Fix: Ensure background is opaque for sticky behavior.
+                        // For 'isMe', we layer the alpha highlight over the solid paper background.
+                        background: isMe
+                          ? (theme) => `linear-gradient(${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.main, 0.08)}), ${theme.palette.background.paper}`
+                          : 'background.paper',
+                        width: columnWidths.first,
+                        minWidth: columnWidths.first,
+                        maxWidth: columnWidths.first,
+                        overflow: 'hidden',
+                        boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}`
+                      }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                           <Avatar
                             sx={AVATAR_SX}
