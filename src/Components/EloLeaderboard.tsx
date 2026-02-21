@@ -209,6 +209,14 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
     return asc ? valA - valB : valB - valA;
   }), [visiblePlayers, sortKey, asc]);
 
+
+
+  const frozenColumnWidth = useMemo(() => {
+    const longestNameLength = sortedPlayers.reduce((max, player) => Math.max(max, player.name.length), 0);
+    // Note for non-coders: we size the frozen name column from the longest visible player name.
+    return Math.min(360, Math.max(220, longestNameLength * 9 + 72));
+  }, [sortedPlayers]);
+
   const { parentRef, totalSize, virtualItems, measureElement } = useVirtualWindow({
     itemCount: sortedPlayers.length,
     estimateSize: 56,
@@ -245,20 +253,21 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
           sx={{ borderRadius: 3, overflow: 'auto', position: 'relative', maxHeight: 480 }}
         >
           {/* Note for non-coders: we render rows in a grid so the virtual scroll transforms work reliably. */}
-          <Table component="div" role="table" sx={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
+          {/* Note for non-coders: the first column is sticky so player names stay visible while scrolling sideways. */}
+          <Table component="div" role="table" sx={{ minWidth: frozenColumnWidth + 400, display: 'flex', flexDirection: 'column' }}>
             <TableHead component="div" role="rowgroup" sx={{ bgcolor: 'grey.50', display: 'block', width: '100%', borderBottom: '1px solid', borderColor: 'divider' }}>
               <TableRow
                 component="div"
                 role="row"
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
+                  gridTemplateColumns: `${frozenColumnWidth}px repeat(5, minmax(80px, 1fr))`,
                   alignItems: 'center',
                   width: '100%',
                   minHeight: 56,
                 }}
               >
-                <TableCell component="div" role="columnheader" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none' }}>
+                <TableCell component="div" role="columnheader" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none', position: 'sticky', left: 0, zIndex: 4, bgcolor: 'grey.100', width: frozenColumnWidth, minWidth: frozenColumnWidth, maxWidth: frozenColumnWidth, overflow: 'hidden', borderRight: '1px solid', borderColor: 'divider' }}>
                   <TableSortLabel
                     active={sortKey === "name"}
                     direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"}
@@ -342,7 +351,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                     key={i}
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
+                      gridTemplateColumns: `${frozenColumnWidth}px repeat(5, minmax(80px, 1fr))`,
                       alignItems: 'center',
                       width: '100%',
                       minHeight: 56,
@@ -350,8 +359,8 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       borderColor: 'divider',
                     }}
                   >
-                    <TableCell component="div" sx={{ borderBottom: 'none' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <TableCell component="div" sx={{ borderBottom: 'none', position: 'sticky', left: 0, zIndex: 2, bgcolor: 'background.paper', width: frozenColumnWidth, minWidth: frozenColumnWidth, maxWidth: frozenColumnWidth, overflow: 'hidden', borderRight: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                         <Skeleton variant="circular" width={32} height={32} />
                         <Skeleton variant="text" width={120} height={24} />
                       </Box>
@@ -395,7 +404,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         left: 0,
                         width: '100%',
                         display: 'grid',
-                        gridTemplateColumns: 'minmax(220px, 1.8fr) repeat(5, minmax(80px, 1fr))',
+                        gridTemplateColumns: `${frozenColumnWidth}px repeat(5, minmax(80px, 1fr))`,
                         alignItems: 'center',
                         borderBottom: '1px solid',
                         borderColor: 'divider',
@@ -412,14 +421,14 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         }
                       }}
                     >
-                      <TableCell component="div" role="cell" sx={{ borderBottom: 'none' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <TableCell component="div" role="cell" sx={{ borderBottom: 'none', position: 'sticky', left: 0, zIndex: 2, bgcolor: isMe ? 'action.selected' : 'background.paper', width: frozenColumnWidth, minWidth: frozenColumnWidth, maxWidth: frozenColumnWidth, overflow: 'hidden', borderRight: '1px solid', borderColor: 'divider' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                           <Avatar
                             sx={AVATAR_SX}
                             src={p.avatarUrl || getStoredAvatar(p.id)}
                             name={p.name}
                           />
-                          <ProfileName name={p.name} badgeId={p.featuredBadgeId} />
+                          <Box sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><ProfileName name={p.name} badgeId={p.featuredBadgeId} /></Box>
                         </Box>
                       </TableCell>
                       <TableCell component="div" role="cell" sx={{ textAlign: 'center', fontWeight: 700, borderBottom: 'none' }}>{Math.round(p.elo)}</TableCell>

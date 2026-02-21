@@ -415,17 +415,6 @@ export default function Dashboard() {
                   isFiltered={matchFilter.type !== "all"}
                 />
 
-                <Box sx={{ mt: 4 }}>
-                  <Heatmap
-                    matches={filteredMatches}
-                    profiles={profiles}
-                    allEloPlayers={eloPlayers}
-                    // Note for non-coders: this keeps the heatmap focused on your own teammate combinations,
-                    // matching how the native iOS app behaves.
-                    currentUserOnly={user?.id}
-                  />
-                </Box>
-
                 {!isGuest && (
                   <Box id="head-to-head" component="section" sx={{ mt: 4 }}>
                     {/* Note for non-coders: guests can browse stats but don't see head-to-head comparisons. */}
@@ -439,6 +428,15 @@ export default function Dashboard() {
                     />
                   </Box>
                 )}
+
+                <Box sx={{ mt: 4 }}>
+                  {/* Note for non-coders: this is a player-to-player matrix where color quickly shows lower and higher values. */}
+                  <Heatmap
+                    matches={filteredMatches}
+                    profiles={profiles}
+                    allEloPlayers={eloPlayers}
+                  />
+                </Box>
               </>
             )}
           </>
