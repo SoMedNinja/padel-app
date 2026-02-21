@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
-import { getProfileDisplayName, makeProfileMap, normalizeProfileName } from "../utils/profileMap";
+import { getProfileDisplayName, makeProfileMap } from "../utils/profileMap";
 import { useResolvedMatches } from "../hooks/useResolvedMatches";
-import ProfileName from "./ProfileName";
 import { GUEST_NAME } from "../utils/guest";
-import { Match, Profile, PlayerStats } from "../types";
+import { Match, Profile } from "../types";
 import {
   Box,
   Typography,
@@ -18,320 +17,224 @@ import {
   Paper,
   TextField,
   MenuItem,
-  Chip,
-  Stack,
-  TableSortLabel,
-  Tooltip,
 } from "@mui/material";
 
-const ELO_BASELINE = 1000;
+type Metric = "matches" | "winPct";
 
 interface HeatmapProps {
   matches?: Match[];
   profiles?: Profile[];
-  allEloPlayers?: PlayerStats[];
-  currentUserOnly?: string;
 }
 
-interface Combo {
-  players: string[];
-  playerIds: string[];
-  games: number;
+interface PairStat {
+  matches: number;
   wins: number;
-  serveFirstGames: number;
-  serveFirstWins: number;
-  serveSecondGames: number;
-  serveSecondWins: number;
-  recentResults: string[];
 }
 
-export default function Heatmap({
-  matches = [],
-  profiles = [],
-  allEloPlayers = [],
-  currentUserOnly
-}: HeatmapProps) {
-  const [sortKey, setSortKey] = useState<string>("games");
-  const [asc, setAsc] = useState<boolean>(false);
-  const [playerFilter, setPlayerFilter] = useState<string>("all");
+const LOW_COLOR = { r: 255, g: 235, b: 238 }; // light red
+const MID_COLOR = { r: 255, g: 249, b: 196 }; // soft yellow
+const HIGH_COLOR = { r: 232, g: 245, b: 233 }; // light green
+
+const mix = (start: number, end: number, amount: number) => Math.round(start + (end - start) * amount);
+
+const interpolateColor = (ratio: number) => {
+  const clamped = Math.max(0, Math.min(1, ratio));
+
+  if (clamped <= 0.5) {
+    const local = clamped / 0.5;
+    return `rgb(${mix(LOW_COLOR.r, MID_COLOR.r, local)}, ${mix(LOW_COLOR.g, MID_COLOR.g, local)}, ${mix(LOW_COLOR.b, MID_COLOR.b, local)})`;
+  }
+
+  const local = (clamped - 0.5) / 0.5;
+  return `rgb(${mix(MID_COLOR.r, HIGH_COLOR.r, local)}, ${mix(MID_COLOR.g, HIGH_COLOR.g, local)}, ${mix(MID_COLOR.b, HIGH_COLOR.b, local)})`;
+};
+
+export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
+  const [metric, setMetric] = useState<Metric>("matches");
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
-  const badgeNameMap = useMemo(() => {
-    const map = new Map<string, string | null>();
-    profiles.forEach(profile => {
-      const name = getProfileDisplayName(profile);
-      map.set(name, profile.featured_badge_id || null);
-    });
-    return map;
-  }, [profiles]);
-  const eloMap = useMemo(() => {
-    // Note for non-coders: we store all-time ELO by name, and normalize names so filters don't affect it.
-    return new Map<string, number>(
-      allEloPlayers.map(player => [normalizeProfileName(player.name), player.elo])
-    );
-  }, [allEloPlayers]);
 
-  const sortedProfileNames = useMemo(() => {
+  const sortedPlayerNames = useMemo(() => {
     return profiles
-      .map(p => getProfileDisplayName(p))
-      .filter(name => name !== GUEST_NAME)
+      .map((profile) => getProfileDisplayName(profile))
+      .filter((name) => name !== GUEST_NAME)
       .sort((a, b) => a.localeCompare(b, "sv"));
   }, [profiles]);
 
+  const validPlayers = useMemo(() => new Set(sortedPlayerNames), [sortedPlayerNames]);
   const resolvedMatches = useResolvedMatches(matches, profiles, profileMap);
 
-  const combos = useMemo(() => {
-    const comboMap: Record<string, Combo> = {};
-    resolvedMatches.forEach(({ m, t1, t2, normalizedServeFlag }) => {
-      const team1ServedFirst = normalizedServeFlag === true;
-      const team2ServedFirst = normalizedServeFlag === false;
+  const pairStats = useMemo(() => {
+    const stats = new Map<string, PairStat>();
+
+    // Note for non-coders: each matrix cell represents how two players perform together in the same team.
+    resolvedMatches.forEach(({ m, t1, t2 }) => {
       const teams = [
-        { data: t1, won: m.team1_sets > m.team2_sets, servedFirst: team1ServedFirst },
-        { data: t2, won: m.team2_sets > m.team1_sets, servedFirst: team2ServedFirst },
+        { data: t1, won: m.team1_sets > m.team2_sets },
+        { data: t2, won: m.team2_sets > m.team1_sets },
       ];
 
-      teams.forEach(({ data, won, servedFirst }) => {
+      teams.forEach(({ data, won }) => {
         if (!data.resolved.length || data.hasGuest || data.hasUnknown) return;
 
-        const resolvedPlayers = data.resolved;
-        // Note for non-coders: we also keep player IDs so "my combinations" can be filtered safely
-        // even if two players happen to share the same display name.
-        const teamPlayerIds = (
-          data === t1 ? m.team1_ids : m.team2_ids
-        )
-          ?.filter((id): id is string => Boolean(id))
-          .map((id) => id.toLowerCase()) ?? [];
+        const teamNames = data.resolved
+          .filter((name) => validPlayers.has(name))
+          .sort((a, b) => a.localeCompare(b, "sv"));
 
-        // Optimization: For 2 players (padel), manual swap is ~10x faster than .sort()
-        // and avoids intermediate array allocation.
-        let sortedPair = resolvedPlayers;
-        if (resolvedPlayers.length > 1) {
-          const p1 = resolvedPlayers[0];
-          const p2 = resolvedPlayers[1];
-          sortedPair = p1 < p2 ? [p1, p2] : [p2, p1];
-        }
-        const key = sortedPair.join(" + ");
-
-        if (!comboMap[key]) {
-          comboMap[key] = {
-            players: sortedPair,
-            playerIds: teamPlayerIds,
-            games: 0,
-            wins: 0,
-            serveFirstGames: 0,
-            serveFirstWins: 0,
-            serveSecondGames: 0,
-            serveSecondWins: 0,
-            recentResults: [],
-          };
-        }
-        const c = comboMap[key];
-        c.games++;
-        if (won) c.wins++;
-        if (servedFirst === true) {
-          c.serveFirstGames++;
-          if (won) c.serveFirstWins++;
-        }
-        if (servedFirst === false) {
-          c.serveSecondGames++;
-          if (won) c.serveSecondWins++;
-        }
-        if (c.recentResults.length < 5) {
-          c.recentResults.push(won ? "V" : "F");
+        for (let i = 0; i < teamNames.length; i++) {
+          for (let j = i + 1; j < teamNames.length; j++) {
+            const first = teamNames[i];
+            const second = teamNames[j];
+            const key = `${first}|${second}`;
+            const current = stats.get(key) ?? { matches: 0, wins: 0 };
+            current.matches += 1;
+            if (won) current.wins += 1;
+            stats.set(key, current);
+          }
         }
       });
     });
-    return comboMap;
-  }, [resolvedMatches]);
 
-  // Optimization: Memoize the baseline rows to avoid expensive statistics re-calculation on every render
-  const allRows = useMemo(() => {
-    return Object.values(combos).map((c) => {
-      const avgElo = c.players.length
-        ? Math.round(
-          c.players.reduce(
-            (sum, name) => sum + (eloMap.get(normalizeProfileName(name)) ?? ELO_BASELINE),
-            0
-          ) / c.players.length
-        )
-        : ELO_BASELINE;
-      const serveFirstWinPct = c.serveFirstGames
-        ? Math.round((c.serveFirstWins / c.serveFirstGames) * 100)
-        : null;
-      const serveSecondWinPct = c.serveSecondGames
-        ? Math.round((c.serveSecondWins / c.serveSecondGames) * 100)
-        : null;
-      return {
-        ...c,
-        winPct: Math.round((c.wins / c.games) * 100),
-        serveFirstWinPct,
-        serveSecondWinPct,
-        avgElo,
-      };
+    return stats;
+  }, [resolvedMatches, validPlayers]);
+
+  const matrix = useMemo(() => {
+    return sortedPlayerNames.map((rowName) =>
+      sortedPlayerNames.map((colName) => {
+        if (rowName === colName) return null;
+        const [first, second] = [rowName, colName].sort((a, b) => a.localeCompare(b, "sv"));
+        const stat = pairStats.get(`${first}|${second}`);
+        if (!stat) return { matches: 0, winPct: null as number | null, raw: null as number | null };
+        const winPct = stat.matches ? Math.round((stat.wins / stat.matches) * 100) : null;
+        return {
+          matches: stat.matches,
+          winPct,
+          raw: metric === "matches" ? stat.matches : winPct,
+        };
+      })
+    );
+  }, [sortedPlayerNames, pairStats, metric]);
+
+  const metricValues = useMemo(() => {
+    const values: number[] = [];
+    matrix.forEach((row) => {
+      row.forEach((cell) => {
+        if (!cell || cell.raw === null) return;
+        values.push(cell.raw);
+      });
     });
-  }, [combos, eloMap]);
+    return values;
+  }, [matrix]);
 
-  // Optimization: Memoize filtered rows separately
-  const filteredRows = useMemo(() => {
-    let rows = allRows;
-    if (currentUserOnly) {
-      const currentUserId = currentUserOnly.toLowerCase();
-      rows = rows.filter(r => r.playerIds.includes(currentUserId));
-    } else if (playerFilter !== "all") {
-      rows = rows.filter(r => r.players.includes(playerFilter));
+  const minValue = metricValues.length ? Math.min(...metricValues) : null;
+  const maxValue = metricValues.length ? Math.max(...metricValues) : null;
+
+  const getCellColor = (value: number | null) => {
+    if (value === null || minValue === null || maxValue === null) {
+      return "background.paper";
     }
-    return rows;
-  }, [allRows, currentUserOnly, playerFilter]);
 
-  // Optimization: Memoize sorted rows
-  const currentUserName = useMemo(() => {
-    if (!currentUserOnly) return null;
-    const profile = profileMap.get(currentUserOnly);
-    return profile ? getProfileDisplayName(profile) : null;
-  }, [currentUserOnly, profileMap]);
-
-  const focusPlayerName = useMemo(() => {
-    if (currentUserOnly) return currentUserName;
-    if (playerFilter !== "all") return playerFilter;
-    return null;
-  }, [currentUserOnly, currentUserName, playerFilter]);
-
-  const rows = useMemo(() => {
-    const sorted = [...filteredRows];
-    sorted.sort((a: any, b: any) => {
-      let valA = a[sortKey], valB = b[sortKey];
-      if (sortKey === "winPct") {
-        valA = a.winPct; valB = b.winPct;
-      }
-      if (sortKey === "avgElo") {
-        valA = a.avgElo; valB = b.avgElo;
-      }
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        // Optimization: use native string comparison instead of expensive localeCompare
-        if (valA < valB) return asc ? -1 : 1;
-        if (valA > valB) return asc ? 1 : -1;
-        return 0;
-      }
-      return asc ? valA - valB : valB - valA;
-    });
-    return sorted;
-  }, [filteredRows, sortKey, asc]);
-
-  if (!matches.length) return null;
-
-  const handleSort = (key: string) => {
-    if (key === sortKey) setAsc(!asc);
-    else {
-      setSortKey(key);
-      setAsc(false);
+    if (minValue === maxValue) {
+      return interpolateColor(0.5);
     }
+
+    const ratio = (value - minValue) / (maxValue - minValue);
+    return interpolateColor(ratio);
   };
 
+  if (!sortedPlayerNames.length) return null;
+
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+    <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: "0 4px 12px rgba(0,0,0,0.04)", overflow: "hidden" }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Lagkombinationer</Typography>
-          {!currentUserOnly && (
-            <TextField
-              select
-              size="small"
-              label="Filtrera spelare"
-              value={playerFilter}
-              onChange={e => setPlayerFilter(e.target.value)}
-              sx={{ minWidth: 200 }}
-            >
-              <MenuItem value="all">Alla spelare</MenuItem>
-              {sortedProfileNames.map(name => (
-                <MenuItem key={name} value={name}>{name}</MenuItem>
-              ))}
-            </TextField>
-          )}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Heatmap</Typography>
+          <TextField
+            select
+            size="small"
+            label="Visa värde"
+            value={metric}
+            onChange={(event) => setMetric(event.target.value as Metric)}
+            sx={{ minWidth: 190 }}
+          >
+            <MenuItem value="matches">#matches</MenuItem>
+            <MenuItem value="winPct">win %</MenuItem>
+          </TextField>
         </Box>
 
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
-          <Table sx={{ minWidth: 700 }} aria-label="Lagkombinationer och statistik">
-            <TableHead sx={{ bgcolor: 'grey.50' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+          Rött = lägst, gult = mellanläge, grönt = högst.
+        </Typography>
+
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: "auto", maxHeight: 520 }}>
+          <Table size="small" aria-label="Heatmap med spelarkombinationer" sx={{ minWidth: 900 }}>
+            <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>
-                  Lagkamrat
+                <TableCell
+                  sx={{
+                    fontWeight: 700,
+                    position: "sticky",
+                    left: 0,
+                    top: 0,
+                    zIndex: 4,
+                    bgcolor: "grey.100",
+                    minWidth: 180,
+                  }}
+                >
+                  Spelare
                 </TableCell>
-                <TableCell align="center" sortDirection={sortKey === "games" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel
-                    active={sortKey === "games"}
-                    direction={sortKey === "games" ? (asc ? "asc" : "desc") : "asc"}
-                    onClick={() => handleSort("games")}
-                    aria-label={`Sortera efter matcher, nuvarande ${sortKey === "games" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
-                  >
-                    Matcher
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell align="center" sortDirection={sortKey === "winPct" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel
-                    active={sortKey === "winPct"}
-                    direction={sortKey === "winPct" ? (asc ? "asc" : "desc") : "asc"}
-                    onClick={() => handleSort("winPct")}
-                    aria-label={`Sortera efter vinstprocent, nuvarande ${sortKey === "winPct" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
-                  >
-                    Vinst %
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>
-                  <Tooltip title="Vinstprocent vid Start-serve (S) respektive Mottagning (M)." arrow>
-                    <Box component="span" aria-label="S/M %: Vinstprocent vid Start-serve respektive Mottagning">S/M %</Box>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="center" sortDirection={sortKey === "avgElo" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700 }}>
-                  <TableSortLabel
-                    active={sortKey === "avgElo"}
-                    direction={sortKey === "avgElo" ? (asc ? "asc" : "desc") : "asc"}
-                    onClick={() => handleSort("avgElo")}
-                    aria-label={`Sortera efter genomsnittlig ELO, nuvarande ${sortKey === "avgElo" ? (asc ? "stigande" : "fallande") : "osorterad"}`}
-                  >
-                    Snitt-ELO
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>Senaste 5</TableCell>
+                {sortedPlayerNames.map((name) => (
+                  <TableCell key={`head-${name}`} align="center" sx={{ fontWeight: 700, top: 0, position: "sticky", zIndex: 3, bgcolor: "grey.50", minWidth: 100 }}>
+                    {name}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.players.join("-")} hover>
-                  <TableCell>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                      {r.players
-                        .filter((name) => name !== focusPlayerName)
-                        .map((name, index, filteredArray) => (
-                        <Box key={`${name}-${index}`} sx={{ display: 'flex', alignItems: 'center' }}>
-                          <ProfileName name={name} badgeId={badgeNameMap.get(name) || null} />
-                          {index < filteredArray.length - 1 && (
-                            <Typography variant="body2" sx={{ mx: 0.5, opacity: 0.5 }}>&</Typography>
-                          )}
-                        </Box>
-                      ))}
-                    </Stack>
+              {matrix.map((row, rowIndex) => (
+                <TableRow key={`row-${sortedPlayerNames[rowIndex]}`}>
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 2,
+                      bgcolor: "background.paper",
+                      minWidth: 180,
+                    }}
+                  >
+                    {sortedPlayerNames[rowIndex]}
                   </TableCell>
-                  <TableCell align="center">{r.games}</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>{r.winPct}%</TableCell>
-                  <TableCell align="center">{`${r.serveFirstWinPct ?? 0}%/${r.serveSecondWinPct ?? 0}%`}</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600 }}>{r.avgElo}</TableCell>
-                  <TableCell align="center">
-                    {r.recentResults?.length ? (
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
-                        {r.recentResults.map((result, index) => (
-                          <Chip
-                            key={`${result}-${index}`}
-                            label={result}
-                            size="small"
-                            color={result === "V" ? "success" : "error"}
-                            sx={{ fontWeight: 800, width: 28, height: 28, '& .MuiChip-label': { px: 0 } }}
-                          />
-                        ))}
-                      </Stack>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
+                  {row.map((cell, colIndex) => {
+                    if (rowIndex === colIndex) {
+                      // Note for non-coders: diagonal cells compare a player with themself, so we keep them empty and grey.
+                      return (
+                        <TableCell key={`diag-${rowIndex}-${colIndex}`} align="center" sx={{ bgcolor: "grey.100" }}>
+                          
+                        </TableCell>
+                      );
+                    }
+
+                    const displayText = metric === "matches"
+                      ? `${cell?.matches ?? 0}`
+                      : cell?.winPct === null
+                        ? "-"
+                        : `${cell.winPct}%`;
+
+                    return (
+                      <TableCell
+                        key={`cell-${rowIndex}-${colIndex}`}
+                        align="center"
+                        sx={{
+                          bgcolor: getCellColor(cell?.raw ?? null),
+                          color: "text.primary",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {displayText}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))}
             </TableBody>
