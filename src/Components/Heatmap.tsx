@@ -152,13 +152,13 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
   const minValue = metricValues.length ? Math.min(...metricValues) : null;
   const maxValue = metricValues.length ? Math.max(...metricValues) : null;
 
-  const dynamicValueColumnWidth = useMemo(() => {
-    // Note for non-coders: all non-name columns use one dynamic width based on the longest
-    // visible text (header names + cell values) to keep the whole matrix aligned.
-    const longestHeaderLength = sortedPlayerNames.reduce((max, name) => Math.max(max, name.length), 0);
-    const longestValueLength = matrix.reduce((max, row) => {
-      return row.reduce((rowMax, cell) => {
-        if (!cell) return rowMax;
+  const valueColumnWidths = useMemo(() => {
+    // Note for non-coders: each column gets its own width based on that column's content.
+    // This removes dead space in short-name columns while still fitting long values.
+    return sortedPlayerNames.map((columnName, columnIndex) => {
+      const longestCellTextLength = matrix.reduce((max, row) => {
+        const cell = row[columnIndex];
+        if (!cell) return max;
         const displayText = metric === "matches"
           ? `${cell.matches}`
           : metric === "elo"
@@ -166,11 +166,12 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
             : cell.winPct === null
               ? "-"
               : `${cell.winPct}%`;
-        return Math.max(rowMax, displayText.length);
-      }, max);
-    }, 0);
+        return Math.max(max, displayText.length);
+      }, 0);
 
-    return Math.max(72, Math.min(220, Math.max(longestHeaderLength, longestValueLength) * 9 + 24));
+      const longestTextLength = Math.max(columnName.length, longestCellTextLength);
+      return Math.max(64, Math.min(180, longestTextLength * 9 + 20));
+    });
   }, [matrix, metric, sortedPlayerNames]);
 
   const getCellColor = (value: number | null) => {
@@ -212,7 +213,7 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
         </Typography>
 
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: "auto", maxHeight: 520 }}>
-          <Table size="small" aria-label="Heatmap med spelarkombinationer" sx={{ minWidth: Math.max(720, dynamicNameColumnWidth + sortedPlayerNames.length * dynamicValueColumnWidth) }}>
+          <Table size="small" aria-label="Heatmap med spelarkombinationer" sx={{ minWidth: Math.max(640, dynamicNameColumnWidth + valueColumnWidths.reduce((sum, width) => sum + width, 0)) }}>
             <TableHead>
               <TableRow>
                 <TableCell
@@ -221,17 +222,18 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                     position: "sticky",
                     left: 0,
                     top: 0,
-                    zIndex: 4,
+                    zIndex: 6,
                     bgcolor: "grey.100",
                     width: dynamicNameColumnWidth,
                     minWidth: dynamicNameColumnWidth,
                     maxWidth: dynamicNameColumnWidth,
+                    boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}`,
                   }}
                 >
                   Spelare
                 </TableCell>
-                {sortedPlayerNames.map((name) => (
-                  <TableCell key={`head-${name}`} align="center" sx={{ fontWeight: 700, top: 0, position: "sticky", zIndex: 3, bgcolor: "grey.50", width: dynamicValueColumnWidth, minWidth: dynamicValueColumnWidth, maxWidth: dynamicValueColumnWidth }}>
+                {sortedPlayerNames.map((name, colIndex) => (
+                  <TableCell key={`head-${name}`} align="center" sx={{ fontWeight: 700, top: 0, position: "sticky", zIndex: 4, bgcolor: "grey.50", width: valueColumnWidths[colIndex], minWidth: valueColumnWidths[colIndex], maxWidth: valueColumnWidths[colIndex] }}>
                     {name}
                   </TableCell>
                 ))}
@@ -245,11 +247,12 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                       fontWeight: 700,
                       position: "sticky",
                       left: 0,
-                      zIndex: 2,
+                      zIndex: 5,
                       bgcolor: "background.paper",
                       width: dynamicNameColumnWidth,
                       minWidth: dynamicNameColumnWidth,
                       maxWidth: dynamicNameColumnWidth,
+                      boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}`,
                     }}
                   >
                     {sortedPlayerNames[rowIndex]}
@@ -258,7 +261,7 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                     if (rowIndex === colIndex) {
                       // Note for non-coders: diagonal cells compare a player with themself, so we keep them empty and grey.
                       return (
-                        <TableCell key={`diag-${rowIndex}-${colIndex}`} align="center" sx={{ bgcolor: "grey.100", width: dynamicValueColumnWidth, minWidth: dynamicValueColumnWidth, maxWidth: dynamicValueColumnWidth }}>
+                        <TableCell key={`diag-${rowIndex}-${colIndex}`} align="center" sx={{ bgcolor: "grey.100", width: valueColumnWidths[colIndex], minWidth: valueColumnWidths[colIndex], maxWidth: valueColumnWidths[colIndex] }}>
                           
                         </TableCell>
                       );
@@ -280,9 +283,9 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                           bgcolor: getCellColor(cell?.raw ?? null),
                           color: "text.primary",
                           fontWeight: 600,
-                          width: dynamicValueColumnWidth,
-                          minWidth: dynamicValueColumnWidth,
-                          maxWidth: dynamicValueColumnWidth,
+                          width: valueColumnWidths[colIndex],
+                          minWidth: valueColumnWidths[colIndex],
+                          maxWidth: valueColumnWidths[colIndex],
                         }}
                       >
                         {displayText}
