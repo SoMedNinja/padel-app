@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { getProfileDisplayName, makeProfileMap } from "../utils/profileMap";
 import { useResolvedMatches } from "../hooks/useResolvedMatches";
 import { GUEST_NAME } from "../utils/guest";
+import { getTextWidth } from "../utils/textMeasurement";
 import { calculateEloWithStats, ELO_BASELINE } from "../utils/elo";
 import { Match, Profile } from "../types";
 import {
@@ -76,10 +77,14 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
   }, [profiles]);
 
   const dynamicNameColumnWidth = useMemo(() => {
-    // Note for non-coders: we estimate width from the longest visible name so short groups don't waste space,
-    // while long names still fit without clipping.
-    const longestNameLength = sortedPlayerNames.reduce((max, name) => Math.max(max, name.length), "Spelare".length);
-    return Math.max(140, Math.min(360, longestNameLength * 9 + 24)); // small +24px padding
+    // Note for non-coders: we estimate width from the longest visible name using canvas measurement
+    // so short groups don't waste space, while long names still fit without clipping.
+    const longestNameWidth = sortedPlayerNames.reduce(
+      (max, name) => Math.max(max, getTextWidth(name, "700 14px Roboto")),
+      getTextWidth("Spelare", "700 14px Roboto")
+    );
+    // Add padding (24) + extra buffer (16)
+    return Math.max(80, Math.min(300, longestNameWidth + 40));
   }, [sortedPlayerNames]);
 
   const validPlayers = useMemo(() => new Set(sortedPlayerNames), [sortedPlayerNames]);
@@ -156,7 +161,8 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
     // Note for non-coders: each column gets its own width based on that column's content.
     // This removes dead space in short-name columns while still fitting long values.
     return sortedPlayerNames.map((columnName, columnIndex) => {
-      const longestCellTextLength = matrix.reduce((max, row) => {
+      const headerWidth = getTextWidth(columnName, "700 14px Roboto");
+      const maxCellWidth = matrix.reduce((max, row) => {
         const cell = row[columnIndex];
         if (!cell) return max;
         const displayText = metric === "matches"
@@ -166,11 +172,11 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
             : cell.winPct === null
               ? "-"
               : `${cell.winPct}%`;
-        return Math.max(max, displayText.length);
+        return Math.max(max, getTextWidth(displayText, "600 14px Roboto"));
       }, 0);
 
-      const longestTextLength = Math.max(columnName.length, longestCellTextLength);
-      return Math.max(64, Math.min(180, longestTextLength * 9 + 20));
+      const requiredWidth = Math.max(headerWidth, maxCellWidth);
+      return Math.max(60, Math.min(160, requiredWidth + 32)); // +32 for padding/buffer
     });
   }, [matrix, metric, sortedPlayerNames]);
 
