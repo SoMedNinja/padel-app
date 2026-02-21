@@ -78,8 +78,8 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
   const dynamicNameColumnWidth = useMemo(() => {
     // Note for non-coders: we estimate width from the longest visible name so short groups don't waste space,
     // while long names still fit without clipping.
-    const longestNameLength = sortedPlayerNames.reduce((max, name) => Math.max(max, name.length), 0);
-    return Math.max(140, Math.min(320, longestNameLength * 9 + 40));
+    const longestNameLength = sortedPlayerNames.reduce((max, name) => Math.max(max, name.length), "Spelare".length);
+    return Math.max(140, Math.min(360, longestNameLength * 9 + 24)); // small +24px padding
   }, [sortedPlayerNames]);
 
   const validPlayers = useMemo(() => new Set(sortedPlayerNames), [sortedPlayerNames]);
@@ -152,6 +152,27 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
   const minValue = metricValues.length ? Math.min(...metricValues) : null;
   const maxValue = metricValues.length ? Math.max(...metricValues) : null;
 
+  const dynamicValueColumnWidth = useMemo(() => {
+    // Note for non-coders: all non-name columns use one dynamic width based on the longest
+    // visible text (header names + cell values) to keep the whole matrix aligned.
+    const longestHeaderLength = sortedPlayerNames.reduce((max, name) => Math.max(max, name.length), 0);
+    const longestValueLength = matrix.reduce((max, row) => {
+      return row.reduce((rowMax, cell) => {
+        if (!cell) return rowMax;
+        const displayText = metric === "matches"
+          ? `${cell.matches}`
+          : metric === "elo"
+            ? `${cell.avgElo}`
+            : cell.winPct === null
+              ? "-"
+              : `${cell.winPct}%`;
+        return Math.max(rowMax, displayText.length);
+      }, max);
+    }, 0);
+
+    return Math.max(72, Math.min(220, Math.max(longestHeaderLength, longestValueLength) * 9 + 24));
+  }, [matrix, metric, sortedPlayerNames]);
+
   const getCellColor = (value: number | null) => {
     if (value === null || minValue === null || maxValue === null) {
       return "background.paper";
@@ -191,7 +212,7 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
         </Typography>
 
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: "auto", maxHeight: 520 }}>
-          <Table size="small" aria-label="Heatmap med spelarkombinationer" sx={{ minWidth: Math.max(720, dynamicNameColumnWidth + sortedPlayerNames.length * 100) }}>
+          <Table size="small" aria-label="Heatmap med spelarkombinationer" sx={{ minWidth: Math.max(720, dynamicNameColumnWidth + sortedPlayerNames.length * dynamicValueColumnWidth) }}>
             <TableHead>
               <TableRow>
                 <TableCell
@@ -210,7 +231,7 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                   Spelare
                 </TableCell>
                 {sortedPlayerNames.map((name) => (
-                  <TableCell key={`head-${name}`} align="center" sx={{ fontWeight: 700, top: 0, position: "sticky", zIndex: 3, bgcolor: "grey.50", minWidth: 100 }}>
+                  <TableCell key={`head-${name}`} align="center" sx={{ fontWeight: 700, top: 0, position: "sticky", zIndex: 3, bgcolor: "grey.50", width: dynamicValueColumnWidth, minWidth: dynamicValueColumnWidth, maxWidth: dynamicValueColumnWidth }}>
                     {name}
                   </TableCell>
                 ))}
@@ -237,7 +258,7 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                     if (rowIndex === colIndex) {
                       // Note for non-coders: diagonal cells compare a player with themself, so we keep them empty and grey.
                       return (
-                        <TableCell key={`diag-${rowIndex}-${colIndex}`} align="center" sx={{ bgcolor: "grey.100" }}>
+                        <TableCell key={`diag-${rowIndex}-${colIndex}`} align="center" sx={{ bgcolor: "grey.100", width: dynamicValueColumnWidth, minWidth: dynamicValueColumnWidth, maxWidth: dynamicValueColumnWidth }}>
                           
                         </TableCell>
                       );
@@ -259,6 +280,9 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                           bgcolor: getCellColor(cell?.raw ?? null),
                           color: "text.primary",
                           fontWeight: 600,
+                          width: dynamicValueColumnWidth,
+                          minWidth: dynamicValueColumnWidth,
+                          maxWidth: dynamicValueColumnWidth,
                         }}
                       >
                         {displayText}
