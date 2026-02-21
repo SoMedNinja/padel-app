@@ -60,7 +60,8 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
     const eloResult = calculateEloWithStats(matches, profiles);
     const map = new Map<string, number>();
     eloResult.forEach((player) => {
-      map.set(player.name, player.elo ?? ELO_BASELINE);
+      const safeName = player.name || "Okänd spelare";
+      map.set(safeName, player.elo ?? ELO_BASELINE);
     });
     return map;
   }, [matches, profiles]);

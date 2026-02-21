@@ -215,7 +215,9 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
   });
 
   const longestPlayerNameLength = useMemo(() => {
-    return mergedPlayers.reduce((max, player) => Math.max(max, player.name.length), 0);
+    // Note for non-coders: production data can occasionally have a missing name during sync;
+    // this guard prevents a dashboard crash by falling back to a safe placeholder length.
+    return mergedPlayers.reduce((max, player) => Math.max(max, (player.name || "Okänd spelare").length), 0);
   }, [mergedPlayers]);
 
   // Note for non-coders: this keeps column A responsive to real names while reserving room for avatar + badge.
