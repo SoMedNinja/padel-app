@@ -499,7 +499,7 @@ export default function SchedulePage() {
             })}
           </Stack>
         )}
-      </Box>
+      </PageShell>
 
       <Menu
         anchorEl={actionMenuAnchorEl}
@@ -557,7 +557,6 @@ export default function SchedulePage() {
         </DialogActions>
       </Dialog>
 
-      </PageShell>
 
       <Dialog open={inviteDialogOpen} onClose={closeInviteDialog} fullWidth maxWidth="sm">
         <DialogTitle>Skicka kalenderinbjudan</DialogTitle>
