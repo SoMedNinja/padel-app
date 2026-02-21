@@ -245,6 +245,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
           sx={{ borderRadius: 3, overflow: 'auto', position: 'relative', maxHeight: 480 }}
         >
           {/* Note for non-coders: we render rows in a grid so the virtual scroll transforms work reliably. */}
+          {/* Note for non-coders: the first column is sticky so player names stay visible while scrolling sideways. */}
           <Table component="div" role="table" sx={{ minWidth: 800, display: 'flex', flexDirection: 'column' }}>
             <TableHead component="div" role="rowgroup" sx={{ bgcolor: 'grey.50', display: 'block', width: '100%', borderBottom: '1px solid', borderColor: 'divider' }}>
               <TableRow
@@ -258,7 +259,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                   minHeight: 56,
                 }}
               >
-                <TableCell component="div" role="columnheader" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none' }}>
+                <TableCell component="div" role="columnheader" sortDirection={sortKey === "name" ? (asc ? "asc" : "desc") : false} sx={{ fontWeight: 700, borderBottom: 'none', position: 'sticky', left: 0, zIndex: 4, bgcolor: 'grey.100' }}>
                   <TableSortLabel
                     active={sortKey === "name"}
                     direction={sortKey === "name" ? (asc ? "asc" : "desc") : "asc"}
@@ -350,7 +351,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                       borderColor: 'divider',
                     }}
                   >
-                    <TableCell component="div" sx={{ borderBottom: 'none' }}>
+                    <TableCell component="div" sx={{ borderBottom: 'none', position: 'sticky', left: 0, zIndex: 2, bgcolor: 'background.paper' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Skeleton variant="circular" width={32} height={32} />
                         <Skeleton variant="text" width={120} height={24} />
@@ -412,7 +413,7 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         }
                       }}
                     >
-                      <TableCell component="div" role="cell" sx={{ borderBottom: 'none' }}>
+                      <TableCell component="div" role="cell" sx={{ borderBottom: 'none', position: 'sticky', left: 0, zIndex: 2, bgcolor: isMe ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'background.paper' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Avatar
                             sx={AVATAR_SX}
