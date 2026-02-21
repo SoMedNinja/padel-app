@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { getProfileDisplayName, makeProfileMap } from "../utils/profileMap";
 import { useResolvedMatches } from "../hooks/useResolvedMatches";
 import { GUEST_NAME } from "../utils/guest";
+import { calculateEloWithStats, ELO_BASELINE } from "../utils/elo";
 import { Match, Profile } from "../types";
 import {
   Box,
@@ -19,7 +20,7 @@ import {
   MenuItem,
 } from "@mui/material";
 
-type Metric = "matches" | "winPct";
+type Metric = "matches" | "winPct" | "elo";
 
 interface HeatmapProps {
   matches?: Match[];
@@ -54,12 +55,29 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
 
+  const currentEloByPlayer = useMemo(() => {
+    // Note for non-coders: we replay all matches once to get each player's latest ELO rating.
+    const eloResult = calculateEloWithStats(matches, profiles);
+    const map = new Map<string, number>();
+    eloResult.forEach((player) => {
+      map.set(player.name, player.elo ?? ELO_BASELINE);
+    });
+    return map;
+  }, [matches, profiles]);
+
   const sortedPlayerNames = useMemo(() => {
     return profiles
       .map((profile) => getProfileDisplayName(profile))
       .filter((name) => name !== GUEST_NAME)
       .sort((a, b) => a.localeCompare(b, "sv"));
   }, [profiles]);
+
+  const dynamicNameColumnWidth = useMemo(() => {
+    // Note for non-coders: we estimate width from the longest visible name so short groups don't waste space,
+    // while long names still fit without clipping.
+    const longestNameLength = sortedPlayerNames.reduce((max, name) => Math.max(max, name.length), 0);
+    return Math.max(140, Math.min(320, longestNameLength * 9 + 40));
+  }, [sortedPlayerNames]);
 
   const validPlayers = useMemo(() => new Set(sortedPlayerNames), [sortedPlayerNames]);
   const resolvedMatches = useResolvedMatches(matches, profiles, profileMap);
@@ -104,16 +122,18 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
         if (rowName === colName) return null;
         const [first, second] = [rowName, colName].sort((a, b) => a.localeCompare(b, "sv"));
         const stat = pairStats.get(`${first}|${second}`);
-        if (!stat) return { matches: 0, winPct: null as number | null, raw: null as number | null };
+        const averageElo = Math.round(((currentEloByPlayer.get(first) ?? ELO_BASELINE) + (currentEloByPlayer.get(second) ?? ELO_BASELINE)) / 2);
+        if (!stat) return { matches: 0, winPct: null as number | null, avgElo: averageElo, raw: metric === "elo" ? averageElo : null as number | null };
         const winPct = stat.matches ? Math.round((stat.wins / stat.matches) * 100) : null;
         return {
           matches: stat.matches,
           winPct,
-          raw: metric === "matches" ? stat.matches : winPct,
+          avgElo: averageElo,
+          raw: metric === "matches" ? stat.matches : metric === "elo" ? averageElo : winPct,
         };
       })
     );
-  }, [sortedPlayerNames, pairStats, metric]);
+  }, [sortedPlayerNames, pairStats, metric, currentEloByPlayer]);
 
   const metricValues = useMemo(() => {
     const values: number[] = [];
@@ -159,6 +179,7 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
           >
             <MenuItem value="matches">#matches</MenuItem>
             <MenuItem value="winPct">win %</MenuItem>
+            <MenuItem value="elo">ELO</MenuItem>
           </TextField>
         </Box>
 
@@ -167,7 +188,7 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
         </Typography>
 
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflow: "auto", maxHeight: 520 }}>
-          <Table size="small" aria-label="Heatmap med spelarkombinationer" sx={{ minWidth: 900 }}>
+          <Table size="small" aria-label="Heatmap med spelarkombinationer" sx={{ minWidth: Math.max(720, dynamicNameColumnWidth + sortedPlayerNames.length * 100) }}>
             <TableHead>
               <TableRow>
                 <TableCell
@@ -178,7 +199,9 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                     top: 0,
                     zIndex: 4,
                     bgcolor: "grey.100",
-                    minWidth: 180,
+                    width: dynamicNameColumnWidth,
+                    minWidth: dynamicNameColumnWidth,
+                    maxWidth: dynamicNameColumnWidth,
                   }}
                 >
                   Spelare
@@ -200,7 +223,9 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                       left: 0,
                       zIndex: 2,
                       bgcolor: "background.paper",
-                      minWidth: 180,
+                      width: dynamicNameColumnWidth,
+                      minWidth: dynamicNameColumnWidth,
+                      maxWidth: dynamicNameColumnWidth,
                     }}
                   >
                     {sortedPlayerNames[rowIndex]}
@@ -217,6 +242,8 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
 
                     const displayText = metric === "matches"
                       ? `${cell?.matches ?? 0}`
+                      : metric === "elo"
+                        ? `${cell?.avgElo ?? ELO_BASELINE}`
                       : cell?.winPct === null
                         ? "-"
                         : `${cell.winPct}%`;
