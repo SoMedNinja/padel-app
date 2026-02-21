@@ -5,11 +5,13 @@ import EloLeaderboard from "../Components/EloLeaderboard";
 import Heatmap from "../Components/Heatmap";
 import HeadToHeadSection from "../Components/HeadToHeadSection/HeadToHeadSection";
 import FilterBar from "../Components/FilterBar";
-import { Box, Skeleton, Stack, Container, Typography, Button, Grid, Fab } from "@mui/material";
+import { Box, Skeleton, Stack, Typography, Button, Grid, Fab } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
+import PageShell from "../Components/Shared/PageShell";
+import PageHeader from "../Components/Shared/PageHeader";
 import AppAlert from "../Components/Shared/AppAlert";
 import EmptyState from "../Components/Shared/EmptyState";
 import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
@@ -196,8 +198,11 @@ export default function Dashboard() {
       refreshingContent={<RefreshingContent />}
       {...pullToRefreshTuning}
     >
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Box id="dashboard" component="section">
+    <PageShell sectionId="dashboard">
+      <PageHeader
+        title="Dashboard"
+        subtitle="Se de senaste resultaten, ELO-trender och viktiga uppdateringar på ett ställe."
+      />
         <DataFreshnessStatus
           isFetching={isFetchingElo || isLoadingTournamentResults}
           hasCachedData={hasCachedEloData || tournamentResults.length > 0}
@@ -233,7 +238,7 @@ export default function Dashboard() {
                 size="small"
                 variant="outlined"
                 color="info"
-                onClick={() => navigate("/schema")}
+                onClick={() => navigate("/schedule")}
                 sx={{ ml: 2, fontWeight: 700, whiteSpace: "nowrap" }}
               >
                 Se schema
@@ -438,8 +443,7 @@ export default function Dashboard() {
             )}
           </>
         )}
-      </Box>
-    </Container>
+    </PageShell>
     <Fab
       size="small"
       color="inherit"

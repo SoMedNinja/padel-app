@@ -6,9 +6,11 @@ import { useStore } from "../store/useStore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
-import { Box, Skeleton, Stack, Container, Typography, Alert, Button, Tabs, Tab, Grid } from "@mui/material";
+import { Box, Skeleton, Stack, Typography, Alert, Button, Tabs, Tab, Grid } from "@mui/material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
+import PageShell from "../Components/Shared/PageShell";
+import PageHeader from "../Components/Shared/PageHeader";
 import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
@@ -74,10 +76,12 @@ export default function PlayerProfilePage() {
 
   if (isGuest) {
     return (
-      <Container maxWidth="lg" sx={{ py: 3 }}>
-        <Box component="section" sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
-          <Typography variant="h5" gutterBottom sx={{ fontWeight: 800 }}>Spelarprofil</Typography>
-          <Typography color="text.secondary">Logga in för att se din spelprofil, meriter och statistik.</Typography>
+      <PageShell sectionId="profile-guest">
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
+          <PageHeader
+            title="Spelarprofil"
+            subtitle="Logga in för att se din spelprofil, meriter och statistik."
+          />
           <Box sx={{ mt: 2 }}>
             {/* Note for non-coders: this sends you to the same login flow as the guest banner. */}
             <Button variant="contained" onClick={handleGuestLogin}>
@@ -85,7 +89,7 @@ export default function PlayerProfilePage() {
             </Button>
           </Box>
         </Box>
-      </Container>
+      </PageShell>
     );
   }
 
@@ -98,10 +102,13 @@ export default function PlayerProfilePage() {
       refreshingContent={<RefreshingContent />}
       {...pullToRefreshTuning}
     >
-      <Container maxWidth="lg" sx={{ py: 3 }}>
-        <Box component="section">
-          {/* Note for non-coders: this filter controls which matches feed the profile stats. */}
-          <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
+      <PageShell sectionId="profile">
+      <PageHeader
+        title="Spelarprofil"
+        subtitle="Följ din form, ELO-utveckling och meriter över tid."
+      />
+      {/* Note for non-coders: this filter controls which matches feed the profile stats. */}
+      <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
           {hasError && (
             <Alert severity="error" sx={{ mb: 2 }} action={
               <Button color="inherit" size="small" onClick={handleRefresh}>
@@ -212,8 +219,7 @@ export default function PlayerProfilePage() {
               )}
             </>
           )}
-        </Box>
-      </Container>
+      </PageShell>
     </PullToRefresh>
   );
 }
