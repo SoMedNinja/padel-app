@@ -235,9 +235,7 @@ describe("ELO Logic", () => {
     expect(oneVsOneDelta).toBeLessThan(twoVsTwoDelta);
   });
 
-  it("should handle ties correctly (no ELO change if possible)", () => {
-    // Note: currently calculateElo uses team1Won = s1 > s2.
-    // If s1 === s2, team1Won is false.
+  it("should handle ties as draws for equal ratings", () => {
     const profiles: any[] = [
       { id: "p1", name: "Player 1" },
       { id: "p2", name: "Player 2" },
@@ -253,13 +251,74 @@ describe("ELO Logic", () => {
       }
     ];
 
-    const results = calculateElo(matches, profiles);
-    const p1 = results.find(r => r.id === "p1");
+    const result = calculateEloWithStats(matches, profiles);
+    const p1 = result.players.find(r => r.id === "p1")!;
+    const p2 = result.players.find(r => r.id === "p2")!;
 
-    // In a tie with equal ratings, delta should be close to 0 but buildPlayerDelta
-    // currently doesn't explicitly handle draws, it treats it as a loss for team1.
-    // Let's see current behavior.
-    expect(p1!.elo).toBeLessThan(1000); // Because team1_sets > team2_sets is false
+    // Note for non-coders: equal skill + draw should keep ratings flat.
+    expect(p1.elo).toBe(1000);
+    expect(p2.elo).toBe(1000);
+    expect(p1.wins).toBe(0);
+    expect(p1.losses).toBe(0);
+    expect(p1.games).toBe(1);
+    expect(p1.history.at(-1)?.result).toBe("D");
+    expect(p2.history.at(-1)?.result).toBe("D");
+    expect(result.eloDeltaByMatch.m1.p1).toBe(0);
+    expect(result.eloDeltaByMatch.m1.p2).toBe(0);
+  });
+
+  it("should shift ELO on draws when ratings are unequal", () => {
+    const profiles: any[] = [
+      { id: "fav", name: "Favorite" },
+      { id: "dog", name: "Underdog" },
+    ];
+
+    const seededMatches: any[] = [
+      {
+        id: "seed-1",
+        created_at: "2024-01-01T10:00:00.000Z",
+        team1_ids: ["fav"],
+        team2_ids: ["dog"],
+        team1_sets: 2,
+        team2_sets: 0,
+      },
+      {
+        id: "seed-2",
+        created_at: "2024-01-01T10:10:00.000Z",
+        team1_ids: ["fav"],
+        team2_ids: ["dog"],
+        team1_sets: 2,
+        team2_sets: 0,
+      },
+      {
+        id: "seed-3",
+        created_at: "2024-01-01T10:20:00.000Z",
+        team1_ids: ["fav"],
+        team2_ids: ["dog"],
+        team1_sets: 2,
+        team2_sets: 0,
+      },
+    ];
+    const drawMatch: any = {
+      id: "draw",
+      created_at: "2024-01-01T11:00:00.000Z",
+      team1_ids: ["fav"],
+      team2_ids: ["dog"],
+      team1_sets: 1,
+      team2_sets: 1,
+    };
+
+    const result = calculateEloWithStats([...seededMatches, drawMatch], profiles);
+
+    // Note for non-coders: after the first win, favorite has higher rating.
+    // In a draw, that favorite should lose points while underdog gains points.
+    expect(result.eloDeltaByMatch.draw.fav).toBeLessThan(0);
+    expect(result.eloDeltaByMatch.draw.dog).toBeGreaterThan(0);
+
+    const fav = result.players.find(p => p.id === "fav")!;
+    const dog = result.players.find(p => p.id === "dog")!;
+    expect(fav.history.at(-1)?.result).toBe("D");
+    expect(dog.history.at(-1)?.result).toBe("D");
   });
 
   it("should find best partner correctly", () => {

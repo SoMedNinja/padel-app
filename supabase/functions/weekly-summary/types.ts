@@ -25,7 +25,7 @@ export interface PlayerStats {
   wins: number;
   losses: number;
   games: number;
-  history: { matchId: string; delta: number; result: "W" | "L" }[];
+  history: { matchId: string; delta: number; result: "W" | "L" | "D" }[];
 }
 
 export interface PlayerDeltaParams {
@@ -34,6 +34,7 @@ export interface PlayerDeltaParams {
   teamAverageElo: number;
   expectedScore: number;
   didWin: boolean;
+  actualScore?: number;
   marginMultiplier: number;
   matchWeight: number;
 }
