@@ -126,7 +126,7 @@ export function getRecentResults(matches: Match[], playerName: string, limit = 5
 export const calculateWinPct = (wins: number, losses: number) =>
   wins + losses === 0 ? 0 : Math.round((wins / (wins + losses)) * 100);
 
-export const getStreak = (recentResults: ("W" | "L")[], useSwedish = false) => {
+export const getStreak = (recentResults: ("W" | "L" | "D")[], useSwedish = false) => {
   const len = recentResults.length;
   if (len === 0) return "—";
 
@@ -138,11 +138,11 @@ export const getStreak = (recentResults: ("W" | "L")[], useSwedish = false) => {
     count++;
   }
 
-  const res = useSwedish ? (lastResult === "W" ? "V" : "F") : lastResult;
+  const res = useSwedish ? (lastResult === "W" ? "V" : lastResult === "L" ? "F" : "O") : lastResult;
   return `${res}${count}`;
 };
 
-export const getTrendIndicator = (recentResults: ("W" | "L")[]) => {
+export const getTrendIndicator = (recentResults: ("W" | "L" | "D")[]) => {
   const len = recentResults.length;
   if (len < 3) return "—";
 

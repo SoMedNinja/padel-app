@@ -58,7 +58,7 @@ export interface PlayerStats {
   partners: Record<string, PartnerStats>;
   avatarUrl?: string | null;
   featuredBadgeId?: string | null;
-  recentResults: ("W" | "L")[];
+  recentResults: ("W" | "L" | "D")[];
   streak?: string;
   trend?: string;
   bestPartner?: BestPartner | null;
@@ -66,7 +66,7 @@ export interface PlayerStats {
 }
 
 export interface EloHistoryEntry {
-  result: "W" | "L";
+  result: "W" | "L" | "D";
   timestamp: number;
   date: string;
   delta: number;

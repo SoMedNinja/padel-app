@@ -77,6 +77,7 @@ export const buildPlayerDelta = ({
   teamAverageElo,
   expectedScore,
   didWin,
+  actualScore,
   marginMultiplier,
   matchWeight,
 }: PlayerDeltaParams) => {
@@ -84,8 +85,10 @@ export const buildPlayerDelta = ({
   // Note for non-coders: low-rated players get bigger boosts on wins and smaller penalties on losses (inverse weight).
   const playerK = getKFactor(playerGames);
   const weight = getPlayerWeight(playerElo, teamAverageElo);
-  const effectiveWeight = didWin ? weight : 1 / weight;
+  const resolvedActualScore = actualScore ?? (didWin ? 1 : 0);
+  // Note for non-coders: a draw uses 0.5 which sits exactly between win(1) and loss(0).
+  const effectiveWeight = resolvedActualScore === 0.5 ? 1 : (didWin ? weight : 1 / weight);
   return Math.round(
-    playerK * marginMultiplier * matchWeight * effectiveWeight * ((didWin ? 1 : 0) - expectedScore)
+    playerK * marginMultiplier * matchWeight * effectiveWeight * (resolvedActualScore - expectedScore)
   );
 };

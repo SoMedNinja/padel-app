@@ -12,6 +12,7 @@ export interface PlayerDeltaParams {
   teamAverageElo: number;
   expectedScore: number;
   didWin: boolean;
+  actualScore?: number;
   marginMultiplier: number;
   matchWeight: number;
 }

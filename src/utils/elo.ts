@@ -223,7 +223,10 @@ function processMatchUpdates(
   const e2 = avg(t2Active);
 
   const exp1 = getExpectedScore(e1, e2);
+  const isDraw = match.team1_sets === match.team2_sets;
   const team1Won = match.team1_sets > match.team2_sets;
+  const team2Won = match.team2_sets > match.team1_sets;
+  // Note for non-coders: we now explicitly model three outcomes: win, loss, and draw.
   const marginMultiplier = getMarginMultiplier(match.team1_sets, match.team2_sets);
   const isSinglesMatch = t1Active.length === 1 && t2Active.length === 1;
   const matchWeight = getSinglesAdjustedMatchWeight(match, isSinglesMatch);
@@ -242,18 +245,19 @@ function processMatchUpdates(
       teamAverageElo: e1,
       expectedScore: exp1,
       didWin: team1Won,
+      actualScore: isDraw ? 0.5 : (team1Won ? 1 : 0),
       marginMultiplier,
       matchWeight,
     });
     player.elo += delta;
     if (team1Won) {
       player.wins++;
-    } else {
+    } else if (team2Won) {
       player.losses++;
     }
     player.games++;
 
-    const result = team1Won ? "W" : "L";
+    const result = isDraw ? "D" : (team1Won ? "W" : "L");
     player.recentResults.push(result);
     player.history.push({
       result,
@@ -277,19 +281,20 @@ function processMatchUpdates(
       playerGames: player.games,
       teamAverageElo: e2,
       expectedScore: 1 - exp1,
-      didWin: !team1Won,
+      didWin: team2Won,
+      actualScore: isDraw ? 0.5 : (team2Won ? 1 : 0),
       marginMultiplier,
       matchWeight,
     });
     player.elo += delta;
-    if (team1Won) {
-      player.losses++;
-    } else {
+    if (team2Won) {
       player.wins++;
+    } else if (team1Won) {
+      player.losses++;
     }
     player.games++;
 
-    const result = team1Won ? "L" : "W";
+    const result = isDraw ? "D" : (team1Won ? "L" : "W");
     player.recentResults.push(result);
     player.history.push({
       result,
@@ -305,7 +310,7 @@ function processMatchUpdates(
   }
 
   recordPartners(t1Active, team1Won, players);
-  recordPartners(t2Active, !team1Won, players);
+  recordPartners(t2Active, team2Won, players);
 
   return { matchDeltas, matchRatings };
 }

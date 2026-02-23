@@ -62,7 +62,10 @@ export function calculateElo(matches: Match[], profileMap: Map<string, Profile>,
     const e2 = t2Active.reduce((s, id) => s + players[id].elo, 0) / t2Active.length;
 
     const exp1 = getExpectedScore(e1, e2);
+    const isDraw = m.team1_sets === m.team2_sets;
     const team1Won = m.team1_sets > m.team2_sets;
+    const team2Won = m.team2_sets > m.team1_sets;
+    // Note for non-coders: draws are treated as half-win (0.5) for each side in ELO math.
     const marginMultiplier = getMarginMultiplier(m.team1_sets, m.team2_sets);
     const isSinglesMatch = t1Active.length === 1 && t2Active.length === 1;
     const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
@@ -75,13 +78,14 @@ export function calculateElo(matches: Match[], profileMap: Map<string, Profile>,
         teamAverageElo: e1,
         expectedScore: exp1,
         didWin: team1Won,
+        actualScore: isDraw ? 0.5 : (team1Won ? 1 : 0),
         marginMultiplier,
         matchWeight
       });
       p.elo += delta;
-      if (team1Won) p.wins++; else p.losses++;
+      if (team1Won) p.wins++; else if (team2Won) p.losses++;
       p.games++;
-      p.history.push({ matchId: m.id, delta, result: team1Won ? "W" : "L" });
+      p.history.push({ matchId: m.id, delta, result: isDraw ? "D" : (team1Won ? "W" : "L") });
     });
 
     t2Active.forEach(id => {
@@ -91,14 +95,15 @@ export function calculateElo(matches: Match[], profileMap: Map<string, Profile>,
         playerGames: p.games,
         teamAverageElo: e2,
         expectedScore: 1 - exp1,
-        didWin: !team1Won,
+        didWin: team2Won,
+        actualScore: isDraw ? 0.5 : (team2Won ? 1 : 0),
         marginMultiplier,
         matchWeight
       });
       p.elo += delta;
-      if (!team1Won) p.wins++; else p.losses++;
+      if (team2Won) p.wins++; else if (team1Won) p.losses++;
       p.games++;
-      p.history.push({ matchId: m.id, delta, result: !team1Won ? "W" : "L" });
+      p.history.push({ matchId: m.id, delta, result: isDraw ? "D" : (team2Won ? "W" : "L") });
     });
   });
 
