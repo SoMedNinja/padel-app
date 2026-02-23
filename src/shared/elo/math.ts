@@ -35,10 +35,13 @@ export const getWinProbability = getExpectedScore;
 export const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
   if (!Number.isFinite(team1Sets) || !Number.isFinite(team2Sets)) return 1;
   const diff = Math.abs(team1Sets - team2Sets);
-  // User request: 2 set difference (e.g. 8-6) should have same impact as 1 set difference (1.1x).
-  // This means margin 1 for diff 1 or 2, and margin 2 for diff 3 or more.
-  const margin = diff > 2 ? 2 : (diff > 0 ? 1 : 0);
-  return 1 + Math.min(MAX_MARGIN_MULTIPLIER - 1, margin * 0.1);
+  // Note for non-coders:
+  // We use a smooth curve instead of hard "buckets".
+  // - A slightly larger win gives a slightly larger multiplier.
+  // - The effect gradually slows down and caps at MAX_MARGIN_MULTIPLIER.
+  // This keeps blowouts meaningful without letting them explode ELO changes.
+  const smoothBonus = (MAX_MARGIN_MULTIPLIER - 1) * (1 - Math.exp(-diff / 2));
+  return 1 + smoothBonus;
 };
 
 export const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
@@ -52,18 +55,26 @@ export const getMatchWeight = (match: EloMatch) => {
   // Note for non-coders: This scales ELO changes so long/tournament matches matter more than quick ones.
   if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
   const scoreType = match.score_type || "sets";
+
+  const lerp = (min: number, max: number, t: number) => min + (max - min) * t;
+
   if (scoreType === "sets") {
     const maxSets = Math.max(match.team1_sets, match.team2_sets);
-    if (maxSets <= SHORT_SET_MAX) return SHORT_MATCH_WEIGHT;
-    if (maxSets >= LONG_SET_MIN) return LONG_MATCH_WEIGHT;
-    return MID_MATCH_WEIGHT;
+    // Note for non-coders:
+    // We now interpolate smoothly from short -> long weight based on match length.
+    // Example: a 4-set match lands between the short and long values.
+    const normalized = clamp((maxSets - SHORT_SET_MAX) / (LONG_SET_MIN - SHORT_SET_MAX), 0, 1);
+    return lerp(SHORT_MATCH_WEIGHT, LONG_MATCH_WEIGHT, normalized);
   }
+
   if (scoreType === "points") {
     const target = match.score_target ?? 0;
-    if (target <= SHORT_POINTS_MAX) return SHORT_MATCH_WEIGHT;
-    if (target <= MID_POINTS_MAX) return MID_MATCH_WEIGHT;
-    return LONG_MATCH_WEIGHT;
+    // Note for non-coders:
+    // Same idea for point-based matches: smoothly increase weight as target score rises.
+    const normalized = clamp((target - SHORT_POINTS_MAX) / (MID_POINTS_MAX - SHORT_POINTS_MAX), 0, 1);
+    return lerp(SHORT_MATCH_WEIGHT, LONG_MATCH_WEIGHT, normalized);
   }
+
   return MID_MATCH_WEIGHT;
 };
 
