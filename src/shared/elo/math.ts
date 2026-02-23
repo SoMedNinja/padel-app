@@ -16,10 +16,18 @@ import {
   MID_MATCH_WEIGHT,
   LONG_MATCH_WEIGHT,
   SINGLES_MATCH_WEIGHT,
+  ENABLE_ZERO_SUM_NORMALIZATION,
 } from "./constants.ts";
 import { EloMatch, PlayerDeltaParams } from "./types.ts";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const interpolate = (value: number, minInput: number, maxInput: number, minOutput: number, maxOutput: number) => {
+  if (!Number.isFinite(value)) return minOutput;
+  if (maxInput <= minInput) return maxOutput;
+  const ratio = clamp((value - minInput) / (maxInput - minInput), 0, 1);
+  return minOutput + (maxOutput - minOutput) * ratio;
+};
 
 export const getKFactor = (games = 0) => {
   if (games < 10) return HIGH_K;
@@ -35,10 +43,10 @@ export const getWinProbability = getExpectedScore;
 export const getMarginMultiplier = (team1Sets: number, team2Sets: number) => {
   if (!Number.isFinite(team1Sets) || !Number.isFinite(team2Sets)) return 1;
   const diff = Math.abs(team1Sets - team2Sets);
-  // User request: 2 set difference (e.g. 8-6) should have same impact as 1 set difference (1.1x).
-  // This means margin 1 for diff 1 or 2, and margin 2 for diff 3 or more.
-  const margin = diff > 2 ? 2 : (diff > 0 ? 1 : 0);
-  return 1 + Math.min(MAX_MARGIN_MULTIPLIER - 1, margin * 0.1);
+  const smoothImpact = Math.tanh(diff / 2);
+  // Note for non-coders: tanh creates a smooth curve where bigger wins matter more,
+  // but gradually cap out so a blowout cannot produce extreme ELO jumps.
+  return 1 + smoothImpact * (MAX_MARGIN_MULTIPLIER - 1);
 };
 
 export const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
@@ -49,21 +57,21 @@ export const getPlayerWeight = (playerElo: number, teamAverageElo: number) => {
 };
 
 export const getMatchWeight = (match: EloMatch) => {
-  // Note for non-coders: This scales ELO changes so long/tournament matches matter more than quick ones.
+  // Note for non-coders: this now scales continuously instead of buckets,
+  // so match impact increases gradually as match length/target increases.
   if (match.source_tournament_id) return LONG_MATCH_WEIGHT;
   const scoreType = match.score_type || "sets";
+
   if (scoreType === "sets") {
     const maxSets = Math.max(match.team1_sets, match.team2_sets);
-    if (maxSets <= SHORT_SET_MAX) return SHORT_MATCH_WEIGHT;
-    if (maxSets >= LONG_SET_MIN) return LONG_MATCH_WEIGHT;
-    return MID_MATCH_WEIGHT;
+    return interpolate(maxSets, SHORT_SET_MAX, LONG_SET_MIN, SHORT_MATCH_WEIGHT, LONG_MATCH_WEIGHT);
   }
+
   if (scoreType === "points") {
     const target = match.score_target ?? 0;
-    if (target <= SHORT_POINTS_MAX) return SHORT_MATCH_WEIGHT;
-    if (target <= MID_POINTS_MAX) return MID_MATCH_WEIGHT;
-    return LONG_MATCH_WEIGHT;
+    return interpolate(target, SHORT_POINTS_MAX, MID_POINTS_MAX + 4, SHORT_MATCH_WEIGHT, LONG_MATCH_WEIGHT);
   }
+
   return MID_MATCH_WEIGHT;
 };
 
@@ -88,4 +96,36 @@ export const buildPlayerDelta = ({
   return Math.round(
     playerK * marginMultiplier * matchWeight * effectiveWeight * ((didWin ? 1 : 0) - expectedScore)
   );
+};
+
+export const normalizeZeroSumDeltas = (deltas: Record<string, number>): Record<string, number> => {
+  if (!ENABLE_ZERO_SUM_NORMALIZATION) return deltas;
+
+  const corrected = { ...deltas };
+  const ids = Object.keys(corrected);
+  let residual = ids.reduce((sum, id) => sum + corrected[id], 0);
+  if (residual === 0 || !ids.length) return corrected;
+
+  const priority = [...ids].sort((a, b) => {
+    const absDiff = Math.abs(corrected[b]) - Math.abs(corrected[a]);
+    if (absDiff !== 0) return absDiff;
+    return a.localeCompare(b);
+  });
+
+  let idx = 0;
+  // Note for non-coders: if rounding creates +2 extra points, we remove 1 point twice
+  // from players with the largest swings so the match ends exactly balanced.
+  while (residual !== 0 && priority.length) {
+    const id = priority[idx % priority.length];
+    if (residual > 0) {
+      corrected[id] -= 1;
+      residual -= 1;
+    } else {
+      corrected[id] += 1;
+      residual += 1;
+    }
+    idx++;
+  }
+
+  return corrected;
 };

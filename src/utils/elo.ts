@@ -17,6 +17,7 @@ import {
   getMatchWeight,
   getSinglesAdjustedMatchWeight,
   buildPlayerDelta,
+  normalizeZeroSumDeltas,
 } from "../shared/elo/math";
 
 // Re-export for compatibility if needed elsewhere
@@ -29,6 +30,7 @@ export {
   getMatchWeight,
   getSinglesAdjustedMatchWeight,
   buildPlayerDelta,
+  normalizeZeroSumDeltas,
   ELO_BASELINE,
 };
 
@@ -232,11 +234,12 @@ function processMatchUpdates(
   const matchRatings: Record<string, number> = {};
   const historyStamp = new Date(match.created_at).getTime();
 
-  // Update Team 1
+  const rawDeltas: Record<string, number> = {};
+
   for (let i = 0; i < t1Active.length; i++) {
     const id = t1Active[i];
     const player = players[id];
-    const delta = buildPlayerDelta({
+    rawDeltas[id] = buildPlayerDelta({
       playerElo: player.elo,
       playerGames: player.games,
       teamAverageElo: e1,
@@ -245,6 +248,29 @@ function processMatchUpdates(
       marginMultiplier,
       matchWeight,
     });
+  }
+
+  for (let i = 0; i < t2Active.length; i++) {
+    const id = t2Active[i];
+    const player = players[id];
+    rawDeltas[id] = buildPlayerDelta({
+      playerElo: player.elo,
+      playerGames: player.games,
+      teamAverageElo: e2,
+      expectedScore: 1 - exp1,
+      didWin: !team1Won,
+      marginMultiplier,
+      matchWeight,
+    });
+  }
+
+  const normalizedDeltas = normalizeZeroSumDeltas(rawDeltas);
+
+  // Update Team 1
+  for (let i = 0; i < t1Active.length; i++) {
+    const id = t1Active[i];
+    const player = players[id];
+    const delta = normalizedDeltas[id] ?? 0;
     player.elo += delta;
     if (team1Won) {
       player.wins++;
@@ -272,15 +298,7 @@ function processMatchUpdates(
   for (let i = 0; i < t2Active.length; i++) {
     const id = t2Active[i];
     const player = players[id];
-    const delta = buildPlayerDelta({
-      playerElo: player.elo,
-      playerGames: player.games,
-      teamAverageElo: e2,
-      expectedScore: 1 - exp1,
-      didWin: !team1Won,
-      marginMultiplier,
-      matchWeight,
-    });
+    const delta = normalizedDeltas[id] ?? 0;
     player.elo += delta;
     if (team1Won) {
       player.losses++;

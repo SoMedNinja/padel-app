@@ -29,11 +29,16 @@ describe("ELO Logic", () => {
     expect(getExpectedScore(1000, 1200)).toBeLessThan(0.5);
   });
 
-  it("should calculate margin multiplier correctly", () => {
-    expect(getMarginMultiplier(3, 0)).toBeCloseTo(1.2);
-    expect(getMarginMultiplier(2, 0)).toBeCloseTo(1.1); // Updated: 2 set diff is now 1.1x
-    expect(getMarginMultiplier(1, 0)).toBeCloseTo(1.1);
-    expect(getMarginMultiplier(0, 0)).toBe(1);
+  it("should calculate margin multiplier with smooth bounded growth", () => {
+    const even = getMarginMultiplier(0, 0);
+    const smallWin = getMarginMultiplier(1, 0);
+    const mediumWin = getMarginMultiplier(2, 0);
+    const bigWin = getMarginMultiplier(6, 0);
+
+    expect(even).toBe(1);
+    expect(smallWin).toBeGreaterThan(even);
+    expect(mediumWin).toBeGreaterThan(smallWin);
+    expect(bigWin).toBeLessThanOrEqual(1.2);
   });
 
   it("should calculate player weight based on team average", () => {
@@ -66,8 +71,8 @@ describe("ELO Logic", () => {
       score_type: "sets",
     };
 
-    expect(getMatchWeight(shortMatch)).toBe(getMatchWeight(midMatch));
-    expect(getMatchWeight(shortMatch)).toBeLessThan(getMatchWeight(longMatch));
+    expect(getMatchWeight(shortMatch)).toBeLessThan(getMatchWeight(midMatch));
+    expect(getMatchWeight(midMatch)).toBeLessThan(getMatchWeight(longMatch));
   });
 
   it("should replay same-timestamp matches in a deterministic order", () => {
@@ -233,6 +238,33 @@ describe("ELO Logic", () => {
     const twoVsTwoDelta = Math.abs(twoVsTwo.eloDeltaByMatch.m2.p1);
 
     expect(oneVsOneDelta).toBeLessThan(twoVsTwoDelta);
+  });
+
+
+  it("should normalize per-match deltas to keep matches zero-sum", () => {
+    const profiles: any[] = [
+      { id: "p1", name: "Player 1" },
+      { id: "p2", name: "Player 2" },
+      { id: "p3", name: "Player 3" },
+      { id: "p4", name: "Player 4" },
+    ];
+
+    const matches: any[] = [
+      {
+        id: "m1",
+        created_at: new Date().toISOString(),
+        team1_ids: ["p1", "p2"],
+        team2_ids: ["p3", "p4"],
+        team1_sets: 6,
+        team2_sets: 4,
+      },
+    ];
+
+    const result = calculateEloWithStats(matches, profiles);
+    const sumDeltas = Object.values(result.eloDeltaByMatch.m1).reduce((sum, value) => sum + value, 0);
+
+    // Note for non-coders: this check ensures no ELO points are created or destroyed inside a single match.
+    expect(sumDeltas).toBe(0);
   });
 
   it("should handle ties correctly (no ELO change if possible)", () => {

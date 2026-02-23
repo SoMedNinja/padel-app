@@ -9,6 +9,7 @@ import {
   getMarginMultiplier,
   getSinglesAdjustedMatchWeight,
   buildPlayerDelta,
+  normalizeZeroSumDeltas,
 } from "./shared_elo/math.ts";
 
 export {
@@ -16,6 +17,7 @@ export {
   getMarginMultiplier,
   getSinglesAdjustedMatchWeight,
   buildPlayerDelta,
+  normalizeZeroSumDeltas,
 };
 
 export function calculateElo(matches: Match[], profileMap: Map<string, Profile>, initialState?: Record<string, PlayerStats>): Record<string, PlayerStats> {
@@ -67,9 +69,11 @@ export function calculateElo(matches: Match[], profileMap: Map<string, Profile>,
     const isSinglesMatch = t1Active.length === 1 && t2Active.length === 1;
     const matchWeight = getSinglesAdjustedMatchWeight(m, isSinglesMatch);
 
+    const rawDeltas: Record<string, number> = {};
+
     t1Active.forEach(id => {
       const p = players[id];
-      const delta = buildPlayerDelta({
+      rawDeltas[id] = buildPlayerDelta({
         playerElo: p.elo,
         playerGames: p.games,
         teamAverageElo: e1,
@@ -78,15 +82,11 @@ export function calculateElo(matches: Match[], profileMap: Map<string, Profile>,
         marginMultiplier,
         matchWeight
       });
-      p.elo += delta;
-      if (team1Won) p.wins++; else p.losses++;
-      p.games++;
-      p.history.push({ matchId: m.id, delta, result: team1Won ? "W" : "L" });
     });
 
     t2Active.forEach(id => {
       const p = players[id];
-      const delta = buildPlayerDelta({
+      rawDeltas[id] = buildPlayerDelta({
         playerElo: p.elo,
         playerGames: p.games,
         teamAverageElo: e2,
@@ -95,6 +95,22 @@ export function calculateElo(matches: Match[], profileMap: Map<string, Profile>,
         marginMultiplier,
         matchWeight
       });
+    });
+
+    const normalizedDeltas = normalizeZeroSumDeltas(rawDeltas);
+
+    t1Active.forEach(id => {
+      const p = players[id];
+      const delta = normalizedDeltas[id] ?? 0;
+      p.elo += delta;
+      if (team1Won) p.wins++; else p.losses++;
+      p.games++;
+      p.history.push({ matchId: m.id, delta, result: team1Won ? "W" : "L" });
+    });
+
+    t2Active.forEach(id => {
+      const p = players[id];
+      const delta = normalizedDeltas[id] ?? 0;
       p.elo += delta;
       if (!team1Won) p.wins++; else p.losses++;
       p.games++;

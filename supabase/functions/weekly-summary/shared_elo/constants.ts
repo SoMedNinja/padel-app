@@ -15,3 +15,6 @@ export const SHORT_MATCH_WEIGHT = 0.5;
 export const MID_MATCH_WEIGHT = 0.5;
 export const LONG_MATCH_WEIGHT = 1;
 export const SINGLES_MATCH_WEIGHT = 0.5;
+// Note for non-coders: when true, each match keeps total ELO points balanced
+// (points gained = points lost) after rounding corrections.
+export const ENABLE_ZERO_SUM_NORMALIZATION = true;
