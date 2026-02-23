@@ -41,6 +41,12 @@ describe("ELO Logic", () => {
     expect(getPlayerWeight(1200, 1000)).toBeLessThan(1);
     // If player is worse than team avg, weight should be > 1 (contribution is 'harder')
     expect(getPlayerWeight(800, 1000)).toBeGreaterThan(1);
+
+    // Note for non-coders:
+    // We clamp player weight so extreme rating gaps do not explode the ELO change.
+    // Current policy is 0.5x (minimum) to 1.5x (maximum).
+    expect(getPlayerWeight(2000, 1000)).toBe(0.5);
+    expect(getPlayerWeight(0, 1000)).toBe(1.5);
   });
 
   it("should weight long matches more than short matches", () => {
