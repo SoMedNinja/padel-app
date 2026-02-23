@@ -8,7 +8,9 @@ export const MAX_MARGIN_MULTIPLIER = 1.2;
 export const MAX_PLAYER_WEIGHT = 1.5;
 export const MIN_PLAYER_WEIGHT = 0.5;
 export const EXPECTED_SCORE_DIVISOR = 300;
-export const PLAYER_WEIGHT_DIVISOR = 800;
+// Note for non-coders: lower divisor means player weight reacts more strongly
+// to rating gaps versus team average (more pronounced underdog/favorite effect).
+export const PLAYER_WEIGHT_DIVISOR = 600;
 export const ELO_BASELINE = 1000;
 export const SHORT_SET_MAX = 3;
 export const LONG_SET_MIN = 6;
