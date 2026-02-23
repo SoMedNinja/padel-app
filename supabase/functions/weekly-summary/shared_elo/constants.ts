@@ -2,10 +2,15 @@ export const BASE_K = 20;
 export const HIGH_K = 40;
 export const MID_K = 30;
 export const MAX_MARGIN_MULTIPLIER = 1.2;
-export const MAX_PLAYER_WEIGHT = 1.25;
-export const MIN_PLAYER_WEIGHT = 0.75;
+// Note for non-coders: this range controls how much we "boost" lower-rated players
+// and "dampen" higher-rated players compared to their team average.
+// Wider range => larger ELO swings between underdogs and favorites.
+export const MAX_PLAYER_WEIGHT = 1.5;
+export const MIN_PLAYER_WEIGHT = 0.5;
 export const EXPECTED_SCORE_DIVISOR = 300;
-export const PLAYER_WEIGHT_DIVISOR = 800;
+// Note for non-coders: lower divisor means player weight reacts more strongly
+// to rating gaps versus team average (more pronounced underdog/favorite effect).
+export const PLAYER_WEIGHT_DIVISOR = 600;
 export const ELO_BASELINE = 1000;
 export const SHORT_SET_MAX = 3;
 export const LONG_SET_MIN = 6;
