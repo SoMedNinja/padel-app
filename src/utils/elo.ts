@@ -235,83 +235,20 @@ function processMatchUpdates(
   const matchRatings: Record<string, number> = {};
   const historyStamp = new Date(match.created_at).getTime();
 
-  type PendingPlayerUpdate = {
-    id: string;
-    teamAverageElo: number;
-    expectedScore: number;
-    didWin: boolean;
-    actualScore: number;
-  };
-
-  const pendingUpdates: PendingPlayerUpdate[] = [];
-
-  for (let i = 0; i < t1Active.length; i++) {
-    pendingUpdates.push({
-      id: t1Active[i],
-      teamAverageElo: e1,
-      expectedScore: exp1,
-      didWin: team1Won,
-      actualScore: isDraw ? 0.5 : (team1Won ? 1 : 0),
-    });
-  }
-
-  for (let i = 0; i < t2Active.length; i++) {
-    pendingUpdates.push({
-      id: t2Active[i],
-      teamAverageElo: e2,
-      expectedScore: 1 - exp1,
-      didWin: team2Won,
-      actualScore: isDraw ? 0.5 : (team2Won ? 1 : 0),
-    });
-  }
-
-  const rawDeltaByPlayer = new Map<string, number>();
-  let rawDeltaSum = 0;
-
-  for (let i = 0; i < pendingUpdates.length; i++) {
-    const update = pendingUpdates[i];
-    const player = players[update.id];
-    const rawDelta = buildPlayerDelta({
-      playerElo: player.elo,
-      playerGames: player.games,
-      teamAverageElo: update.teamAverageElo,
-      expectedScore: update.expectedScore,
-      didWin: update.didWin,
-      actualScore: update.actualScore,
-      marginMultiplier,
-      matchWeight,
-    });
-    rawDeltaByPlayer.set(update.id, rawDelta);
-    rawDeltaSum += rawDelta;
-  }
-
-  // Note for non-coders:
-  // Per-player weighting + rounding can make the total change non-zero (inflation/deflation).
-  // We apply a tiny correction so each match is strictly zero-sum.
-  const correctionTarget = -rawDeltaSum;
-  const correctedDeltaByPlayer = new Map(rawDeltaByPlayer);
-  if (correctionTarget !== 0 && pendingUpdates.length > 0) {
-    const orderedIds = pendingUpdates
-      .map(update => update.id)
-      .sort((a, b) => a.localeCompare(b));
-
-    const correctionPerPlayer = correctionTarget > 0 ? 1 : -1;
-    let remaining = Math.abs(correctionTarget);
-    let cursor = 0;
-
-    while (remaining > 0) {
-      const playerId = orderedIds[cursor % orderedIds.length];
-      correctedDeltaByPlayer.set(playerId, (correctedDeltaByPlayer.get(playerId) ?? 0) + correctionPerPlayer);
-      remaining--;
-      cursor++;
-    }
-  }
-
   // Update Team 1
   for (let i = 0; i < t1Active.length; i++) {
     const id = t1Active[i];
     const player = players[id];
-    const delta = correctedDeltaByPlayer.get(id) ?? 0;
+    const delta = buildPlayerDelta({
+      playerElo: player.elo,
+      playerGames: player.games,
+      teamAverageElo: e1,
+      expectedScore: exp1,
+      didWin: team1Won,
+      actualScore: isDraw ? 0.5 : (team1Won ? 1 : 0),
+      marginMultiplier,
+      matchWeight,
+    });
     player.elo += delta;
     if (team1Won) {
       player.wins++;
@@ -339,7 +276,16 @@ function processMatchUpdates(
   for (let i = 0; i < t2Active.length; i++) {
     const id = t2Active[i];
     const player = players[id];
-    const delta = correctedDeltaByPlayer.get(id) ?? 0;
+    const delta = buildPlayerDelta({
+      playerElo: player.elo,
+      playerGames: player.games,
+      teamAverageElo: e2,
+      expectedScore: 1 - exp1,
+      didWin: team2Won,
+      actualScore: isDraw ? 0.5 : (team2Won ? 1 : 0),
+      marginMultiplier,
+      matchWeight,
+    });
     player.elo += delta;
     if (team2Won) {
       player.wins++;
