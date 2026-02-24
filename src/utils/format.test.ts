@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate, formatFullDate, formatChartTimestamp, sanitizeInput } from './format';
+import { getISOWeek, getISOWeekRange, percent, formatEloDelta, formatHistoryDateLabel, formatShortDate, formatFullDate, formatChartTimestamp, formatScore, sanitizeInput } from './format';
 
 describe('ISO Week Utilities', () => {
   describe('getISOWeek', () => {
@@ -239,6 +239,33 @@ describe('formatChartTimestamp', () => {
     expect(formatChartTimestamp('')).toBe('');
     expect(formatChartTimestamp(null as any)).toBe('');
     expect(formatChartTimestamp(undefined as any)).toBe('');
+  });
+});
+
+describe('formatScore', () => {
+  it('should format two numbers with an en-dash', () => {
+    // 21–15 uses an en-dash (U+2013), not a hyphen (U+002D)
+    expect(formatScore(21, 15)).toBe('21–15');
+  });
+
+  it('should format two strings with an en-dash', () => {
+    expect(formatScore('6', '4')).toBe('6–4');
+  });
+
+  it('should format mixed number and string with an en-dash', () => {
+    expect(formatScore(6, '4')).toBe('6–4');
+    expect(formatScore('6', 4)).toBe('6–4');
+  });
+
+  it('should use en-dash specifically, not hyphen', () => {
+    const result = formatScore(10, 5);
+    // En-dash is explicitly different from hyphen
+    expect(result).toContain('–');
+    expect(result).not.toContain('-');
+  });
+
+  it('should handle zero values', () => {
+    expect(formatScore(0, 0)).toBe('0–0');
   });
 });
 
