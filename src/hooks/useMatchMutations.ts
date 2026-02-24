@@ -1,9 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { matchService, MatchCreateInput } from "../services/matchService";
-import { Match } from "../types";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateStatsData } from "../data/queryInvalidation";
-import { createOptimisticMatch } from "../utils/optimisticUpdates";
+import { performOptimisticMatchUpdate, rollbackOptimisticMatchUpdate } from "../utils/optimisticUpdates";
 
 export const useCreateMatch = () => {
   const queryClient = useQueryClient();
@@ -11,29 +10,18 @@ export const useCreateMatch = () => {
   return useMutation({
     mutationFn: (newMatch: MatchCreateInput) => matchService.createMatch(newMatch),
     onMutate: async (newMatchInput) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      // We specifically target the 'all' list which is most likely to show the new match
-      await queryClient.cancelQueries({ queryKey: queryKeys.matches({ type: "all" }) });
+      // Cancel outgoing refetches to prevent overwriting our optimistic update
+      // We cancel all match-related queries to be safe
+      await queryClient.cancelQueries({ queryKey: queryKeys.matches() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.matchesInfiniteBase() });
 
-      // Snapshot the previous value
-      const previousMatches = queryClient.getQueryData<Match[]>(queryKeys.matches({ type: "all" }));
-
-      // Optimistically update to the new value
-      if (previousMatches) {
-        const optimisticMatch = createOptimisticMatch(newMatchInput);
-
-        queryClient.setQueryData<Match[]>(queryKeys.matches({ type: "all" }), (old: Match[] | undefined) => {
-          return old ? [optimisticMatch, ...old] : [optimisticMatch];
-        });
-      }
-
-      // Return a context object with the snapshotted value
-      return { previousMatches };
+      // Perform the update and get snapshot
+      return performOptimisticMatchUpdate(queryClient, newMatchInput);
     },
     onError: (_err, _newMatch, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousMatches) {
-        queryClient.setQueryData(queryKeys.matches({ type: "all" }), context.previousMatches);
+      // Rollback on error
+      if (context) {
+        rollbackOptimisticMatchUpdate(queryClient, context);
       }
     },
     onSettled: () => {

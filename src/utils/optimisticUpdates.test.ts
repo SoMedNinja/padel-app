@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { createOptimisticMatch } from './optimisticUpdates';
+import { createOptimisticMatch, performOptimisticMatchUpdate } from './optimisticUpdates';
 import { MatchCreateData, MatchCreateInput } from '../services/matchService';
+import { QueryClient } from '@tanstack/react-query';
+import { queryKeys } from './queryKeys';
+import { Match } from '../types';
 
 describe('createOptimisticMatch', () => {
     beforeEach(() => {
@@ -93,5 +96,61 @@ describe('createOptimisticMatch', () => {
             source_tournament_id: 'tourney-1',
             source_tournament_type: 'mexicana',
         });
+    });
+});
+
+describe('performOptimisticMatchUpdate', () => {
+    it('should update all relevant queries including variations and infinite queries', () => {
+        const queryClient = new QueryClient();
+
+        // Key used by useEloStats
+        const complexKey = queryKeys.matches({ type: 'all', limit: 5000 });
+        // Key targeted by default logic
+        const targetKey = queryKeys.matches({ type: 'all' });
+        // Infinite query key
+        const infiniteKey = queryKeys.matchesInfinite({ type: 'all' });
+
+        // Filtered keys
+        const shortKey = queryKeys.matches({ type: 'short' });
+        const tournamentKey = queryKeys.matches({ type: 'tournaments' });
+
+        // Seed data
+        const initialData: Match[] = [];
+        queryClient.setQueryData(complexKey, initialData);
+        queryClient.setQueryData(targetKey, initialData);
+        queryClient.setQueryData(shortKey, initialData);
+        queryClient.setQueryData(tournamentKey, initialData);
+
+        // Infinite data structure
+        const initialInfiniteData = {
+            pages: [[]],
+            pageParams: [null],
+        };
+        queryClient.setQueryData(infiniteKey, initialInfiniteData);
+
+        // Simulate input: Long match (6-4), not tournament
+        const input: MatchCreateInput = {
+            team1: ['Player A'],
+            team2: ['Player B'],
+            team1_sets: 6,
+            team2_sets: 4,
+            source_tournament_id: null,
+        };
+
+        // Run the fix (using the actual imported function)
+        performOptimisticMatchUpdate(queryClient, input);
+
+        // Verify updates
+
+        // Should update:
+        expect(queryClient.getQueryData<Match[]>(targetKey)).toHaveLength(1);
+        expect(queryClient.getQueryData<Match[]>(complexKey)).toHaveLength(1);
+
+        const infiniteData = queryClient.getQueryData<any>(infiniteKey);
+        expect(infiniteData.pages[0]).toHaveLength(1);
+
+        // Should NOT update (because filter mismatch):
+        expect(queryClient.getQueryData<Match[]>(shortKey)).toHaveLength(0); // 6-4 is not short
+        expect(queryClient.getQueryData<Match[]>(tournamentKey)).toHaveLength(0); // not tournament
     });
 });
