@@ -115,11 +115,16 @@ const createPollWithoutRpc = async (
 
 export const availabilityService = {
   async getPolls(): Promise<AvailabilityPoll[]> {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const dateLimit = ninetyDaysAgo.toISOString().slice(0, 10);
+
     const { data, error } = await supabase
       .from("availability_polls")
       .select(
         "*, days:availability_poll_days(*, votes:availability_votes(*)), mail_logs:availability_poll_mail_log(id, poll_id, sent_by, sent_at, created_at)",
       )
+      .gte("end_date", dateLimit)
       .order("week_year", { ascending: true })
       .order("week_number", { ascending: true });
 
@@ -135,9 +140,14 @@ export const availabilityService = {
   },
   // Note for non-coders: scheduled games are stored separately so they can show up even if no votes were used.
   async getScheduledGames(): Promise<AvailabilityScheduledGame[]> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dateLimit = thirtyDaysAgo.toISOString().slice(0, 10);
+
     const { data, error } = await supabase
       .from("availability_scheduled_games")
       .select("*")
+      .gte("date", dateLimit)
       .order("date", { ascending: true })
       .order("start_time", { ascending: true });
 
