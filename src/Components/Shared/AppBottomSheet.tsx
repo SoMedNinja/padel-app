@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import {
   Drawer,
   Box,
@@ -32,6 +32,8 @@ export default function AppBottomSheet({
 }: AppBottomSheetProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const uniqueId = useId();
+  const titleId = title ? `sheet-title-${uniqueId}` : undefined;
 
   if (!isMobile) {
     return (
@@ -40,13 +42,14 @@ export default function AppBottomSheet({
         onClose={onClose}
         fullWidth
         maxWidth="sm"
+        aria-labelledby={titleId}
         PaperProps={{
           sx: { borderRadius: 4, p: 1 }
         }}
       >
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {title && (
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+            <Typography id={titleId} variant="h6" sx={{ fontWeight: 800 }}>
               {title}
             </Typography>
           )}
@@ -73,6 +76,7 @@ export default function AppBottomSheet({
       anchor="bottom"
       open={open}
       onClose={onClose}
+      aria-labelledby={titleId}
       PaperProps={{
         sx: {
           borderTopLeftRadius: 20,
@@ -100,7 +104,7 @@ export default function AppBottomSheet({
       {(title || showCloseButton) && (
         <Box sx={{ px: 3, pb: 1, pt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {title && (
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+            <Typography id={titleId} variant="h6" sx={{ fontWeight: 800 }}>
               {title}
             </Typography>
           )}
