@@ -15,6 +15,8 @@ export const padelData = {
   tournaments: {
     list: () => tournamentService.getTournaments(),
     details: (tournamentId: string) => tournamentService.getTournamentDetails(tournamentId),
+    participants: (tournamentId: string) => tournamentService.getTournamentParticipants(tournamentId),
+    rounds: (tournamentId: string) => tournamentService.getTournamentRounds(tournamentId),
     results: () => tournamentService.getTournamentResults(),
     resultsWithTypes: () => tournamentService.getTournamentResultsWithTypes(),
   },

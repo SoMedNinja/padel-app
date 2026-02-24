@@ -20,36 +20,49 @@ export const tournamentService = {
     return data || [];
   },
 
-  async getTournamentDetails(tournamentId: string) {
-    if (!tournamentId) return { participants: [], rounds: [] };
+  async getTournamentParticipants(tournamentId: string) {
+    if (!tournamentId) return [];
     await ensureAuthSessionReady();
 
-    const [
-      { data: participantRows, error: participantError },
-      { data: roundRows, error: roundError }
-    ] = await Promise.all([
-      supabase
-        .from("mexicana_participants")
-        .select("profile_id")
-        .eq("tournament_id", tournamentId),
-      supabase
-        .from("mexicana_rounds")
-        .select("*")
-        .eq("tournament_id", tournamentId)
-        .order("round_number", { ascending: true }),
-    ]);
+    const { data: participantRows, error: participantError } = await supabase
+      .from("mexicana_participants")
+      .select("profile_id")
+      .eq("tournament_id", tournamentId);
 
     if (participantError) throw participantError;
+
+    return participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || [];
+  },
+
+  async getTournamentRounds(tournamentId: string) {
+    if (!tournamentId) return [];
+    await ensureAuthSessionReady();
+
+    const { data: roundRows, error: roundError } = await supabase
+      .from("mexicana_rounds")
+      .select("*")
+      .eq("tournament_id", tournamentId)
+      .order("round_number", { ascending: true });
+
     if (roundError) throw roundError;
 
-    const participants = participantRows?.map(row => row.profile_id === null ? GUEST_ID : row.profile_id) || [];
-
-    const rounds = (roundRows || []).map(round => ({
+    return (roundRows || []).map(round => ({
       ...round,
       team1_ids: (round.team1_ids || []).map(id => id === null ? GUEST_ID : id),
       team2_ids: (round.team2_ids || []).map(id => id === null ? GUEST_ID : id),
       resting_ids: (round.resting_ids || []).map(id => id === null ? GUEST_ID : id),
     }));
+  },
+
+  async getTournamentDetails(tournamentId: string) {
+    if (!tournamentId) return { participants: [], rounds: [] };
+
+    // Note for non-coders: we fetch both data sets in parallel to keep the page load fast,
+    // but the underlying functions are now separate so other parts of the app can pick just one.
+    const [participants, rounds] = await Promise.all([
+      this.getTournamentParticipants(tournamentId),
+      this.getTournamentRounds(tournamentId)
+    ]);
 
     return { participants, rounds };
   },

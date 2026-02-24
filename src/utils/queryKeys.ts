@@ -11,6 +11,10 @@ export const queryKeys = {
   tournamentDetailsBase: () => ["tournamentDetails"] as const,
   tournamentDetails: (tournamentId?: string) =>
     ["tournamentDetails", tournamentId] as const,
+  tournamentParticipants: (tournamentId?: string) =>
+    ["tournamentParticipants", tournamentId] as const,
+  tournamentRounds: (tournamentId?: string) =>
+    ["tournamentRounds", tournamentId] as const,
   tournamentResults: () => ["tournamentResults"] as const,
   tournamentResultsHistory: () => ["tournamentResultsHistory"] as const,
   availabilityPolls: () => ["availabilityPolls"] as const,

@@ -17,6 +17,22 @@ export function useTournamentDetails(tournamentId: string) {
   });
 }
 
+export function useTournamentParticipants(tournamentId: string) {
+  return useQuery({
+    queryKey: queryKeys.tournamentParticipants(tournamentId),
+    queryFn: () => padelData.tournaments.participants(tournamentId),
+    enabled: !!tournamentId,
+  });
+}
+
+export function useTournamentRounds(tournamentId: string) {
+  return useQuery({
+    queryKey: queryKeys.tournamentRounds(tournamentId),
+    queryFn: () => padelData.tournaments.rounds(tournamentId),
+    enabled: !!tournamentId,
+  });
+}
+
 export function useTournamentResults() {
   return useQuery({
     queryKey: queryKeys.tournamentResultsHistory(),

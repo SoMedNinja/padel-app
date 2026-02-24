@@ -19,6 +19,8 @@ export const invalidateTournamentData = (queryClient: QueryClient, tournamentId?
   queryClient.invalidateQueries({ queryKey: ["tournamentDetails"] });
   if (tournamentId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(tournamentId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.tournamentParticipants(tournamentId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.tournamentRounds(tournamentId) });
   }
   queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResults() });
   queryClient.invalidateQueries({ queryKey: queryKeys.tournamentResultsHistory() });
@@ -29,6 +31,8 @@ export const refetchTournamentDetails = (queryClient: QueryClient, tournamentId?
   queryClient.refetchQueries({ queryKey: ["tournamentDetails"] });
   if (tournamentId) {
     queryClient.refetchQueries({ queryKey: queryKeys.tournamentDetails(tournamentId) });
+    queryClient.refetchQueries({ queryKey: queryKeys.tournamentParticipants(tournamentId) });
+    queryClient.refetchQueries({ queryKey: queryKeys.tournamentRounds(tournamentId) });
   }
 };
 
