@@ -1,4 +1,5 @@
 import { Box, Button, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 interface ScoreSelectorProps {
   value: string;
@@ -46,6 +47,12 @@ export default function ScoreSelector({
               height: 50,
               fontSize: "1.2rem",
               borderRadius: "50%",
+              '&:focus-visible': {
+                outline: '2px solid',
+                outlineColor: 'primary.main',
+                outlineOffset: '2px',
+                boxShadow: (theme) => `0 0 0 4px ${alpha(theme.palette.primary.main, 0.2)}`
+              }
             }}
           >
             {s}
@@ -68,6 +75,12 @@ export default function ScoreSelector({
                 height: 50,
                 fontSize: "1.2rem",
                 borderRadius: "50%",
+                '&:focus-visible': {
+                  outline: '2px solid',
+                  outlineColor: 'primary.main',
+                  outlineOffset: '2px',
+                  boxShadow: (theme) => `0 0 0 4px ${alpha(theme.palette.primary.main, 0.2)}`
+                }
               }}
             >
               {s}
