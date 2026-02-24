@@ -150,8 +150,8 @@ export function scorePlayersForMvp(
 /**
  * Determines the MVP winner from a list of scored results.
  */
-export function getMvpWinner(results: MvpScoreResult[]): MvpScoreResult | null {
-  let winner: MvpScoreResult | null = null;
+export function getMvpWinner<T extends MvpScoreResult>(results: T[]): T | null {
+  let winner: T | null = null;
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
