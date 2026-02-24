@@ -46,6 +46,8 @@ export interface Match {
   team1_serves_first?: boolean;
 }
 
+export type MatchUpdateInput = Partial<Omit<Match, "id" | "created_by" | "created_at">>;
+
 export interface PlayerStats {
   id: string;
   name: string;

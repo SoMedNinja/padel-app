@@ -1,5 +1,5 @@
 import { supabase } from "../supabaseClient";
-import { Match, MatchFilter, ScoreType } from "../types";
+import { Match, MatchFilter, ScoreType, MatchUpdateInput } from "../types";
 import { ContractMatchMode } from "../contracts/generated/contractModels";
 import { checkIsAdmin, ensureAuthSessionReady, requireAdmin } from "./authUtils";
 import { buildMatchCreateRequest } from "./contract/contractTransforms";
@@ -579,13 +579,13 @@ export const matchService = {
     }
   },
 
-  async updateMatch(matchId: string, updates: any): Promise<void> {
+  async updateMatch(matchId: string, updates: MatchUpdateInput): Promise<void> {
     await requireAdmin("Endast administratörer kan ändra registrerade matcher.");
 
     validateMatchSets(updates.team1_sets, "Lag 1");
     validateMatchSets(updates.team2_sets, "Lag 2");
 
-    const filteredUpdates = { ...updates };
+    const filteredUpdates = { ...updates } as any;
     delete filteredUpdates.id;
     delete filteredUpdates.created_at;
     delete filteredUpdates.created_by;
