@@ -388,8 +388,7 @@ Deno.serve(async (req) => {
       }
     };
 
-    const processRecipient = async (recipient: typeof recipients[0]) => {
-      const html = `
+    const templatePart1 = `
         <html>
           <body style="font-family: Arial, sans-serif; background:#f5f5f5; padding:20px;">
             <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:640px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden;">
@@ -401,7 +400,9 @@ Deno.serve(async (req) => {
               </tr>
               <tr>
                 <td style="padding:24px; color:#222;">
-                  <p style="margin:0 0 12px 0;">Hej ${escapeHtml(recipient.name)}!</p>
+                  <p style="margin:0 0 12px 0;">Hej `;
+
+    const templatePart2 = `!</p>
                   <p style="margin:0 0 12px 0; color:#222; font-size:15px; line-height:1.6;">
                     Vi planerar kommande padelmatcher och behöver ditt svar.
                     Markera vilka datum och tider du kan spela genom att använda länkarna nedan.
@@ -416,6 +417,9 @@ Deno.serve(async (req) => {
           </body>
         </html>
       `;
+
+    const processRecipient = async (recipient: typeof recipients[0]) => {
+      const html = templatePart1 + escapeHtml(recipient.name) + templatePart2;
 
       const result = await sendEmailWithRetry(recipient.email, html);
       return { email: recipient.email, success: result.ok, error: result.errorMessage };
