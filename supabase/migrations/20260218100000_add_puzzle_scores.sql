@@ -25,14 +25,35 @@ create or replace function increment_puzzle_score(score_delta int)
 returns void
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
   initial_score int;
 begin
+  -- Validate authentication
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  -- Validate score_delta to prevent large increments
+  -- Currently, the app only uses 100 or -100
+  if abs(score_delta) > 100 then
+    raise exception 'Invalid score delta';
+  end if;
+
+  -- Rate limit: prevent more than one update every 2 seconds
+  if exists (
+    select 1 from puzzle_scores
+    where user_id = auth.uid()
+    and updated_at > now() - interval '2 seconds'
+  ) then
+    raise exception 'Too many updates';
+  end if;
+
   -- Calculate initial score for insert case (cannot be negative)
   initial_score := greatest(0, score_delta);
 
-  insert into public.puzzle_scores (user_id, score)
+  insert into puzzle_scores (user_id, score)
   values (auth.uid(), initial_score)
   on conflict (user_id) do update
   set score = greatest(0, puzzle_scores.score + score_delta),
