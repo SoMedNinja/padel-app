@@ -1,4 +1,4 @@
-import { Match, PlayerStats, Profile, TournamentResult } from "../types";
+import { Match, PlayerStats, Profile, TournamentResult, EloHistoryEntry } from "../types";
 import { getProfileDisplayName, resolveTeamIds } from "./profileMap";
 import {
   scorePlayersForMvp,
@@ -175,6 +175,12 @@ export const buildMvpSummary = (
   return { monthlyMvpDays, eveningMvpCounts };
 };
 
+interface TimelineEntry {
+  date: string;
+  timestamp: number;
+  matchId: string;
+}
+
 export const buildComparisonChartData = (players: PlayerStats[], profiles: Profile[], playerIds: string[]) => {
   if (!playerIds.length) return [];
 
@@ -183,7 +189,7 @@ export const buildComparisonChartData = (players: PlayerStats[], profiles: Profi
     return acc;
   }, {} as Record<string, string>);
 
-  const timelineEntries = new Map<string, { date: string, timestamp: number, matchId: string }>();
+  const timelineEntries = new Map<string, TimelineEntry>();
   playerIds.forEach(id => {
     const player = players.find(p => p.id === id);
     if (!player) return;
@@ -215,7 +221,7 @@ export const buildComparisonChartData = (players: PlayerStats[], profiles: Profi
     };
   });
 
-  const isEntryBeforeOrEqual = (entry: any, dateEntry: any) => {
+  const isEntryBeforeOrEqual = (entry: EloHistoryEntry, dateEntry: TimelineEntry) => {
     if (entry.timestamp < dateEntry.timestamp) return true;
     if (entry.timestamp > dateEntry.timestamp) return false;
     return entry.matchId.localeCompare(dateEntry.matchId) <= 0;
