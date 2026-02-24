@@ -6,7 +6,7 @@ import EmptyState from "../Components/Shared/EmptyState";
 import { Box, Button, Skeleton, Stack, Container, Typography, Alert, Fab } from "@mui/material";
 import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
 import SectionCard from "../Components/Shared/SectionCard";
-import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
+import { KeyboardArrowUp as KeyboardArrowUpIcon, SportsTennis as SportsTennisIcon } from "@mui/icons-material";
 import PullToRefresh from "react-simple-pull-to-refresh";
 import { PullingContent, RefreshingContent, getPullToRefreshTuning } from "../Components/Shared/PullToRefreshContent";
 import { useStore } from "../store/useStore";
@@ -150,6 +150,7 @@ export default function HistoryPage() {
                 description="Inga matcher matchar ditt nuvarande filter. Prova att ändra filtret eller registrera en ny match."
                 actionLabel="Registrera match"
                 onAction={() => navigate("/single-game")}
+                icon={<SportsTennisIcon sx={{ fontSize: 64 }} />}
               />
             ) : (
               <History
