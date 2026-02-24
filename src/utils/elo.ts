@@ -319,7 +319,12 @@ function processMatchUpdates(
  * Calculates derived statistics (streaks, trends, best partners) for all players.
  */
 function finalizePlayerStats(players: Record<string, PlayerStats>): PlayerStats[] {
-  return Object.values(players).map(player => {
+  const allPlayers = Object.values(players);
+
+  // Optimization: Use a standard for-loop to avoid O(P) closure allocations in map() callback.
+  for (let i = 0; i < allPlayers.length; i++) {
+    const player = allPlayers[i];
+
     // Optimization: Pre-calculate streak and trend once per data change
     const streak = getStreak(player.recentResults, true);
     const trend = getTrendIndicator(player.recentResults);
@@ -368,14 +373,17 @@ function finalizePlayerStats(players: Record<string, PlayerStats>): PlayerStats[
 
     // Optimization: Slice recentResults to last 5 for UI display (trend/chips)
     // to avoid sending large arrays to components. streak/trend are already pre-calculated.
-    return {
+    // Create a new object (shallow copy) to avoid mutating the input map, ensuring safety.
+    allPlayers[i] = {
       ...player,
       bestPartner,
       streak,
       trend,
       recentResults: player.recentResults.slice(-5)
     };
-  });
+  }
+
+  return allPlayers;
 }
 
 // --- Main Functions ---
