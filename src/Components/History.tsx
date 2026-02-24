@@ -232,7 +232,7 @@ const MatchItem = React.memo(({
 
   return (
     // Note for non-coders: cards are now tap-only on PWA to avoid accidental/buggy swipe deletes.
-    <Box key={m.id}>
+    <Box key={m.id} component="li" sx={{ listStyle: "none" }}>
       <Card
         id={`match-${m.id}`}
         variant="outlined"
@@ -683,7 +683,7 @@ export default function History({
         Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher. Senaste först.
       </Typography>
 
-      <Stack spacing={2}>
+      <Stack spacing={2} component="ul" sx={{ p: 0, m: 0 }}>
         {enrichedMatches.map(m => {
           const isEditing = editingId === m.id;
           return (

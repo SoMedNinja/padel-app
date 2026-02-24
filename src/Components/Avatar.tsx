@@ -18,7 +18,9 @@ const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...p
       }
   }, [src]);
 
-  const label = alt || name || "Avatar";
+  // If alt is explicitly provided (even empty string), use it.
+  // Otherwise fall back to a descriptive label using the name, or "Avatar" generic.
+  const label = alt !== undefined ? alt : (name ? `Avatar för ${name}` : "Avatar");
   const dimension = size || 40;
 
   // We merge sx to ensure the wrapper gets positioning/size/margin if passed.
@@ -33,6 +35,7 @@ const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...p
 
   // If we are loading an image, show skeleton.
   const showSkeleton = hasSrc && !loaded && !hasError;
+  const isRenderingImage = hasSrc && !hasError;
 
   return (
     <Box
@@ -51,6 +54,10 @@ const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...p
         <MuiAvatar
             alt={label}
             src={src}
+            // If we are NOT rendering an image (e.g. text fallback), we need to ensure the container is accessible.
+            // But if we ARE rendering an image, the image tag itself handles accessibility via alt.
+            aria-label={!isRenderingImage && label ? label : undefined}
+            role={label === "" ? "presentation" : (!isRenderingImage ? "img" : undefined)}
             imgProps={{
                 onLoad: () => setLoaded(true),
                 onError: () => { setLoaded(true); setHasError(true); },
