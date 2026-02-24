@@ -466,7 +466,7 @@ const validateMatchSets = (sets: any, teamLabel: string) => {
   }
 };
 
-const validateTeamNames = (names: any, teamLabel: string) => {
+const validateTeamNames = (names: string | string[], teamLabel: string) => {
   if (!Array.isArray(names)) return;
 
   for (const name of names) {
