@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { invalidateStatsData } from "../data/queryInvalidation";
@@ -29,6 +29,7 @@ import {
   Avatar,
   Menu,
   Divider,
+  CardActionArea,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -42,6 +43,8 @@ import {
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
 import AppBottomSheet from "./Shared/AppBottomSheet";
+import EmptyState from "./Shared/EmptyState";
+import { useNavigate } from "react-router-dom";
 
 const normalizeName = (name: string) => name?.trim().toLowerCase();
 const toDateTimeInput = (value: string) => {
@@ -231,6 +234,13 @@ const MatchItem = React.memo(({
     return "text.secondary";
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isEditing && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onOpenDetails?.(m.id);
+    }
+  };
+
   return (
     // Note for non-coders: cards are now tap-only on PWA to avoid accidental/buggy swipe deletes.
     <Box key={m.id} component="li" sx={{ listStyle: "none" }}>
@@ -240,6 +250,10 @@ const MatchItem = React.memo(({
         onClick={() => {
           if (!isEditing) onOpenDetails?.(m.id);
         }}
+        onKeyDown={handleKeyDown}
+        tabIndex={isEditing ? -1 : 0}
+        role="button"
+        aria-label={`Match mellan ${teamAEntries.map(e => e.name).join(' och ')} mot ${teamBEntries.map(e => e.name).join(' och ')}. Resultat ${scoreLabel}. Klicka för detaljer.`}
         sx={{
           borderRadius: 4,
           boxShadow: isHighlighted ? 10 : '0 2px 8px rgba(15, 23, 42, 0.05)',
@@ -251,6 +265,11 @@ const MatchItem = React.memo(({
           '&:hover': isEditing ? undefined : {
             transform: 'translateY(-1px)',
             boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+          },
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineColor: 'primary.main',
+            outlineOffset: 2,
           },
         }}
       >
@@ -295,6 +314,12 @@ const MatchItem = React.memo(({
                   onClick={(event) => {
                     event.stopPropagation();
                     setActionAnchorEl(event.currentTarget);
+                  }}
+                  onKeyDown={(e) => {
+                     // Stop propagation to prevent card click when pressing Enter on the menu button
+                     if (e.key === 'Enter' || e.key === ' ') {
+                       e.stopPropagation();
+                     }
                   }}
                   sx={{ color: 'text.secondary', p: 0.5 }}
                 >
@@ -497,6 +522,7 @@ export default function History({
   highlightedMatchId = null,
   onOpenDetails,
 }: HistoryProps) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
   const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
@@ -518,11 +544,16 @@ export default function History({
   const [deleteDialogMatchId, setDeleteDialogMatchId] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(10);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Note for non-coders: we reset pagination when the match list changes.
+    // Reset pagination when match list changes significantly (e.g. filter change),
+    // but not if it's just a small update (though here matches prop changes reference often).
+    // Actually, if filtered matches change, we should reset.
+    // But if we reset, we lose scroll position potentially.
+    // Standard behavior: reset on filter change.
     setVisibleCount(10);
-  }, [matches.length]);
+  }, [matches.length]); // matches.length is a proxy for filter change or new data
 
   const sortedMatches = useMemo(() => {
     // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort.
@@ -540,11 +571,41 @@ export default function History({
     );
   }, [matches]);
 
+  // Ensure highlighted match is visible
+  useEffect(() => {
+    if (highlightedMatchId && sortedMatches.length > 0) {
+      const index = sortedMatches.findIndex(m => m.id === highlightedMatchId);
+      if (index !== -1 && index >= visibleCount) {
+        // Add a buffer so it's not the very last item
+        setVisibleCount(index + 5);
+      }
+    }
+  }, [highlightedMatchId, sortedMatches, visibleCount]);
+
   const visibleMatches = useMemo(() => sortedMatches.slice(0, visibleCount), [sortedMatches, visibleCount]);
 
-  // Optimization: Removed EnrichedMatch mapping here.
-  // Instead, we pass the raw match to MatchItem and let it resolve names/IDs via memoization internally.
-  // This prevents all rows from re-rendering when 'visibleCount' changes (as raw match refs are stable).
+  // Infinite Scroll Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + 10, sortedMatches.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentLoader = loaderRef.current;
+    if (currentLoader) {
+      observer.observe(currentLoader);
+    }
+
+    return () => {
+      if (currentLoader) {
+        observer.unobserve(currentLoader);
+      }
+    };
+  }, [sortedMatches.length]);
 
   const getTeamIds = React.useCallback((teamIds: (string | null)[], teamNames: string | string[]): (string | null)[] => {
     const ids = Array.isArray(teamIds) ? teamIds : [];
@@ -667,23 +728,13 @@ export default function History({
   const onDeleteDialogOpen = React.useCallback((id: string) => setDeleteDialogMatchId(id), []);
 
   if (!matches.length) return (
-    <Box sx={{
-      textAlign: 'center',
-      py: 8,
-      px: 2,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      opacity: 0.8
-    }}>
-      <SportsTennisIcon sx={{ fontSize: 64, color: 'text.secondary', opacity: 0.2, mb: 2 }} />
-      <Typography variant="h6" fontWeight={700} gutterBottom>
-        Inga matcher ännu
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 300 }}>
-        Spela en match och registrera resultatet för att se historik här.
-      </Typography>
-    </Box>
+    <EmptyState
+      title="Inga matcher ännu"
+      description="Inga matcher hittades för detta filter. Prova att ändra filtret eller registrera en ny match."
+      actionLabel="Registrera match"
+      onAction={() => navigate("/single-game")}
+      icon={<SportsTennisIcon sx={{ fontSize: 64 }} />}
+    />
   );
 
   const canLoadMore = visibleCount < sortedMatches.length;
@@ -728,14 +779,18 @@ export default function History({
       </Stack>
 
       {canLoadMore && (
-        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-          <Button
-            variant="outlined"
-            onClick={() => setVisibleCount(count => count + 10)}
-            aria-label="Visa fler matcher ur historiken"
-          >
-            Visa fler matcher
-          </Button>
+        <Box
+          ref={loaderRef}
+          sx={{
+            mt: 4,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: 60,
+            opacity: 0.7
+          }}
+        >
+          <CircularProgress size={24} color="inherit" thickness={5} />
         </Box>
       )}
 

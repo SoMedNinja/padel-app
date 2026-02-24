@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import History from "./History";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
@@ -19,6 +19,25 @@ vi.mock("sonner", () => ({
     error: vi.fn(),
   },
 }));
+
+// Mock useNavigate
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => vi.fn(),
+  };
+});
+
+// Mock IntersectionObserver
+beforeAll(() => {
+  global.IntersectionObserver = class IntersectionObserver {
+    constructor(_callback: any, _options: any) {}
+    observe() { return null; }
+    unobserve() { return null; }
+    disconnect() { return null; }
+  } as any;
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +115,52 @@ describe("History", () => {
     );
 
     expect(screen.getByText("Inga matcher ännu")).toBeInTheDocument();
-    expect(screen.getByText("Spela en match och registrera resultatet för att se historik här.")).toBeInTheDocument();
+    expect(screen.getByText(/Inga matcher hittades för detta filter/i)).toBeInTheDocument();
+  });
+
+  it("triggers action on Enter key for accessibility", () => {
+    const onOpenDetails = vi.fn();
+    const matches = [
+      {
+        id: "1",
+        created_at: "2023-01-01T12:00:00Z",
+        team1: ["Player A"],
+        team2: ["Player B"],
+        team1_ids: ["p1"],
+        team2_ids: ["p2"],
+        team1_sets: 6,
+        team2_sets: 4,
+        score_type: "sets",
+        source_tournament_type: "standalone_1v1"
+      },
+    ];
+
+    const profiles = [
+      { id: "p1", name: "Player A" },
+      { id: "p2", name: "Player B" },
+    ];
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <History
+          matches={matches as any}
+          profiles={profiles as any}
+          user={{ id: "u1" }}
+          onOpenDetails={onOpenDetails}
+        />
+      </QueryClientProvider>
+    );
+
+    // Find the card by role button (added for a11y)
+    const cardButtons = screen.getAllByRole("button");
+    // Filter to find the card, ignoring the menu button
+    const card = cardButtons.find(b => b.getAttribute("id") === "match-1");
+
+    expect(card).toBeInTheDocument();
+
+    if (card) {
+        fireEvent.keyDown(card, { key: "Enter", code: "Enter" });
+        expect(onOpenDetails).toHaveBeenCalledWith("1");
+    }
   });
 });
