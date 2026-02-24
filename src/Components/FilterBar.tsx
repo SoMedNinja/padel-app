@@ -76,6 +76,7 @@ export default function FilterBar({ filter, setFilter }: FilterBarProps) {
           value={filter.type}
           displayEmpty
           onChange={handleChange}
+          inputProps={{ "aria-label": "Filtrera matcher" }}
           sx={{
             borderRadius: "12px",
             backgroundColor: (theme) => theme.palette.action.hover,
