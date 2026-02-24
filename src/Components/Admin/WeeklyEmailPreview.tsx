@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { useEloStats } from "../../hooks/useEloStats";
 import { calculateEloWithStats, ELO_BASELINE, getExpectedScore } from "../../utils/elo";
-import { calculateMvpScore, getMvpWinner } from "../../utils/mvp";
+import { calculateMvpScore, getMvpWinner, MvpScoreResult } from "../../utils/mvp";
 import { formatShortDate, formatScore, getISOWeek, getISOWeekRange } from "../../utils/format";
 import { Match, Profile } from "../../types";
 import { GUEST_ID } from "../../utils/guest";
@@ -435,16 +435,22 @@ export default function WeeklyEmailPreview({ currentUserId }: WeeklyEmailPreview
     // We align this with the dashboard MVP logic (score + tie-breakers).
     const mvpCandidates = activeProfiles.map(profile => {
       const ps = buildWeeklyStats(profile.id);
+      // We map to MvpScoreResult but keep extra properties (like avatarUrl) for the email display.
       return {
         ...ps,
         score: calculateMvpScore(ps.wins, ps.matchesPlayed, ps.eloDelta),
         periodEloGain: ps.eloDelta,
         eloNet: ps.currentElo,
-        isEligible: ps.matchesPlayed >= 1 // Weekly min games
+        isEligible: ps.matchesPlayed >= 1, // Weekly min games
+        // Explicitly map properties required by MvpScoreResult
+        games: ps.matchesPlayed,
+        badgeId: ps.featuredBadgeId,
+        // Override winRate to be a 0-1 fraction as expected by MVP logic (though not strictly used for sorting)
+        winRate: ps.matchesPlayed > 0 ? ps.wins / ps.matchesPlayed : 0,
       };
     }).filter(c => c.matchesPlayed > 0);
 
-    const mvp = getMvpWinner(mvpCandidates as any);
+    const mvp = getMvpWinner(mvpCandidates);
 
     return {
       stats,
