@@ -235,11 +235,19 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                     maxWidth: dynamicNameColumnWidth,
                     boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}`,
                   }}
+                  component="th"
+                  scope="col"
                 >
                   Spelare
                 </TableCell>
                 {sortedPlayerNames.map((name, colIndex) => (
-                  <TableCell key={`head-${name}`} align="center" sx={{ fontWeight: 700, top: 0, position: "sticky", zIndex: 4, bgcolor: "grey.50", width: valueColumnWidths[colIndex], minWidth: valueColumnWidths[colIndex], maxWidth: valueColumnWidths[colIndex] }}>
+                  <TableCell
+                    key={`head-${name}`}
+                    align="center"
+                    component="th"
+                    scope="col"
+                    sx={{ fontWeight: 700, top: 0, position: "sticky", zIndex: 4, bgcolor: "grey.50", width: valueColumnWidths[colIndex], minWidth: valueColumnWidths[colIndex], maxWidth: valueColumnWidths[colIndex] }}
+                  >
                     {name}
                   </TableCell>
                 ))}
@@ -260,6 +268,8 @@ export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
                       maxWidth: dynamicNameColumnWidth,
                       boxShadow: (theme) => `2px 0 0 ${theme.palette.divider}`,
                     }}
+                    component="th"
+                    scope="row"
                   >
                     {sortedPlayerNames[rowIndex]}
                   </TableCell>

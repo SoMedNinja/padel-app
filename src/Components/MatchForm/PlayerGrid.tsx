@@ -6,7 +6,6 @@ import {
   Grid,
   ButtonBase,
   Paper,
-  Avatar,
   Typography,
 } from "@mui/material";
 import {
@@ -15,6 +14,7 @@ import {
   CheckCircle as CheckCircleIcon,
   SearchOff as SearchOffIcon,
 } from "@mui/icons-material";
+import CustomAvatar from "../Avatar";
 import { GUEST_ID, GUEST_NAME } from "../../utils/guest";
 import { getProfileDisplayName } from "../../utils/profileMap";
 import { Profile } from "../../types";
@@ -67,6 +67,9 @@ export default function PlayerGrid({
           onChange={(e) => setQuery(e.target.value)}
           sx={{ mb: 2 }}
           slotProps={{
+            htmlInput: {
+              "aria-label": "Sök spelare",
+            },
             input: {
               startAdornment: (
                 <InputAdornment position="start">
@@ -87,7 +90,6 @@ export default function PlayerGrid({
                   </IconButton>
                 </InputAdornment>
               ),
-              "aria-label": "Sök spelare",
             },
           }}
         />
@@ -125,7 +127,8 @@ export default function PlayerGrid({
                 }}
                 onClick={() => onSelect(p.id)}
               >
-                <Avatar
+                <CustomAvatar
+                  name={p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)}
                   src={p.avatar_url || ""}
                   sx={{
                     width: 48,
@@ -133,9 +136,7 @@ export default function PlayerGrid({
                     mb: 1,
                     border: isSelected ? "2px solid #fff" : "none",
                   }}
-                >
-                  {p.name.charAt(0)}
-                </Avatar>
+                />
                 <Typography
                   variant="caption"
                   align="center"
