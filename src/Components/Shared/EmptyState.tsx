@@ -36,7 +36,7 @@ export default function EmptyState({
         minHeight: 300
       }}
     >
-      <Box sx={{ mb: 2, color: 'text.disabled', opacity: 0.5 }}>
+      <Box sx={{ mb: 2, color: 'text.disabled', opacity: 0.5 }} aria-hidden="true">
         {icon || <EmptyIcon sx={{ fontSize: 64 }} />}
       </Box>
       <Typography variant="h6" fontWeight={800} gutterBottom>

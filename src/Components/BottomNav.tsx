@@ -136,6 +136,8 @@ const BottomNav: React.FC<BottomNavProps> = ({
           label="Mer"
           value="more"
           icon={<MoreIcon />}
+          aria-expanded={isMenuOpen}
+          aria-haspopup="menu"
         />
       </BottomNavigation>
     </Paper>
