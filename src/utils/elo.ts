@@ -115,43 +115,50 @@ function initializePlayerStats(profiles: Profile[]): {
  * Sorts matches chronologically (ascending).
  */
 function sortMatchesChronologically(matches: Match[]): Match[] {
+  if (matches.length <= 1) return matches;
+
   // Optimization: check if matches are already sorted (O(N)).
   // Supabase usually returns newest first (descending), but ELO calculation needs oldest first (ascending).
   let isAscending = true;
   let isDescending = true;
 
   for (let i = 1; i < matches.length; i++) {
-    const curr = matches[i].created_at;
-    const prev = matches[i - 1].created_at;
-    if (curr < prev) isAscending = false;
-    if (curr > prev) isDescending = false;
+    const curr = matches[i];
+    const prev = matches[i - 1];
+
+    if (curr.created_at < prev.created_at) {
+      isAscending = false;
+    } else if (curr.created_at > prev.created_at) {
+      isDescending = false;
+    } else {
+      // Tie-breaker: Match ID for deterministic ordering
+      if (curr.id < prev.id) {
+        isAscending = false;
+      } else if (curr.id > prev.id) {
+        isDescending = false;
+      }
+    }
+
     if (!isAscending && !isDescending) break;
   }
 
-  let chronologicalMatches: Match[];
   if (isAscending) {
-    chronologicalMatches = matches;
+    return matches;
   } else if (isDescending) {
     // Optimization: Reverse is O(N) which is faster than Sort O(N log N)
-    chronologicalMatches = [...matches].reverse();
+    return [...matches].reverse();
   } else {
     // Unsorted, must sort O(N log N)
-    chronologicalMatches = [...matches].sort((a, b) => {
+    // Note for non-coders:
+    // When several matches have exactly the same timestamp, JavaScript can process them
+    // in varying order across refreshes unless we provide an explicit tie-breaker.
+    // We add match ID as that tie-breaker so ELO replay stays deterministic.
+    return [...matches].sort((a, b) => {
       if (a.created_at < b.created_at) return -1;
       if (a.created_at > b.created_at) return 1;
       return a.id.localeCompare(b.id);
     });
   }
-
-  // Note for non-coders:
-  // When several matches have exactly the same timestamp, JavaScript can process them
-  // in varying order across refreshes unless we provide an explicit tie-breaker.
-  // We add match ID as that tie-breaker so ELO replay stays deterministic.
-  return [...chronologicalMatches].sort((a, b) => {
-    if (a.created_at < b.created_at) return -1;
-    if (a.created_at > b.created_at) return 1;
-    return a.id.localeCompare(b.id);
-  });
 }
 
 /**

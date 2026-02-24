@@ -51,6 +51,8 @@ const toDateTimeInput = (value: string) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
+const EMPTY_DELTAS: Record<string, number> = {};
+
 interface HistoryProps {
   matches?: Match[];
   eloDeltaByMatch?: Record<string, Record<string, number>>;
@@ -70,15 +72,8 @@ interface EditState {
   score_target: number | string;
 }
 
-type EnrichedMatch = Match & {
-  t1Ids: (string | null)[];
-  t2Ids: (string | null)[];
-  t1Names: string[];
-  t2Names: string[];
-};
-
 interface MatchItemProps {
-  m: EnrichedMatch;
+  m: Match;
   user: any;
   matchDeltas: Record<string, number>;
   isEditing: boolean;
@@ -89,6 +84,7 @@ interface MatchItemProps {
   isSavingEdit: boolean;
   playerOptions: { id: string; name: string }[];
   profileMap: Map<string, Profile>;
+  nameToIdMap: Map<string, string>;
   onStartEdit: (m: Match) => void;
   onCancelEdit: () => void;
   onSaveEdit: ((id: string) => void) | undefined;
@@ -112,6 +108,7 @@ const MatchItem = React.memo(({
   isSavingEdit,
   playerOptions,
   profileMap,
+  nameToIdMap,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
@@ -131,10 +128,13 @@ const MatchItem = React.memo(({
   const [actionAnchorEl, setActionAnchorEl] = useState<null | HTMLElement>(null);
   const isActionMenuOpen = Boolean(actionAnchorEl);
 
-  const t1Ids = m.t1Ids;
-  const t2Ids = m.t2Ids;
-  const t1Names = m.t1Names;
-  const t2Names = m.t2Names;
+  // Optimization: Resolve team names/IDs locally and memoize.
+  // This allows MatchItem to be pure and not re-render when parent re-slices the list,
+  // as the raw Match object reference is stable.
+  const t1Ids = useMemo(() => resolveTeamIds(m.team1_ids, m.team1, nameToIdMap), [m.team1_ids, m.team1, nameToIdMap]);
+  const t2Ids = useMemo(() => resolveTeamIds(m.team2_ids, m.team2, nameToIdMap), [m.team2_ids, m.team2, nameToIdMap]);
+  const t1Names = useMemo(() => resolveTeamNames(m.team1_ids, m.team1, profileMap), [m.team1_ids, m.team1, profileMap]);
+  const t2Names = useMemo(() => resolveTeamNames(m.team2_ids, m.team2, profileMap), [m.team2_ids, m.team2, profileMap]);
 
   const tournamentType = m.source_tournament_type || "standalone";
   const isActually1v1 = tournamentType === "standalone_1v1";
@@ -541,15 +541,9 @@ export default function History({
 
   const visibleMatches = useMemo(() => sortedMatches.slice(0, visibleCount), [sortedMatches, visibleCount]);
 
-  const enrichedMatches = useMemo(() => {
-    return visibleMatches.map(m => ({
-      ...m,
-      t1Ids: resolveTeamIds(m.team1_ids, m.team1, nameToIdMap),
-      t2Ids: resolveTeamIds(m.team2_ids, m.team2, nameToIdMap),
-      t1Names: resolveTeamNames(m.team1_ids, m.team1, profileMap),
-      t2Names: resolveTeamNames(m.team2_ids, m.team2, profileMap),
-    }));
-  }, [visibleMatches, nameToIdMap, profileMap]);
+  // Optimization: Removed EnrichedMatch mapping here.
+  // Instead, we pass the raw match to MatchItem and let it resolve names/IDs via memoization internally.
+  // This prevents all rows from re-rendering when 'visibleCount' changes (as raw match refs are stable).
 
   const getTeamIds = React.useCallback((teamIds: (string | null)[], teamNames: string | string[]): (string | null)[] => {
     const ids = Array.isArray(teamIds) ? teamIds : [];
@@ -684,14 +678,14 @@ export default function History({
       </Typography>
 
       <Stack spacing={2} component="ul" sx={{ p: 0, m: 0 }}>
-        {enrichedMatches.map(m => {
+        {visibleMatches.map(m => {
           const isEditing = editingId === m.id;
           return (
             <MatchItem
               key={m.id}
               m={m}
               user={user}
-              matchDeltas={eloDeltaByMatch[m.id] || {}}
+              matchDeltas={eloDeltaByMatch[m.id] || EMPTY_DELTAS}
               isEditing={isEditing}
               isHighlighted={highlightedMatchId === m.id}
               isDeleteDialogOpen={deleteDialogMatchId === m.id}
@@ -700,6 +694,7 @@ export default function History({
               isSavingEdit={isEditing ? isSavingEdit : false}
               playerOptions={playerOptions}
               profileMap={profileMap}
+              nameToIdMap={nameToIdMap}
               onStartEdit={startEdit}
               onCancelEdit={cancelEdit}
               onSaveEdit={isEditing ? saveEdit : undefined}

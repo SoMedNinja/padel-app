@@ -434,6 +434,7 @@ export default function Dashboard() {
                   <Heatmap
                     matches={filteredMatches}
                     profiles={profiles}
+                    playerStats={eloPlayers}
                   />
                 </Box>
               </>
