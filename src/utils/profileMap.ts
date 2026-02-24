@@ -44,12 +44,33 @@ export const resolveTeamIds = (
 ): (string | null)[] => {
   if (ids && ids.length > 0) return ids;
 
-  let nameArray: string[] = [];
-  if (Array.isArray(names)) {
-    nameArray = names;
-  } else if (typeof names === "string") {
-    nameArray = names.split(",").map(n => n.trim()).filter(Boolean);
+  if (typeof names === "string") {
+    // Optimization: Avoid chained split().map().filter() and redundant allocations.
+    const parts = names.split(",");
+    const result: (string | null)[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      const name = parts[i].trim();
+      if (!name) continue;
+
+      // Check for direct match first
+      const directMatch = nameToIdMap.get(name);
+      if (directMatch) {
+        result.push(directMatch);
+        continue;
+      }
+
+      const normalizedName = normalizeProfileName(name);
+      const normMatch = nameToIdMap.get(normalizedName);
+      if (normMatch) {
+        result.push(normMatch);
+      } else {
+        result.push(GUEST_NAME_ALIASES.has(normalizedName) ? GUEST_ID : null);
+      }
+    }
+    return result;
   }
+
+  const nameArray = Array.isArray(names) ? names : [];
   return nameArray.map((name) => {
     // Optimization: Check for direct match first to avoid expensive normalization
     const directMatch = nameToIdMap.get(name);

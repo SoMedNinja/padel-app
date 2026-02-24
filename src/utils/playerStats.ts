@@ -81,13 +81,14 @@ export const buildMvpSummary = (
     let windowStartIndex = 0;
     let windowEndIndex = 0;
 
-    for (
-      const cursor = new Date(startDate);
-      cursor <= endDate;
-      cursor.setDate(cursor.getDate() + 1)
-    ) {
-      const dateKey = cursor.toISOString().slice(0, 10);
-      const dayEndTime = new Date(`${dateKey}T23:59:59.999Z`).getTime();
+    // Optimization: Use timestamp arithmetic to avoid creating new Date objects in the loop.
+    // startDate is initialized from YYYY-MM-DD which is UTC midnight.
+    const startTs = new Date(startDate).getTime();
+    const endTs = endDate.getTime();
+
+    for (let currentTs = startTs; currentTs <= endTs; currentTs += MILLISECONDS_PER_DAY) {
+      // Calculate dayEndTime (23:59:59.999Z) based on currentTs (00:00:00.000Z)
+      const dayEndTime = currentTs + MILLISECONDS_PER_DAY - 1;
       const cutoff = dayEndTime - MVP_WINDOW_DAYS * MILLISECONDS_PER_DAY;
 
       // Add matches entering the window
