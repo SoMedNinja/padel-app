@@ -460,7 +460,7 @@ const getDateRange = (filter: MatchFilter) => {
   return null;
 };
 
-const validateMatchSets = (sets: any, teamLabel: string) => {
+const validateMatchSets = (sets: number | undefined, teamLabel: string) => {
   if (sets !== undefined && (typeof sets !== "number" || sets < 0)) {
     throw new Error(`Ogiltigt resultat för ${teamLabel}`);
   }
