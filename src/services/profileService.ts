@@ -7,7 +7,9 @@ const MAX_AVATAR_LENGTH = 3_000_000; // Security: Limit avatar data size to ~2.2
 export const profileService = {
   async getProfiles(): Promise<Profile[]> {
     await ensureAuthSessionReady();
-    const { data, error } = await supabase.from("profiles").select("*");
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, name, avatar_url, is_admin, is_approved, is_deleted, is_regular, featured_badge_id, created_at");
     if (error) throw error;
     return (data || []) as Profile[];
   },
