@@ -93,7 +93,7 @@ export default function RivalryModal({
             <Typography variant="subtitle2" sx={{ fontWeight: 700, textAlign: 'center' }}>Du</Typography>
           </Stack>
 
-          <Box sx={{ textAlign: 'center' }}>
+          <Box sx={{ textAlign: 'center' }} aria-hidden="true">
             <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.secondary', opacity: 0.3 }}>VS</Typography>
           </Box>
 

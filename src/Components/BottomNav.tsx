@@ -45,6 +45,8 @@ const BottomNav: React.FC<BottomNavProps> = ({
     return null;
   };
 
+  const activeValue = getActiveValue();
+
   const handleChange = (_event: React.SyntheticEvent, newValue: string) => {
     if (newValue === 'more') {
       toggleMenu();
@@ -79,7 +81,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
     >
       <BottomNavigation
         showLabels
-        value={getActiveValue()}
+        value={activeValue}
         onChange={handleChange}
         sx={{
           height: 72, // Increased from 64
@@ -105,11 +107,13 @@ const BottomNav: React.FC<BottomNavProps> = ({
           label="Översikt"
           value="dashboard"
           icon={<AssessmentIcon />}
+          aria-current={activeValue === 'dashboard' ? 'page' : undefined}
         />
         <BottomNavigationAction
           label="Profil"
           value="profile"
           icon={<PersonIcon />}
+          aria-current={activeValue === 'profile' ? 'page' : undefined}
         />
         {canUseSingleGame && (
           <BottomNavigationAction
@@ -117,6 +121,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
             value="match"
             icon={isGuest ? <LockIcon /> : <MatchIcon />}
             disabled={isGuest}
+            aria-current={activeValue === 'match' ? 'page' : undefined}
           />
         )}
         {canSeeSchedule && (
@@ -124,6 +129,7 @@ const BottomNav: React.FC<BottomNavProps> = ({
             label="Schema"
             value="schedule"
             icon={<CalendarIcon />}
+            aria-current={activeValue === 'schedule' ? 'page' : undefined}
           />
         )}
         <BottomNavigationAction
