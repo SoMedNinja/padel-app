@@ -3,8 +3,8 @@ import { getProfileDisplayName, makeProfileMap } from "../utils/profileMap";
 import { useResolvedMatches } from "../hooks/useResolvedMatches";
 import { GUEST_NAME } from "../utils/guest";
 import { getTextWidth } from "../utils/textMeasurement";
-import { calculateEloWithStats, ELO_BASELINE } from "../utils/elo";
-import { Match, Profile } from "../types";
+import { ELO_BASELINE } from "../utils/elo";
+import { Match, Profile, PlayerStats } from "../types";
 import {
   Box,
   Typography,
@@ -26,6 +26,7 @@ type Metric = "matches" | "winPct" | "elo";
 interface HeatmapProps {
   matches?: Match[];
   profiles?: Profile[];
+  playerStats?: PlayerStats[];
 }
 
 interface PairStat {
@@ -51,23 +52,21 @@ const interpolateColor = (ratio: number) => {
   return `rgb(${mix(MID_COLOR.r, HIGH_COLOR.r, local)}, ${mix(MID_COLOR.g, HIGH_COLOR.g, local)}, ${mix(MID_COLOR.b, HIGH_COLOR.b, local)})`;
 };
 
-export default function Heatmap({ matches = [], profiles = [] }: HeatmapProps) {
+export default function Heatmap({ matches = [], profiles = [], playerStats = [] }: HeatmapProps) {
   const [metric, setMetric] = useState<Metric>("matches");
 
   const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
 
   const currentEloByPlayer = useMemo(() => {
-    // Note for non-coders: we replay all matches once to get each player's latest ELO rating.
-    const { players: eloPlayers } = calculateEloWithStats(matches, profiles);
+    // Note for non-coders: we use the provided player stats (which contain latest ELO)
+    // instead of recalculating from scratch for much better performance.
     const map = new Map<string, number>();
-    // Note for non-coders: calculateEloWithStats returns an object with several data buckets.
-    // We only need the `players` list for this map.
-    eloPlayers.forEach((player) => {
+    playerStats.forEach((player) => {
       const safeName = player.name || "Okänd spelare";
       map.set(safeName, player.elo ?? ELO_BASELINE);
     });
     return map;
-  }, [matches, profiles]);
+  }, [playerStats]);
 
   const sortedPlayerNames = useMemo(() => {
     return profiles
