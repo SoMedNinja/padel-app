@@ -83,4 +83,19 @@ describe("History", () => {
     expect(items).toHaveLength(2);
     expect(items[0].tagName).toBe("LI");
   });
+
+  it("renders empty state when no matches", () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <History
+          matches={[]}
+          profiles={[]}
+          user={{ id: "u1" }}
+        />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByText("Inga matcher ännu")).toBeInTheDocument();
+    expect(screen.getByText("Spela en match och registrera resultatet för att se historik här.")).toBeInTheDocument();
+  });
 });

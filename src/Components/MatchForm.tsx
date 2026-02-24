@@ -482,6 +482,7 @@ export default function MatchForm({
                     variant="outlined"
                     onClick={() => setStep(10)}
                     aria-label="Öppna Matchmaker för att skapa lag eller rotationer"
+                    disabled={isSubmitting}
                   >
                     Matchmaker
                   </Button>
@@ -490,7 +491,7 @@ export default function MatchForm({
             )}
             {step > 0 && (
               <Tooltip title="Rensa och börja om" arrow>
-                <IconButton onClick={() => resetWizard()} size="small" color="error" aria-label="Stäng och rensa">
+                <IconButton onClick={() => resetWizard()} size="small" color="error" aria-label="Stäng och rensa" disabled={isSubmitting}>
                   <CloseIcon />
                 </IconButton>
               </Tooltip>
@@ -518,6 +519,7 @@ export default function MatchForm({
                   value={mode}
                   onChange={(e) => setMode?.(e.target.value as "1v1" | "2v2")}
                   disableUnderline
+                  disabled={isSubmitting}
                   sx={{
                     fontWeight: 700,
                     fontSize: '0.9rem',
@@ -544,7 +546,7 @@ export default function MatchForm({
                     <Step key={label} completed={index < activeWizardStep}>
                       <StepButton
                         onClick={() => isClickable && handleWizardStepClick(index)}
-                        disabled={!isClickable}
+                        disabled={!isClickable || isSubmitting}
                         icon={null} // Use default icon logic from Step
                         sx={{
                           p: 0,
@@ -587,6 +589,7 @@ export default function MatchForm({
                       color={team1[idx] ? "primary" : "default"}
                       variant={team1[idx] ? "filled" : "outlined"}
                       sx={{ flex: 1, height: 40, fontWeight: 700 }}
+                      disabled={isSubmitting}
                     />
                   ))}
                 </Box>
@@ -597,6 +600,7 @@ export default function MatchForm({
                   setQuery={setQuery}
                   onSelect={id => selectPlayerForTeam(id, 1)}
                   selectedIds={team1}
+                  disabled={isSubmitting}
                 />
                 {team1.every(id => id !== "") && (
                   <Button
@@ -606,6 +610,7 @@ export default function MatchForm({
                     endIcon={<ArrowForwardIcon />}
                     aria-label="Nästa steg: Välj spelare för Lag B"
                     sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
+                    disabled={isSubmitting}
                   >
                     Nästa (Välj Lag B)
                   </Button>
@@ -626,6 +631,7 @@ export default function MatchForm({
                       color={team2[idx] ? "primary" : "default"}
                       variant={team2[idx] ? "filled" : "outlined"}
                       sx={{ flex: 1, height: 40, fontWeight: 700 }}
+                      disabled={isSubmitting}
                     />
                   ))}
                 </Box>
@@ -637,6 +643,7 @@ export default function MatchForm({
                   onSelect={id => selectPlayerForTeam(id, 2)}
                   selectedIds={team2}
                   excludeIds={team1}
+                  disabled={isSubmitting}
                 />
                 {team2.every(id => id !== "") && (
                   <Button
@@ -646,6 +653,7 @@ export default function MatchForm({
                     endIcon={<ArrowForwardIcon />}
                     aria-label="Nästa steg: Ange matchresultat"
                     sx={{ mt: 3, py: 1.5, fontWeight: 700 }}
+                    disabled={isSubmitting}
                   >
                     Nästa (Ange resultat)
                   </Button>
@@ -677,6 +685,7 @@ export default function MatchForm({
                     onChange={setA}
                     showExtraScores={showExtraScores}
                     setShowExtraScores={setShowExtraScores}
+                    disabled={isSubmitting}
                   />
                 </Box>
                 <Divider sx={{ mb: 4 }}>
@@ -703,6 +712,7 @@ export default function MatchForm({
                     onChange={setB}
                     showExtraScores={showExtraScores}
                     setShowExtraScores={setShowExtraScores}
+                    disabled={isSubmitting}
                   />
                 </Box>
                 {simulatorStats && (
@@ -750,7 +760,7 @@ export default function MatchForm({
                   variant="contained"
                   fullWidth
                   size="large"
-                  disabled={a === "" || b === ""}
+                  disabled={a === "" || b === "" || isSubmitting}
                   onClick={() => setStep(3)}
                   endIcon={<ArrowForwardIcon />}
                   aria-label="Nästa steg: Granska och spara match"
@@ -802,6 +812,7 @@ export default function MatchForm({
                   fullWidth
                   onClick={() => setStep(2)}
                   sx={{ mt: 1 }}
+                  disabled={isSubmitting}
                 >
                   Ändra resultat
                 </Button>

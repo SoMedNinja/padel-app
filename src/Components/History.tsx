@@ -38,6 +38,7 @@ import {
   Close as CloseIcon,
   MoreHoriz as MoreHorizIcon,
   CheckCircle as CheckCircleIcon,
+  SportsTennis as SportsTennisIcon,
 } from "@mui/icons-material";
 import { formatHistoryDateLabel } from "../utils/format";
 import AppBottomSheet from "./Shared/AppBottomSheet";
@@ -666,7 +667,25 @@ export default function History({
   const onDeleteDialogClose = React.useCallback(() => setDeleteDialogMatchId(null), []);
   const onDeleteDialogOpen = React.useCallback((id: string) => setDeleteDialogMatchId(id), []);
 
-  if (!matches.length) return <Typography>Inga matcher ännu.</Typography>;
+  if (!matches.length) return (
+    <Box sx={{
+      textAlign: 'center',
+      py: 8,
+      px: 2,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      opacity: 0.8
+    }}>
+      <SportsTennisIcon sx={{ fontSize: 64, color: 'text.secondary', opacity: 0.2, mb: 2 }} />
+      <Typography variant="h6" fontWeight={700} gutterBottom>
+        Inga matcher ännu
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 300 }}>
+        Spela en match och registrera resultatet för att se historik här.
+      </Typography>
+    </Box>
+  );
 
   const canLoadMore = visibleCount < sortedMatches.length;
 

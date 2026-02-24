@@ -27,6 +27,7 @@ interface PlayerGridProps {
   onSelect: (id: string) => void;
   selectedIds?: string[];
   excludeIds?: string[];
+  disabled?: boolean;
 }
 
 export default function PlayerGrid({
@@ -37,6 +38,7 @@ export default function PlayerGrid({
   onSelect,
   selectedIds = [],
   excludeIds = [],
+  disabled = false,
 }: PlayerGridProps) {
   const sorted = [...selectablePlayers].sort((a, b) =>
     a.id === GUEST_ID
@@ -56,7 +58,7 @@ export default function PlayerGrid({
   );
 
   return (
-    <Box>
+    <Box sx={{ opacity: disabled ? 0.7 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
       {registeredPlayerCount >= 8 && (
         <TextField
           fullWidth
@@ -64,6 +66,7 @@ export default function PlayerGrid({
           label="Sök spelare"
           placeholder="Skriv namn..."
           value={query}
+          disabled={disabled}
           onChange={(e) => setQuery(e.target.value)}
           sx={{ mb: 2 }}
           slotProps={{
@@ -80,6 +83,7 @@ export default function PlayerGrid({
                 <InputAdornment position="end">
                   <IconButton
                     size="small"
+                    disabled={disabled}
                     onClick={() => {
                       setQuery("");
                       navigator.vibrate?.(10);
@@ -103,6 +107,7 @@ export default function PlayerGrid({
               <ButtonBase
                 component={Paper}
                 elevation={isSelected ? 4 : 1}
+                disabled={disabled}
                 aria-pressed={isSelected}
                 aria-label={`Välj ${
                   p.id === GUEST_ID ? GUEST_NAME : getProfileDisplayName(p)
@@ -119,6 +124,7 @@ export default function PlayerGrid({
                   borderColor: isSelected ? "primary.main" : "divider",
                   transition: "all 0.2s",
                   borderRadius: 1,
+                  opacity: disabled ? 0.6 : 1,
                   "&:hover": {
                     bgcolor: isSelected
                       ? "primary.light"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Avatar as MuiAvatar, Skeleton, Box } from "@mui/material";
 import { getInitial } from "../utils/avatar";
+import { getPlayerColor } from "../utils/colors";
 
 const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...props }: any) => {
   const [loaded, setLoaded] = useState(false);
@@ -63,7 +64,13 @@ const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...p
                 onError: () => { setLoaded(true); setHasError(true); },
                 loading: "lazy" // Native lazy loading
             }}
-            sx={{ width: '100%', height: '100%' }} // Fill the wrapper
+            sx={{
+                width: '100%',
+                height: '100%',
+                bgcolor: !isRenderingImage ? getPlayerColor(name) : undefined,
+                color: '#fff', // Ensure contrast
+                fontWeight: 600,
+            }} // Fill the wrapper
         >
             {getInitial(name)}
         </MuiAvatar>
