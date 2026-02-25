@@ -1,11 +1,10 @@
-import React, { useRef, useEffect } from "react";
-import { Box, Typography, Stack, CircularProgress } from "@mui/material";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import React, { useEffect } from "react";
+import { Box, Typography } from "@mui/material";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import MatchItem from "./MatchItem";
 import SkeletonMatchItem from "./SkeletonMatchItem";
 import { Match, Profile } from "../../types";
 import { EditState } from "./types";
-import { GUEST_ID } from "../../utils/guest";
 
 interface MatchListProps {
   matches: Match[];
@@ -58,7 +57,6 @@ const MatchList = ({
   canLoadMore,
   onLoadMore,
 }: MatchListProps) => {
-  const parentRef = useRef<HTMLDivElement>(null);
   // Note for non-coders: window virtualizer is often smoother for full page lists,
   // but here we are inside a container, so we use element virtualizer.
   // We assume the parent container has a fixed height or we rely on window scroll.
@@ -77,9 +75,8 @@ const MatchList = ({
 
   // Let's try `getScrollElement: () => window` approach first as it's less disruptive to layout.
 
-  const windowVirtualizer = useVirtualizer({
+  const windowVirtualizer = useWindowVirtualizer({
     count: matches.length,
-    getScrollElement: () => typeof window !== 'undefined' ? window : null,
     estimateSize: () => 180,
     overscan: 5,
     // We need to account for the header height and other elements above the list.

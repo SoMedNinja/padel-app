@@ -30,8 +30,8 @@ vi.mock("react-router-dom", async () => {
 });
 
 // Mock @tanstack/react-virtual
-vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: ({ count }: { count: number }) => ({
+vi.mock("@tanstack/react-virtual", () => {
+  const virtualizerMock = ({ count }: { count: number }) => ({
     getVirtualItems: () =>
       Array.from({ length: count }).map((_, i) => ({
         index: i,
@@ -42,8 +42,13 @@ vi.mock("@tanstack/react-virtual", () => ({
       })),
     getTotalSize: () => count * 100,
     measureElement: vi.fn(),
-  }),
-}));
+  });
+
+  return {
+    useVirtualizer: virtualizerMock,
+    useWindowVirtualizer: virtualizerMock,
+  };
+});
 
 // Mock IntersectionObserver & ResizeObserver
 beforeAll(() => {
