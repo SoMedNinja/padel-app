@@ -71,7 +71,9 @@ import {
 import { TournamentType } from "../utils/constants";
 import TheShareable from "./Shared/TheShareable";
 import { formatScore } from "../utils/format";
+import { z } from "zod";
 import { useCreateMatch } from "../hooks/useMatchMutations";
+import { matchSubmissionSchema } from "../utils/validationSchemas";
 import PlayerGrid from "./MatchForm/PlayerGrid";
 import ScoreSelector from "./MatchForm/ScoreSelector";
 import MatchmakerStep from "./MatchForm/MatchmakerStep";
@@ -358,13 +360,24 @@ export default function MatchForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (
-      team1.includes("") ||
-      team2.includes("") ||
-      team1.some(p => p !== GUEST_ID && team2.includes(p))
-    ) {
-      toast.error("Ogiltiga lag.");
-      return;
+    try {
+      matchSubmissionSchema.parse({
+        team1,
+        team2,
+        team1_sets: a === "" ? -1 : Number(a),
+        team2_sets: b === "" ? -1 : Number(b),
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        // Show the first validation error message
+        const issue = error.errors[0];
+        const message = issue.message === "String must contain at least 1 character(s)"
+          ? "Välj alla spelare."
+          : issue.message;
+        toast.error(message);
+        return;
+      }
+      throw error;
     }
 
     const scoreA = Number(a);
@@ -411,8 +424,9 @@ export default function MatchForm({
       }
 
       invalidateStatsData(queryClient);
-    } catch (error: any) {
-      toast.error(error.message || "Kunde inte spara matchen.");
+    } catch (error: unknown) {
+      const msg = (error as Error)?.message || "Kunde inte spara matchen.";
+      toast.error(msg);
       setIsSubmitting(false);
       return;
     }

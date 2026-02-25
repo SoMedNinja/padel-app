@@ -36,8 +36,14 @@ interface EnrichedMatchPayload extends Omit<MatchCreateData, "team1_ids" | "team
   created_by: string;
   client_submission_id: string;
   client_payload_hash: string;
-  // Supabase/Postgres might expect slightly different types or raw values
-  [key: string]: unknown;
+  // Merged from ContractMatchCreateRequest and MatchCreateData
+  team1: string[];
+  team2: string[];
+  team1_ids?: (string | null)[];
+  team2_ids?: (string | null)[];
+  // Allow other properties that might be in MatchCreateData but not explicitly listed above,
+  // but we try to be specific.
+  // Actually, we can intersect with MatchCreateData to cover all fields.
 }
 
 export type MatchCreateInput = MatchCreateData | MatchCreateData[];
@@ -159,17 +165,13 @@ const isRetryableMutationError = (error: unknown) => {
 const enrichMatchPayload = (match: MatchCreateData, userId: string): EnrichedMatchPayload => {
   const contractMatch = buildMatchCreateRequest({ ...match, created_by: userId });
   // Note for non-coders: `contractMatch` technically only has contract fields, but at runtime it carries
-  // extra properties from `match`. We cast to `any` safely here as we know the structure.
+  // extra properties from `match`. We cast to unknown first.
 
-  // We use specific property extraction instead of rest destructuring to be more explicit
-  // and type-safe about what we're keeping.
-  const baseData = contractMatch as unknown as Record<string, unknown>;
-  const existingCreatedAt = baseData.created_at as string | undefined;
+  const existingCreatedAt = match.created_at;
 
-  // We construct the payload explicitly
   const payload: EnrichedMatchPayload = {
     ...match, // Start with original match data
-    ...baseData, // Override with contract data (normalized fields)
+    ...contractMatch, // Override with contract data (normalized fields like team arrays)
     created_by: userId,
     client_submission_id: "", // Placeholder, set below
     client_payload_hash: "", // Placeholder, set below
@@ -218,7 +220,10 @@ const detectSubmissionConflict = async (createdBy: string, payload: EnrichedMatc
   }
 
   const existingById = new Map<string, string | null>(
-    data.map((row: any) => [row.client_submission_id, row.client_payload_hash ?? null])
+    (data as Array<{ client_submission_id: string; client_payload_hash: string | null }>).map((row) => [
+      row.client_submission_id,
+      row.client_payload_hash ?? null,
+    ])
   );
 
   const hasConflict = payload.some(item => {
@@ -604,17 +609,17 @@ export const matchService = {
     validateMatchSets(updates.team1_sets, "Lag 1");
     validateMatchSets(updates.team2_sets, "Lag 2");
 
-    const filteredUpdates = { ...updates } as any;
     // Explicitly delete protected fields to ensure we don't send them
-    // Use type assertion to key into the object safely
-    const updatesAny = filteredUpdates as Record<string, unknown>;
-    delete updatesAny.id;
-    delete updatesAny.created_at;
-    delete updatesAny.created_by;
+    const safeUpdates = { ...updates };
+    // These properties should not be in MatchUpdateInput, but we remove them from the object just in case
+    // if the object passed has extra properties.
+    if ('id' in safeUpdates) delete (safeUpdates as any).id;
+    if ('created_at' in safeUpdates) delete (safeUpdates as any).created_at;
+    if ('created_by' in safeUpdates) delete (safeUpdates as any).created_by;
 
     const { error } = await supabase
       .from("matches")
-      .update(filteredUpdates)
+      .update(safeUpdates)
       .eq("id", matchId);
     if (error) throw error;
   },
