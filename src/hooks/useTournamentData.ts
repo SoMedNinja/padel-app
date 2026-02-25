@@ -39,3 +39,10 @@ export function useTournamentResults() {
     queryFn: () => padelData.tournaments.results(),
   });
 }
+
+export function useTournamentResultsWithTypes() {
+  return useQuery({
+    queryKey: queryKeys.tournamentResults(),
+    queryFn: () => padelData.tournaments.resultsWithTypes(),
+  });
+}

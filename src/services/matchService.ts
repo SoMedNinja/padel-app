@@ -1,5 +1,6 @@
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter, ScoreType, MatchUpdateInput } from "../types";
+import { MatchFilterType } from "../utils/constants";
 import { ContractMatchMode } from "../contracts/generated/contractModels";
 import { checkIsAdmin, ensureAuthSessionReady, requireAdmin } from "./authUtils";
 import { buildMatchCreateRequest } from "./contract/contractTransforms";
@@ -28,6 +29,15 @@ export interface MatchCreateData {
   created_by?: string;
   created_at?: string;
   id?: string;
+}
+
+// Interface for the payload after enrichment, ready for insertion
+interface EnrichedMatchPayload extends Omit<MatchCreateData, "team1_ids" | "team2_ids"> {
+  created_by: string;
+  client_submission_id: string;
+  client_payload_hash: string;
+  // Supabase/Postgres might expect slightly different types or raw values
+  [key: string]: unknown;
 }
 
 export type MatchCreateInput = MatchCreateData | MatchCreateData[];
@@ -146,40 +156,49 @@ const isRetryableMutationError = (error: unknown) => {
   return RETRYABLE_ERROR_SIGNATURES.some(signature => message.includes(signature));
 };
 
-const enrichMatchPayload = (match: MatchCreateData, userId: string) => {
+const enrichMatchPayload = (match: MatchCreateData, userId: string): EnrichedMatchPayload => {
   const contractMatch = buildMatchCreateRequest({ ...match, created_by: userId });
   // Note for non-coders: `contractMatch` technically only has contract fields, but at runtime it carries
-  // extra properties from `match`. We cast to `any` here to safely extract them.
-  const {
-    id: _id,
-    created_at: existingCreatedAt,
-    created_by: _created_by,
-    match_mode: _match_mode,
-    ...rest
-  } = contractMatch as any;
+  // extra properties from `match`. We cast to `any` safely here as we know the structure.
+
+  // We use specific property extraction instead of rest destructuring to be more explicit
+  // and type-safe about what we're keeping.
+  const baseData = contractMatch as unknown as Record<string, unknown>;
+  const existingCreatedAt = baseData.created_at as string | undefined;
+
+  // We construct the payload explicitly
+  const payload: EnrichedMatchPayload = {
+    ...match, // Start with original match data
+    ...baseData, // Override with contract data (normalized fields)
+    created_by: userId,
+    client_submission_id: "", // Placeholder, set below
+    client_payload_hash: "", // Placeholder, set below
+  };
 
   const clientSubmissionId =
-    typeof rest.client_submission_id === "string" && rest.client_submission_id.trim().length
-      ? rest.client_submission_id
+    typeof match.client_submission_id === "string" && match.client_submission_id.trim().length
+      ? match.client_submission_id
       : (typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : `local-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
-  const payload = {
-    ...rest,
-    created_by: userId,
-    client_submission_id: clientSubmissionId,
-    client_payload_hash: computeHash(rest),
-  };
+  payload.client_submission_id = clientSubmissionId;
+
+  // Compute hash on the contract-normalized data minus the created_at/by fields to be stable
+  const hashInput = { ...match };
+  delete hashInput.created_at;
+  delete hashInput.created_by;
+
+  payload.client_payload_hash = computeHash(hashInput);
 
   if (existingCreatedAt) {
-    (payload as any).created_at = existingCreatedAt;
+    payload.created_at = existingCreatedAt;
   }
 
   return payload;
 };
 
-const detectSubmissionConflict = async (createdBy: string, payload: MatchCreateData[]) => {
+const detectSubmissionConflict = async (createdBy: string, payload: EnrichedMatchPayload[]) => {
   const submissionIds = payload
     .map(item => item.client_submission_id)
     .filter((id): id is string => typeof id === "string" && id.length > 0);
@@ -440,17 +459,17 @@ const installOnlineListenerIfNeeded = () => {
 };
 
 const getDateRange = (filter: MatchFilter) => {
-  if (filter.type === "last7") {
+  if (filter.type === MatchFilterType.LAST7) {
     const start = new Date();
     start.setDate(start.getDate() - 7);
     return { start, end: new Date() };
   }
-  if (filter.type === "last30") {
+  if (filter.type === MatchFilterType.LAST30) {
     const start = new Date();
     start.setDate(start.getDate() - 30);
     return { start, end: new Date() };
   }
-  if (filter.type === "range" && (filter.startDate || filter.endDate)) {
+  if (filter.type === MatchFilterType.RANGE && (filter.startDate || filter.endDate)) {
     const start = filter.startDate ? new Date(filter.startDate) : null;
     const end = filter.endDate ? new Date(filter.endDate) : null;
     if (start) start.setHours(0, 0, 0, 0);
@@ -511,11 +530,11 @@ export const matchService = {
       .order("created_at", { ascending: false });
 
     if (filter) {
-      if (filter.type === "short") {
+      if (filter.type === MatchFilterType.SHORT) {
         query = query.lte("team1_sets", 3).lte("team2_sets", 3);
-      } else if (filter.type === "long") {
+      } else if (filter.type === MatchFilterType.LONG) {
         query = query.or("team1_sets.gte.6,team2_sets.gte.6");
-      } else if (filter.type === "tournaments") {
+      } else if (filter.type === MatchFilterType.TOURNAMENTS) {
         query = query.not("source_tournament_id", "is", null);
       }
 
@@ -586,9 +605,12 @@ export const matchService = {
     validateMatchSets(updates.team2_sets, "Lag 2");
 
     const filteredUpdates = { ...updates } as any;
-    delete filteredUpdates.id;
-    delete filteredUpdates.created_at;
-    delete filteredUpdates.created_by;
+    // Explicitly delete protected fields to ensure we don't send them
+    // Use type assertion to key into the object safely
+    const updatesAny = filteredUpdates as Record<string, unknown>;
+    delete updatesAny.id;
+    delete updatesAny.created_at;
+    delete updatesAny.created_by;
 
     const { error } = await supabase
       .from("matches")

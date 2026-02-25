@@ -10,24 +10,26 @@ export interface Profile {
   created_at?: string;
 }
 
+import { MatchFilterType as FilterType, ScoreType as ScoreTypeEnum } from "../utils/constants";
+
 export type MatchFilterType =
-  | "all"
-  | "short"
-  | "long"
-  | "tournaments"
-  | "last7"
-  | "last30"
-  | "range";
+  | FilterType.ALL
+  | FilterType.SHORT
+  | FilterType.LONG
+  | FilterType.TOURNAMENTS
+  | FilterType.LAST7
+  | FilterType.LAST30
+  | FilterType.RANGE;
 
 export interface MatchFilter {
-  type: MatchFilterType;
+  type: MatchFilterType | string;
   startDate?: string | null;
   endDate?: string | null;
   limit?: number;
   offset?: number;
 }
 
-export type ScoreType = "sets" | "points";
+export type ScoreType = ScoreTypeEnum.SETS | ScoreTypeEnum.POINTS;
 
 export interface Match {
   id: string;
@@ -40,7 +42,7 @@ export interface Match {
   score_type?: ScoreType;
   score_target?: number | null;
   source_tournament_id?: string | null;
-  source_tournament_type?: "mexicana" | "standalone" | "americano" | string | null;
+  source_tournament_type?: string | null;
   created_at: string;
   created_by?: string;
   team1_serves_first?: boolean;
@@ -67,8 +69,10 @@ export interface PlayerStats {
   eloHistory?: number[];
 }
 
+import { MatchOutcome } from "../utils/constants";
+
 export interface EloHistoryEntry {
-  result: "W" | "L" | "D";
+  result: MatchOutcome | "W" | "L" | "D";
   timestamp: number;
   date: string;
   delta: number;
