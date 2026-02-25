@@ -8,7 +8,6 @@ import {
   Typography,
   Button,
   Grid,
-  Avatar,
   Chip,
   Paper,
   IconButton,
@@ -28,6 +27,7 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
+import Avatar from "./Avatar";
 import { alpha } from "@mui/material/styles";
 import {
   ArrowBack as ArrowBackIcon,

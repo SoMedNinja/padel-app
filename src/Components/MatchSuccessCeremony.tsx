@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Box, Typography, Stack, Paper, Chip, Avatar } from "@mui/material";
+import { Box, Typography, Stack, Paper, Chip } from "@mui/material";
 import { TrendingUp, TrendingDown, EmojiEvents, Star } from "@mui/icons-material";
 import { MatchRecap } from "../types";
 interface MatchSuccessCeremonyProps {
