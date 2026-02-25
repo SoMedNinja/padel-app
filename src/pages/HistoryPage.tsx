@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import History from "../Components/History";
+import SkeletonMatchItem from "../Components/History/SkeletonMatchItem";
 import FilterBar from "../Components/FilterBar";
-import { Box, Skeleton, Stack, Container, Typography, Alert, Fab } from "@mui/material";
+import { Box, Stack, Container, Typography, Alert, Fab } from "@mui/material";
 import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
 import SectionCard from "../Components/Shared/SectionCard";
 import { KeyboardArrowUp as KeyboardArrowUpIcon } from "@mui/icons-material";
@@ -139,9 +140,9 @@ export default function HistoryPage() {
           <SectionCard title="Matchhistorik">
             {isLoading ? (
               <Stack spacing={2}>
-                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
-                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
-                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+                <SkeletonMatchItem />
+                <SkeletonMatchItem />
+                <SkeletonMatchItem />
               </Stack>
             ) : (
               <History

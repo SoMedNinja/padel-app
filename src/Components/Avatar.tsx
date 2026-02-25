@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Avatar as MuiAvatar, Skeleton, Box } from "@mui/material";
+import { Avatar as MuiAvatar, Skeleton, Box, BoxProps } from "@mui/material";
 import { getInitial } from "../utils/avatar";
 import { getPlayerColor } from "../utils/colors";
 
-const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...props }: any) => {
+interface AvatarProps extends BoxProps {
+  name?: string;
+  src?: string | null;
+  alt?: string;
+  size?: number | string;
+}
+
+const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...props }: AvatarProps) => {
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -54,7 +61,7 @@ const Avatar = React.memo(({ name, src, alt, className = "", size, sx = {}, ...p
         )}
         <MuiAvatar
             alt={label}
-            src={src}
+            src={src || undefined}
             // If we are NOT rendering an image (e.g. text fallback), we need to ensure the container is accessible.
             // But if we ARE rendering an image, the image tag itself handles accessibility via alt.
             aria-label={!isRenderingImage && label ? label : undefined}

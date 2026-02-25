@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from "react";
 import { Box, Typography, Stack, CircularProgress } from "@mui/material";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import MatchItem from "./MatchItem";
+import SkeletonMatchItem from "./SkeletonMatchItem";
 import { Match, Profile } from "../../types";
 import { EditState } from "./types";
 import { GUEST_ID } from "../../utils/guest";
@@ -171,17 +172,8 @@ const MatchList = ({
       </ul>
 
       {canLoadMore && (
-        <Box
-          sx={{
-            mt: 4,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: 60,
-            opacity: 0.7
-          }}
-        >
-          <CircularProgress size={24} color="inherit" thickness={5} />
+        <Box sx={{ mt: 2 }}>
+          <SkeletonMatchItem />
         </Box>
       )}
 

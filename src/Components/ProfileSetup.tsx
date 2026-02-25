@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import Avatar from "./Avatar";
 import { profileService } from "../services/profileService";
@@ -36,13 +38,36 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { stripBadgeLabelFromName } from "../utils/profileName";
+import { AppUser, Profile } from "../types";
+import { profileSchema, ProfileFormValues } from "../utils/validationSchemas";
 
-export default function ProfileSetup({ user, initialName = "", onComplete }) {
-  const [name, setName] = useState(initialName);
-  const [nameError, setNameError] = useState("");
+interface ProfileSetupProps {
+  user: AppUser | null;
+  initialName?: string;
+  onComplete?: (profile: Partial<Profile>) => void;
+}
+
+export default function ProfileSetup({ user, initialName = "", onComplete }: ProfileSetupProps) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: initialName,
+      avatar_url: null,
+    },
+    mode: "onChange"
+  });
+
+  const name = watch("name");
+  // We handle manual submit state to cover avatar processing if needed, though formSubmitting covers validation
   const [saving, setSaving] = useState(false);
+
   const avatarStorageId = user?.id || null;
-  const [avatarUrl, setAvatarUrl] = useState(() =>
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
     avatarStorageId ? getStoredAvatar(avatarStorageId) : null
   );
   const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
@@ -67,8 +92,10 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     "Allt ser bra ut! Spara för att börja spela.",
   ];
 
-  const isAvatarColumnMissing = (error) =>
-    error?.message?.includes("avatar_url") && error.message.includes("schema cache");
+  const isAvatarColumnMissing = (error: unknown) => {
+    const msg = (error as any)?.message;
+    return typeof msg === 'string' && msg.includes("avatar_url") && msg.includes("schema cache");
+  };
 
   const onCropComplete = useCallback((_: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -108,14 +135,16 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
       if (user?.id) {
         try {
           await profileService.upsertProfile({ id: user.id, avatar_url: cropped });
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (!isAvatarColumnMissing(error)) {
-            toast.error(error.message || "Kunde inte spara profilbilden.");
+             const msg = (error as Error)?.message || "Kunde inte spara profilbilden.";
+            toast.error(msg);
           }
         }
       }
-    } catch (error: any) {
-      toast.error(error.message || "Kunde inte beskära bilden.");
+    } catch (error: unknown) {
+       const msg = (error as Error)?.message || "Kunde inte beskära bilden.";
+      toast.error(msg);
     } finally {
       setSavingAvatar(false);
     }
@@ -135,40 +164,31 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
     setAvatarZoom(1);
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const trimmed = name.trim();
-    // Note for non-coders: we clean the name here so badge tags aren't saved as part of it.
-    if (!trimmed) {
-      setNameError("Spelarnamn krävs.");
-      return;
-    }
-    if (trimmed.length > 50) {
-      setNameError("Spelarnamn får vara max 50 tecken.");
-      return;
-    }
+  const onSubmit = async (data: ProfileFormValues) => {
     if (!user?.id) return;
 
     setSaving(true);
-    const payload: any = { id: user.id, name: trimmed };
+    const trimmed = data.name.trim();
+    const payload: Partial<Profile> = { id: user.id, name: trimmed };
     if (avatarUrl) {
       payload.avatar_url = avatarUrl;
     }
 
     try {
-      let data;
+      let resultData;
       try {
-        data = await profileService.upsertProfile(payload);
-      } catch (error: any) {
+        resultData = await profileService.upsertProfile(payload);
+      } catch (error: unknown) {
         if (isAvatarColumnMissing(error) && payload.avatar_url) {
-          data = await profileService.upsertProfile({ id: user.id, name: trimmed });
+          resultData = await profileService.upsertProfile({ id: user.id, name: trimmed });
         } else {
           throw error;
         }
       }
-      onComplete?.(data || { name: trimmed, avatar_url: avatarUrl });
-    } catch (error: any) {
-      toast.error(error.message || "Kunde inte spara profilen.");
+      onComplete?.(resultData || { name: trimmed, avatar_url: avatarUrl });
+    } catch (error: unknown) {
+      const msg = (error as Error)?.message || "Kunde inte spara profilen.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -194,11 +214,11 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
             Välj spelarnamn och lägg till en profilbild för att komma igång.
           </Typography>
 
-          <Box component="form" onSubmit={handleSubmit}>
+          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
             <Stack spacing={4}>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center' }}>
                 <Avatar
-                  sx={{ width: 120, height: 120, fontSize: '3rem' }}
+                  sx={{ width: 120, height: 120 }}
                   src={avatarUrl}
                   name={name || "Profil"}
                 />
@@ -208,22 +228,20 @@ export default function ProfileSetup({ user, initialName = "", onComplete }) {
                     fullWidth
                     label="Spelarnamn"
                     required
-                    value={name}
-                    error={Boolean(nameError)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val.length === 50 && name.length < 50) {
-                        navigator.vibrate?.(20);
+                    {...register("name", {
+                      onChange: (e) => {
+                        if (e.target.value.length === 50 && name.length < 50) {
+                          navigator.vibrate?.(20);
+                        }
                       }
-                      setName(val);
-                      if (nameError) setNameError("");
-                    }}
+                    })}
+                    error={Boolean(errors.name)}
                     placeholder="Skriv ditt namn"
-                    helperText={nameError || `${name.length}/50`}
+                    helperText={errors.name?.message || `${name.length}/50`}
                     FormHelperTextProps={{
                       sx: {
-                        color: nameError || name.length >= 50 ? 'error.main' : 'inherit',
-                        fontWeight: nameError || name.length >= 50 ? 700 : 'inherit',
+                        color: errors.name || name.length >= 50 ? 'error.main' : 'inherit',
+                        fontWeight: errors.name || name.length >= 50 ? 700 : 'inherit',
                       }
                     }}
                     slotProps={{
