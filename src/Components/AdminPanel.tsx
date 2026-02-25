@@ -259,6 +259,9 @@ export default function AdminPanel({ user, profiles = [], initialTab = 0, onProf
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             slotProps={{
+              htmlInput: {
+                "aria-label": "Sök användare"
+              },
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
