@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -119,11 +119,13 @@ export default function PlayerSection({
     return { wins, losses: recentForm.length - wins };
   }, [recentForm]);
 
+  const [now] = useState(() => Date.now());
+
   const last30DaysDelta = useMemo(() => {
     const history = globalStats?.history ?? [];
     const len = history.length;
     if (len === 0) return 0;
-    const thirtyDaysAgo = Date.now() - MVP_WINDOW_DAYS * MILLISECONDS_PER_DAY;
+    const thirtyDaysAgo = now - MVP_WINDOW_DAYS * MILLISECONDS_PER_DAY;
 
     // Optimization: use a reverse loop and break early as history is chronological.
     // This reduces O(H) to O(H_recent) and avoids extra array allocation from .filter().
@@ -133,7 +135,7 @@ export default function PlayerSection({
       sum += history[i].delta;
     }
     return sum;
-  }, [globalStats]);
+  }, [globalStats, now]);
 
   const lastSessionDelta = useMemo(() => {
     const history = globalStats?.history ?? [];

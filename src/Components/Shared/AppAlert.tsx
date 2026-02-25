@@ -8,8 +8,26 @@ interface AppAlertProps extends AlertProps {
 }
 
 export default function AppAlert({ severity = "info", title, children, sx, ...alertProps }: AppAlertProps) {
+  const isInteractive = Boolean(alertProps.onClick);
+
   return (
-    <Alert severity={severity} sx={{ borderRadius: 3, ...sx }} {...alertProps}>
+    <Alert
+      severity={severity}
+      sx={{
+        borderRadius: 3,
+        cursor: isInteractive ? 'pointer' : 'default',
+        ...sx
+      }}
+      role={isInteractive ? "button" : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      onKeyDown={isInteractive ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          alertProps.onClick?.(e as any);
+        }
+      } : undefined}
+      {...alertProps}
+    >
       {title && <AlertTitle sx={{ fontWeight: 800 }}>{title}</AlertTitle>}
       <Box sx={{ "& > p": { m: 0 } }}>
         {typeof children === "string" ? (
