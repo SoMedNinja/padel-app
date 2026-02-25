@@ -7,3 +7,7 @@
 ## 2025-05-23 - Custom Avatar Component
 **Learning:** The codebase has a custom `Avatar` component that handles `alt` text generation and fallback logic better than raw `MuiAvatar`. However, `MuiAvatar` is still imported directly in some places (like `PlayerGrid`), leading to missing `alt` attributes.
 **Action:** When finding `MuiAvatar` usage, check if it can be replaced with `CustomAvatar` to ensure consistent accessibility and fallback behavior.
+
+## 2025-05-24 - Interactive Alert Accessibility
+**Learning:** MUI `Alert` components do not automatically gain `role="button"` or keyboard support when passed an `onClick` prop, unlike `Button` or `IconButton`. This creates an accessibility trap where clickable banners are invisible to keyboard users.
+**Action:** When using `Alert` for navigation or actions, explicitly wrap it in a button or add `role="button"`, `tabIndex={0}`, and `onKeyDown` handlers.
