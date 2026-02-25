@@ -16,7 +16,7 @@ export const invalidateProfileData = (queryClient: QueryClient) => {
 export const invalidateTournamentData = (queryClient: QueryClient, tournamentId?: string) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.tournaments() });
   // Note for non-coders: we invalidate the base key so any tournament detail cache refreshes.
-  queryClient.invalidateQueries({ queryKey: ["tournamentDetails"] });
+  queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetailsBase() });
   if (tournamentId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.tournamentDetails(tournamentId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.tournamentParticipants(tournamentId) });
@@ -28,7 +28,7 @@ export const invalidateTournamentData = (queryClient: QueryClient, tournamentId?
 
 export const refetchTournamentDetails = (queryClient: QueryClient, tournamentId?: string) => {
   // Note for non-coders: refetch forces a "fresh pull" right now, even if the cache is still valid.
-  queryClient.refetchQueries({ queryKey: ["tournamentDetails"] });
+  queryClient.refetchQueries({ queryKey: queryKeys.tournamentDetailsBase() });
   if (tournamentId) {
     queryClient.refetchQueries({ queryKey: queryKeys.tournamentDetails(tournamentId) });
     queryClient.refetchQueries({ queryKey: queryKeys.tournamentParticipants(tournamentId) });

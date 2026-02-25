@@ -23,14 +23,12 @@ import { TournamentResult } from "../types";
 import { useScrollToFragment } from "../hooks/useScrollToFragment";
 import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { findMatchHighlight } from "../utils/highlights";
-import { useTournaments } from "../hooks/useTournamentData";
+import { useTournaments, useTournamentResultsWithTypes } from "../hooks/useTournamentData";
 import { useNavigate } from "react-router-dom";
 import { PlayArrow as PlayIcon, Timer as TimerIcon, Close as CloseIcon } from "@mui/icons-material";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../utils/queryKeys";
+import { useQueryClient } from "@tanstack/react-query";
 import { invalidateAvailabilityData, invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 import { filterMatches } from "../utils/filters";
-import { padelData } from "../data/padelData";
 import { useScheduledGames } from "../hooks/useScheduledGames";
 import { formatFullDate } from "../utils/format";
 
@@ -77,10 +75,7 @@ export default function Dashboard() {
     isLoading: isLoadingTournamentResults,
     isError: isTournamentResultsError,
     error: tournamentResultsError
-  } = useQuery({
-    queryKey: queryKeys.tournamentResults(),
-    queryFn: () => padelData.tournaments.resultsWithTypes(),
-  });
+  } = useTournamentResultsWithTypes();
 
   const { data: tournaments = [] } = useTournaments();
   const { data: scheduledGames = [] } = useScheduledGames();

@@ -68,6 +68,7 @@ import {
   EveningRecap,
   MatchSuggestion,
 } from "../types";
+import { TournamentType } from "../utils/constants";
 import TheShareable from "./Shared/TheShareable";
 import { formatScore } from "../utils/format";
 import { useCreateMatch } from "../hooks/useMatchMutations";
@@ -165,7 +166,7 @@ export default function MatchForm({
   }, [profiles]);
   const serveFirstLabel = mode === "1v1" ? "Spelare A" : "Lag A";
   const nextServeFirst = useMemo(() => {
-    const matchType = mode === "1v1" ? "standalone_1v1" : "standalone";
+    const matchType = mode === "1v1" ? TournamentType.STANDALONE_1V1 : TournamentType.STANDALONE;
     const recentStandaloneMatches = matches
       .filter(match => match.source_tournament_type === matchType)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -398,7 +399,7 @@ export default function MatchForm({
         score_type: "sets",
         score_target: null,
         source_tournament_id: null,
-        source_tournament_type: mode === "1v1" ? "standalone_1v1" : "standalone",
+        source_tournament_type: mode === "1v1" ? TournamentType.STANDALONE_1V1 : TournamentType.STANDALONE,
         team1_serves_first: nextServeFirst,
         created_by: user.id,
       });

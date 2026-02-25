@@ -1,19 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { invalidateStatsData } from "../data/queryInvalidation";
-import {
-  getIdDisplayName,
-  getProfileDisplayName,
-  idsToNames,
-  makeNameToIdMap,
-  makeProfileMap,
-  resolveTeamIds,
-  resolveTeamNames,
-} from "../utils/profileMap";
-import { GUEST_ID, GUEST_NAME } from "../utils/guest";
-import { Match, Profile } from "../types";
-import { matchService } from "../services/matchService";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Typography,
@@ -29,7 +14,6 @@ import {
   Avatar,
   Menu,
   Divider,
-  CardActionArea,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -39,66 +23,18 @@ import {
   Close as CloseIcon,
   MoreHoriz as MoreHorizIcon,
   CheckCircle as CheckCircleIcon,
-  SportsTennis as SportsTennisIcon,
 } from "@mui/icons-material";
-import { formatHistoryDateLabel } from "../utils/format";
-import AppBottomSheet from "./Shared/AppBottomSheet";
-import EmptyState from "./Shared/EmptyState";
-import { useNavigate } from "react-router-dom";
-
-const normalizeName = (name: string) => name?.trim().toLowerCase();
-const toDateTimeInput = (value: string) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-};
-
-const EMPTY_DELTAS: Record<string, number> = {};
-
-interface HistoryProps {
-  matches?: Match[];
-  eloDeltaByMatch?: Record<string, Record<string, number>>;
-  profiles?: Profile[];
-  user: any;
-  highlightedMatchId?: string | null;
-  onOpenDetails?: (matchId: string) => void;
-}
-
-interface EditState {
-  created_at: string;
-  team1_ids: (string | null)[];
-  team2_ids: (string | null)[];
-  team1_sets: number | string;
-  team2_sets: number | string;
-  score_type: string;
-  score_target: number | string;
-}
-
-interface MatchItemProps {
-  m: Match;
-  user: any;
-  matchDeltas: Record<string, number>;
-  isEditing: boolean;
-  isHighlighted: boolean;
-  isDeleteDialogOpen: boolean;
-  deletingId: string | null;
-  edit: EditState | null;
-  isSavingEdit: boolean;
-  playerOptions: { id: string; name: string }[];
-  profileMap: Map<string, Profile>;
-  nameToIdMap: Map<string, string>;
-  onStartEdit: (m: Match) => void;
-  onCancelEdit: () => void;
-  onSaveEdit: ((id: string) => void) | undefined;
-  onDeleteMatch: (id: string) => void;
-  onDeleteDialogOpen: (id: string) => void;
-  onDeleteDialogClose: () => void;
-  updateTeam: ((key: "team1_ids" | "team2_ids", index: number, value: string) => void) | undefined;
-  setEdit: React.Dispatch<React.SetStateAction<EditState | null>> | undefined;
-  onOpenDetails?: (matchId: string) => void;
-}
+import {
+  getIdDisplayName,
+  resolveTeamIds,
+  resolveTeamNames,
+} from "../../utils/profileMap";
+import { GUEST_ID } from "../../utils/guest";
+import { Match } from "../../types";
+import { formatHistoryDateLabel } from "../../utils/format";
+import AppBottomSheet from "../Shared/AppBottomSheet";
+import { MatchItemProps } from "./types";
+import { TournamentType, ScoreType } from "../../utils/constants";
 
 const MatchItem = React.memo(({
   m,
@@ -140,8 +76,8 @@ const MatchItem = React.memo(({
   const t1Names = useMemo(() => resolveTeamNames(m.team1_ids, m.team1, profileMap), [m.team1_ids, m.team1, profileMap]);
   const t2Names = useMemo(() => resolveTeamNames(m.team2_ids, m.team2, profileMap), [m.team2_ids, m.team2, profileMap]);
 
-  const tournamentType = m.source_tournament_type || "standalone";
-  const isActually1v1 = tournamentType === "standalone_1v1";
+  const tournamentType = m.source_tournament_type || TournamentType.STANDALONE;
+  const isActually1v1 = tournamentType === TournamentType.STANDALONE_1V1;
   const isUserParticipant = t1Ids.includes(user?.id) || t2Ids.includes(user?.id);
 
   const teamAEntries = t1Ids.map((id, index) => ({
@@ -160,18 +96,18 @@ const MatchItem = React.memo(({
 
   const is1v1 = isActually1v1 || (teamAEntries.length === 1 && teamBEntries.length === 1);
 
-  const typeLabel = tournamentType === "standalone"
+  const typeLabel = tournamentType === TournamentType.STANDALONE
     ? (is1v1 ? "1v1" : "2v2")
-    : tournamentType === "standalone_1v1"
+    : tournamentType === TournamentType.STANDALONE_1V1
       ? "1v1"
-      : tournamentType === "mexicano"
+      : tournamentType === TournamentType.MEXICANO
         ? "Mexicano"
-        : tournamentType === "americano"
+        : tournamentType === TournamentType.AMERICANO
           ? "Americano"
           : tournamentType;
 
   const scoreLabel = `${m.team1_sets} – ${m.team2_sets}`;
-  const scoreTypeLabel = m.score_type === "points" ? "POÄNG" : "SET";
+  const scoreTypeLabel = m.score_type === ScoreType.POINTS ? "POÄNG" : "SET";
 
   const formatDelta = (delta?: number) => {
     if (typeof delta !== "number") return "—";
@@ -364,14 +300,14 @@ const MatchItem = React.memo(({
                   select
                   label="Typ"
                   size="small"
-                  value={edit?.score_type || "sets"}
+                  value={edit?.score_type || ScoreType.SETS}
                   onChange={(e) => setEdit && setEdit(prev => prev ? { ...prev, score_type: e.target.value } : prev)}
                   slotProps={{ select: { "aria-label": "Välj typ av resultat (set eller poäng)" } }}
                 >
-                  <MenuItem value="sets">Set</MenuItem>
-                  <MenuItem value="points">Poäng</MenuItem>
+                  <MenuItem value={ScoreType.SETS}>Set</MenuItem>
+                  <MenuItem value={ScoreType.POINTS}>Poäng</MenuItem>
                 </TextField>
-                {edit?.score_type === "points" && (
+                {edit?.score_type === ScoreType.POINTS && (
                   <TextField
                     label="Mål"
                     type="number"
@@ -514,289 +450,4 @@ const MatchItem = React.memo(({
   );
 });
 
-export default function History({
-  matches = [],
-  eloDeltaByMatch = {},
-  profiles = [],
-  user,
-  highlightedMatchId = null,
-  onOpenDetails,
-}: HistoryProps) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const profileMap = useMemo(() => makeProfileMap(profiles), [profiles]);
-  const nameToIdMap = useMemo(() => makeNameToIdMap(profiles), [profiles]);
-  const playerOptions = useMemo(() => {
-    const options = profiles.map(profile => ({
-      id: profile.id,
-      name: getProfileDisplayName(profile),
-    }));
-    return [
-      { id: "", name: "Ingen (1v1)" },
-      { id: GUEST_ID, name: GUEST_NAME },
-      ...options
-    ];
-  }, [profiles]);
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteDialogMatchId, setDeleteDialogMatchId] = useState<string | null>(null);
-  const [edit, setEdit] = useState<EditState | null>(null);
-  const [visibleCount, setVisibleCount] = useState<number>(10);
-  const loaderRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Reset pagination when match list changes significantly (e.g. filter change),
-    // but not if it's just a small update (though here matches prop changes reference often).
-    // Actually, if filtered matches change, we should reset.
-    // But if we reset, we lose scroll position potentially.
-    // Standard behavior: reset on filter change.
-    setVisibleCount(10);
-  }, [matches.length]); // matches.length is a proxy for filter change or new data
-
-  const sortedMatches = useMemo(() => {
-    // Optimization: check if matches are already sorted in O(N) to avoid expensive O(N log N) sort.
-    let isSorted = true;
-    for (let i = 1; i < matches.length; i++) {
-      if (matches[i].created_at > matches[i - 1].created_at) {
-        isSorted = false;
-        break;
-      }
-    }
-    if (isSorted) return matches;
-
-    return [...matches].sort(
-      (a, b) => (b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : 0)
-    );
-  }, [matches]);
-
-  // Ensure highlighted match is visible
-  useEffect(() => {
-    if (highlightedMatchId && sortedMatches.length > 0) {
-      const index = sortedMatches.findIndex(m => m.id === highlightedMatchId);
-      if (index !== -1 && index >= visibleCount) {
-        // Add a buffer so it's not the very last item
-        setVisibleCount(index + 5);
-      }
-    }
-  }, [highlightedMatchId, sortedMatches, visibleCount]);
-
-  const visibleMatches = useMemo(() => sortedMatches.slice(0, visibleCount), [sortedMatches, visibleCount]);
-
-  // Infinite Scroll Observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + 10, sortedMatches.length));
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    const currentLoader = loaderRef.current;
-    if (currentLoader) {
-      observer.observe(currentLoader);
-    }
-
-    return () => {
-      if (currentLoader) {
-        observer.unobserve(currentLoader);
-      }
-    };
-  }, [sortedMatches.length]);
-
-  const getTeamIds = React.useCallback((teamIds: (string | null)[], teamNames: string | string[]): (string | null)[] => {
-    const ids = Array.isArray(teamIds) ? teamIds : [];
-    const names = Array.isArray(teamNames) ? teamNames : [];
-
-    return Array.from({ length: 2 }, (_, index) => {
-      if (ids[index] === null) return GUEST_ID;
-      if (ids[index]) return ids[index];
-      const name = names[index];
-      if (!name) return "";
-      const key = normalizeName(name);
-      return nameToIdMap.get(key) || "";
-    });
-  }, [nameToIdMap]);
-
-  const startEdit = React.useCallback((match: Match) => {
-    setEditingId(match.id);
-    setEdit({
-      created_at: toDateTimeInput(match.created_at),
-      team1_ids: getTeamIds(match.team1_ids, match.team1),
-      team2_ids: getTeamIds(match.team2_ids, match.team2),
-      team1_sets: match.team1_sets ?? 0,
-      team2_sets: match.team2_sets ?? 0,
-      score_type: match.score_type || "sets",
-      score_target: match.score_target ?? "",
-    });
-  }, [getTeamIds]);
-
-  const cancelEdit = React.useCallback(() => {
-    setEditingId(null);
-    setEdit(null);
-  }, []);
-
-  const updateTeam = React.useCallback((teamKey: "team1_ids" | "team2_ids", index: number, value: string) => {
-    setEdit(prev => {
-      if (!prev) return prev;
-      const nextTeam = [...prev[teamKey]];
-      nextTeam[index] = value;
-      return { ...prev, [teamKey]: nextTeam };
-    });
-  }, []);
-
-  const hasDuplicatePlayers = React.useCallback((team1Ids: (string | null)[], team2Ids: (string | null)[]) => {
-    const ids = [...team1Ids, ...team2Ids].filter(Boolean);
-    return new Set(ids).size !== ids.length;
-  }, []);
-
-  const saveEdit = React.useCallback(async (matchId: string) => {
-    if (!edit) return;
-
-    if (!edit.created_at) {
-      toast.error("Välj datum och tid.");
-      return;
-    }
-
-    // Ensure at least one player per team is selected
-    if (!edit.team1_ids[0] || !edit.team2_ids[0]) {
-      toast.error("Välj minst en spelare per lag.");
-      return;
-    }
-
-    if (hasDuplicatePlayers(edit.team1_ids, edit.team2_ids)) {
-      toast.error("Samma spelare kan inte vara med i båda lagen.");
-      return;
-    }
-
-    const is1v1Match = !edit.team1_ids[1] && !edit.team2_ids[1];
-    const team1IdsForDb = edit.team1_ids.map(id => (id === GUEST_ID ? null : id || null));
-    const team2IdsForDb = edit.team2_ids.map(id => (id === GUEST_ID ? null : id || null));
-
-    const team1Names = idsToNames(edit.team1_ids as string[], profileMap);
-    const team2Names = idsToNames(edit.team2_ids as string[], profileMap);
-
-    if (is1v1Match) {
-      team1Names.push("");
-      team2Names.push("");
-    }
-
-    setIsSavingEdit(true);
-    try {
-      await matchService.updateMatch(matchId, {
-        team1: team1Names,
-        team2: team2Names,
-        team1_ids: team1IdsForDb,
-        team2_ids: team2IdsForDb,
-        source_tournament_type: is1v1Match ? "standalone_1v1" : "standalone",
-        team1_sets: Number(edit.team1_sets),
-        team2_sets: Number(edit.team2_sets),
-        score_type: edit.score_type || "sets",
-        score_target:
-          edit.score_type === "points" && edit.score_target !== ""
-            ? Number(edit.score_target)
-            : null,
-      });
-      toast.success("Matchen har uppdaterats.");
-      invalidateStatsData(queryClient);
-      cancelEdit();
-    } catch (error: any) {
-      toast.error(error.message || "Kunde inte uppdatera matchen.");
-    } finally {
-      setIsSavingEdit(false);
-    }
-  }, [edit, hasDuplicatePlayers, profileMap, queryClient, cancelEdit]);
-
-  const deleteMatch = React.useCallback(async (matchId: string) => {
-    setDeletingId(matchId);
-    try {
-      await matchService.deleteMatch(matchId);
-      toast.success("Matchen har raderats.");
-      invalidateStatsData(queryClient);
-    } catch (error: any) {
-      toast.error(error.message || "Kunde inte radera matchen.");
-    } finally {
-      setDeletingId(null);
-      setDeleteDialogMatchId(null);
-    }
-  }, [queryClient]);
-
-  const onDeleteDialogClose = React.useCallback(() => setDeleteDialogMatchId(null), []);
-  const onDeleteDialogOpen = React.useCallback((id: string) => setDeleteDialogMatchId(id), []);
-
-  if (!matches.length) return (
-    <EmptyState
-      title="Inga matcher ännu"
-      description="Inga matcher hittades för detta filter. Prova att ändra filtret eller registrera en ny match."
-      actionLabel="Registrera match"
-      onAction={() => navigate("/single-game")}
-      icon={<SportsTennisIcon sx={{ fontSize: 64 }} />}
-    />
-  );
-
-  const canLoadMore = visibleCount < sortedMatches.length;
-
-  return (
-    <Box id="match-history" component="section">
-      {/* Note for non-coders: we keep just one small metadata row here so the page avoids duplicate titles and feels closer to iOS cards. */}
-      <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: "block" }}>
-        Visar {Math.min(visibleCount, sortedMatches.length)} av {sortedMatches.length} matcher. Senaste först.
-      </Typography>
-
-      <Stack spacing={2} component="ul" sx={{ p: 0, m: 0 }}>
-        {visibleMatches.map(m => {
-          const isEditing = editingId === m.id;
-          return (
-            <MatchItem
-              key={m.id}
-              m={m}
-              user={user}
-              matchDeltas={eloDeltaByMatch[m.id] || EMPTY_DELTAS}
-              isEditing={isEditing}
-              isHighlighted={highlightedMatchId === m.id}
-              isDeleteDialogOpen={deleteDialogMatchId === m.id}
-              deletingId={deletingId}
-              edit={isEditing ? edit : null}
-              isSavingEdit={isEditing ? isSavingEdit : false}
-              playerOptions={playerOptions}
-              profileMap={profileMap}
-              nameToIdMap={nameToIdMap}
-              onStartEdit={startEdit}
-              onCancelEdit={cancelEdit}
-              onSaveEdit={isEditing ? saveEdit : undefined}
-              onDeleteMatch={deleteMatch}
-              onDeleteDialogOpen={onDeleteDialogOpen}
-              onDeleteDialogClose={onDeleteDialogClose}
-              updateTeam={isEditing ? updateTeam : undefined}
-              setEdit={isEditing ? setEdit : undefined}
-              onOpenDetails={onOpenDetails}
-            />
-          );
-        })}
-      </Stack>
-
-      {canLoadMore && (
-        <Box
-          ref={loaderRef}
-          sx={{
-            mt: 4,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: 60,
-            opacity: 0.7
-          }}
-        >
-          <CircularProgress size={24} color="inherit" thickness={5} />
-        </Box>
-      )}
-
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 4, display: 'block', textAlign: 'center' }}>
-        * Rättigheter styrs av databasen (RLS). Endast administratörer kan redigera matcher.
-      </Typography>
-    </Box>
-  );
-}
+export default MatchItem;

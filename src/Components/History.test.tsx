@@ -29,10 +29,33 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-// Mock IntersectionObserver
+// Mock @tanstack/react-virtual
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }).map((_, i) => ({
+        index: i,
+        start: i * 100,
+        size: 100,
+        key: i,
+        measureElement: vi.fn(),
+      })),
+    getTotalSize: () => count * 100,
+    measureElement: vi.fn(),
+  }),
+}));
+
+// Mock IntersectionObserver & ResizeObserver
 beforeAll(() => {
   global.IntersectionObserver = class IntersectionObserver {
     constructor(_callback: any, _options: any) {}
+    observe() { return null; }
+    unobserve() { return null; }
+    disconnect() { return null; }
+  } as any;
+
+  global.ResizeObserver = class ResizeObserver {
+    constructor(_callback: any) {}
     observe() { return null; }
     unobserve() { return null; }
     disconnect() { return null; }
