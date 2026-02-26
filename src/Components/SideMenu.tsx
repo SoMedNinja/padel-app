@@ -89,6 +89,7 @@ export default function SideMenu({ isMenuOpen, closeMenu, user, isGuest, handleA
                 <ListItemButton
                   onClick={() => handleNavigate(item.path)}
                   selected={isActive}
+                  aria-current={isActive ? "page" : undefined}
                   sx={isActive ? { bgcolor: "action.selected" } : undefined}
                 >
                   <ListItemIcon sx={{ color: 'primary.main' }}>{item.icon}</ListItemIcon>
