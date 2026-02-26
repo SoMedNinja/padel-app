@@ -106,7 +106,7 @@ const MatchList = ({
 
   return (
     <Box id="match-history" component="section">
-      <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: "block" }}>
+      <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: "block" }} aria-live="polite">
         Visar {matches.length} matcher. Senaste först.
       </Typography>
 

@@ -189,6 +189,23 @@ export default function MainLayout({ children }: MainLayoutProps) {
         pb: { xs: 8, sm: 0 },
       }}
     >
+      <Button
+        href="#main-content"
+        sx={{
+          position: 'absolute',
+          top: -100,
+          left: 16,
+          zIndex: 9999,
+          bgcolor: 'background.paper',
+          p: 2,
+          '&:focus': {
+            top: 16,
+          },
+        }}
+      >
+        Hoppa till innehåll
+      </Button>
+
       {/* Note for non-coders: desktop keeps this normal top row, but on phones we use a floating button to avoid reserving extra vertical space. */}
       <Container
         maxWidth="lg"
@@ -310,6 +327,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       <Box
         component="main"
+        id="main-content"
         sx={{
           flexGrow: 1,
           display: "grid",
@@ -318,7 +336,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
           // Note for non-coders: this adds a small breathing space below the top controls
           // so page content does not feel glued to the very top edge.
           pt: { xs: 1, sm: 1.5 },
+          outline: 'none',
         }}
+        tabIndex={-1}
       >
         {children}
       </Box>
