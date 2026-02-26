@@ -124,10 +124,14 @@ export default function Heatmap({ matches = [], profiles = [], playerStats = [] 
   }, [resolvedMatches, validPlayers]);
 
   const matrix = useMemo(() => {
-    return sortedPlayerNames.map((rowName) =>
-      sortedPlayerNames.map((colName) => {
+    return sortedPlayerNames.map((rowName, rowIndex) =>
+      sortedPlayerNames.map((colName, colIndex) => {
         if (rowName === colName) return null;
-        const [first, second] = [rowName, colName].sort((a, b) => a.localeCompare(b, "sv"));
+
+        // Optimization: Use index comparison instead of string sort since sortedPlayerNames is already sorted.
+        const first = rowIndex < colIndex ? rowName : colName;
+        const second = rowIndex < colIndex ? colName : rowName;
+
         const stat = pairStats.get(`${first}|${second}`);
         const averageElo = Math.round(((currentEloByPlayer.get(first) ?? ELO_BASELINE) + (currentEloByPlayer.get(second) ?? ELO_BASELINE)) / 2);
         if (!stat) return { matches: 0, winPct: null as number | null, avgElo: averageElo, raw: metric === "elo" ? averageElo : null as number | null };
