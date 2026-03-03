@@ -455,6 +455,15 @@ export default function EloLeaderboard({ players = [], matches = [], isFiltered 
                         background: (theme) => isMe
                           ? `linear-gradient(${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.main, 0.08)}), ${theme.palette.background.paper}`
                           : theme.palette.background.paper,
+                        // Ensure the sticky cell matches the parent row's background during hover and focus
+                        '.MuiTableRow-root:hover &': {
+                          background: (theme) => isMe
+                            ? `linear-gradient(${alpha(theme.palette.primary.main, 0.12)}, ${alpha(theme.palette.primary.main, 0.12)}), ${theme.palette.background.paper}`
+                            : `linear-gradient(${theme.palette.action.hover}, ${theme.palette.action.hover}), ${theme.palette.background.paper}`,
+                        },
+                        '.MuiTableRow-root.Mui-focusVisible &': {
+                          background: (theme) => `linear-gradient(${alpha(theme.palette.primary.main, 0.12)}, ${alpha(theme.palette.primary.main, 0.12)}), ${theme.palette.background.paper}`,
+                        },
                         width: columnWidths.first,
                         minWidth: columnWidths.first,
                         maxWidth: columnWidths.first,
