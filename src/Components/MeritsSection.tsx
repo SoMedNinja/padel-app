@@ -31,8 +31,6 @@ import {
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  EmojiEvents as TrophyIcon,
-  Star as StarIcon,
 } from "@mui/icons-material";
 
 const groupBadgesByType = (badges = []) => {
