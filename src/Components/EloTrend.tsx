@@ -4,10 +4,8 @@ import {
   Line,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  ReferenceLine
 } from "recharts";
 import { getPlayerColor } from "../utils/colors";
 import { Typography, Box, Paper, TextField, Stack, InputAdornment, IconButton, Tooltip as MuiTooltip } from "@mui/material";
@@ -292,7 +290,6 @@ export default function EloTrend({ players = [] }) {
               setLegendOverlayState(latestLegendOverlayState);
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
             <XAxis
               dataKey="date"
               tickFormatter={(val) => formatShortDate(val)}
@@ -306,7 +303,8 @@ export default function EloTrend({ players = [] }) {
               content={() => null}
               position={{ x: 16, y: 16 }}
               wrapperStyle={{ pointerEvents: 'none', zIndex: 20 }}
-              cursor={{ stroke: '#d32f2f', strokeWidth: 1, strokeDasharray: '4 4' }}
+              // Note for non-coders: setting cursor to false removes the dashed guide line while still allowing touch/hover values.
+              cursor={false}
             />
 
             {playerNames.map(name => (
