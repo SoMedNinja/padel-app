@@ -230,8 +230,13 @@ export default function EloTrendChart({
     if (!values.length) return;
 
     const chartWidth = Number(state.chartWidth) || 0;
-    const chartX = Number(state.chartX) || 0;
-    const panelSide: "left" | "right" = chartX < chartWidth * 0.5 ? "right" : "left";
+    const hoverX = Number(state.activeCoordinate?.x);
+    // Note for non-coders: we compare the actual hover point (not the chart's own position)
+    // so the info panel flips sides based on where your finger/mouse is.
+    const panelSide: "left" | "right" =
+      Number.isFinite(hoverX) && chartWidth > 0 && hoverX < chartWidth * 0.5
+        ? "right"
+        : "left";
 
     setChartTooltipState({
       label: String(state.activeLabel),
