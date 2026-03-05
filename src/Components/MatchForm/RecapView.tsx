@@ -140,7 +140,8 @@ export default function RecapView({
                 sx={{
                   p: 2,
                   textAlign: "center",
-                  bgcolor: (theme) => alpha(theme.palette.primary.light, 0.2),
+                  bgcolor: (theme) =>
+                    alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.24 : 0.12),
                   color: "text.primary",
                 }}
               >
@@ -210,9 +211,17 @@ export default function RecapView({
 
           {recapMode === "match" && matchRecap ? (
             <>
+              {/* Note for non-coders: theme-aware shades keep this score summary readable in dark mode too. */}
               <Paper
                 variant="outlined"
-                sx={{ p: 2, textAlign: "center", bgcolor: "grey.50" }}
+                sx={{
+                  p: 2,
+                  textAlign: "center",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? alpha(theme.palette.common.white, 0.04)
+                      : theme.palette.grey[50],
+                }}
               >
                 <Typography variant="h4" fontWeight={900}>
                   {matchRecap.scoreline}

@@ -118,7 +118,7 @@ export default function PlayerGrid({
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  bgcolor: isSelected ? "primary.light" : "background.paper",
+                  bgcolor: isSelected ? "primary.main" : "background.paper",
                   color: isSelected ? "primary.contrastText" : "text.primary",
                   border: isSelected ? "2px solid" : "1px solid",
                   borderColor: isSelected ? "primary.main" : "divider",
@@ -127,7 +127,7 @@ export default function PlayerGrid({
                   opacity: disabled ? 0.6 : 1,
                   "&:hover": {
                     bgcolor: isSelected
-                      ? "primary.light"
+                      ? "primary.main"
                       : "action.hover",
                   },
                 }}
@@ -140,7 +140,8 @@ export default function PlayerGrid({
                     width: 48,
                     height: 48,
                     mb: 1,
-                    border: isSelected ? "2px solid #fff" : "none",
+                    border: isSelected ? "2px solid" : "none",
+                    borderColor: isSelected ? "primary.contrastText" : "transparent",
                   }}
                 />
                 <Typography
