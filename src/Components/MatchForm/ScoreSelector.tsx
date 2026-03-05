@@ -7,6 +7,7 @@ interface ScoreSelectorProps {
   showExtraScores: boolean;
   setShowExtraScores: (show: boolean) => void;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export default function ScoreSelector({
@@ -15,9 +16,13 @@ export default function ScoreSelector({
   showExtraScores,
   setShowExtraScores,
   disabled = false,
+  compact = false,
 }: ScoreSelectorProps) {
   const mainScores = ["0", "1", "2", "3", "4", "5", "6", "7"];
   const extraScores = ["8", "9", "10", "11", "12"];
+  // Note for non-coders: "compact" makes the score bubbles a bit smaller so important buttons stay visible on short screens.
+  const bubbleSize = compact ? 44 : 50;
+  const bubbleFontSize = compact ? "1.05rem" : "1.2rem";
 
   return (
     <Box
@@ -46,9 +51,9 @@ export default function ScoreSelector({
             aria-label={`Poäng: ${s}`}
             aria-checked={value === s}
             sx={{
-              minWidth: 50,
-              height: 50,
-              fontSize: "1.2rem",
+              minWidth: bubbleSize,
+              height: bubbleSize,
+              fontSize: bubbleFontSize,
               borderRadius: "50%",
               '&:focus-visible': {
                 outline: '2px solid',
@@ -75,9 +80,9 @@ export default function ScoreSelector({
               aria-label={`Poäng: ${s}`}
               aria-checked={value === s}
               sx={{
-                minWidth: 50,
-                height: 50,
-                fontSize: "1.2rem",
+                minWidth: bubbleSize,
+                height: bubbleSize,
+                fontSize: bubbleFontSize,
                 borderRadius: "50%",
                 '&:focus-visible': {
                   outline: '2px solid',
@@ -100,8 +105,8 @@ export default function ScoreSelector({
               aria-label="Visa fler poängalternativ"
               disabled={disabled}
               sx={{
-                minWidth: 50,
-                height: 50,
+                minWidth: bubbleSize,
+                height: bubbleSize,
                 fontSize: "0.8rem",
                 borderRadius: "50%",
                 textTransform: "none",
@@ -120,8 +125,8 @@ export default function ScoreSelector({
               aria-label="Visa färre poängalternativ"
               disabled={disabled}
               sx={{
-                minWidth: 50,
-                height: 50,
+                minWidth: bubbleSize,
+                height: bubbleSize,
                 fontSize: "0.8rem",
                 borderRadius: "50%",
                 textTransform: "none",
