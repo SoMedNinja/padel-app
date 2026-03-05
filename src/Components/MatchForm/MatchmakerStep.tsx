@@ -217,7 +217,16 @@ export default function MatchmakerStep({
             ))}
           </Box>
         ) : (
-          <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50" }}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              bgcolor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "action.hover"
+                  : "grey.50",
+            }}
+          >
             <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid size={{ xs: 6 }}>
                 <Typography variant="caption" color="text.secondary">

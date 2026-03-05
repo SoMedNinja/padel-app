@@ -745,8 +745,11 @@ export default function MatchForm({
                           sx={{
                             height: 6,
                             borderRadius: 3,
-                            bgcolor: alpha('#4caf50', 0.1),
-                            '& .MuiLinearProgress-bar': { bgcolor: '#4caf50', borderRadius: 3 }
+                            bgcolor: (theme) => alpha(theme.palette.success.main, 0.2),
+                            '& .MuiLinearProgress-bar': {
+                              bgcolor: 'success.main',
+                              borderRadius: 3,
+                            }
                           }}
                         />
                       </Grid>
@@ -762,8 +765,11 @@ export default function MatchForm({
                           sx={{
                             height: 6,
                             borderRadius: 3,
-                            bgcolor: alpha('#d32f2f', 0.1),
-                            '& .MuiLinearProgress-bar': { bgcolor: '#d32f2f', borderRadius: 3 }
+                            bgcolor: (theme) => alpha(theme.palette.error.main, 0.2),
+                            '& .MuiLinearProgress-bar': {
+                              bgcolor: 'error.main',
+                              borderRadius: 3,
+                            }
                           }}
                         />
                       </Grid>
@@ -789,7 +795,18 @@ export default function MatchForm({
             {/* Step 3: Review */}
             {step === 3 && (
               <Box sx={{ textAlign: "center" }}>
-                <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: "grey.50" }}>
+                {/* Note for non-coders: we use theme-aware colors so this card stays readable in both light and dark mode. */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    mb: 3,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.common.white, 0.04)
+                        : theme.palette.grey[50],
+                  }}
+                >
                   <Grid container spacing={2} alignItems="center">
                     <Grid size={{ xs: 5 }}>
                       <Typography variant="h6" fontWeight={800}>{a}</Typography>
