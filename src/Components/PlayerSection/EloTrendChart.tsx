@@ -4,11 +4,9 @@ import {
   Line,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Legend,
-  ReferenceLine,
 } from "recharts";
 import {
   Card,
@@ -398,7 +396,6 @@ export default function EloTrendChart({
                   }
                 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
                   tickFormatter={(value) => comparisonDateLabels.get(value) ?? ""}
@@ -411,17 +408,9 @@ export default function EloTrendChart({
                   hide={!showWinRate}
                   tick={{ fontSize: '0.75rem', fill: '#ff9800' }}
                 />
-                <Tooltip content={() => null} cursor={{ stroke: '#d32f2f', strokeDasharray: '4 4' }} />
+                {/* Note for non-coders: disabling the tooltip cursor removes the vertical guide line while keeping value previews. */}
+                <Tooltip content={() => null} cursor={false} />
                 <Legend verticalAlign="bottom" />
-                {chartTooltipState?.label ? (
-                  <ReferenceLine
-                    x={chartTooltipState.label}
-                    stroke="#d32f2f"
-                    strokeDasharray="4 4"
-                    ifOverflow="extendDomain"
-                    yAxisId="elo"
-                  />
-                ) : null}
                 {comparisonNames.map((name, index) => (
                   <Line
                     key={name}
