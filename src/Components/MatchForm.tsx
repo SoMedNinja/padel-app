@@ -463,7 +463,7 @@ export default function MatchForm({
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Wizard Paper */}
       {!showRecap || (!matchRecap && !eveningRecap) ? (
-        <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4 }}>
+        <Paper elevation={3} sx={{ p: { xs: 1.5, sm: 2.5 }, borderRadius: 4 }}>
           {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", mb: 2, justifyContent: "space-between" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -679,7 +679,7 @@ export default function MatchForm({
             {/* Step 2: Score */}
             {step === 2 && (
               <Box sx={{ textAlign: "center" }}>
-                <Box sx={{ mb: 4 }}>
+                <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 1 }}>
                     {team1.map((id, i) => (
                       <Chip
@@ -701,12 +701,13 @@ export default function MatchForm({
                     showExtraScores={showExtraScores}
                     setShowExtraScores={setShowExtraScores}
                     disabled={isSubmitting}
+                    compact
                   />
                 </Box>
-                <Divider sx={{ mb: 4 }}>
+                <Divider sx={{ mb: 2 }}>
                   <Chip label="VS" size="small" />
                 </Divider>
-                <Box sx={{ mb: 4 }}>
+                <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 1 }}>
                     {team2.map((id, i) => (
                       <Chip
@@ -728,11 +729,12 @@ export default function MatchForm({
                     showExtraScores={showExtraScores}
                     setShowExtraScores={setShowExtraScores}
                     disabled={isSubmitting}
+                    compact
                   />
                 </Box>
                 {simulatorStats && (
-                  <Box sx={{ mt: 2, mb: 4, px: 1 }}>
-                    <Grid container spacing={3}>
+                  <Box sx={{ mt: 1, mb: 2, px: 1 }}>
+                    <Grid container spacing={2}>
                       <Grid size={{ xs: 6 }}>
                         <Typography variant="caption" sx={{ fontWeight: 800, display: 'block', mb: 0.5, textAlign: 'left', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                           Rättvisa: {simulatorStats.fairness}%
@@ -777,18 +779,30 @@ export default function MatchForm({
                   </Box>
                 )}
 
-                <Button
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  disabled={a === "" || b === "" || isSubmitting}
-                  onClick={() => setStep(3)}
-                  endIcon={<ArrowForwardIcon />}
-                  aria-label="Nästa steg: Granska och spara match"
-                  sx={{ mt: 2, height: 56, fontSize: "1.1rem", borderRadius: 3, fontWeight: 800, textTransform: 'none' }}
+                {/* Note for non-coders: this sticky footer keeps the "Nästa" button visible while you scroll through score options. */}
+                <Box
+                  sx={{
+                    position: 'sticky',
+                    bottom: 0,
+                    pt: 1,
+                    pb: 'calc(env(safe-area-inset-bottom, 0px) + 6px)',
+                    bgcolor: (theme) => theme.palette.background.paper,
+                    zIndex: 1,
+                  }}
                 >
-                  Nästa
-                </Button>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    disabled={a === "" || b === "" || isSubmitting}
+                    onClick={() => setStep(3)}
+                    endIcon={<ArrowForwardIcon />}
+                    aria-label="Nästa steg: Granska och spara match"
+                    sx={{ height: 52, fontSize: "1rem", borderRadius: 3, fontWeight: 800, textTransform: 'none' }}
+                  >
+                    Nästa
+                  </Button>
+                </Box>
               </Box>
             )}
 
