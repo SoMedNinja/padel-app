@@ -229,9 +229,15 @@ export default function EloTrendChart({
     const values = buildLegendValues(row);
     if (!values.length) return;
 
-    const chartWidth = Number(state.chartWidth) || 0;
-    const chartX = Number(state.chartX) || 0;
-    const panelSide: "left" | "right" = chartX < chartWidth * 0.5 ? "right" : "left";
+    const hoverIndex = Number(state.activeTooltipIndex);
+    const totalPoints = filteredComparisonData.length;
+
+    // Note for non-coders: we use the hovered point's position in the timeline (index)
+    // instead of pixel math, so the info panel reliably swaps side even on mobile/touch.
+    const isHoverOnLeftHalf = Number.isInteger(hoverIndex)
+      ? hoverIndex < totalPoints / 2
+      : false;
+    const panelSide: "left" | "right" = isHoverOnLeftHalf ? "right" : "left";
 
     setChartTooltipState({
       label: String(state.activeLabel),
