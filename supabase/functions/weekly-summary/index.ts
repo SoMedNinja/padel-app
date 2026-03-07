@@ -245,7 +245,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const weeklyMatches = matches.filter((m: Match) => m.created_at >= startOfWeekISO && m.created_at <= endOfWeekISO);
+    // Note for non-coders: we use a half-open date range [start, end) everywhere,
+    // so the same match set is used for both weekly stats and ELO calculations.
+    const weeklyMatches = matches.filter((m: Match) => m.created_at >= startOfWeekISO && m.created_at < endOfWeekISO);
 
     const activePlayerIds = new Set<string>();
     if (targetPlayerId) {
