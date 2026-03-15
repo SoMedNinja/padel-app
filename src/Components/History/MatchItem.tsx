@@ -265,10 +265,18 @@ const MatchItem = React.memo(({
                   anchorEl={actionAnchorEl}
                   open={isActionMenuOpen}
                   onClose={() => setActionAnchorEl(null)}
+                  onClick={(event) => {
+                    // Note for non-coders: menu taps should only trigger menu actions.
+                    // We stop bubbling so the parent match card does not also open details.
+                    event.stopPropagation();
+                  }}
                 >
                   {canEdit && (
                     <MenuItem
-                      onClick={() => {
+                      onClick={(event) => {
+                        // Note for non-coders: this keeps "Edit" in edit mode instead of accidentally
+                        // opening the separate details page from the card click handler.
+                        event.stopPropagation();
                         setActionAnchorEl(null);
                         onStartEdit(m);
                       }}
@@ -279,7 +287,9 @@ const MatchItem = React.memo(({
                   {canEdit && canDelete(m) && <Divider />}
                   {canDelete(m) && (
                     <MenuItem
-                      onClick={() => {
+                      onClick={(event) => {
+                        // Note for non-coders: same protection for delete, so only the selected action runs.
+                        event.stopPropagation();
                         setActionAnchorEl(null);
                         onDeleteDialogOpen(m.id);
                       }}

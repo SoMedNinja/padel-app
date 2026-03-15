@@ -48,7 +48,9 @@ export interface Match {
   team1_serves_first?: boolean;
 }
 
-export type MatchUpdateInput = Partial<Omit<Match, "id" | "created_by" | "created_at">>;
+// Note for non-coders: admins can correct the original match date/time in history,
+// so `created_at` must be allowed in update payloads.
+export type MatchUpdateInput = Partial<Omit<Match, "id" | "created_by">>;
 
 export interface PlayerStats {
   id: string;
