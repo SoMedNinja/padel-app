@@ -146,6 +146,48 @@ describe("History", () => {
     expect(screen.getByText(/Inga matcher hittades för detta filter/i)).toBeInTheDocument();
   });
 
+
+
+  it("does not open details when choosing edit from the action menu", () => {
+    const onOpenDetails = vi.fn();
+    const matches = [
+      {
+        id: "1",
+        created_at: "2023-01-01T12:00:00Z",
+        team1: ["Player A"],
+        team2: ["Player B"],
+        team1_ids: ["p1"],
+        team2_ids: ["p2"],
+        team1_sets: 6,
+        team2_sets: 4,
+        score_type: "sets",
+        source_tournament_type: "standalone_1v1",
+      },
+    ];
+
+    const profiles = [
+      { id: "p1", name: "Player A" },
+      { id: "p2", name: "Player B" },
+    ];
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <History
+          matches={matches as any}
+          profiles={profiles as any}
+          user={{ id: "admin-1", is_admin: true }}
+          onOpenDetails={onOpenDetails}
+        />
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByLabelText("Visa matchåtgärder"));
+    fireEvent.click(screen.getByText("Ändra"));
+
+    expect(onOpenDetails).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Välj datum och tid för matchen")).toBeInTheDocument();
+  });
+
   it("triggers action on Enter key for accessibility", () => {
     const onOpenDetails = vi.fn();
     const matches = [
