@@ -614,7 +614,8 @@ export const matchService = {
     // These properties should not be in MatchUpdateInput, but we remove them from the object just in case
     // if the object passed has extra properties.
     if ('id' in safeUpdates) delete (safeUpdates as any).id;
-    if ('created_at' in safeUpdates) delete (safeUpdates as any).created_at;
+    // Note for non-coders: we intentionally keep `created_at` editable for admins so historical
+    // matches can be corrected if they were saved with the wrong date/time.
     if ('created_by' in safeUpdates) delete (safeUpdates as any).created_by;
 
     const { error } = await supabase

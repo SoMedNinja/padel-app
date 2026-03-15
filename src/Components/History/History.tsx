@@ -166,6 +166,9 @@ export default function History({
     setIsSavingEdit(true);
     try {
       await matchService.updateMatch(matchId, {
+        // Note for non-coders: this stores the edited historical date/time so the match appears in the
+        // correct place in the timeline and ELO history.
+        created_at: new Date(edit.created_at).toISOString(),
         team1: team1Names,
         team2: team2Names,
         team1_ids: team1IdsForDb,
