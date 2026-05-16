@@ -16,6 +16,7 @@ import AppAlert from "../Components/Shared/AppAlert";
 import EmptyState from "../Components/Shared/EmptyState";
 import DataFreshnessStatus from "../Components/Shared/DataFreshnessStatus";
 import OfflineQueueList from "../Components/Shared/OfflineQueueList";
+import { SeriesSelector } from "../Components/SeriesSelector";
 import { useStore } from "../store/useStore";
 
 import { useEloStats } from "../hooks/useEloStats";
@@ -118,9 +119,11 @@ export default function Dashboard() {
   // Note for non-coders: this adjusts pull distances on iOS so the full custom animation is visible before refresh starts.
   const pullToRefreshTuning = getPullToRefreshTuning();
 
+  const { selectedSeries } = useStore();
+
   const filteredMatches = useMemo(
-    () => filterMatches(allMatches, matchFilter),
-    [allMatches, matchFilter]
+    () => filterMatches(allMatches, matchFilter, selectedSeries),
+    [allMatches, matchFilter, selectedSeries]
   );
 
   const highlight = useMemo(() => {
@@ -205,6 +208,7 @@ export default function Dashboard() {
           lastUpdatedAt={Math.max(eloLastUpdatedAt, 0)}
         />
         <OfflineQueueList />
+        <SeriesSelector matches={allMatches} />
         {shouldShowScheduledGameNotice && upcomingScheduledGame && (
           <AppAlert
             severity="info"
