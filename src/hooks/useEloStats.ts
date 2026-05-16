@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useStore } from "../store/useStore";
 import { useMatches } from "./useMatches";
 import { useProfiles } from "./useProfiles";
 import { calculateEloWithStats } from "../utils/elo";
@@ -19,6 +20,7 @@ export interface EloStats {
 }
 
 export function useEloStats(): EloStats {
+  const { selectedSeries } = useStore();
   // Note for non-coders: ELO calculation requires a comprehensive history. We request a large
   // bounded set to maintain correctness while avoiding completely unbounded results.
   const matchesQuery = useMatches({ type: "all", limit: 5000 });
@@ -33,10 +35,13 @@ export function useEloStats(): EloStats {
       return { eloPlayers: [], eloDeltaByMatch: {}, eloRatingByMatch: {} };
     }
 
-    const { players, eloDeltaByMatch, eloRatingByMatch } = calculateEloWithStats(allMatches, profiles);
+    // Filter matches by selected series
+    const seriesMatches = allMatches.filter(m => m.series === selectedSeries);
+
+    const { players, eloDeltaByMatch, eloRatingByMatch } = calculateEloWithStats(seriesMatches, profiles);
 
     return { eloPlayers: players, eloDeltaByMatch, eloRatingByMatch };
-  }, [allMatches, profiles, isLoadingMatches, isLoadingProfiles]);
+  }, [allMatches, profiles, isLoadingMatches, isLoadingProfiles, selectedSeries]);
 
   return {
     eloPlayers,

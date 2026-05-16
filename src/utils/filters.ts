@@ -23,9 +23,15 @@ const getDateRangeISO = (filter: MatchFilter) => {
   return null;
 };
 
-export function filterMatches(matches: Match[], filter: MatchFilter): Match[] {
+export function filterMatches(matches: Match[], filter: MatchFilter, series?: string): Match[] {
   if (!matches || !matches.length) return [];
-  if (filter.type === "all") return matches;
+
+  let sourceMatches = matches;
+  if (series) {
+    sourceMatches = matches.filter(m => m.series === series);
+  }
+
+  if (filter.type === "all") return sourceMatches;
 
   const result: Match[] = [];
   const type = filter.type;
@@ -43,8 +49,8 @@ export function filterMatches(matches: Match[], filter: MatchFilter): Match[] {
 
   // Optimization: Use a single pass for-loop instead of .filter() to avoid intermediate array allocations.
   // This also allows us to handle all filter types in a unified, high-performance way.
-  for (let i = 0, len = matches.length; i < len; i++) {
-    const m = matches[i];
+  for (let i = 0, len = sourceMatches.length; i < len; i++) {
+    const m = sourceMatches[i];
     let keep = false;
 
     if (type === "short") {

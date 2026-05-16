@@ -1,6 +1,7 @@
 import { supabase } from "../supabaseClient";
 import { Match, MatchFilter, ScoreType, MatchUpdateInput } from "../types";
 import { MatchFilterType } from "../utils/constants";
+import { getSeriesName } from "../utils/series";
 import { ContractMatchMode } from "../contracts/generated/contractModels";
 import { checkIsAdmin, ensureAuthSessionReady, requireAdmin } from "./authUtils";
 import { buildMatchCreateRequest } from "./contract/contractTransforms";
@@ -195,6 +196,11 @@ const enrichMatchPayload = (match: MatchCreateData, userId: string): EnrichedMat
 
   if (existingCreatedAt) {
     payload.created_at = existingCreatedAt;
+  }
+
+  // Auto-assign series if not provided
+  if (!payload.series) {
+    payload.series = getSeriesName(payload.created_at || new Date());
   }
 
   return payload;

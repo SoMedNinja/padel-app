@@ -45,6 +45,7 @@ export interface Match {
   source_tournament_type?: string | null;
   created_at: string;
   created_by?: string;
+  series?: string | null;
   team1_serves_first?: boolean;
 }
 

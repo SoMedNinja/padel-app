@@ -14,13 +14,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEloStats } from "../hooks/useEloStats";
 import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { filterMatches } from "../utils/filters";
+import { SeriesSelector } from "../Components/SeriesSelector";
 import { invalidateMatchData, invalidateProfileData } from "../data/queryInvalidation";
 
 export default function HistoryPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const { matchFilter, setMatchFilter, user, isGuest } = useStore();
+  const { matchFilter, setMatchFilter, selectedSeries, user, isGuest } = useStore();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const highlightMatchId = searchParams.get("match");
 
@@ -37,8 +38,8 @@ export default function HistoryPage() {
   } = useEloStats();
 
   const filteredMatches = useMemo(
-    () => filterMatches(allMatches, matchFilter),
-    [allMatches, matchFilter]
+    () => filterMatches(allMatches, matchFilter, selectedSeries),
+    [allMatches, matchFilter, selectedSeries]
   );
 
   useEffect(() => {
@@ -113,6 +114,8 @@ export default function HistoryPage() {
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Box id="history" component="section">
           <Typography variant="h4" sx={{ mb: 3, fontWeight: 800 }}>Matchhistorik</Typography>
+
+          <SeriesSelector matches={allMatches} />
 
           <SectionCard title="Globalt filter">
             <FilterBar filter={matchFilter} setFilter={setMatchFilter} />

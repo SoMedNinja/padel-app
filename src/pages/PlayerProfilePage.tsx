@@ -15,12 +15,13 @@ import { useRefreshInvalidations } from "../hooks/useRefreshInvalidations";
 import { queryKeys } from "../utils/queryKeys";
 import { invalidateMatchData, invalidateProfileData, invalidateTournamentData } from "../data/queryInvalidation";
 import { useEloStats } from "../hooks/useEloStats";
+import { SeriesSelector } from "../Components/SeriesSelector";
 import { filterMatches } from "../utils/filters";
 import { padelData } from "../data/padelData";
 
 export default function PlayerProfilePage() {
   const queryClient = useQueryClient();
-  const { matchFilter, setMatchFilter, user, isGuest, setIsGuest } = useStore();
+  const { matchFilter, setMatchFilter, selectedSeries, user, isGuest, setIsGuest } = useStore();
 
   const {
     eloPlayers,
@@ -45,8 +46,8 @@ export default function PlayerProfilePage() {
   });
 
   const filteredMatches = useMemo(
-    () => filterMatches(allMatches, matchFilter),
-    [allMatches, matchFilter]
+    () => filterMatches(allMatches, matchFilter, selectedSeries),
+    [allMatches, matchFilter, selectedSeries]
   );
 
   const [activeTab, setActiveTab] = useState(0);
@@ -107,6 +108,7 @@ export default function PlayerProfilePage() {
         title="Spelarprofil"
         subtitle="Följ din form, ELO-utveckling och meriter över tid."
       />
+      <SeriesSelector matches={allMatches} />
       {/* Note for non-coders: this filter controls which matches feed the profile stats. */}
       <FilterBar filter={matchFilter} setFilter={setMatchFilter} />
           {hasError && (

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { AppUser, Profile, Match, MatchFilter } from "../types";
+import { getCurrentSeriesName } from "../utils/series";
 
 interface AppState {
   user: AppUser | null;
@@ -11,6 +12,8 @@ interface AppState {
   setGuestModeStartedAt: (timestamp: string | null) => void;
   matchFilter: MatchFilter;
   setMatchFilter: (filter: MatchFilter) => void;
+  selectedSeries: string;
+  setSelectedSeries: (series: string) => void;
   profiles: Profile[];
   setProfiles: (profiles: Profile[]) => void;
   matches: Match[];
@@ -36,6 +39,8 @@ export const useStore = create<AppState>()(
       setGuestModeStartedAt: (guestModeStartedAt) => set({ guestModeStartedAt }),
       matchFilter: { type: "all" },
       setMatchFilter: (matchFilter) => set({ matchFilter }),
+      selectedSeries: getCurrentSeriesName(),
+      setSelectedSeries: (selectedSeries) => set({ selectedSeries }),
       profiles: [],
       setProfiles: (profiles) => set({ profiles }),
       matches: [],
@@ -69,6 +74,7 @@ export const useStore = create<AppState>()(
       // useAuthProfile will re-hydrate the user state from the authoritative Supabase session.
       partialize: (state) => ({
         matchFilter: state.matchFilter,
+        selectedSeries: state.selectedSeries,
         dismissedMatchId: state.dismissedMatchId,
         dismissedRecentMatchId: state.dismissedRecentMatchId,
         dismissedScheduledGameId: state.dismissedScheduledGameId,

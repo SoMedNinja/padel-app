@@ -282,6 +282,7 @@ const UNIQUE_BADGE_DEFINITIONS = [
   { id: "hard-times", icon: "🩹", title: "Otursprenumerant", description: "Flest förluster totalt", group: "Unika Meriter", groupOrder: 0 },
   { id: "most-generous", icon: "💝", title: "Generös", description: "Flest förlorade set totalt", group: "Unika Meriter", groupOrder: 0 },
   { id: "cold-streak-pro", icon: "❄️", title: "Isvind", description: "Längst förluststreak", group: "Unika Meriter", groupOrder: 0 },
+  { id: "series-winner", icon: "🥇", title: "Serievinnare", description: "Vinnare av en kvartalsserie", group: "Unika Meriter", groupOrder: 0 },
   { id: "padel-quiz-first-perfect", icon: "🥇", title: "Först till alla rätt", description: "Personen som nådde alla Quiz-scenarion rätt först.", group: "Padel Quiz", groupOrder: 28 },
 ];
 
@@ -801,6 +802,7 @@ export const buildPlayerBadges = (
           case "hard-times": val = s.losses; break;
           case "most-generous": val = s.totalSetsLost; break;
           case "cold-streak-pro": val = s.bestLossStreak; break;
+          case "series-winner": if (s.matchesPlayed >= 5) val = s.currentElo; break;
         }
 
         if (val > bestValueMap[def.id]) {
@@ -820,7 +822,7 @@ export const buildPlayerBadges = (
 
         if (def.id === "win-machine" || def.id === "loss-machine") {
           formattedValue = `${Math.round(val * 100)}%`;
-        } else if (def.id === "king-of-elo") {
+        } else if (def.id === "king-of-elo" || def.id === "series-winner") {
           formattedValue = `${Math.round(val)} ELO`;
         } else if (def.id === "trough-dweller") {
           formattedValue = `${10000 - Math.round(val)} ELO`;
