@@ -31,14 +31,23 @@ describe('getAuthErrorMessage', () => {
   });
 
   it('should handle non-string message properties correctly', () => {
-    // Number message
+    // Number message - should be stringified
     expect(getAuthErrorMessage({ message: 123 }, 'Fallback error')).toBe('123');
 
-    // Null message -> evaluate to empty string -> fallback
+    // Null message -> should return fallback
     expect(getAuthErrorMessage({ message: null }, 'Fallback error')).toBe('Fallback error');
 
-    // Undefined message -> evaluate to empty string -> fallback
+    // Undefined message -> should return fallback
     expect(getAuthErrorMessage({ message: undefined }, 'Fallback error')).toBe('Fallback error');
+
+    // Boolean message -> should return fallback (not "true")
+    expect(getAuthErrorMessage({ message: true }, 'Fallback error')).toBe('Fallback error');
+
+    // Object message -> should return fallback (not "[object Object]")
+    expect(getAuthErrorMessage({ message: { key: 'val' } }, 'Fallback error')).toBe('Fallback error');
+
+    // Array message -> should return fallback (not "1,2,3")
+    expect(getAuthErrorMessage({ message: [1, 2, 3] }, 'Fallback error')).toBe('Fallback error');
   });
 
   it('should return the fallback message for unknown error types', () => {
