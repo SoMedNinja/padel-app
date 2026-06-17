@@ -1,49 +1,73 @@
-# Top 10 Product Improvements
+# Top 10 Product Improvements (iOS + PWA)
 
-Ordered by size (Small, Medium, Large) with a focus on iOS and PWA alignment.
+Ordered by implementation size (**Small → Medium → Large**) with explicit focus on:
+1) iOS and PWA alignment, and
+2) cross-platform improvements that benefit both iOS and PWA users.
+
+> Note for non-coders: “alignment” means the app behaves similarly on iPhone (native app) and installed web app (PWA), so users do not need to re-learn the product when switching devices.
 
 ## Small
 
-1.  **Accessibility Alignment**
-    - **Goal**: Align PWA accessibility attributes (`aria-required`, `role="article"`) and focus management with iOS VoiceOver standards.
-    - **Key Areas**: `MatchForm` inputs, `EloLeaderboard` rows, `MatchHighlightCard`.
+1. **Permission language parity (copy + labels)**
+   - **Why:** Users currently see slightly different wording between iOS and web in permission prompts and settings.
+   - **Improvement:** Create one shared copy table for notification/install/location permission labels and helper text.
+   - **Outcome:** Fewer support questions and clearer onboarding on both platforms.
 
-2.  **Haptic Feedback & Animations**
-    - **Goal**: Achieve parity with iOS tactile feel.
-    - **Key Actions**: Implement `navigator.vibrate` consistently in `MatchForm` (stepper), `AdminPanel` (toggles), and add `framer-motion` for page transitions.
+2. **Accessibility parity checklist per screen**
+   - **Why:** VoiceOver (iOS) and screen readers (web) can diverge if focus order, labels, and hints are not aligned.
+   - **Improvement:** Add a cross-platform checklist for key routes (`Dashboard`, `Schedule`, `History`, match forms) covering labels, focus order, and dynamic announcements.
+   - **Outcome:** Better usability for assistive-tech users with minimal engineering effort.
 
-3.  **Education View Parity**
-    - **Goal**: Match the iOS `EducationView.swift` structure.
-    - **Key Actions**: Create a dedicated `EducationView` in PWA with "Glossary" and "Rules" tabs using content from `src/content/glossary.ts`.
+3. **Install/help flow simplification for iOS Safari + PWA**
+   - **Why:** iOS install requires manual “Add to Home Screen,” while Android/desktop often supports one-tap install.
+   - **Improvement:** Merge install education and permission education into one guided, step-based help sheet reused across menu/settings.
+   - **Outcome:** Higher install completion and fewer drop-offs.
+
+4. **Cross-platform feedback consistency (haptics/toasts/loading states)**
+   - **Why:** The same action can feel different between iOS and PWA.
+   - **Improvement:** Standardize success/error toast wording, loading microcopy, and haptic/vibration patterns for create/edit/delete actions.
+   - **Outcome:** More predictable user experience when users switch client.
 
 ## Medium
 
-4.  **Notification Preferences UI**
-    - **Goal**: Full implementation of `docs/notifications.md`.
-    - **Key Actions**: Add UI in `WebPermissionsPanel` for "Quiet Hours" and granular event toggles (Match, Poll, Admin).
+5. **Shared notification preference model + UI parity**
+   - **Why:** Notification controls are among the highest-friction “settings” experiences.
+   - **Improvement:** Implement matching controls for categories (match updates, polls, admin notices), quiet hours, and deep-link behavior in both clients.
+   - **Outcome:** Better re-engagement and fewer “I got too many notifications” complaints.
 
-5.  **Standalone ELO Simulator**
-    - **Goal**: "What-if" scenario tool for both platforms.
-    - **Key Actions**: Create a "Sandbox" page to calculate Win Probability and Point Exchange between any 4 players without starting a match.
+6. **Offline action center (queue visibility + retry controls)**
+   - **Why:** Users need confidence when they submit data while offline.
+   - **Improvement:** Add a visible offline queue center in PWA that mirrors native status concepts (pending/synced/conflict/needs review), with manual retry.
+   - **Outcome:** Higher trust in offline mode and fewer duplicate submissions.
 
-6.  **Animation & Transitions**
-    - **Goal**: Fluid navigation matching iOS.
-    - **Key Actions**: Use `framer-motion` for spring animations on route changes and modal appearances.
-
-7.  **Advanced Match Stats**
-    - **Goal**: Deeper performance metrics.
-    - **Key Actions**: Add optional tracking for "Winners" and "Unforced Errors" in `MatchForm` and display in `PlayerSection`.
+7. **Deep-link parity hardening (notifications, shared links, cold starts)**
+   - **Why:** Links should open the same destination whether users tap from push, messages, or browser.
+   - **Improvement:** Validate and unify routing contracts for `/schedule`, `/match/:id`, `/history`, `/notifications`, including fallback behavior when app is not installed.
+   - **Outcome:** Fewer broken navigation journeys and better campaign/share performance.
 
 ## Large
 
-8.  **Interactive Season Reports**
-    - **Goal**: "Year in Review" style feature.
-    - **Key Actions**: Build a visual, interactive report aggregating yearly stats, MVPs, and ELO trends for both platforms.
+8. **Cross-platform “Live Match” experience**
+   - **Why:** Live states are a core engagement loop but can feel fragmented across clients.
+   - **Improvement:** Build a shared live-status model (in-progress, paused, finished), real-time updates, and “resume where I left off” behavior for both iOS and PWA.
+   - **Outcome:** Stronger retention during active game windows.
 
-9.  **Live Match Dashboard**
-    - **Goal**: Real-time match status.
-    - **Key Actions**: Implement "Live" indicators on the Dashboard for matches currently in progress using real-time subscriptions.
+9. **Unified seasonal insights module (stats story across iOS + PWA)**
+   - **Why:** High-value insights (ELO trends, streaks, rivalries, milestones) are powerful but currently distributed.
+   - **Improvement:** Build one analytics surface with shared metric definitions and presentation patterns tuned per platform UI.
+   - **Outcome:** Higher recurring engagement and social sharing opportunities.
 
-10. **Offline Sync Visibility**
-    - **Goal**: robust offline experience visibility.
-    - **Key Actions**: Create a user-facing "Sync Queue" interface in PWA to show pending actions and status, matching iOS offline transparency.
+10. **Design-system convergence layer (tokens + component behavior rules)**
+   - **Why:** Visual drift reappears over time unless constrained by shared rules.
+   - **Improvement:** Expand token governance (spacing, status colors, elevation, motion intent) and publish web/iOS component behavior mapping (cards, chips, forms, tabs, empty states).
+   - **Outcome:** Faster feature delivery with consistent quality and reduced QA overhead.
+
+---
+
+## Suggested rollout order (quick execution path)
+
+- **Phase 1 (2–4 weeks):** #1–#4 (copy/accessibility/install/feedback consistency)
+- **Phase 2 (4–8 weeks):** #5–#7 (notifications/offline/deep links)
+- **Phase 3 (8+ weeks):** #8–#10 (live experience/insights/design-system convergence)
+
+> Note for non-coders: this order starts with improvements that are relatively low-risk but user-visible, then moves into larger platform and architecture work.
